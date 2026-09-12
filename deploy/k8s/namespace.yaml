@@ -1,0 +1,11 @@
+# ═══════════════════════════════════════════════════════════════════
+# AcquisitionOS — Kubernetes Namespace
+# Phase 14.4: Deployment
+# ═══════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acquisitionos
+  labels:
+    app: acquisitionos
+    environment: production

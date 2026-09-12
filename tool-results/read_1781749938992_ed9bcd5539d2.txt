@@ -1,0 +1,992 @@
+     1→'use client';
+     2→
+     3→import React, { useEffect, useState, useCallback, useRef } from 'react';
+     4→import { useAuthStore } from '@/lib/auth-store';
+     5→import { useAuth } from '@/hooks/use-auth';
+     6→import { useTokenRefresh } from '@/hooks/use-token-refresh';
+     7→import { useSubscriptionSync } from '@/hooks/use-subscription-sync';
+     8→import DashboardLayout from '@/components/dashboard/dashboard-layout';
+     9→import TrialBanner from '@/components/dashboard/trial-banner';
+    10→import CreditWarningBanner from '@/components/dashboard/credit-warning-banner';
+    11→import {
+    12→  SignInPage,
+    13→  SignUpPage,
+    14→  VerifyEmailPage,
+    15→  ForgotPasswordPage,
+    16→  ResetPasswordPage,
+    17→  MfaVerificationPage,
+    18→} from '@/components/dashboard/auth-pages-v2';
+    19→import LegalPages from '@/components/dashboard/legal-pages';
+    20→import { useLegalStore } from '@/lib/legal-store';
+    21→import { toast } from 'sonner';
+    22→import { Button } from '@/components/ui/button';
+    23→import { Input } from '@/components/ui/input';
+    24→import { Label } from '@/components/ui/label';
+    25→import { Card, CardContent } from '@/components/ui/card';
+    26→import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
+    27→import {
+    28→  Key,
+    29→  ArrowLeft,
+    30→  Mail,
+    31→  Loader2,
+    32→  AlertTriangle,
+    33→  Rocket,
+    34→  Shield,
+    35→  Globe,
+    36→  ExternalLink,
+    37→  Inbox,
+    38→} from 'lucide-react';
+    39→import { motion, AnimatePresence } from 'framer-motion';
+    40→
+    41→// ── Auth page state type ──────────────────────────────────────
+    42→type AuthPage =
+    43→  | 'signin'
+    44→  | 'signup'
+    45→  | 'verify-email'
+    46→  | 'forgot-password'
+    47→  | 'reset-password'
+    48→  | 'mfa-verify'
+    49→  | 'magic-link'
+    50→  | 'otp-login';
+    51→
+    52→// ── Loading screen ────────────────────────────────────────────
+    53→function LoadingScreen() {
+    54→  return (
+    55→    <div className="h-screen flex flex-col items-center justify-center bg-background">
+    56→      <div className="relative">
+    57→        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+    58→        <div className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+    59→          <svg className="h-8 w-8 text-primary animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    60→            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+    61→            <path d="M2 17l10 5 10-5" />
+    62→            <path d="M2 12l10 5 10-5" />
+    63→          </svg>
+    64→        </div>
+    65→      </div>
+    66→      <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">Loading AcquisitionOS...</p>
+    67→    </div>
+    68→  );
+    69→}
+    70→
+    71→// ── Shared AuthLayout (mirrors auth-pages-v2.tsx pattern) ─────
+    72→interface AuthLayoutProps {
+    73→  children: React.ReactNode;
+    74→  title: string;
+    75→  description: string;
+    76→  showBack?: boolean;
+    77→  onBack?: () => void;
+    78→}
+    79→
+    80→// ── Demo Mode Banner ──────────────────────────────────────────
+    81→function DemoModeBanner() {
+    82→  const [show, setShow] = useState(false);
+    83→
+    84→  useEffect(() => {
+    85→    // Only show demo banner in development mode
+    86→    if (process.env.NODE_ENV !== 'development') return;
+    87→    fetch('/api/auth/config')
+    88→      .then(res => res.ok ? res.json() : {})
+    89→      .then(data => {
+    90→        setShow(!!data.devMode);
+    91→      })
+    92→      .catch(() => {});
+    93→  }, []);
+    94→
+    95→  if (!show) return null;
+    96→
+    97→  return (
+    98→    <motion.div
+    99→      initial={{ opacity: 0, y: -10 }}
+   100→      animate={{ opacity: 1, y: 0 }}
+   101→      className="fixed top-0 left-0 right-0 z-50 bg-amber-500/90 text-white text-center py-1.5 text-xs font-medium backdrop-blur-sm"
+   102→    >
+   103→      <span className="mr-1">⚡ Demo Mode</span>
+   104→      <span className="opacity-80">— Email delivery is simulated. OTPs & magic links are auto-completed.</span>
+   105→    </motion.div>
+   106→  );
+   107→}
+   108→
+   109→function AuthLayout({ children, title, description, showBack, onBack }: AuthLayoutProps) {
+   110→  return (
+   111→    <div className="min-h-screen flex items-center justify-center bg-background p-4 pt-10 relative overflow-hidden">
+   112→      <DemoModeBanner />
+   113→      {/* Animated gradient background */}
+   114→      <div className="absolute inset-0 gradient-bg-animated opacity-40" />
+   115→      <div className="absolute inset-0 bg-grid opacity-20" />
+   116→      {/* Floating decorative orbs */}
+   117→      <div className="absolute top-1/4 -left-20 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-sparkle" />
+   118→      <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-primary/5 blur-3xl" style={{ animationDelay: '1s' }} />
+   119→
+   120→      <div className="relative w-full max-w-md">
+   121→        {/* Logo */}
+   122→        <motion.div
+   123→          className="text-center mb-8"
+   124→          initial={{ opacity: 0, y: -10 }}
+   125→          animate={{ opacity: 1, y: 0 }}
+   126→          transition={{ duration: 0.4, ease: 'easeOut' }}
+   127→        >
+   128→          <div className="flex items-center justify-center gap-2 mb-6">
+   129→            <div className="relative">
+   130→              <Rocket className="h-8 w-8 text-primary" />
+   131→              <div className="absolute -inset-1.5 rounded-full bg-primary/20 animate-pulse-ring" />
+   132→            </div>
+   133→            <span className="text-2xl font-bold gradient-text">AcquisitionOS</span>
+   134→          </div>
+   135→          <h1 className="text-2xl font-bold">{title}</h1>
+   136→          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+   137→        </motion.div>
+   138→
+   139→        {/* Card */}
+   140→        <motion.div
+   141→          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+   142→          animate={{ opacity: 1, y: 0, scale: 1 }}
+   143→          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+   144→        >
+   145→          {children}
+   146→        </motion.div>
+   147→
+   148→        {/* Back link */}
+   149→        <AnimatePresence>
+   150→          {showBack && onBack && (
+   151→            <motion.button
+   152→              type="button"
+   153→              onClick={onBack}
+   154→              className="flex items-center justify-center gap-1.5 w-full text-xs text-primary hover:text-primary/80 font-medium transition-colors mt-4"
+   155→              initial={{ opacity: 0 }}
+   156→              animate={{ opacity: 1 }}
+   157→              exit={{ opacity: 0 }}
+   158→            >
+   159→              <ArrowLeft className="h-3 w-3" /> Back to Sign In
+   160→            </motion.button>
+   161→          )}
+   162→        </AnimatePresence>
+   163→
+   164→        {/* Social proof & trust badges */}
+   165→        <motion.div
+   166→          className="mt-4 flex items-center justify-center gap-3"
+   167→          initial={{ opacity: 0 }}
+   168→          animate={{ opacity: 1 }}
+   169→          transition={{ delay: 0.5 }}
+   170→        >
+   171→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   172→            <Shield className="h-3 w-3 text-emerald-500" />
+   173→            <span>256-bit SSL</span>
+   174→          </div>
+   175→          <div className="h-3 w-px bg-border" />
+   176→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   177→            <div className="flex -space-x-1">
+   178→              {[0,1,2].map(i => (
+   179→                <div key={i} className="h-4 w-4 rounded-full bg-primary/20 border border-background flex items-center justify-center text-[6px] font-bold text-primary">
+   180→                  {String.fromCharCode(65 + i)}
+   181→                </div>
+   182→              ))}
+   183→            </div>
+   184→            <span>2,400+ users</span>
+   185→          </div>
+   186→          <div className="h-3 w-px bg-border" />
+   187→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   188→            <Globe className="h-3 w-3 text-primary" />
+   189→            <span>SOC 2</span>
+   190→          </div>
+   191→        </motion.div>
+   192→
+   193→        {/* Footer */}
+   194→        <div className="mt-4 text-center space-y-2">
+   195→          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 flex-wrap">
+   196→            <button
+   197→              type="button"
+   198→              onClick={() => useLegalStore.getState().openLegal('privacy')}
+   199→              className="text-primary hover:text-primary/80 underline transition-colors"
+   200→            >
+   201→              Privacy Policy
+   202→            </button>
+   203→            <span className="text-muted-foreground/50">&middot;</span>
+   204→            <button
+   205→              type="button"
+   206→              onClick={() => useLegalStore.getState().openLegal('terms')}
+   207→              className="text-primary hover:text-primary/80 underline transition-colors"
+   208→            >
+   209→              Terms of Service
+   210→            </button>
+   211→          </p>
+   212→          <p className="text-xs text-muted-foreground">
+   213→            &copy; {new Date().getFullYear()} AcquisitionOS. All rights reserved.
+   214→          </p>
+   215→        </div>
+   216→      </div>
+   217→    </div>
+   218→  );
+   219→}
+   220→
+   221→// ── Email Preview Notice (Ethereal test mode) ────────────────
+   222→// When the API response includes an `emailPreviewUrl`, the email was
+   223→// delivered via Ethereal Email (a REAL SMTP test service). The user can open
+   224→// the preview URL in a new tab to view the actual email — including the
+   225→// magic link button or the OTP code — and then act on it.
+   226→function EmailPreviewNotice({
+   227→  previewUrl,
+   228→  provider,
+   229→  message,
+   230→}: {
+   231→  previewUrl?: string;
+   232→  provider?: string;
+   233→  message?: string;
+   234→}) {
+   235→  if (!previewUrl) return null;
+   236→  const isEthereal = provider === 'ethereal';
+   237→  return (
+   238→    <motion.div
+   239→      initial={{ opacity: 0, y: -6, height: 0 }}
+   240→      animate={{ opacity: 1, y: 0, height: 'auto' }}
+   241→      exit={{ opacity: 0, y: -6, height: 0 }}
+   242→      className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm overflow-hidden"
+   243→      role="status"
+   244→    >
+   245→      <div className="flex items-start gap-2">
+   246→        <Inbox className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+   247→        <div className="flex-1 min-w-0">
+   248→          <p className="font-medium text-foreground">
+   249→            {isEthereal ? 'Test Mode: Email sent to Ethereal preview inbox' : 'Email sent'}
+   250→          </p>
+   251→          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+   252→            {message ||
+   253→              (isEthereal
+   254→                ? 'Click below to open the email preview in a new tab. The email contains your sign-in link / code — act on it from there.'
+   255→                : 'Click below to view the email that was just sent.')}
+   256→          </p>
+   257→          <a
+   258→            href={previewUrl}
+   259→            target="_blank"
+   260→            rel="noopener noreferrer"
+   261→            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+   262→          >
+   263→            <ExternalLink className="h-3.5 w-3.5" />
+   264→            View Email Preview
+   265→          </a>
+   266→        </div>
+   267→      </div>
+   268→    </motion.div>
+   269→  );
+   270→}
+   271→
+   272→// ── OTP Login page ────────────────────────────────────────────
+   273→function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
+   274→  const [email, setEmail] = useState('');
+   275→  const [otp, setOtp] = useState('');
+   276→  const [step, setStep] = useState<'request' | 'verify'>('request');
+   277→  const [loading, setLoading] = useState(false);
+   278→  const [error, setError] = useState('');
+   279→  const [resendCooldown, setResendCooldown] = useState(0);
+   280→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+   281→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+   282→  const cooldownRef = useRef<ReturnType<typeof setInterval>>();
+   283→
+   284→  // Cooldown timer for resend
+   285→  useEffect(() => {
+   286→    if (resendCooldown <= 0) return;
+   287→    cooldownRef.current = setInterval(() => {
+   288→      setResendCooldown((prev) => {
+   289→        if (prev <= 1) {
+   290→          clearInterval(cooldownRef.current);
+   291→          return 0;
+   292→        }
+   293→        return prev - 1;
+   294→      });
+   295→    }, 1000);
+   296→    return () => clearInterval(cooldownRef.current);
+   297→  }, [resendCooldown]);
+   298→
+   299→  const handleRequestOtp = useCallback(
+   300→    async (e: React.FormEvent) => {
+   301→      e.preventDefault();
+   302→      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+   303→        setError('Enter a valid email address');
+   304→        return;
+   305→      }
+   306→      setError('');
+   307→      setLoading(true);
+   308→      try {
+   309→        const res = await fetch('/api/auth/otp/request', {
+   310→          method: 'POST',
+   311→          headers: { 'Content-Type': 'application/json' },
+   312→          body: JSON.stringify({ email }),
+   313→        });
+   314→        const data = await res.json();
+   315→        if (res.ok) {
+   316→          setStep('verify');
+   317→          setResendCooldown(60);
+   318→          // Surface the Ethereal preview URL so the user can open the email
+   319→          // and read the OTP. If no preview URL is returned (real SMTP /
+   320→          // Resend), the user must check their actual inbox.
+   321→          setEmailPreviewUrl(data.emailPreviewUrl);
+   322→          setEmailProvider(data.emailProvider);
+   323→          toast.success('If an account exists for this email, you will receive a sign-in code.');
+   324→        } else {
+   325→          setError(data.error || 'Failed to send OTP');
+   326→          toast.error(data.error || 'Failed to send OTP');
+   327→        }
+   328→      } catch {
+   329→        setError('Network error. Please try again.');
+   330→      } finally {
+   331→        setLoading(false);
+   332→      }
+   333→    },
+   334→    [email]
+   335→  );
+   336→
+   337→  const handleVerifyOtp = useCallback(async () => {
+   338→    if (otp.length !== 6) {
+   339→      setError('Enter the 6-digit code');
+   340→      return;
+   341→    }
+   342→    setError('');
+   343→    setLoading(true);
+   344→    try {
+   345→      const res = await fetch('/api/auth/otp/verify', {
+   346→        method: 'POST',
+   347→        headers: { 'Content-Type': 'application/json' },
+   348→        credentials: 'include',
+   349→        body: JSON.stringify({ email, otp }),
+   350→      });
+   351→      const data = await res.json();
+   352→      if (res.ok) {
+   353→        toast.success('Welcome back!');
+   354→        // Auth cookies are set by the API, refresh auth state
+   355→        window.location.reload();
+   356→      } else {
+   357→        setError(data.error || 'Invalid OTP');
+   358→        toast.error(data.error || 'Verification failed');
+   359→      }
+   360→    } catch {
+   361→      setError('Network error. Please try again.');
+   362→    } finally {
+   363→      setLoading(false);
+   364→    }
+   365→  }, [email, otp]);
+   366→
+   367→  return (
+   368→    <AuthLayout
+   369→      title="Sign in with OTP"
+   370→      description={step === 'request' ? 'Enter your email to receive a login code' : `Enter the 6-digit code sent to ${email}`}
+   371→      showBack
+   372→      onBack={onBackToSignIn}
+   373→    >
+   374→      <Card className="glass-card">
+   375→        <CardContent className="pt-6 space-y-4">
+   376→          <AnimatePresence mode="wait">
+   377→            {error && (
+   378→              <motion.div
+   379→                initial={{ opacity: 0, y: -6, height: 0 }}
+   380→                animate={{ opacity: 1, y: 0, height: 'auto' }}
+   381→                exit={{ opacity: 0, y: -6, height: 0 }}
+   382→                className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive overflow-hidden"
+   383→                role="alert"
+   384→              >
+   385→                <div className="flex items-center gap-2">
+   386→                  <AlertTriangle className="h-4 w-4 shrink-0" />
+   387→                  {error}
+   388→                </div>
+   389→              </motion.div>
+   390→            )}
+   391→          </AnimatePresence>
+   392→
+   393→          <AnimatePresence mode="wait">
+   394→            {step === 'request' ? (
+   395→              <motion.form
+   396→                key="request"
+   397→                onSubmit={handleRequestOtp}
+   398→                className="space-y-4"
+   399→                noValidate
+   400→                initial={{ opacity: 0, x: -20 }}
+   401→                animate={{ opacity: 1, x: 0 }}
+   402→                exit={{ opacity: 0, x: 20 }}
+   403→                transition={{ duration: 0.2 }}
+   404→              >
+   405→                <div className="space-y-2">
+   406→                  <Label htmlFor="otp-email" className="text-xs font-medium">
+   407→                    Email
+   408→                  </Label>
+   409→                  <div className="relative">
+   410→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   411→                    <Input
+   412→                      id="otp-email"
+   413→                      type="email"
+   414→                      placeholder="you@example.com"
+   415→                      className="pl-9 h-10 border-0 bg-muted/50 focus-visible:bg-background transition-colors"
+   416→                      value={email}
+   417→                      onChange={(e) => { setEmail(e.target.value); if (error) setError(''); }}
+   418→                      aria-invalid={!!error}
+   419→                      autoComplete="email"
+   420→                    />
+   421→                  </div>
+   422→                </div>
+   423→                <Button
+   424→                  type="submit"
+   425→                  disabled={loading}
+   426→                  className="w-full h-10 btn-ripple"
+   427→                >
+   428→                  {loading ? (
+   429→                    <>
+   430→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   431→                      Sending...
+   432→                    </>
+   433→                  ) : (
+   434→                    <>
+   435→                      <Key className="mr-2 h-4 w-4" />
+   436→                      Send Login Code
+   437→                    </>
+   438→                  )}
+   439→                </Button>
+   440→              </motion.form>
+   441→            ) : (
+   442→              <motion.div
+   443→                key="verify"
+   444→                className="space-y-4"
+   445→                initial={{ opacity: 0, x: 20 }}
+   446→                animate={{ opacity: 1, x: 0 }}
+   447→                exit={{ opacity: 0, x: -20 }}
+   448→                transition={{ duration: 0.2 }}
+   449→              >
+   450→                <EmailPreviewNotice
+   451→                  previewUrl={emailPreviewUrl}
+   452→                  provider={emailProvider}
+   453→                  message="Click below to open the email preview and read the 6-digit login code, then enter it here."
+   454→                />
+   455→                <div className="flex flex-col items-center gap-2">
+   456→                  <Label className="text-xs font-medium text-muted-foreground">Verification Code</Label>
+   457→                  <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+   458→                    <InputOTPGroup>
+   459→                      <InputOTPSlot index={0} className="h-12 w-12 text-lg" />
+   460→                      <InputOTPSlot index={1} className="h-12 w-12 text-lg" />
+   461→                      <InputOTPSlot index={2} className="h-12 w-12 text-lg" />
+   462→                    </InputOTPGroup>
+   463→                    <InputOTPSeparator />
+   464→                    <InputOTPGroup>
+   465→                      <InputOTPSlot index={3} className="h-12 w-12 text-lg" />
+   466→                      <InputOTPSlot index={4} className="h-12 w-12 text-lg" />
+   467→                      <InputOTPSlot index={5} className="h-12 w-12 text-lg" />
+   468→                    </InputOTPGroup>
+   469→                  </InputOTP>
+   470→                </div>
+   471→                <Button
+   472→                  type="button"
+   473→                  disabled={loading || otp.length !== 6}
+   474→                  onClick={handleVerifyOtp}
+   475→                  className="w-full h-10 btn-ripple"
+   476→                >
+   477→                  {loading ? (
+   478→                    <>
+   479→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   480→                      Verifying...
+   481→                    </>
+   482→                  ) : (
+   483→                    'Verify & Sign In'
+   484→                  )}
+   485→                </Button>
+   486→                {resendCooldown > 0 ? (
+   487→                  <p className="text-xs text-center text-muted-foreground">
+   488→                    Resend in <span className="font-mono text-primary">{resendCooldown}s</span>
+   489→                  </p>
+   490→                ) : (
+   491→                  <button
+   492→                    type="button"
+   493→                    onClick={() => { handleRequestOtp({ preventDefault: () => {} } as React.FormEvent); }}
+   494→                    className="text-xs text-center text-primary hover:text-primary/80 font-medium transition-colors w-full"
+   495→                  >
+   496→                    Resend code
+   497→                  </button>
+   498→                )}
+   499→              </motion.div>
+   500→            )}
+   501→          </AnimatePresence>
+   502→        </CardContent>
+   503→      </Card>
+   504→    </AuthLayout>
+   505→  );
+   506→}
+   507→
+   508→// ── Magic Link page ───────────────────────────────────────────
+   509→function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
+   510→  const [email, setEmail] = useState('');
+   511→  const [sent, setSent] = useState(false);
+   512→  const [loading, setLoading] = useState(false);
+   513→  const [error, setError] = useState('');
+   514→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+   515→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+   516→
+   517→  const handleSendMagicLink = useCallback(
+   518→    async (e: React.FormEvent) => {
+   519→      e.preventDefault();
+   520→      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+   521→        setError('Enter a valid email address');
+   522→        return;
+   523→      }
+   524→      setError('');
+   525→      setLoading(true);
+   526→      try {
+   527→        const res = await fetch('/api/auth/magic-link/request', {
+   528→          method: 'POST',
+   529→          headers: { 'Content-Type': 'application/json' },
+   530→          body: JSON.stringify({ email }),
+   531→        });
+   532→        if (res.ok) {
+   533→          const data = await res.json();
+   534→          // The token is NEVER returned in the response — the user must click
+   535→          // the link from the actual email. In Ethereal (test) mode we surface
+   536→          // a preview URL so they can open the email in a browser.
+   537→          setEmailPreviewUrl(data.emailPreviewUrl);
+   538→          setEmailProvider(data.emailProvider);
+   539→          setSent(true);
+   540→          toast.success('If an account exists for this email, you will receive a sign-in link.');
+   541→        } else {
+   542→          const data = await res.json();
+   543→          setError(data.error || 'Failed to send magic link');
+   544→          toast.error(data.error || 'Failed to send magic link');
+   545→        }
+   546→      } catch {
+   547→        setError('Network error. Please try again.');
+   548→        toast.error('Network error');
+   549→      } finally {
+   550→        setLoading(false);
+   551→      }
+   552→    },
+   553→    [email]
+   554→  );
+   555→
+   556→  return (
+   557→    <AuthLayout
+   558→      title="Sign in with Magic Link"
+   559→      description="We'll email you a link to sign in"
+   560→      showBack
+   561→      onBack={onBackToSignIn}
+   562→    >
+   563→      <Card className="glass-card">
+   564→        <CardContent className="pt-6 space-y-4">
+   565→          <AnimatePresence mode="wait">
+   566→            {sent ? (
+   567→              <motion.div
+   568→                key="sent"
+   569→                className="text-center space-y-3 py-4"
+   570→                initial={{ opacity: 0, scale: 0.95 }}
+   571→                animate={{ opacity: 1, scale: 1 }}
+   572→                transition={{ duration: 0.3 }}
+   573→              >
+   574→                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+   575→                  <Mail className="h-8 w-8 text-primary" />
+   576→                </div>
+   577→                <p className="text-sm text-muted-foreground">
+   578→                  Check your inbox at{' '}
+   579→                  <span className="font-medium text-foreground">{email}</span>
+   580→                </p>
+   581→                <p className="text-xs text-muted-foreground">
+   582→                  Click the link in the email to sign in automatically.
+   583→                </p>
+   584→                <EmailPreviewNotice
+   585→                  previewUrl={emailPreviewUrl}
+   586→                  provider={emailProvider}
+   587→                  message="Click below to open the email preview in a new tab, then click the sign-in button inside the email."
+   588→                />
+   589→              </motion.div>
+   590→            ) : (
+   591→              <motion.form
+   592→                key="form"
+   593→                onSubmit={handleSendMagicLink}
+   594→                className="space-y-4"
+   595→                noValidate
+   596→                initial={{ opacity: 0 }}
+   597→                animate={{ opacity: 1 }}
+   598→                transition={{ duration: 0.2 }}
+   599→              >
+   600→                <AnimatePresence mode="wait">
+   601→                  {error && (
+   602→                    <motion.div
+   603→                      initial={{ opacity: 0, y: -6, height: 0 }}
+   604→                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+   605→                      exit={{ opacity: 0, y: -6, height: 0 }}
+   606→                      className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive overflow-hidden"
+   607→                      role="alert"
+   608→                    >
+   609→                      <div className="flex items-center gap-2">
+   610→                        <AlertTriangle className="h-4 w-4 shrink-0" />
+   611→                        {error}
+   612→                      </div>
+   613→                    </motion.div>
+   614→                  )}
+   615→                </AnimatePresence>
+   616→
+   617→                <div className="space-y-2">
+   618→                  <Label htmlFor="magic-email" className="text-xs font-medium">
+   619→                    Email
+   620→                  </Label>
+   621→                  <div className="relative">
+   622→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   623→                    <Input
+   624→                      id="magic-email"
+   625→                      type="email"
+   626→                      placeholder="you@example.com"
+   627→                      className="pl-9 h-10 border-0 bg-muted/50 focus-visible:bg-background transition-colors"
+   628→                      value={email}
+   629→                      onChange={(e) => {
+   630→                        setEmail(e.target.value);
+   631→                        if (error) setError('');
+   632→                      }}
+   633→                      aria-invalid={!!error}
+   634→                      autoComplete="email"
+   635→                    />
+   636→                  </div>
+   637→                </div>
+   638→                <Button
+   639→                  type="submit"
+   640→                  disabled={loading}
+   641→                  className="w-full h-10 btn-ripple"
+   642→                >
+   643→                  {loading ? (
+   644→                    <>
+   645→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   646→                      Sending...
+   647→                    </>
+   648→                  ) : (
+   649→                    <>
+   650→                      <Mail className="mr-2 h-4 w-4" />
+   651→                      Send Magic Link
+   652→                    </>
+   653→                  )}
+   654→                </Button>
+   655→              </motion.form>
+   656→            )}
+   657→          </AnimatePresence>
+   658→        </CardContent>
+   659→      </Card>
+   660→    </AuthLayout>
+   661→  );
+   662→}
+   663→
+   664→// ══════════════════════════════════════════════════════════════
+   665→// Authenticated Wrapper — Syncs subscription + shows banners
+   666→// ══════════════════════════════════════════════════════════════
+   667→function AuthenticatedWrapper({
+   668→  upgradeModalOpen,
+   669→  setUpgradeModalOpen,
+   670→  creditWarningDismissed,
+   671→  setCreditWarningDismissed,
+   672→}: {
+   673→  upgradeModalOpen: boolean;
+   674→  setUpgradeModalOpen: (open: boolean) => void;
+   675→  creditWarningDismissed: boolean;
+   676→  setCreditWarningDismissed: (dismissed: boolean) => void;
+   677→}) {
+   678→  // Sync subscription data from backend to Zustand store
+   679→  useSubscriptionSync();
+   680→
+   681→  return (
+   682→    <div className="h-screen flex flex-col bg-background overflow-hidden">
+   683→      {/* Trial Banner (top of authenticated section) */}
+   684→      <TrialBanner onUpgradeClick={() => setUpgradeModalOpen(true)} />
+   685→
+   686→      {/* Credit Warning Banner (below trial banner) */}
+   687→      {!creditWarningDismissed && (
+   688→        <CreditWarningBanner
+   689→          onUpgradeClick={() => setUpgradeModalOpen(true)}
+   690→          onDismiss={() => setCreditWarningDismissed(true)}
+   691→        />
+   692→      )}
+   693→
+   694→      {/* Dashboard Layout fills remaining space */}
+   695→      <div className="flex-1 min-h-0">
+   696→        <DashboardLayout
+   697→          externalUpgradeModalOpen={upgradeModalOpen}
+   698→          onExternalUpgradeModalChange={setUpgradeModalOpen}
+   699→        />
+   700→      </div>
+   701→    </div>
+   702→  );
+   703→}
+   704→
+   705→// ══════════════════════════════════════════════════════════════
+   706→// Main AuthGate component
+   707→// ══════════════════════════════════════════════════════════════
+   708→export default function AuthGate() {
+   709→  const { isAuthenticated, isLoading, mfaRequired, setUser, setLoading } = useAuthStore();
+   710→  const { signIn } = useAuth();
+   711→
+   712→  // ── Auth page navigation state ───────────────────────────────
+   713→  const [authPage, setAuthPage] = useState<AuthPage>('signin');
+   714→  const [flowEmail, setFlowEmail] = useState('');
+   715→  const [initialized, setInitialized] = useState(false);
+   716→
+   717→  // ── Subscription banner state (authenticated only) ──────────
+   718→  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+   719→  const [creditWarningDismissed, setCreditWarningDismissed] = useState(false);
+   720→
+   721→  // ── Auto token refresh when authenticated ────────────────────
+   722→  useTokenRefresh();
+   723→
+   724→  // ── Initialize: check auth state on mount ────────────────────
+   725→  useEffect(() => {
+   726→    const init = async () => {
+   727→      // Check for OAuth error redirect
+   728→      const params = new URLSearchParams(window.location.search);
+   729→      const authError = params.get('auth_error');
+   730→      if (authError === 'google_failed') {
+   731→        toast.error('Google login failed. Please try again or use email/password.');
+   732→        window.history.replaceState({}, '', window.location.pathname);
+   733→      }
+   734→
+   735→      // Check for payment success/cancel redirect from Stripe
+   736→      const paymentStatus = params.get('payment');
+   737→      if (paymentStatus === 'success') {
+   738→        const plan = params.get('plan');
+   739→        const orderId = params.get('orderId');
+   740→        if (orderId) {
+   741→          // Confirm payment with backend (dev mode only — production uses webhooks)
+   742→          try {
+   743→            await fetch('/api/payments/confirm', {
+   744→              method: 'POST',
+   745→              headers: { 'Content-Type': 'application/json' },
+   746→              credentials: 'include',
+   747→              body: JSON.stringify({ orderId, providerPaymentId: `stripe_checkout_${Date.now()}` }),
+   748→            });
+   749→            toast.success(`Successfully upgraded to ${plan || 'selected'} plan!`);
+   750→          } catch {
+   751→            toast.info('Payment received. Your plan will be updated shortly.');
+   752→          }
+   753→        } else {
+   754→          toast.success('Payment successful! Your plan will be updated shortly.');
+   755→        }
+   756→        window.history.replaceState({}, '', window.location.pathname);
+   757→      } else if (paymentStatus === 'cancelled') {
+   758→        toast.info('Payment was cancelled.');
+   759→        window.history.replaceState({}, '', window.location.pathname);
+   760→      }
+   761→
+   762→      try {
+   763→        const res = await fetch('/api/auth/me', { credentials: 'include' });
+   764→        if (res.ok) {
+   765→          const data = await res.json();
+   766→          setUser(data.user);
+   767→        } else {
+   768→          setUser(null);
+   769→        }
+   770→      } catch {
+   771→        setUser(null);
+   772→      } finally {
+   773→        setInitialized(true);
+   774→      }
+   775→    };
+   776→    init();
+   777→  }, [setUser]);
+   778→
+   779→  // ── Auto-switch to MFA page when mfaRequired becomes true ───
+   780→  useEffect(() => {
+   781→    if (mfaRequired && authPage !== 'mfa-verify') {
+   782→      setAuthPage('mfa-verify');
+   783→    }
+   784→  }, [mfaRequired, authPage]);
+   785→
+   786→  // ── Navigation handlers ──────────────────────────────────────
+   787→  const navigateToSignIn = useCallback(() => {
+   788→    setAuthPage('signin');
+   789→    setFlowEmail('');
+   790→  }, []);
+   791→
+   792→  const navigateToSignUp = useCallback(() => {
+   793→    setAuthPage('signup');
+   794→  }, []);
+   795→
+   796→  const navigateToForgotPassword = useCallback(() => {
+   797→    setAuthPage('forgot-password');
+   798→  }, []);
+   799→
+   800→  const navigateToVerifyEmail = useCallback((email: string) => {
+   801→    setFlowEmail(email);
+   802→    setAuthPage('verify-email');
+   803→  }, []);
+   804→
+   805→  const [resetEmailPreviewUrl, setResetEmailPreviewUrl] = useState<string | undefined>();
+   806→  const [resetEmailProvider, setResetEmailProvider] = useState<string | undefined>();
+   807→
+   808→  const navigateToResetPassword = useCallback(
+   809→    (email: string, emailPreviewUrl?: string, emailProvider?: string) => {
+   810→      setFlowEmail(email);
+   811→      setResetEmailPreviewUrl(emailPreviewUrl);
+   812→      setResetEmailProvider(emailProvider);
+   813→      setAuthPage('reset-password');
+   814→    },
+   815→    []
+   816→  );
+   817→
+   818→  const navigateToMagicLink = useCallback(() => {
+   819→    setAuthPage('magic-link');
+   820→  }, []);
+   821→
+   822→  const navigateToOtpLogin = useCallback(() => {
+   823→    setAuthPage('otp-login');
+   824→  }, []);
+   825→
+   826→  // ── Sign in success handler ──────────────────────────────────
+   827→  const handleSignInSuccess = useCallback(() => {
+   828→    // The signIn in useAuth already sets the user in the store.
+   829→    // If MFA was required, the mfaRequired effect above will switch to the MFA page.
+   830→    // If no MFA, the user is set and isAuthenticated becomes true, showing the dashboard.
+   831→  }, []);
+   832→
+   833→  // ── Email verified handler: auto-sign-in after verification ──
+   834→  const handleEmailVerified = useCallback(async () => {
+   835→    if (flowEmail) {
+   836→      toast.info('Signing you in...');
+   837→      // After email verification, attempt auto sign-in
+   838→      // The user needs to have set a password during signup, so we prompt them to sign in
+   839→      setAuthPage('signin');
+   840→      toast.success('Email verified! Please sign in with your credentials.');
+   841→    } else {
+   842→      navigateToSignIn();
+   843→    }
+   844→  }, [flowEmail, navigateToSignIn]);
+   845→
+   846→  // ── Password reset success handler ───────────────────────────
+   847→  const handleResetPasswordSuccess = useCallback(() => {
+   848→    toast.success('Password reset! Please sign in with your new password.');
+   849→    navigateToSignIn();
+   850→  }, [navigateToSignIn]);
+   851→
+   852→  // ── MFA verification success handler ─────────────────────────
+   853→  const handleMfaSuccess = useCallback(() => {
+   854→    // The verifyMfa in useAuth already sets the user in the store
+   855→    // isAuthenticated will become true and the dashboard will show
+   856→    toast.success('Welcome back!');
+   857→  }, []);
+   858→
+   859→  // ── Legal pages dialog (available everywhere) ────────────────
+   860→  const legalDialog = <LegalPages />;
+   861→
+   862→  // ── Loading state while checking auth ────────────────────────
+   863→  if (!initialized || isLoading) {
+   864→    return (
+   865→      <>
+   866→        {legalDialog}
+   867→        <LoadingScreen />
+   868→      </>
+   869→    );
+   870→  }
+   871→
+   872→  // ── Authenticated: show dashboard ────────────────────────────
+   873→  if (isAuthenticated && !mfaRequired) {
+   874→    return (
+   875→      <>
+   876→        {legalDialog}
+   877→        <AuthenticatedWrapper
+   878→          upgradeModalOpen={upgradeModalOpen}
+   879→          setUpgradeModalOpen={setUpgradeModalOpen}
+   880→          creditWarningDismissed={creditWarningDismissed}
+   881→          setCreditWarningDismissed={setCreditWarningDismissed}
+   882→        />
+   883→      </>
+   884→    );
+   885→  }
+   886→
+   887→  // ── Unauthenticated: show auth pages ─────────────────────────
+   888→  switch (authPage) {
+   889→    case 'signin':
+   890→      return (
+   891→        <>
+   892→          {legalDialog}
+   893→          <SignInPage
+   894→            onSignUpClick={navigateToSignUp}
+   895→            onForgotPasswordClick={navigateToForgotPassword}
+   896→            onSuccess={handleSignInSuccess}
+   897→            onMagicLinkClick={navigateToMagicLink}
+   898→            onOtpLoginClick={navigateToOtpLogin}
+   899→          />
+   900→        </>
+   901→      );
+   902→
+   903→    case 'signup':
+   904→      return (
+   905→        <>
+   906→          {legalDialog}
+   907→          <SignUpPage
+   908→            onSignInClick={navigateToSignIn}
+   909→            onVerifyEmail={navigateToVerifyEmail}
+   910→          />
+   911→        </>
+   912→      );
+   913→
+   914→    case 'verify-email':
+   915→      return (
+   916→        <>
+   917→          {legalDialog}
+   918→          <VerifyEmailPage
+   919→            email={flowEmail}
+   920→            onVerified={handleEmailVerified}
+   921→            onBackToSignIn={navigateToSignIn}
+   922→          />
+   923→        </>
+   924→      );
+   925→
+   926→    case 'forgot-password':
+   927→      return (
+   928→        <>
+   929→          {legalDialog}
+   930→          <ForgotPasswordPage
+   931→            onBackToSignIn={navigateToSignIn}
+   932→            onOtpSent={navigateToResetPassword}
+   933→          />
+   934→        </>
+   935→      );
+   936→
+   937→    case 'reset-password':
+   938→      return (
+   939→        <>
+   940→          {legalDialog}
+   941→          <ResetPasswordPage
+   942→            email={flowEmail}
+   943→            onSuccess={handleResetPasswordSuccess}
+   944→            initialEmailPreviewUrl={resetEmailPreviewUrl}
+   945→            initialEmailProvider={resetEmailProvider}
+   946→          />
+   947→        </>
+   948→      );
+   949→
+   950→    case 'mfa-verify':
+   951→      return (
+   952→        <>
+   953→          {legalDialog}
+   954→          <MfaVerificationPage
+   955→            onSuccess={handleMfaSuccess}
+   956→            onBack={navigateToSignIn}
+   957→          />
+   958→        </>
+   959→      );
+   960→
+   961→    case 'otp-login':
+   962→      return (
+   963→        <>
+   964→          {legalDialog}
+   965→          <OtpLoginPage onBackToSignIn={navigateToSignIn} />
+   966→        </>
+   967→      );
+   968→
+   969→    case 'magic-link':
+   970→      return (
+   971→        <>
+   972→          {legalDialog}
+   973→          <MagicLinkPage onBackToSignIn={navigateToSignIn} />
+   974→        </>
+   975→      );
+   976→
+   977→    default:
+   978→      return (
+   979→        <>
+   980→          {legalDialog}
+   981→          <SignInPage
+   982→            onSignUpClick={navigateToSignUp}
+   983→            onForgotPasswordClick={navigateToForgotPassword}
+   984→            onSuccess={handleSignInSuccess}
+   985→            onMagicLinkClick={navigateToMagicLink}
+   986→            onOtpLoginClick={navigateToOtpLogin}
+   987→          />
+   988→        </>
+   989→      );
+   990→  }
+   991→}
+   992→

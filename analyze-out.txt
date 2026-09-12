@@ -1,0 +1,63 @@
+TOTAL UNIQUE ERRORS: 765
+
+=== MISSING PRISMA MODELS (db.<model>) — top 30 ===
+
+missing-model error count: 0
+
+=== MISSING FIELDS BY TARGET TYPE — top 30 ===
+  68  
+  57  never
+  16  LoggerOptions
+  14  (Without<WhatsappConfigUpdateInput, WhatsappConfigUncheckedU
+  12  InvoiceEntry
+  12  Invoice
+   5  (Without<TelegramConfigUpdateInput, TelegramConfigUncheckedU
+   4  Response<Subscription>
+   4  typeof import("/home/z/my-project/src/lib/auth")
+   3  ReplyAnalysis
+   3  OrchestrationResult
+   3  typeof import("/home/z/my-project/node_modules/z-ai-web-dev-
+   2  Response<Session>
+   2  (Without<AcquisitionCampaignCreateInput, AcquisitionCampaign
+   2  (Without<CompetitorDataUpdateInput, CompetitorDataUncheckedU
+   2  (Without<CompetitorAnalysisUpdateInput, CompetitorAnalysisUn
+   2  DealSelect<DefaultArgs>
+   2  SubscriptionState
+   2  DashboardStats
+   2  Subscription
+   1  Without<DiscoveryJobCreateInput, DiscoveryJobUncheckedCreate
+   1  UserSelect<DefaultArgs>
+   1  Lead
+   1  BenchmarkInput
+   1  (Without<CompetitorDataCreateInput, CompetitorDataUncheckedC
+   1  DeductCreditsParams
+   1  typeof import("/home/z/my-project/src/lib/feature-flags")
+   1  LeadDefaultArgs<DefaultArgs>
+   1  SubscriptionUpdate
+   1  SessionResource
+
+missing-field error count: 232
+
+=== OTHER ERROR CODES ===
+ 138  TS2322
+ 101  TS2345
+  44  TS2304
+  36  TS2305
+  29  TS2540
+  28  TS18047
+  24  TS18046
+  22  TS2554
+  21  TS2352
+  17  TS2344
+  16  TS2741
+  10  TS2307
+   8  TS2367
+   4  TS18048
+   3  TS2538
+   3  TS1016
+   3  TS2559
+   3  TS2724
+   3  TS2769
+   3  TS2349
+
+saved -> tsc-all.json

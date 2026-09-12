@@ -1,0 +1,2002 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useCallback, useEffect, useRef } from 'react';
+     4→import { useAuth } from '@/hooks/use-auth';
+     5→import { Button } from '@/components/ui/button';
+     6→import { Input } from '@/components/ui/input';
+     7→import { Label } from '@/components/ui/label';
+     8→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+     9→import { Separator } from '@/components/ui/separator';
+    10→import { Checkbox } from '@/components/ui/checkbox';
+    11→import { Progress } from '@/components/ui/progress';
+    12→import { Switch } from '@/components/ui/switch';
+    13→import { Badge } from '@/components/ui/badge';
+    14→import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
+    15→import { toast } from 'sonner';
+    16→import { cn } from '@/lib/utils';
+    17→import {
+    18→  Rocket,
+    19→  ArrowLeft,
+    20→  Mail,
+    21→  Lock,
+    22→  User,
+    23→  Eye,
+    24→  EyeOff,
+    25→  Loader2,
+    26→  Check,
+    27→  X,
+    28→  Shield,
+    29→  Smartphone,
+    30→  Monitor,
+    31→  Globe,
+    32→  Copy,
+    33→  Download,
+    34→  AlertTriangle,
+    35→  QrCode,
+    36→  Key,
+    37→  Trash2,
+    38→  ExternalLink,
+    39→  Inbox,
+    40→} from 'lucide-react';
+    41→import { useLegalStore } from '@/lib/legal-store';
+    42→import { motion, AnimatePresence } from 'framer-motion';
+    43→
+    44→// ============================================================
+    45→// SHARED UTILITIES
+    46→// ============================================================
+    47→
+    48→/** Password strength calculator */
+    49→function getPasswordStrength(password: string): {
+    50→  score: number; // 0–4
+    51→  label: string;
+    52→  color: string;
+    53→} {
+    54→  if (!password) return { score: 0, label: '', color: '' };
+    55→
+    56→  let score = 0;
+    57→  if (password.length >= 8) score++;
+    58→  if (password.length >= 12) score++;
+    59→  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+    60→  if (/\d/.test(password)) score++;
+    61→  if (/[^A-Za-z0-9]/.test(password)) score++;
+    62→
+    63→  // Normalize to 0–4
+    64→  score = Math.min(4, score);
+    65→
+    66→  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+    67→  const colors = [
+    68→    '',
+    69→    'oklch(0.6 0.25 15)',   // red
+    70→    'oklch(0.75 0.18 55)',  // amber
+    71→    'oklch(0.85 0.18 90)',  // yellow-green
+    72→    'oklch(0.72 0.19 155)', // green
+    73→  ];
+    74→
+    75→  return { score, label: labels[score], color: colors[score] };
+    76→}
+    77→
+    78→/** Email validation */
+    79→function isValidEmail(email: string): boolean {
+    80→  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    81→}
+    82→
+    83→// ============================================================
+    84→// EMAIL PREVIEW NOTICE (Ethereal test mode)
+    85→// ============================================================
+    86→
+    87→/**
+    88→ * When the API response includes an `emailPreviewUrl`, the email was
+    89→ * delivered via Ethereal Email (a REAL SMTP test service operated by the
+    90→ * Nodemailer team). The user can open the preview URL in a new tab to view
+    91→ * the actual rendered email — including the OTP code or the magic link
+    92→ * button — and then act on it.
+    93→ *
+    94→ * This is shared across SignUpPage, VerifyEmailPage, ForgotPasswordPage, and
+    95→ * ResetPasswordPage so the UX is consistent for every flow that sends email.
+    96→ */
+    97→function EmailPreviewNotice({
+    98→  previewUrl,
+    99→  provider,
+   100→  message,
+   101→}: {
+   102→  previewUrl?: string;
+   103→  provider?: string;
+   104→  message?: string;
+   105→}) {
+   106→  if (!previewUrl) return null;
+   107→  const isEthereal = provider === 'ethereal';
+   108→  return (
+   109→    <motion.div
+   110→      initial={{ opacity: 0, y: -6, height: 0 }}
+   111→      animate={{ opacity: 1, y: 0, height: 'auto' }}
+   112→      exit={{ opacity: 0, y: -6, height: 0 }}
+   113→      className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm overflow-hidden"
+   114→      role="status"
+   115→    >
+   116→      <div className="flex items-start gap-2">
+   117→        <Inbox className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+   118→        <div className="flex-1 min-w-0">
+   119→          <p className="font-medium text-foreground">
+   120→            {isEthereal ? 'Test Mode: Email sent to Ethereal preview inbox' : 'Email sent'}
+   121→          </p>
+   122→          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+   123→            {message ||
+   124→              (isEthereal
+   125→                ? 'Click below to open the email preview in a new tab. The email contains your verification code — copy it from there.'
+   126→                : 'Click below to view the email that was just sent.')}
+   127→          </p>
+   128→          <a
+   129→            href={previewUrl}
+   130→            target="_blank"
+   131→            rel="noopener noreferrer"
+   132→            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+   133→          >
+   134→            <ExternalLink className="h-3.5 w-3.5" />
+   135→            View Email Preview
+   136→          </a>
+   137→        </div>
+   138→      </div>
+   139→    </motion.div>
+   140→  );
+   141→}
+   142→
+   143→// ============================================================
+   144→// AUTH LAYOUT WRAPPER
+   145→// ============================================================
+   146→
+   147→interface AuthLayoutProps {
+   148→  children: React.ReactNode;
+   149→  title: string;
+   150→  description: string;
+   151→  showBack?: boolean;
+   152→  onBack?: () => void;
+   153→}
+   154→
+   155→// Demo Mode Banner removed — auth is always real.
+   156→
+   157→function AuthLayout({ children, title, description, showBack, onBack }: AuthLayoutProps) {
+   158→  return (
+   159→    <div className="min-h-screen flex items-center justify-center bg-background p-4 pt-10 relative overflow-hidden">
+   160→      {/* Demo Mode Banner removed — auth is always real */}
+   161→      {/* Animated gradient background */}
+   162→      <div className="absolute inset-0 gradient-bg-animated opacity-40" />
+   163→      <div className="absolute inset-0 bg-grid opacity-20" />
+   164→      {/* Floating decorative orbs */}
+   165→      <div className="absolute top-1/4 -left-20 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-sparkle" />
+   166→      <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-primary/5 blur-3xl" style={{ animationDelay: '1s' }} />
+   167→
+   168→      <div className="relative w-full max-w-md">
+   169→        {/* Logo */}
+   170→        <motion.div
+   171→          className="text-center mb-8"
+   172→          initial={{ opacity: 0, y: -10 }}
+   173→          animate={{ opacity: 1, y: 0 }}
+   174→          transition={{ duration: 0.4, ease: 'easeOut' }}
+   175→        >
+   176→          <div className="flex items-center justify-center gap-2 mb-6">
+   177→            <div className="relative">
+   178→              <Rocket className="h-8 w-8 text-primary" />
+   179→              <div className="absolute -inset-1.5 rounded-full bg-primary/20 animate-pulse-ring" />
+   180→            </div>
+   181→            <span className="text-2xl font-bold gradient-text">AcquisitionOS</span>
+   182→          </div>
+   183→          <h1 className="text-2xl font-bold">{title}</h1>
+   184→          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+   185→        </motion.div>
+   186→
+   187→        {/* Card */}
+   188→        <motion.div
+   189→          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+   190→          animate={{ opacity: 1, y: 0, scale: 1 }}
+   191→          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+   192→        >
+   193→          {children}
+   194→        </motion.div>
+   195→
+   196→        {/* Back link */}
+   197→        <AnimatePresence>
+   198→          {showBack && onBack && (
+   199→            <motion.button
+   200→              type="button"
+   201→              onClick={onBack}
+   202→              className="flex items-center justify-center gap-1.5 w-full text-xs text-primary hover:text-primary/80 font-medium transition-colors mt-4"
+   203→              initial={{ opacity: 0 }}
+   204→              animate={{ opacity: 1 }}
+   205→              exit={{ opacity: 0 }}
+   206→            >
+   207→              <ArrowLeft className="h-3 w-3" /> Back to Sign In
+   208→            </motion.button>
+   209→          )}
+   210→        </AnimatePresence>
+   211→
+   212→        {/* Social proof & trust badges */}
+   213→        <motion.div
+   214→          className="mt-4 flex items-center justify-center gap-3"
+   215→          initial={{ opacity: 0 }}
+   216→          animate={{ opacity: 1 }}
+   217→          transition={{ delay: 0.5 }}
+   218→        >
+   219→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   220→            <Shield className="h-3 w-3 text-emerald-500" />
+   221→            <span>256-bit SSL</span>
+   222→          </div>
+   223→          <div className="h-3 w-px bg-border" />
+   224→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   225→            <div className="flex -space-x-1">
+   226→              {[0,1,2].map(i => (
+   227→                <div key={i} className="h-4 w-4 rounded-full bg-primary/20 border border-background flex items-center justify-center text-[6px] font-bold text-primary">
+   228→                  {String.fromCharCode(65 + i)}
+   229→                </div>
+   230→              ))}
+   231→            </div>
+   232→            <span>2,400+ users</span>
+   233→          </div>
+   234→          <div className="h-3 w-px bg-border" />
+   235→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   236→            <Globe className="h-3 w-3 text-primary" />
+   237→            <span>SOC 2</span>
+   238→          </div>
+   239→        </motion.div>
+   240→
+   241→        {/* Footer */}
+   242→        <div className="mt-4 text-center space-y-2">
+   243→          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 flex-wrap">
+   244→            <button
+   245→              type="button"
+   246→              onClick={() => useLegalStore.getState().openLegal('privacy')}
+   247→              className="text-primary hover:text-primary/80 underline transition-colors"
+   248→            >
+   249→              Privacy Policy
+   250→            </button>
+   251→            <span className="text-muted-foreground/50">·</span>
+   252→            <button
+   253→              type="button"
+   254→              onClick={() => useLegalStore.getState().openLegal('terms')}
+   255→              className="text-primary hover:text-primary/80 underline transition-colors"
+   256→            >
+   257→              Terms of Service
+   258→            </button>
+   259→          </p>
+   260→          <p className="text-xs text-muted-foreground">
+   261→            &copy; {new Date().getFullYear()} AcquisitionOS. All rights reserved.
+   262→          </p>
+   263→        </div>
+   264→      </div>
+   265→    </div>
+   266→  );
+   267→}
+   268→
+   269→// ============================================================
+   270→// PASSWORD STRENGTH INDICATOR
+   271→// ============================================================
+   272→
+   273→function PasswordStrengthIndicator({ password }: { password: string }) {
+   274→  const strength = getPasswordStrength(password);
+   275→  if (!password) return null;
+   276→
+   277→  const percent = (strength.score / 4) * 100;
+   278→
+   279→  return (
+   280→    <div className="space-y-1.5">
+   281→      <Progress
+   282→        value={percent}
+   283→        className="h-1.5"
+   284→        style={
+   285→          {
+   286→            '--progress-color': strength.color,
+   287→          } as React.CSSProperties
+   288→        }
+   289→      />
+   290→      <p className="text-xs" style={{ color: strength.color }}>
+   291→        {strength.label}
+   292→      </p>
+   293→    </div>
+   294→  );
+   295→}
+   296→
+   297→// ============================================================
+   298→// LOADING SPINNER BUTTON HELPER
+   299→// ============================================================
+   300→
+   301→function LoadingButton({
+   302→  children,
+   303→  loading,
+   304→  className,
+   305→  disabled,
+   306→  ...props
+   307→}: React.ComponentProps<typeof Button> & { loading?: boolean }) {
+   308→  return (
+   309→    <Button className={className} disabled={disabled || loading} {...props}>
+   310→      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+   311→      {children}
+   312→    </Button>
+   313→  );
+   314→}
+   315→
+   316→// ============================================================
+   317→// FIELD ERROR
+   318→// ============================================================
+   319→
+   320→function FieldError({ message }: { message?: string }) {
+   321→  if (!message) return null;
+   322→  return (
+   323→    <p className="text-xs text-destructive mt-1 slide-in-up" role="alert">
+   324→      {message}
+   325→    </p>
+   326→  );
+   327→}
+   328→
+   329→// ============================================================
+   330→// 1. SIGN IN PAGE
+   331→// ============================================================
+   332→
+   333→export function SignInPage({
+   334→  onSignUpClick,
+   335→  onForgotPasswordClick,
+   336→  onSuccess,
+   337→  onMagicLinkClick,
+   338→  onOtpLoginClick,
+   339→}: {
+   340→  onSignUpClick?: () => void;
+   341→  onForgotPasswordClick?: () => void;
+   342→  onSuccess?: () => void;
+   343→  onMagicLinkClick?: () => void;
+   344→  onOtpLoginClick?: () => void;
+   345→}) {
+   346→  const { signIn, isLoading } = useAuth();
+   347→  const [email, setEmail] = useState('');
+   348→  const [password, setPassword] = useState('');
+   349→  const [showPassword, setShowPassword] = useState(false);
+   350→  const [errors, setErrors] = useState<Record<string, string>>({});
+   351→  const [generalError, setGeneralError] = useState('');
+   352→  const [authConfig, setAuthConfig] = useState<{ googleAvailable: boolean; loaded: boolean }>({ googleAvailable: false, loaded: false });
+   353→
+   354→  // Fetch auth config on mount to check Google OAuth availability
+   355→  useEffect(() => {
+   356→    fetch('/api/auth/config')
+   357→      .then(res => res.ok ? res.json() : { googleAvailable: false })
+   358→      .then(data => setAuthConfig({ googleAvailable: !!data.googleAvailable, loaded: true }))
+   359→      .catch(() => setAuthConfig({ googleAvailable: false, loaded: true }));
+   360→  }, []);
+   361→
+   362→  // Server-driven Google OAuth: client_id never touches frontend
+   363→  const startGoogleOAuth = useCallback(async () => {
+   364→    try {
+   365→      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+   366→      const res = await fetch(`/api/auth/google/state?origin=${encodeURIComponent(origin)}`);
+   367→      if (!res.ok) throw new Error('Failed to get OAuth state');
+   368→      const data = await res.json();
+   369→      if (data.authUrl) {
+   370→        window.location.href = data.authUrl;
+   371→      }
+   372→    } catch (err) {
+   373→      console.error('Google OAuth error:', err);
+   374→      toast.error('Google sign-in is not available in this environment.');
+   375→    }
+   376→  }, []);
+   377→
+   378→  const validate = useCallback(() => {
+   379→    const errs: Record<string, string> = {};
+   380→    if (!email) errs.email = 'Email is required';
+   381→    else if (!isValidEmail(email)) errs.email = 'Enter a valid email address';
+   382→    if (!password) errs.password = 'Password is required';
+   383→    else if (password.length < 6) errs.password = 'Password must be at least 6 characters';
+   384→    return errs;
+   385→  }, [email, password]);
+   386→
+   387→  const handleSubmit = useCallback(
+   388→    async (e: React.FormEvent) => {
+   389→      e.preventDefault();
+   390→      setGeneralError('');
+   391→      const validationErrors = validate();
+   392→      setErrors(validationErrors);
+   393→      if (Object.keys(validationErrors).length > 0) return;
+   394→
+   395→      const result = await signIn(email, password);
+   396→      if (result.success) {
+   397→        toast.success('Welcome back!');
+   398→        onSuccess?.();
+   399→      } else if (result.mfaRequired) {
+   400→        toast.info('MFA verification required');
+   401→        // Caller should handle MFA redirect via mfaRequired state
+   402→        onSuccess?.();
+   403→      } else {
+   404→        setGeneralError(result.error || 'Sign in failed');
+   405→        toast.error(result.error || 'Sign in failed');
+   406→      }
+   407→    },
+   408→    [email, password, validate, signIn, onSuccess]
+   409→  );
+   410→
+   411→  return (
+   412→    <AuthLayout title="Welcome Back" description="Sign in to your AcquisitionOS account">
+   413→      <Card className="glass-card">
+   414→        <CardContent className="pt-6 space-y-4">
+   415→          <AnimatePresence mode="wait">
+   416→            {generalError && (
+   417→              <motion.div
+   418→                initial={{ opacity: 0, y: -6, height: 0 }}
+   419→                animate={{ opacity: 1, y: 0, height: 'auto' }}
+   420→                exit={{ opacity: 0, y: -6, height: 0 }}
+   421→                className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive overflow-hidden"
+   422→                role="alert"
+   423→              >
+   424→                <div className="flex items-center gap-2">
+   425→                  <AlertTriangle className="h-4 w-4 shrink-0" />
+   426→                  {generalError}
+   427→                </div>
+   428→              </motion.div>
+   429→            )}
+   430→          </AnimatePresence>
+   431→
+   432→          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+   433→            {/* Email */}
+   434→            <div className="space-y-2">
+   435→              <Label htmlFor="signin-email" className="text-xs font-medium">
+   436→                Email
+   437→              </Label>
+   438→              <div className={cn('relative transition-all duration-200 rounded-md', errors.email ? 'ring-1 ring-destructive/50' : email && isValidEmail(email) ? 'ring-1 ring-emerald-500/30' : '')}>
+   439→                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   440→                <Input
+   441→                  id="signin-email"
+   442→                  type="email"
+   443→                  placeholder="you@example.com"
+   444→                  className={cn('pl-9 h-10 border-0 bg-muted/50 focus-visible:bg-background transition-colors', errors.email && 'bg-destructive/5')}
+   445→                  value={email}
+   446→                  onChange={(e) => {
+   447→                    setEmail(e.target.value);
+   448→                    if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+   449→                  }}
+   450→                  aria-invalid={!!errors.email}
+   451→                  aria-describedby={errors.email ? 'signin-email-error' : undefined}
+   452→                  autoComplete="email"
+   453→                />
+   454→                {email && isValidEmail(email) && !errors.email && (
+   455→                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+   456→                )}
+   457→              </div>
+   458→              <FieldError message={errors.email} />
+   459→            </div>
+   460→
+   461→            {/* Password */}
+   462→            <div className="space-y-2">
+   463→              <div className="flex items-center justify-between">
+   464→                <Label htmlFor="signin-password" className="text-xs font-medium">
+   465→                  Password
+   466→                </Label>
+   467→                <button
+   468→                  type="button"
+   469→                  onClick={onForgotPasswordClick}
+   470→                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+   471→                >
+   472→                  Forgot password?
+   473→                </button>
+   474→              </div>
+   475→              <div className={cn('relative transition-all duration-200 rounded-md', errors.password ? 'ring-1 ring-destructive/50' : '')}>
+   476→                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   477→                <Input
+   478→                  id="signin-password"
+   479→                  type={showPassword ? 'text' : 'password'}
+   480→                  placeholder="Enter password"
+   481→                  className={cn('pl-9 pr-9 h-10 border-0 bg-muted/50 focus-visible:bg-background transition-colors', errors.password && 'bg-destructive/5')}
+   482→                  value={password}
+   483→                  onChange={(e) => {
+   484→                    setPassword(e.target.value);
+   485→                    if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+   486→                  }}
+   487→                  aria-invalid={!!errors.password}
+   488→                  aria-describedby={errors.password ? 'signin-password-error' : undefined}
+   489→                  autoComplete="current-password"
+   490→                />
+   491→                <button
+   492→                  type="button"
+   493→                  onClick={() => setShowPassword(!showPassword)}
+   494→                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+   495→                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+   496→                >
+   497→                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   498→                </button>
+   499→              </div>
+   500→              <FieldError message={errors.password} />
+   501→            </div>
+   502→
+   503→            {/* Remember me */}
+   504→            <div className="flex items-center gap-2">
+   505→              <Checkbox id="signin-remember" className="mt-0.5" />
+   506→              <Label htmlFor="signin-remember" className="text-xs text-muted-foreground cursor-pointer">
+   507→                Remember me for 30 days
+   508→              </Label>
+   509→            </div>
+   510→
+   511→            <LoadingButton type="submit" className="w-full h-10 btn-ripple" loading={isLoading}>
+   512→              Sign In
+   513→            </LoadingButton>
+   514→          </form>
+   515→
+   516→          <div className="relative my-4">
+   517→            <Separator />
+   518→            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
+   519→              or continue with
+   520→            </span>
+   521→          </div>
+   522→
+   523→          {/* Google SSO — server-driven OAuth: client_id never touches frontend */}
+   524→          {!authConfig?.loaded ? (
+   525→            <div className="relative rounded-lg p-[1.5px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-50">
+   526→              <Button
+   527→                variant="outline"
+   528→                className="w-full h-10 rounded-[6.5px] bg-background hover:bg-background/90 border-0"
+   529→                type="button"
+   530→                disabled
+   531→              >
+   532→                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   533→                Loading...
+   534→              </Button>
+   535→            </div>
+   536→          ) : authConfig?.googleAvailable ? (
+   537→            <div className="relative rounded-lg p-[1.5px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
+   538→              <Button
+   539→                variant="outline"
+   540→                className="w-full h-10 rounded-[6.5px] bg-background hover:bg-background/90 border-0"
+   541→                type="button"
+   542→                onClick={startGoogleOAuth}
+   543→              >
+   544→                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+   545→                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+   546→                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+   547→                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+   548→                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+   549→                </svg>
+   550→                Continue with Google
+   551→              </Button>
+   552→            </div>
+   553→          ) : (
+   554→            <div className="relative rounded-lg p-[1.5px] bg-muted opacity-60">
+   555→              <Button
+   556→                variant="outline"
+   557→                className="w-full h-10 rounded-[6.5px] bg-background border-0 cursor-not-allowed"
+   558→                type="button"
+   559→                disabled
+   560→              >
+   561→                <svg className="mr-2 h-4 w-4 opacity-40" viewBox="0 0 24 24">
+   562→                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="currentColor" />
+   563→                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor" />
+   564→                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="currentColor" />
+   565→                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor" />
+   566→                </svg>
+   567→                Google Sign-in Unavailable
+   568→              </Button>
+   569→            </div>
+   570→          )}
+   571→          {authConfig?.loaded && !authConfig?.googleAvailable && (
+   572→            <p className="text-center text-[11px] text-muted-foreground/80 leading-relaxed">
+   573→              Requires Google Cloud OAuth credentials. Add{' '}
+   574→              <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">GOOGLE_CLIENT_ID</code>
+   575→              {' '}and{' '}
+   576→              <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">GOOGLE_CLIENT_SECRET</code>
+   577→              {' '}to <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">.env</code> to enable.
+   578→            </p>
+   579→          )}
+   580→
+   581→          {/* Magic Link & OTP login options */}
+   582→          <div className="flex flex-col sm:flex-row gap-2">
+   583→            <Button
+   584→              variant="ghost"
+   585→              className="flex-1 h-9 text-xs hover:bg-muted/60 transition-colors"
+   586→              type="button"
+   587→              onClick={onMagicLinkClick}
+   588→            >
+   589→              <Mail className="mr-1.5 h-3.5 w-3.5" />
+   590→              Sign in with Magic Link
+   591→            </Button>
+   592→            <Button
+   593→              variant="ghost"
+   594→              className="flex-1 h-9 text-xs hover:bg-muted/60 transition-colors"
+   595→              type="button"
+   596→              onClick={onOtpLoginClick}
+   597→            >
+   598→              <Key className="mr-1.5 h-3.5 w-3.5" />
+   599→              Sign in with OTP
+   600→            </Button>
+   601→          </div>
+   602→
+   603→          {/* Sign up link */}
+   604→          <p className="text-center text-xs text-muted-foreground">
+   605→            Don&apos;t have an account?{' '}
+   606→            <button
+   607→              type="button"
+   608→              onClick={onSignUpClick}
+   609→              className="text-primary hover:text-primary/80 font-medium transition-colors"
+   610→            >
+   611→              Sign up
+   612→            </button>
+   613→          </p>
+   614→        </CardContent>
+   615→      </Card>
+   616→    </AuthLayout>
+   617→  );
+   618→}
+   619→
+   620→// ============================================================
+   621→// 2. SIGN UP PAGE
+   622→// ============================================================
+   623→
+   624→export function SignUpPage({
+   625→  onSignInClick,
+   626→  onVerifyEmail,
+   627→}: {
+   628→  onSignInClick?: () => void;
+   629→  onVerifyEmail?: (email: string) => void;
+   630→}) {
+   631→  const { signUp } = useAuth();
+   632→  const [name, setName] = useState('');
+   633→  const [email, setEmail] = useState('');
+   634→  const [password, setPassword] = useState('');
+   635→  const [confirmPassword, setConfirmPassword] = useState('');
+   636→  const [showPassword, setShowPassword] = useState(false);
+   637→  const [termsAccepted, setTermsAccepted] = useState(false);
+   638→  const [errors, setErrors] = useState<Record<string, string>>({});
+   639→  const [generalError, setGeneralError] = useState('');
+   640→  const [showSuccess, setShowSuccess] = useState(false);
+   641→  // Local submitting state for the form's submit button. We intentionally do
+   642→  // NOT use the global `isLoading` from useAuth here, because AuthGate uses
+   643→  // that flag to render the full-screen LoadingScreen — which would unmount
+   644→  // this component and discard `showSuccess` (and the email preview URL).
+   645→  const [isSubmitting, setIsSubmitting] = useState(false);
+   646→  // Email metadata returned by the API — surfaced to the user so they can
+   647→  // open the Ethereal preview and read the verification code.
+   648→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+   649→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+   650→  const [authConfig, setAuthConfig] = useState<{ googleAvailable: boolean; loaded: boolean }>({ googleAvailable: false, loaded: false });
+   651→
+   652→  // Fetch auth config on mount to check Google OAuth availability
+   653→  useEffect(() => {
+   654→    fetch('/api/auth/config')
+   655→      .then(res => res.ok ? res.json() : { googleAvailable: false })
+   656→      .then(data => setAuthConfig({ googleAvailable: !!data.googleAvailable, loaded: true }))
+   657→      .catch(() => setAuthConfig({ googleAvailable: false, loaded: true }));
+   658→  }, []);
+   659→
+   660→  // Server-driven Google OAuth: client_id never touches frontend
+   661→  const startGoogleOAuth = useCallback(async () => {
+   662→    try {
+   663→      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+   664→      const res = await fetch(`/api/auth/google/state?origin=${encodeURIComponent(origin)}`);
+   665→      if (!res.ok) throw new Error('Failed to get OAuth state');
+   666→      const data = await res.json();
+   667→      if (data.authUrl) {
+   668→        window.location.href = data.authUrl;
+   669→      }
+   670→    } catch (err) {
+   671→      console.error('Google OAuth error:', err);
+   672→      toast.error('Google sign-in is not available in this environment.');
+   673→    }
+   674→  }, []);
+   675→
+   676→  const validate = useCallback(() => {
+   677→    const errs: Record<string, string> = {};
+   678→    if (!name.trim()) errs.name = 'Name is required';
+   679→    if (!email) errs.email = 'Email is required';
+   680→    else if (!isValidEmail(email)) errs.email = 'Enter a valid email address';
+   681→    if (!password) errs.password = 'Password is required';
+   682→    else if (password.length < 8) errs.password = 'Password must be at least 8 characters';
+   683→    if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match';
+   684→    if (!termsAccepted) errs.terms = 'You must accept the terms';
+   685→    return errs;
+   686→  }, [name, email, password, confirmPassword, termsAccepted]);
+   687→
+   688→  const handleSubmit = useCallback(
+   689→    async (e: React.FormEvent) => {
+   690→      e.preventDefault();
+   691→      setGeneralError('');
+   692→      const validationErrors = validate();
+   693→      setErrors(validationErrors);
+   694→      if (Object.keys(validationErrors).length > 0) return;
+   695→
+   696→      setIsSubmitting(true);
+   697→      const result = await signUp({ name: name.trim(), email, password });
+   698→      setIsSubmitting(false);
+   699→      if (result.success) {
+   700→        // Check if the response requires email verification
+   701→        const signUpData = result as {
+   702→          success: boolean;
+   703→          requiresVerification?: boolean;
+   704→          email?: string;
+   705→          error?: string;
+   706→          emailPreviewUrl?: string;
+   707→          emailProvider?: string;
+   708→        };
+   709→        if (signUpData.requiresVerification) {
+   710→          // Capture the Ethereal preview URL (if any) so the success screen
+   711→          // can show the "View Email Preview" link. The verification OTP is
+   712→          // NEVER returned in the response — the user must read it from the
+   713→          // actual email.
+   714→          setEmailPreviewUrl(signUpData.emailPreviewUrl);
+   715→          setEmailProvider(signUpData.emailProvider);
+   716→          setShowSuccess(true);
+   717→          toast.success('Account created! Check your email for a verification code.');
+   718→        } else {
+   719→          // Account created without verification (shouldn't happen with AUTH_DEV_MODE=false)
+   720→          toast.success('Welcome to AcquisitionOS! Your account is ready.');
+   721→        }
+   722→      } else {
+   723→        setGeneralError(result.error || 'Sign up failed');
+   724→        toast.error(result.error || 'Sign up failed');
+   725→      }
+   726→    },
+   727→    [name, email, password, validate, signUp]
+   728→  );
+   729→
+   730→  // Success state: "Verify your email"
+   731→  if (showSuccess) {
+   732→    return (
+   733→      <AuthLayout title="Check Your Email" description="We've sent a verification code">
+   734→        <Card className="glass-card">
+   735→          <CardContent className="pt-6 space-y-4 text-center">
+   736→            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+   737→              <Mail className="h-8 w-8 text-primary" />
+   738→            </div>
+   739→            <p className="text-sm text-muted-foreground">
+   740→              We&apos;ve sent a verification code to{' '}
+   741→              <span className="font-medium text-foreground">{email}</span>
+   742→            </p>
+   743→            <EmailPreviewNotice
+   744→              previewUrl={emailPreviewUrl}
+   745→              provider={emailProvider}
+   746→              message="Click below to open the email preview in a new tab, then copy the 6-digit verification code from the email."
+   747→            />
+   748→            <LoadingButton
+   749→              className="w-full h-10"
+   750→              onClick={() => onVerifyEmail?.(email)}
+   751→            >
+   752→              Verify Email
+   753→            </LoadingButton>
+   754→            <p className="text-xs text-muted-foreground">
+   755→              Didn&apos;t receive it? Check your spam folder or{' '}
+   756→              <button
+   757→                type="button"
+   758→                className="text-primary hover:text-primary/80 font-medium transition-colors"
+   759→                onClick={() => setShowSuccess(false)}
+   760→              >
+   761→                try again
+   762→              </button>
+   763→            </p>
+   764→          </CardContent>
+   765→        </Card>
+   766→      </AuthLayout>
+   767→    );
+   768→  }
+   769→
+   770→  return (
+   771→    <AuthLayout title="Create Account" description="Start your free trial of AcquisitionOS">
+   772→      <Card className="glass-card">
+   773→        <CardContent className="pt-6 space-y-4">
+   774→          {generalError && (
+   775→            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive slide-in-up" role="alert">
+   776→              {generalError}
+   777→            </div>
+   778→          )}
+   779→
+   780→          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+   781→            {/* Name */}
+   782→            <div className="space-y-2">
+   783→              <Label htmlFor="signup-name" className="text-xs font-medium">
+   784→                Full Name
+   785→              </Label>
+   786→              <div className="relative">
+   787→                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   788→                <Input
+   789→                  id="signup-name"
+   790→                  type="text"
+   791→                  placeholder="John Doe"
+   792→                  className="pl-9 h-10"
+   793→                  value={name}
+   794→                  onChange={(e) => {
+   795→                    setName(e.target.value);
+   796→                    if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+   797→                  }}
+   798→                  aria-invalid={!!errors.name}
+   799→                  autoComplete="name"
+   800→                />
+   801→              </div>
+   802→              <FieldError message={errors.name} />
+   803→            </div>
+   804→
+   805→            {/* Email */}
+   806→            <div className="space-y-2">
+   807→              <Label htmlFor="signup-email" className="text-xs font-medium">
+   808→                Email
+   809→              </Label>
+   810→              <div className="relative">
+   811→                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   812→                <Input
+   813→                  id="signup-email"
+   814→                  type="email"
+   815→                  placeholder="you@example.com"
+   816→                  className="pl-9 h-10"
+   817→                  value={email}
+   818→                  onChange={(e) => {
+   819→                    setEmail(e.target.value);
+   820→                    if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+   821→                  }}
+   822→                  aria-invalid={!!errors.email}
+   823→                  autoComplete="email"
+   824→                />
+   825→              </div>
+   826→              <FieldError message={errors.email} />
+   827→            </div>
+   828→
+   829→            {/* Password */}
+   830→            <div className="space-y-2">
+   831→              <Label htmlFor="signup-password" className="text-xs font-medium">
+   832→                Password
+   833→              </Label>
+   834→              <div className="relative">
+   835→                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   836→                <Input
+   837→                  id="signup-password"
+   838→                  type={showPassword ? 'text' : 'password'}
+   839→                  placeholder="Min. 8 characters"
+   840→                  className="pl-9 pr-9 h-10"
+   841→                  value={password}
+   842→                  onChange={(e) => {
+   843→                    setPassword(e.target.value);
+   844→                    if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+   845→                  }}
+   846→                  aria-invalid={!!errors.password}
+   847→                  autoComplete="new-password"
+   848→                />
+   849→                <button
+   850→                  type="button"
+   851→                  onClick={() => setShowPassword(!showPassword)}
+   852→                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+   853→                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+   854→                >
+   855→                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   856→                </button>
+   857→              </div>
+   858→              <PasswordStrengthIndicator password={password} />
+   859→              <FieldError message={errors.password} />
+   860→            </div>
+   861→
+   862→            {/* Confirm Password */}
+   863→            <div className="space-y-2">
+   864→              <Label htmlFor="signup-confirm" className="text-xs font-medium">
+   865→                Confirm Password
+   866→              </Label>
+   867→              <div className="relative">
+   868→                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   869→                <Input
+   870→                  id="signup-confirm"
+   871→                  type={showPassword ? 'text' : 'password'}
+   872→                  placeholder="Re-enter password"
+   873→                  className="pl-9 h-10"
+   874→                  value={confirmPassword}
+   875→                  onChange={(e) => {
+   876→                    setConfirmPassword(e.target.value);
+   877→                    if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: '' }));
+   878→                  }}
+   879→                  aria-invalid={!!errors.confirmPassword}
+   880→                  autoComplete="new-password"
+   881→                />
+   882→              </div>
+   883→              <FieldError message={errors.confirmPassword} />
+   884→            </div>
+   885→
+   886→            {/* Terms */}
+   887→            <div className="flex items-start gap-2">
+   888→              <Checkbox
+   889→                id="signup-terms"
+   890→                checked={termsAccepted}
+   891→                onCheckedChange={(checked) => {
+   892→                  setTermsAccepted(checked === true);
+   893→                  if (errors.terms) setErrors((prev) => ({ ...prev, terms: '' }));
+   894→                }}
+   895→                className="mt-0.5"
+   896→              />
+   897→              <Label htmlFor="signup-terms" className="text-xs text-muted-foreground leading-relaxed">
+   898→                I agree to the{' '}
+   899→                <button type="button" onClick={() => useLegalStore.getState().openLegal('terms')} className="text-primary hover:text-primary/80 underline">
+   900→                  Terms of Service
+   901→                </button>{' '}
+   902→                and{' '}
+   903→                <button type="button" onClick={() => useLegalStore.getState().openLegal('privacy')} className="text-primary hover:text-primary/80 underline">
+   904→                  Privacy Policy
+   905→                </button>
+   906→              </Label>
+   907→            </div>
+   908→            <FieldError message={errors.terms} />
+   909→
+   910→            <LoadingButton type="submit" className="w-full h-10" loading={isSubmitting}>
+   911→              Create Account
+   912→            </LoadingButton>
+   913→          </form>
+   914→
+   915→          <Separator />
+   916→
+   917→          {/* Google SSO — server-driven OAuth: client_id never touches frontend */}
+   918→          {!authConfig?.loaded ? (
+   919→            <div className="relative rounded-lg p-[1.5px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-50">
+   920→              <Button
+   921→                variant="outline"
+   922→                className="w-full h-10 rounded-[6.5px] bg-background hover:bg-background/90 border-0"
+   923→                type="button"
+   924→                disabled
+   925→              >
+   926→                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   927→                Loading...
+   928→              </Button>
+   929→            </div>
+   930→          ) : authConfig?.googleAvailable ? (
+   931→            <div className="relative rounded-lg p-[1.5px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
+   932→              <Button
+   933→                variant="outline"
+   934→                className="w-full h-10 rounded-[6.5px] bg-background hover:bg-background/90 border-0"
+   935→                type="button"
+   936→                onClick={startGoogleOAuth}
+   937→              >
+   938→                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+   939→                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+   940→                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+   941→                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+   942→                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+   943→                </svg>
+   944→                Continue with Google
+   945→              </Button>
+   946→            </div>
+   947→          ) : (
+   948→            <div className="relative rounded-lg p-[1.5px] bg-muted opacity-60">
+   949→              <Button
+   950→                variant="outline"
+   951→                className="w-full h-10 rounded-[6.5px] bg-background border-0 cursor-not-allowed"
+   952→                type="button"
+   953→                disabled
+   954→              >
+   955→                <svg className="mr-2 h-4 w-4 opacity-40" viewBox="0 0 24 24">
+   956→                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="currentColor" />
+   957→                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor" />
+   958→                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="currentColor" />
+   959→                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor" />
+   960→                </svg>
+   961→                Google Sign-in Unavailable
+   962→              </Button>
+   963→            </div>
+   964→          )}
+   965→          {authConfig?.loaded && !authConfig?.googleAvailable && (
+   966→            <p className="text-center text-[11px] text-muted-foreground/80 leading-relaxed">
+   967→              Requires Google Cloud OAuth credentials. Add{' '}
+   968→              <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">GOOGLE_CLIENT_ID</code>
+   969→              {' '}and{' '}
+   970→              <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">GOOGLE_CLIENT_SECRET</code>
+   971→              {' '}to <code className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">.env</code> to enable.
+   972→            </p>
+   973→          )}
+   974→
+   975→          <p className="text-center text-xs text-muted-foreground">
+   976→            Already have an account?{' '}
+   977→            <button
+   978→              type="button"
+   979→              onClick={onSignInClick}
+   980→              className="text-primary hover:text-primary/80 font-medium transition-colors"
+   981→            >
+   982→              Sign in
+   983→            </button>
+   984→          </p>
+   985→        </CardContent>
+   986→      </Card>
+   987→    </AuthLayout>
+   988→  );
+   989→}
+   990→
+   991→// ============================================================
+   992→// 3. VERIFY EMAIL PAGE
+   993→// ============================================================
+   994→
+   995→export function VerifyEmailPage({
+   996→  email,
+   997→  onVerified,
+   998→  onBackToSignIn,
+   999→}: {
+  1000→  email: string;
+  1001→  onVerified?: () => void;
+  1002→  onBackToSignIn?: () => void;
+  1003→}) {
+  1004→  const { verifyEmail, signIn } = useAuth();
+  1005→  const [otp, setOtp] = useState('');
+  1006→  const [error, setError] = useState('');
+  1007→  const [loading, setLoading] = useState(false);
+  1008→  const [resendCooldown, setResendCooldown] = useState(0);
+  1009→  // Email preview metadata — populated when the user clicks "Resend" and the
+  1010→  // server delivers via Ethereal (test SMTP). The verification OTP is NEVER
+  1011→  // returned in the response — the user reads it from the preview inbox.
+  1012→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+  1013→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+  1014→  const cooldownRef = useRef<ReturnType<typeof setInterval>>();
+  1015→
+  1016→  // Cooldown timer for resend
+  1017→  useEffect(() => {
+  1018→    if (resendCooldown <= 0) return;
+  1019→    cooldownRef.current = setInterval(() => {
+  1020→      setResendCooldown((prev) => {
+  1021→        if (prev <= 1) {
+  1022→          clearInterval(cooldownRef.current);
+  1023→          return 0;
+  1024→        }
+  1025→        return prev - 1;
+  1026→      });
+  1027→    }, 1000);
+  1028→    return () => clearInterval(cooldownRef.current);
+  1029→  }, [resendCooldown]);
+  1030→
+  1031→  const handleVerify = useCallback(async () => {
+  1032→    if (otp.length !== 6) {
+  1033→      setError('Please enter all 6 digits');
+  1034→      return;
+  1035→    }
+  1036→    setError('');
+  1037→    setLoading(true);
+  1038→    const result = await verifyEmail(email, otp);
+  1039→    setLoading(false);
+  1040→    if (result.success) {
+  1041→      toast.success('Email verified!');
+  1042→      onVerified?.();
+  1043→    } else {
+  1044→      setError(result.error || 'Verification failed');
+  1045→      toast.error(result.error || 'Verification failed');
+  1046→    }
+  1047→  }, [otp, email, verifyEmail, onVerified]);
+  1048→
+  1049→  const handleResend = useCallback(async () => {
+  1050→    setResendCooldown(60);
+  1051→    // Call forgot-password-like endpoint to resend
+  1052→    try {
+  1053→      const res = await fetch('/api/auth/resend-verification', {
+  1054→        method: 'POST',
+  1055→        headers: { 'Content-Type': 'application/json' },
+  1056→        body: JSON.stringify({ email }),
+  1057→      });
+  1058→      if (res.ok) {
+  1059→        const data = await res.json();
+  1060→        // Capture the Ethereal preview URL (if any) so the user can open the
+  1061→        // email in a browser. The OTP is NEVER returned — must be read from
+  1062→        // the actual email.
+  1063→        setEmailPreviewUrl(data.emailPreviewUrl);
+  1064→        setEmailProvider(data.emailProvider);
+  1065→        toast.success('Verification code resent!');
+  1066→      } else {
+  1067→        toast.error('Failed to resend code');
+  1068→        setResendCooldown(0);
+  1069→      }
+  1070→    } catch {
+  1071→      toast.error('Network error');
+  1072→      setResendCooldown(0);
+  1073→    }
+  1074→  }, [email]);
+  1075→
+  1076→  return (
+  1077→    <AuthLayout
+  1078→      title="Verify Your Email"
+  1079→      description={`Enter the 6-digit code sent to ${email}`}
+  1080→      showBack
+  1081→      onBack={onBackToSignIn}
+  1082→    >
+  1083→      <Card className="glass-card">
+  1084→        <CardContent className="pt-6 space-y-6">
+  1085→          {error && (
+  1086→            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive slide-in-up" role="alert">
+  1087→              {error}
+  1088→            </div>
+  1089→          )}
+  1090→
+  1091→          <EmailPreviewNotice
+  1092→            previewUrl={emailPreviewUrl}
+  1093→            provider={emailProvider}
+  1094→            message="Click below to open the email preview and read the 6-digit verification code, then enter it here. If you haven't received the email yet, click Resend below."
+  1095→          />
+  1096→
+  1097→          {/* OTP Input */}
+  1098→          <div className="flex flex-col items-center gap-2">
+  1099→            <Label className="text-xs font-medium text-muted-foreground">Verification Code</Label>
+  1100→            <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+  1101→              <InputOTPGroup>
+  1102→                <InputOTPSlot index={0} className="h-12 w-12 text-lg" />
+  1103→                <InputOTPSlot index={1} className="h-12 w-12 text-lg" />
+  1104→                <InputOTPSlot index={2} className="h-12 w-12 text-lg" />
+  1105→              </InputOTPGroup>
+  1106→              <InputOTPSeparator />
+  1107→              <InputOTPGroup>
+  1108→                <InputOTPSlot index={3} className="h-12 w-12 text-lg" />
+  1109→                <InputOTPSlot index={4} className="h-12 w-12 text-lg" />
+  1110→                <InputOTPSlot index={5} className="h-12 w-12 text-lg" />
+  1111→              </InputOTPGroup>
+  1112→            </InputOTP>
+  1113→          </div>
+  1114→
+  1115→          <LoadingButton
+  1116→            className="w-full h-10"
+  1117→            loading={loading}
+  1118→            onClick={handleVerify}
+  1119→            disabled={otp.length !== 6}
+  1120→          >
+  1121→            Verify Email
+  1122→          </LoadingButton>
+  1123→
+  1124→          {/* Resend */}
+  1125→          <div className="text-center">
+  1126→            {resendCooldown > 0 ? (
+  1127→              <p className="text-xs text-muted-foreground">
+  1128→                Resend code in{' '}
+  1129→                <span className="font-mono text-primary">{resendCooldown}s</span>
+  1130→              </p>
+  1131→            ) : (
+  1132→              <button
+  1133→                type="button"
+  1134→                onClick={handleResend}
+  1135→                className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+  1136→              >
+  1137→                Resend verification code
+  1138→              </button>
+  1139→            )}
+  1140→          </div>
+  1141→        </CardContent>
+  1142→      </Card>
+  1143→    </AuthLayout>
+  1144→  );
+  1145→}
+  1146→
+  1147→// ============================================================
+  1148→// 4. FORGOT PASSWORD PAGE
+  1149→// ============================================================
+  1150→
+  1151→export function ForgotPasswordPage({
+  1152→  onBackToSignIn,
+  1153→  onOtpSent,
+  1154→}: {
+  1155→  onBackToSignIn?: () => void;
+  1156→  onOtpSent?: (email: string, emailPreviewUrl?: string, emailProvider?: string) => void;
+  1157→}) {
+  1158→  const { forgotPassword } = useAuth();
+  1159→  const [email, setEmail] = useState('');
+  1160→  const [error, setError] = useState('');
+  1161→  const [loading, setLoading] = useState(false);
+  1162→  const [emailSent, setEmailSent] = useState(false);
+  1163→  // Real email metadata — surfaced to the UI so the user can open the
+  1164→  // Ethereal preview inbox and read the reset code. The OTP is NEVER
+  1165→  // returned in the response.
+  1166→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+  1167→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+  1168→
+  1169→  const handleSubmit = useCallback(
+  1170→    async (e: React.FormEvent) => {
+  1171→      e.preventDefault();
+  1172→      if (!email || !isValidEmail(email)) {
+  1173→        setError('Enter a valid email address');
+  1174→        return;
+  1175→      }
+  1176→      setError('');
+  1177→      setLoading(true);
+  1178→      const result = await forgotPassword(email);
+  1179→      setLoading(false);
+  1180→      if (result.success) {
+  1181→        setEmailSent(true);
+  1182→        const r = result as {
+  1183→          success: boolean;
+  1184→          message?: string;
+  1185→          emailPreviewUrl?: string;
+  1186→          emailProvider?: string;
+  1187→        };
+  1188→        setEmailPreviewUrl(r.emailPreviewUrl);
+  1189→        setEmailProvider(r.emailProvider);
+  1190→        toast.success('If an account exists for this email, you will receive a reset code.');
+  1191→        // Auto-navigate after a moment — pass the preview URL through to the
+  1192→        // reset password page so the user can immediately open the email.
+  1193→        setTimeout(() => onOtpSent?.(email, r.emailPreviewUrl, r.emailProvider), 1500);
+  1194→      } else {
+  1195→        setError(result.error || 'Request failed');
+  1196→        toast.error(result.error || 'Request failed');
+  1197→      }
+  1198→    },
+  1199→    [email, forgotPassword, onOtpSent]
+  1200→  );
+  1201→
+  1202→  return (
+  1203→    <AuthLayout
+  1204→      title="Reset Password"
+  1205→      description="Enter your email to receive a reset code"
+  1206→      showBack
+  1207→      onBack={onBackToSignIn}
+  1208→    >
+  1209→      <Card className="glass-card">
+  1210→        <CardContent className="pt-6 space-y-4">
+  1211→          {emailSent ? (
+  1212→            <div className="text-center space-y-3 py-4">
+  1213→              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+  1214→                <Mail className="h-8 w-8 text-primary" />
+  1215→              </div>
+  1216→              <p className="text-sm text-muted-foreground">
+  1217→                We&apos;ve sent a verification code to{' '}
+  1218→                <span className="font-medium text-foreground">{email}</span>
+  1219→              </p>
+  1220→              <EmailPreviewNotice
+  1221→                previewUrl={emailPreviewUrl}
+  1222→                provider={emailProvider}
+  1223→                message="Redirecting to the reset page... You can also open the email preview now to grab your reset code."
+  1224→              />
+  1225→              <p className="text-xs text-muted-foreground">Redirecting to reset page...</p>
+  1226→            </div>
+  1227→          ) : (
+  1228→            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+  1229→              {error && (
+  1230→                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive slide-in-up" role="alert">
+  1231→                  {error}
+  1232→                </div>
+  1233→              )}
+  1234→
+  1235→              <div className="space-y-2">
+  1236→                <Label htmlFor="forgot-email" className="text-xs font-medium">
+  1237→                  Email
+  1238→                </Label>
+  1239→                <div className="relative">
+  1240→                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1241→                  <Input
+  1242→                    id="forgot-email"
+  1243→                    type="email"
+  1244→                    placeholder="you@example.com"
+  1245→                    className="pl-9 h-10"
+  1246→                    value={email}
+  1247→                    onChange={(e) => {
+  1248→                      setEmail(e.target.value);
+  1249→                      if (error) setError('');
+  1250→                    }}
+  1251→                    aria-invalid={!!error}
+  1252→                    autoComplete="email"
+  1253→                  />
+  1254→                </div>
+  1255→                <FieldError message={error} />
+  1256→              </div>
+  1257→
+  1258→              <LoadingButton type="submit" className="w-full h-10" loading={loading}>
+  1259→                Send Reset Code
+  1260→              </LoadingButton>
+  1261→            </form>
+  1262→          )}
+  1263→        </CardContent>
+  1264→      </Card>
+  1265→    </AuthLayout>
+  1266→  );
+  1267→}
+  1268→
+  1269→// ============================================================
+  1270→// 5. RESET PASSWORD PAGE
+  1271→// ============================================================
+  1272→
+  1273→export function ResetPasswordPage({
+  1274→  email,
+  1275→  onSuccess,
+  1276→  initialOtp,
+  1277→  initialEmailPreviewUrl,
+  1278→  initialEmailProvider,
+  1279→}: {
+  1280→  email: string;
+  1281→  onSuccess?: () => void;
+  1282→  initialOtp?: string;
+  1283→  initialEmailPreviewUrl?: string;
+  1284→  initialEmailProvider?: string;
+  1285→}) {
+  1286→  const { resetPassword } = useAuth();
+  1287→  const [otp, setOtp] = useState(initialOtp || '');
+  1288→  const [newPassword, setNewPassword] = useState('');
+  1289→  const [confirmPassword, setConfirmPassword] = useState('');
+  1290→  const [showPassword, setShowPassword] = useState(false);
+  1291→  const [errors, setErrors] = useState<Record<string, string>>({});
+  1292→  const [loading, setLoading] = useState(false);
+  1293→  const [resendCooldown, setResendCooldown] = useState(0);
+  1294→  // Email preview metadata — initialized from props (passed through from
+  1295→  // ForgotPasswordPage), updated whenever the user resends the code.
+  1296→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>(initialEmailPreviewUrl);
+  1297→  const [emailProvider, setEmailProvider] = useState<string | undefined>(initialEmailProvider);
+  1298→  const cooldownRef = useRef<ReturnType<typeof setInterval>>();
+  1299→
+  1300→  useEffect(() => {
+  1301→    if (resendCooldown <= 0) return;
+  1302→    cooldownRef.current = setInterval(() => {
+  1303→      setResendCooldown((prev) => {
+  1304→        if (prev <= 1) {
+  1305→          clearInterval(cooldownRef.current);
+  1306→          return 0;
+  1307→        }
+  1308→        return prev - 1;
+  1309→      });
+  1310→    }, 1000);
+  1311→    return () => clearInterval(cooldownRef.current);
+  1312→  }, [resendCooldown]);
+  1313→
+  1314→  const validate = useCallback(() => {
+  1315→    const errs: Record<string, string> = {};
+  1316→    if (otp.length !== 6) errs.otp = 'Enter the 6-digit code';
+  1317→    if (!newPassword) errs.newPassword = 'New password is required';
+  1318→    else if (newPassword.length < 8) errs.newPassword = 'Password must be at least 8 characters';
+  1319→    if (newPassword !== confirmPassword) errs.confirmPassword = 'Passwords do not match';
+  1320→    return errs;
+  1321→  }, [otp, newPassword, confirmPassword]);
+  1322→
+  1323→  const handleSubmit = useCallback(
+  1324→    async (e: React.FormEvent) => {
+  1325→      e.preventDefault();
+  1326→      const validationErrors = validate();
+  1327→      setErrors(validationErrors);
+  1328→      if (Object.keys(validationErrors).length > 0) return;
+  1329→
+  1330→      setLoading(true);
+  1331→      const result = await resetPassword({
+  1332→        email,
+  1333→        otp,
+  1334→        newPassword,
+  1335→      });
+  1336→      setLoading(false);
+  1337→      if (result.success) {
+  1338→        toast.success('Password reset successfully!');
+  1339→        onSuccess?.();
+  1340→      } else {
+  1341→        toast.error(result.error || 'Reset failed');
+  1342→        setErrors({ otp: result.error || 'Reset failed' });
+  1343→      }
+  1344→    },
+  1345→    [email, otp, newPassword, validate, resetPassword, onSuccess]
+  1346→  );
+  1347→
+  1348→  const handleResend = useCallback(async () => {
+  1349→    setResendCooldown(60);
+  1350→    try {
+  1351→      const res = await fetch('/api/auth/forgot-password', {
+  1352→        method: 'POST',
+  1353→        headers: { 'Content-Type': 'application/json' },
+  1354→        body: JSON.stringify({ email }),
+  1355→      });
+  1356→      if (res.ok) {
+  1357→        const data = await res.json();
+  1358→        // Capture the Ethereal preview URL (if any) so the user can open the
+  1359→        // email in a browser and read the new reset code.
+  1360→        setEmailPreviewUrl(data.emailPreviewUrl);
+  1361→        setEmailProvider(data.emailProvider);
+  1362→        toast.success('Code resent!');
+  1363→      } else {
+  1364→        toast.error('Failed to resend');
+  1365→        setResendCooldown(0);
+  1366→      }
+  1367→    } catch {
+  1368→      toast.error('Failed to resend');
+  1369→      setResendCooldown(0);
+  1370→    }
+  1371→  }, [email]);
+  1372→
+  1373→  return (
+  1374→    <AuthLayout title="Reset Password" description="Enter the code and set a new password">
+  1375→      <Card className="glass-card">
+  1376→        <CardContent className="pt-6 space-y-4">
+  1377→          <EmailPreviewNotice
+  1378→            previewUrl={emailPreviewUrl}
+  1379→            provider={emailProvider}
+  1380→            message="Click below to open the email preview and read the 6-digit reset code, then enter it here along with your new password."
+  1381→          />
+  1382→          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+  1383→            {/* OTP */}
+  1384→            <div className="flex flex-col items-center gap-2">
+  1385→              <Label className="text-xs font-medium text-muted-foreground">Verification Code</Label>
+  1386→              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+  1387→                <InputOTPGroup>
+  1388→                  <InputOTPSlot index={0} className="h-12 w-12 text-lg" />
+  1389→                  <InputOTPSlot index={1} className="h-12 w-12 text-lg" />
+  1390→                  <InputOTPSlot index={2} className="h-12 w-12 text-lg" />
+  1391→                </InputOTPGroup>
+  1392→                <InputOTPSeparator />
+  1393→                <InputOTPGroup>
+  1394→                  <InputOTPSlot index={3} className="h-12 w-12 text-lg" />
+  1395→                  <InputOTPSlot index={4} className="h-12 w-12 text-lg" />
+  1396→                  <InputOTPSlot index={5} className="h-12 w-12 text-lg" />
+  1397→                </InputOTPGroup>
+  1398→              </InputOTP>
+  1399→              <FieldError message={errors.otp} />
+  1400→              {/* Resend */}
+  1401→              {resendCooldown > 0 ? (
+  1402→                <p className="text-xs text-muted-foreground">
+  1403→                  Resend in <span className="font-mono text-primary">{resendCooldown}s</span>
+  1404→                </p>
+  1405→              ) : (
+  1406→                <button
+  1407→                  type="button"
+  1408→                  onClick={handleResend}
+  1409→                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+  1410→                >
+  1411→                  Resend code
+  1412→                </button>
+  1413→              )}
+  1414→            </div>
+  1415→
+  1416→            {/* New Password */}
+  1417→            <div className="space-y-2">
+  1418→              <Label htmlFor="reset-new-password" className="text-xs font-medium">
+  1419→                New Password
+  1420→              </Label>
+  1421→              <div className="relative">
+  1422→                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1423→                <Input
+  1424→                  id="reset-new-password"
+  1425→                  type={showPassword ? 'text' : 'password'}
+  1426→                  placeholder="Min. 8 characters"
+  1427→                  className="pl-9 pr-9 h-10"
+  1428→                  value={newPassword}
+  1429→                  onChange={(e) => {
+  1430→                    setNewPassword(e.target.value);
+  1431→                    if (errors.newPassword) setErrors((prev) => ({ ...prev, newPassword: '' }));
+  1432→                  }}
+  1433→                  aria-invalid={!!errors.newPassword}
+  1434→                  autoComplete="new-password"
+  1435→                />
+  1436→                <button
+  1437→                  type="button"
+  1438→                  onClick={() => setShowPassword(!showPassword)}
+  1439→                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+  1440→                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+  1441→                >
+  1442→                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  1443→                </button>
+  1444→              </div>
+  1445→              <PasswordStrengthIndicator password={newPassword} />
+  1446→              <FieldError message={errors.newPassword} />
+  1447→            </div>
+  1448→
+  1449→            {/* Confirm Password */}
+  1450→            <div className="space-y-2">
+  1451→              <Label htmlFor="reset-confirm-password" className="text-xs font-medium">
+  1452→                Confirm Password
+  1453→              </Label>
+  1454→              <div className="relative">
+  1455→                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1456→                <Input
+  1457→                  id="reset-confirm-password"
+  1458→                  type={showPassword ? 'text' : 'password'}
+  1459→                  placeholder="Re-enter password"
+  1460→                  className="pl-9 h-10"
+  1461→                  value={confirmPassword}
+  1462→                  onChange={(e) => {
+  1463→                    setConfirmPassword(e.target.value);
+  1464→                    if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: '' }));
+  1465→                  }}
+  1466→                  aria-invalid={!!errors.confirmPassword}
+  1467→                  autoComplete="new-password"
+  1468→                />
+  1469→              </div>
+  1470→              <FieldError message={errors.confirmPassword} />
+  1471→            </div>
+  1472→
+  1473→            <LoadingButton type="submit" className="w-full h-10" loading={loading}>
+  1474→              Reset Password
+  1475→            </LoadingButton>
+  1476→          </form>
+  1477→        </CardContent>
+  1478→      </Card>
+  1479→    </AuthLayout>
+  1480→  );
+  1481→}
+  1482→
+  1483→// ============================================================
+  1484→// 6. MFA VERIFICATION PAGE
+  1485→// ============================================================
+  1486→
+  1487→export function MfaVerificationPage({
+  1488→  onSuccess,
+  1489→  onBack,
+  1490→}: {
+  1491→  onSuccess?: () => void;
+  1492→  onBack?: () => void;
+  1493→}) {
+  1494→  const { verifyMfa, mfaSessionToken } = useAuth();
+  1495→  const [code, setCode] = useState('');
+  1496→  const [useBackupCode, setUseBackupCode] = useState(false);
+  1497→  const [backupCode, setBackupCode] = useState('');
+  1498→  const [error, setError] = useState('');
+  1499→  const [loading, setLoading] = useState(false);
+  1500→
+  1501→  const handleVerify = useCallback(async () => {
+  1502→    const verifyValue = useBackupCode ? backupCode.trim() : code;
+  1503→    if (!verifyValue || (useBackupCode && verifyValue.length < 8)) {
+  1504→      setError(useBackupCode ? 'Enter your backup code' : 'Enter all 6 digits');
+  1505→      return;
+  1506→    }
+  1507→    setError('');
+  1508→    setLoading(true);
+  1509→    const result = await verifyMfa(verifyValue);
+  1510→    setLoading(false);
+  1511→    if (result.success) {
+  1512→      toast.success('Verification successful!');
+  1513→      onSuccess?.();
+  1514→    } else {
+  1515→      setError(result.error || 'Verification failed');
+  1516→      toast.error(result.error || 'Verification failed');
+  1517→    }
+  1518→  }, [code, backupCode, useBackupCode, verifyMfa, onSuccess]);
+  1519→
+  1520→  return (
+  1521→    <AuthLayout
+  1522→      title="Two-Factor Authentication"
+  1523→      description="Enter the code from your authenticator app"
+  1524→      showBack
+  1525→      onBack={onBack}
+  1526→    >
+  1527→      <Card className="glass-card">
+  1528→        <CardContent className="pt-6 space-y-6">
+  1529→          {error && (
+  1530→            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive slide-in-up" role="alert">
+  1531→              {error}
+  1532→            </div>
+  1533→          )}
+  1534→
+  1535→          {/* Shield icon */}
+  1536→          <div className="flex justify-center">
+  1537→            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+  1538→              <Shield className="h-8 w-8 text-primary" />
+  1539→            </div>
+  1540→          </div>
+  1541→
+  1542→          {!useBackupCode ? (
+  1543→            /* TOTP Code Input */
+  1544→            <div className="flex flex-col items-center gap-2">
+  1545→              <Label className="text-xs font-medium text-muted-foreground">
+  1546→                Authentication Code
+  1547→              </Label>
+  1548→              <InputOTP maxLength={6} value={code} onChange={setCode}>
+  1549→                <InputOTPGroup>
+  1550→                  <InputOTPSlot index={0} className="h-12 w-12 text-lg" />
+  1551→                  <InputOTPSlot index={1} className="h-12 w-12 text-lg" />
+  1552→                  <InputOTPSlot index={2} className="h-12 w-12 text-lg" />
+  1553→                </InputOTPGroup>
+  1554→                <InputOTPSeparator />
+  1555→                <InputOTPGroup>
+  1556→                  <InputOTPSlot index={3} className="h-12 w-12 text-lg" />
+  1557→                  <InputOTPSlot index={4} className="h-12 w-12 text-lg" />
+  1558→                  <InputOTPSlot index={5} className="h-12 w-12 text-lg" />
+  1559→                </InputOTPGroup>
+  1560→              </InputOTP>
+  1561→            </div>
+  1562→          ) : (
+  1563→            /* Backup Code Input */
+  1564→            <div className="space-y-2">
+  1565→              <Label htmlFor="mfa-backup-code" className="text-xs font-medium">
+  1566→                Backup Code
+  1567→              </Label>
+  1568→              <Input
+  1569→                id="mfa-backup-code"
+  1570→                type="text"
+  1571→                placeholder="Enter your backup code"
+  1572→                className="h-10 text-center font-mono tracking-wider"
+  1573→                value={backupCode}
+  1574→                onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
+  1575→                autoComplete="off"
+  1576→              />
+  1577→            </div>
+  1578→          )}
+  1579→
+  1580→          <LoadingButton
+  1581→            className="w-full h-10"
+  1582→            loading={loading}
+  1583→            onClick={handleVerify}
+  1584→            disabled={!useBackupCode ? code.length !== 6 : backupCode.trim().length < 8}
+  1585→          >
+  1586→            Verify
+  1587→          </LoadingButton>
+  1588→
+  1589→          {/* Toggle backup code */}
+  1590→          <div className="flex items-center justify-center gap-2">
+  1591→            <Switch
+  1592→              id="use-backup-code"
+  1593→              checked={useBackupCode}
+  1594→              onCheckedChange={setUseBackupCode}
+  1595→            />
+  1596→            <Label htmlFor="use-backup-code" className="text-xs text-muted-foreground cursor-pointer">
+  1597→              Use a backup code instead
+  1598→            </Label>
+  1599→          </div>
+  1600→        </CardContent>
+  1601→      </Card>
+  1602→    </AuthLayout>
+  1603→  );
+  1604→}
+  1605→
+  1606→// ============================================================
+  1607→// 7. MFA SETUP PAGE (Settings)
+  1608→// ============================================================
+  1609→
+  1610→export function MfaSetupPage({ onDisable }: { onDisable?: () => void }) {
+  1611→  const { user, updateMfaEnabled } = useAuth();
+  1612→  const [step, setStep] = useState<'password' | 'qr' | 'verify' | 'backup'>(
+  1613→    user?.mfaEnabled ? 'backup' : 'password'
+  1614→  );
+  1615→  const [password, setPassword] = useState('');
+  1616→  const [totpCode, setTotpCode] = useState('');
+  1617→  const [error, setError] = useState('');
+  1618→  const [loading, setLoading] = useState(false);
+  1619→  const [secret, setSecret] = useState('');
+  1620→  const [otpUri, setOtpUri] = useState('');
+  1621→  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  1622→
+  1623→  // Step 1: Verify password to start MFA setup
+  1624→  const handlePasswordVerify = useCallback(async () => {
+  1625→    if (!password) {
+  1626→      setError('Enter your password');
+  1627→      return;
+  1628→    }
+  1629→    setError('');
+  1630→    setLoading(true);
+  1631→    try {
+  1632→      const res = await fetch('/api/auth/mfa/setup', {
+  1633→        method: 'POST',
+  1634→        headers: { 'Content-Type': 'application/json' },
+  1635→        credentials: 'include',
+  1636→        body: JSON.stringify({ password }),
+  1637→      });
+  1638→      const data = await res.json();
+  1639→      if (res.ok) {
+  1640→        setSecret(data.secret);
+  1641→        setOtpUri(data.otpUri);
+  1642→        setBackupCodes(data.backupCodes || []);
+  1643→        setStep('qr');
+  1644→      } else {
+  1645→        setError(data.error || 'Password verification failed');
+  1646→        toast.error(data.error || 'Password verification failed');
+  1647→      }
+  1648→    } catch {
+  1649→      setError('Network error. Please try again.');
+  1650→      toast.error('Network error');
+  1651→    }
+  1652→    setLoading(false);
+  1653→  }, [password]);
+  1654→
+  1655→  // Step 3: Verify TOTP code to complete setup
+  1656→  const handleTotpVerify = useCallback(async () => {
+  1657→    if (totpCode.length !== 6) {
+  1658→      setError('Enter all 6 digits');
+  1659→      return;
+  1660→    }
+  1661→    setError('');
+  1662→    setLoading(true);
+  1663→    try {
+  1664→      const res = await fetch('/api/auth/mfa/setup/verify', {
+  1665→        method: 'POST',
+  1666→        headers: { 'Content-Type': 'application/json' },
+  1667→        credentials: 'include',
+  1668→        body: JSON.stringify({ code: totpCode, secret }),
+  1669→      });
+  1670→      const data = await res.json();
+  1671→      if (res.ok) {
+  1672→        updateMfaEnabled(true);
+  1673→        toast.success('MFA enabled successfully!');
+  1674→        setStep('backup');
+  1675→      } else {
+  1676→        setError(data.error || 'Verification failed');
+  1677→        toast.error(data.error || 'Verification failed');
+  1678→      }
+  1679→    } catch {
+  1680→      setError('Network error');
+  1681→      toast.error('Network error');
+  1682→    }
+  1683→    setLoading(false);
+  1684→  }, [totpCode, secret, updateMfaEnabled]);
+  1685→
+  1686→  // Disable MFA
+  1687→  const handleDisableMfa = useCallback(async () => {
+  1688→    setLoading(true);
+  1689→    try {
+  1690→      const res = await fetch('/api/auth/mfa/disable', {
+  1691→        method: 'POST',
+  1692→        credentials: 'include',
+  1693→      });
+  1694→      if (res.ok) {
+  1695→        updateMfaEnabled(false);
+  1696→        toast.success('MFA disabled');
+  1697→        setStep('password');
+  1698→        setPassword('');
+  1699→        setSecret('');
+  1700→        setOtpUri('');
+  1701→        setBackupCodes([]);
+  1702→        onDisable?.();
+  1703→      } else {
+  1704→        toast.error('Failed to disable MFA');
+  1705→      }
+  1706→    } catch {
+  1707→      toast.error('Network error');
+  1708→    }
+  1709→    setLoading(false);
+  1710→  }, [updateMfaEnabled, onDisable]);
+  1711→
+  1712→  // Copy backup codes
+  1713→  const handleCopyCodes = useCallback(() => {
+  1714→    navigator.clipboard.writeText(backupCodes.join('\n'));
+  1715→    toast.success('Backup codes copied!');
+  1716→  }, [backupCodes]);
+  1717→
+  1718→  // Download backup codes
+  1719→  const handleDownloadCodes = useCallback(() => {
+  1720→    const content = `AcquisitionOS MFA Backup Codes\nGenerated: ${new Date().toISOString()}\n\n${backupCodes.join('\n')}\n\nKeep these codes safe. Each can only be used once.`;
+  1721→    const blob = new Blob([content], { type: 'text/plain' });
+  1722→    const url = URL.createObjectURL(blob);
+  1723→    const a = document.createElement('a');
+  1724→    a.href = url;
+  1725→    a.download = 'acquisitionos-backup-codes.txt';
+  1726→    a.click();
+  1727→    URL.revokeObjectURL(url);
+  1728→    toast.success('Backup codes downloaded!');
+  1729→  }, [backupCodes]);
+  1730→
+  1731→  return (
+  1732→    <div className="space-y-6">
+  1733→      <div>
+  1734→        <h2 className="text-lg font-semibold gradient-text">Two-Factor Authentication</h2>
+  1735→        <p className="text-sm text-muted-foreground mt-1">
+  1736→          Add an extra layer of security to your account
+  1737→        </p>
+  1738→      </div>
+  1739→
+  1740→      {error && (
+  1741→        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive slide-in-up" role="alert">
+  1742→          {error}
+  1743→        </div>
+  1744→      )}
+  1745→
+  1746→      {/* Step indicator */}
+  1747→      {!user?.mfaEnabled && (
+  1748→        <div className="flex items-center gap-2">
+  1749→          {['password', 'qr', 'verify'].map((s, i) => (
+  1750→            <div key={s} className="flex items-center gap-2">
+  1751→              <div
+  1752→                className={cn(
+  1753→                  'h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium transition-all',
+  1754→                  step === s
+  1755→                    ? 'bg-primary text-primary-foreground'
+  1756→                    : ['password', 'qr', 'verify'].indexOf(step) > i
+  1757→                      ? 'bg-primary/20 text-primary'
+  1758→                      : 'bg-muted text-muted-foreground'
+  1759→                )}
+  1760→              >
+  1761→                {['password', 'qr', 'verify'].indexOf(step) > i ? (
+  1762→                  <Check className="h-3.5 w-3.5" />
+  1763→                ) : (
+  1764→                  i + 1
+  1765→                )}
+  1766→              </div>
+  1767→              {i < 2 && (
+  1768→                <div
+  1769→                  className={cn(
+  1770→                    'h-0.5 w-8 transition-colors',
+  1771→                    ['password', 'qr', 'verify'].indexOf(step) > i
+  1772→                      ? 'bg-primary'
+  1773→                      : 'bg-muted'
+  1774→                  )}
+  1775→                />
+  1776→              )}
+  1777→            </div>
+  1778→          ))}
+  1779→        </div>
+  1780→      )}
+  1781→
+  1782→      {/* STEP 1: Password Verification */}
+  1783→      {step === 'password' && (
+  1784→        <Card className="glass-card">
+  1785→          <CardHeader>
+  1786→            <CardTitle className="text-sm">Verify Your Identity</CardTitle>
+  1787→            <CardDescription className="text-xs">
+  1788→              Enter your password to begin setting up two-factor authentication
+  1789→            </CardDescription>
+  1790→          </CardHeader>
+  1791→          <CardContent className="space-y-4">
+  1792→            <div className="space-y-2">
+  1793→              <Label htmlFor="mfa-setup-password" className="text-xs font-medium">
+  1794→                Current Password
+  1795→              </Label>
+  1796→              <div className="relative">
+  1797→                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1798→                <Input
+  1799→                  id="mfa-setup-password"
+  1800→                  type="password"
+  1801→                  placeholder="Enter your password"
+  1802→                  className="pl-9 h-10"
+  1803→                  value={password}
+  1804→                  onChange={(e) => {
+  1805→                    setPassword(e.target.value);
+  1806→                    if (error) setError('');
+  1807→                  }}
+  1808→                  autoComplete="current-password"
+  1809→                />
+  1810→              </div>
+  1811→            </div>
+  1812→            <LoadingButton
+  1813→              className="w-full h-10"
+  1814→              loading={loading}
+  1815→              onClick={handlePasswordVerify}
+  1816→            >
+  1817→              Continue
+  1818→            </LoadingButton>
+  1819→          </CardContent>
+  1820→        </Card>
+  1821→      )}
+  1822→
+  1823→      {/* STEP 2: QR Code + Secret */}
+  1824→      {step === 'qr' && (
+  1825→        <Card className="glass-card">
+  1826→          <CardHeader>
+  1827→            <CardTitle className="text-sm">Scan QR Code</CardTitle>
+  1828→            <CardDescription className="text-xs">
+  1829→              Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+  1830→            </CardDescription>
+  1831→          </CardHeader>
+  1832→          <CardContent className="space-y-4">
+  1833→            {/* QR Code placeholder */}
+  1834→            <div className="flex justify-center">
+  1835→              <div className="w-48 h-48 bg-background rounded-xl border border-border flex items-center justify-center">
+  1836→                {otpUri ? (
+  1837→                  <QrCode className="h-32 w-32 text-foreground" />
+  1838→                ) : (
+  1839→                  <div className="text-center text-xs text-muted-foreground">
+  1840→                    QR Code
+  1841→                  </div>
+  1842→                )}
+  1843→              </div>
+  1844→            </div>
+  1845→
+  1846→            {/* Secret key */}
+  1847→            <div className="space-y-2">
+  1848→              <Label className="text-xs font-medium">Secret Key</Label>
+  1849→              <div className="flex items-center gap-2">
+  1850→                <code className="flex-1 bg-muted/50 rounded-md px-3 py-2 text-xs font-mono break-all">
+  1851→                  {secret || 'JBSWY3DPEHPK3PXP'}
+  1852→                </code>
+  1853→                <Button
+  1854→                  variant="outline"
+  1855→                  size="icon"
+  1856→                  className="shrink-0 h-8 w-8"
+  1857→                  onClick={() => {
+  1858→                    navigator.clipboard.writeText(secret);
+  1859→                    toast.success('Secret copied!');
+  1860→                  }}
+  1861→                  aria-label="Copy secret key"
+  1862→                >
+  1863→                  <Copy className="h-3.5 w-3.5" />
+  1864→                </Button>
+  1865→              </div>
+  1866→            </div>
+  1867→
+  1868→            <Button className="w-full h-10" onClick={() => setStep('verify')}>
+  1869→              I&apos;ve Scanned the Code
+  1870→            </Button>
+  1871→          </CardContent>
+  1872→        </Card>
+  1873→      )}
+  1874→
+  1875→      {/* STEP 3: Verify TOTP */}
+  1876→      {step === 'verify' && (
+  1877→        <Card className="glass-card">
+  1878→          <CardHeader>
+  1879→            <CardTitle className="text-sm">Verify Setup</CardTitle>
+  1880→            <CardDescription className="text-xs">
+  1881→              Enter the 6-digit code from your authenticator app to complete setup
+  1882→            </CardDescription>
+  1883→          </CardHeader>
+  1884→          <CardContent className="space-y-4">
+  1885→            <div className="flex flex-col items-center gap-2">
+  1886→              <InputOTP maxLength={6} value={totpCode} onChange={setTotpCode}>
+  1887→                <InputOTPGroup>
+  1888→                  <InputOTPSlot index={0} className="h-12 w-12 text-lg" />
+  1889→                  <InputOTPSlot index={1} className="h-12 w-12 text-lg" />
+  1890→                  <InputOTPSlot index={2} className="h-12 w-12 text-lg" />
+  1891→                </InputOTPGroup>
+  1892→                <InputOTPSeparator />
+  1893→                <InputOTPGroup>
+  1894→                  <InputOTPSlot index={3} className="h-12 w-12 text-lg" />
+  1895→                  <InputOTPSlot index={4} className="h-12 w-12 text-lg" />
+  1896→                  <InputOTPSlot index={5} className="h-12 w-12 text-lg" />
+  1897→                </InputOTPGroup>
+  1898→              </InputOTP>
+  1899→            </div>
+  1900→            <LoadingButton
+  1901→              className="w-full h-10"
+  1902→              loading={loading}
+  1903→              onClick={handleTotpVerify}
+  1904→              disabled={totpCode.length !== 6}
+  1905→            >
+  1906→              Verify & Enable MFA
+  1907→            </LoadingButton>
+  1908→          </CardContent>
+  1909→        </Card>
+  1910→      )}
+  1911→
+  1912→      {/* BACKUP CODES */}
+  1913→      {step === 'backup' && (
+  1914→        <Card className="glass-card">
+  1915→          <CardHeader>
+  1916→            <CardTitle className="text-sm flex items-center gap-2">
+  1917→              <Key className="h-4 w-4 text-primary" />
+  1918→              Backup Codes
+  1919→            </CardTitle>
+  1920→            <CardDescription className="text-xs">
+  1921→              Save these backup codes in a safe place. Each code can only be used once.
+  1922→            </CardDescription>
+  1923→          </CardHeader>
+  1924→          <CardContent className="space-y-4">
+  1925→            <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-4 font-mono text-sm">
+  1926→              {(backupCodes.length > 0
+  1927→                ? backupCodes
+  1928→                : ['A1B2-C3D4', 'E5F6-G7H8', 'I9J0-K1L2', 'M3N4-O5P6', 'Q7R8-S9T0', 'U1V2-W3X4', 'Y5Z6-A7B8', 'C9D0-E1F2']
+  1929→              ).map((code, i) => (
+  1930→                <div key={i} className="text-center py-1 px-2 rounded bg-background/50">
+  1931→                  {code}
+  1932→                </div>
+  1933→              ))}
+  1934→            </div>
+  1935→            <div className="flex gap-2">
+  1936→              <Button
+  1937→                variant="outline"
+  1938→                className="flex-1 h-9"
+  1939→                onClick={handleCopyCodes}
+  1940→              >
+  1941→                <Copy className="h-3.5 w-3.5 mr-1.5" />
+  1942→                Copy
+  1943→              </Button>
+  1944→              <Button
+  1945→                variant="outline"
+  1946→                className="flex-1 h-9"
+  1947→                onClick={handleDownloadCodes}
+  1948→              >
+  1949→                <Download className="h-3.5 w-3.5 mr-1.5" />
+  1950→                Download
+  1951→              </Button>
+  1952→            </div>
+  1953→
+  1954→            {/* Disable MFA */}
+  1955→            <Separator />
+  1956→            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
+  1957→              <div className="flex items-start gap-2">
+  1958→                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+  1959→                <div>
+  1960→                  <p className="text-sm font-medium">Danger Zone</p>
+  1961→                  <p className="text-xs text-muted-foreground">
+  1962→                    Disabling MFA reduces your account security. Make sure you understand the risks.
+  1963→                  </p>
+  1964→                </div>
+  1965→              </div>
+  1966→              <LoadingButton
+  1967→                variant="destructive"
+  1968→                size="sm"
+  1969→                loading={loading}
+  1970→                onClick={handleDisableMfa}
+  1971→              >
+  1972→                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+  1973→                Disable Two-Factor Authentication
+  1974→              </LoadingButton>
+  1975→            </div>
+  1976→          </CardContent>
+  1977→        </Card>
+  1978→      )}
+  1979→    </div>
+  1980→  );
+  1981→}
+  1982→
+  1983→// ============================================================
+  1984→// 8. SESSION MANAGEMENT PAGE (Settings)
+  1985→// ============================================================
+  1986→
+  1987→interface Session {
+  1988→  id: string;
+  1989→  device: string;
+  1990→  browser: string;
+  1991→  ip: string;
+  1992→  lastActive: string;
+  1993→  current: boolean;
+  1994→  icon: 'desktop' | 'mobile' | 'unknown';
+  1995→}
+  1996→
+  1997→// Default empty sessions (fetched from API)
+  1998→const EMPTY_SESSIONS: Session[] = [];
+  1999→
+  2000→function SessionIcon({ type }: { type: 'desktop' | 'mobile' | 'unknown' }) {
+
+[showing lines 1-2000 of 2293; use offset=2001 with limit to continue reading]

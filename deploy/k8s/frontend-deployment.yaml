@@ -1,0 +1,98 @@
+# ═══════════════════════════════════════════════════════════════════
+# AcquisitionOS — Frontend Deployment & Service
+# Phase 14.4: Deployment
+# ═══════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: acquisitionos
+  labels:
+    app: acquisitionos
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: acquisitionos
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: acquisitionos
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: acquisitionos/frontend:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: acquisitionos-config
+            - secretRef:
+                name: acquisitionos-secrets
+          env:
+            - name: DATABASE_URL
+              value: "file:./data/acquisitionos.db"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: app-data
+              mountPath: /app/data
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: frontend-data-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frontend-data-pvc
+  namespace: acquisitionos
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+  namespace: acquisitionos
+  labels:
+    app: acquisitionos
+    component: frontend
+spec:
+  selector:
+    app: acquisitionos
+    component: frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+  type: ClusterIP

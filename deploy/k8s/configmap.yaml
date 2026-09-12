@@ -1,0 +1,25 @@
+# ═══════════════════════════════════════════════════════════════════
+# AcquisitionOS — Kubernetes ConfigMap
+# Phase 14.4: Deployment
+# ═══════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acquisitionos-config
+  namespace: acquisitionos
+data:
+  NODE_ENV: "production"
+  ENVIRONMENT: "production"
+  NEXT_TELEMETRY_DISABLED: "1"
+  DOMAIN: "app.acquisitionos.com"
+  REDIS_HOST: "redis-svc"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  CELERY_BROKER_DB: "1"
+  CELERY_RESULT_DB: "2"
+  POSTGRES_HOST: "postgres-svc"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "acquisitionos"
+  PORT: "3000"
+  BACKEND_PORT: "8000"
+  REALTIME_PORT: "3003"

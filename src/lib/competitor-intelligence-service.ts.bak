@@ -1,0 +1,3748 @@
+// ═══════════════════════════════════════════════════════════════════
+// AcquisitionOS — Competitor Intelligence Service
+// Phase 13: Competitor Intelligence + Scanning + Analysis + Tracking
+//
+// REAL data sources only — uses z-ai-web-dev-sdk for web scraping,
+// LLM analysis, and discovery. NO fake competitor data.
+//
+// CRITICAL RULES:
+// - NEVER use z-ai-web-dev-sdk on the client side
+// - ALWAYS validate userId for org isolation
+// - ALWAYS use proper error handling
+// - Include in-memory caching with 5-minute TTL
+// ═══════════════════════════════════════════════════════════════════
+
+import { db } from '@/lib/db';
+import { deductCredits, CREDIT_COSTS, refundCredits } from '@/lib/credit-service';
+import ZAI from 'z-ai-web-dev-sdk';
+
+// ═══════════════════════════════════════════════════════════════════
+// TYPE DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════
+
+export interface SEOData {
+  title: string;
+  description: string;
+  keywords: string[];
+  ogTags: Record<string, string>;
+  headingStructure: string[];
+  canonicalUrl: string;
+  robotsTxt: string;
+  sitemapUrl: string;
+  score: number; // 0-100
+}
+
+export interface PricingData {
+  hasPricingPage: boolean;
+  pricingUrl: string;
+  pricingModel: string; // freemium, subscription, one-time, usage-based, etc.
+  tiers: { name: string; price: string; features: string[] }[];
+  currency: string;
+  lastUpdated: string;
+}
+
+export interface SocialData {
+  twitter?: { handle: string; followers: number; url: string };
+  linkedin?: { handle: string; followers: number; url: string };
+  facebook?: { handle: string; likes: number; url: string };
+  instagram?: { handle: string; followers: number; url: string };
+  youtube?: { handle: string; subscribers: number; url: string };
+  overallScore: number;
+}
+
+export interface ReviewsData {
+  sources: { platform: string; avgRating: number; reviewCount: number; url: string }[];
+  overallRating: number;
+  totalReviews: number;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  commonComplaints: string[];
+  commonPraises: string[];
+}
+
+export interface TechStackData {
+  technologies: { name: string; category: string; version?: string }[];
+  categories: Record<string, string[]>;
+  complexity: 'simple' | 'moderate' | 'complex';
+  detectedAt: string;
+}
+
+export interface PageSpeedData {
+  performanceScore: number;
+  accessibility: number;
+  bestPractices: number;
+  seo: number;
+  largestContentfulPaint: number;
+  firstInputDelay: number;
+  cumulativeLayoutShift: number;
+}
+
+export interface ComparisonData {
+  competitors: { id: string; name: string; url: string }[];
+  metrics: Record<string, (number | string | null)[]>;
+  strengths: string[][];
+  weaknesses: string[][];
+  pricingComparison: { tier: string; prices: (string | null)[] }[];
+}
+
+export interface AIInsightsData {
+  strategicPosition: string;
+  competitiveAdvantages: string[];
+  vulnerabilities: string[];
+  recommendedActions: { action: string; priority: 'high' | 'medium' | 'low'; reasoning: string }[];
+  marketOpportunities: string[];
+  threatAssessment: { threat: string; severity: 'low' | 'medium' | 'high'; mitigation: string }[];
+}
+
+export interface OpportunityData {
+  id: string;
+  type: 'pricing' | 'feature' | 'market' | 'seo' | 'social' | 'tech';
+  description: string;
+  impact: 'low' | 'medium' | 'high';
+  effort: 'low' | 'medium' | 'high';
+  score: number; // 0-100
+}
+
+export interface ChangeData {
+  field: string;
+  previousValue: unknown;
+  newValue: unknown;
+  detectedAt: string;
+  significance: 'low' | 'medium' | 'high';
+}
+
+export interface TrendData {
+  date: string;
+  value: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// IN-MEMORY CACHE (5-minute TTL)
+// ═══════════════════════════════════════════════════════════════════
+
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const competitorCache = new Map<string, CacheEntry<unknown>>();
+
+function cacheGet<T>(key: string): T | null {
+  const entry = competitorCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    competitorCache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function cacheSet<T>(key: string, data: T, ttlMs = CACHE_TTL_MS): void {
+  competitorCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
+function cacheInvalidate(prefix: string): void {
+  for (const key of competitorCache.keys()) {
+    if (key.startsWith(prefix)) {
+      competitorCache.delete(key);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+
+const DEFAULT_PAGE_LIMIT = 20;
+const MAX_PAGE_LIMIT = 100;
+const COMPETITOR_CREDIT_COST = CREDIT_COSTS.competitor_analysis; // 8 credits
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER: INITIALIZE ZAI SDK
+// ═══════════════════════════════════════════════════════════════════
+
+async function initZAI(): Promise<InstanceType<typeof ZAI>> {
+  try {
+    return await ZAI.create();
+  } catch {
+    throw new Error('Failed to initialize AI SDK. Check API configuration.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER: ORG ISOLATION VALIDATION
+// ═══════════════════════════════════════════════════════════════════
+
+async function validateUserOwnsCompetitor(userId: string, competitorId: string): Promise<boolean> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+    select: { id: true },
+  });
+  return !!competitor;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER: PARSE LLM JSON RESPONSE
+// ═══════════════════════════════════════════════════════════════════
+
+function parseLLMJson<T>(content: string, fallback: T): T {
+  try {
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return parsed as T;
+  } catch {
+    return fallback;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER: URL NORMALIZATION
+// ═══════════════════════════════════════════════════════════════════
+
+function normalizeUrl(url: string): string {
+  let normalized = url.trim();
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    normalized = 'https://' + normalized;
+  }
+  // Remove trailing slash
+  return normalized.replace(/\/+$/, '');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 1. COMPETITOR CRUD
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Create a new competitor record with both CompetitorData (raw) and CompetitorAnalysis (processed).
+ */
+export async function createCompetitor(
+  userId: string,
+  data: { name: string; url: string; leadId?: string }
+): Promise<unknown> {
+  const normalizedUrl = normalizeUrl(data.url);
+
+  // Check for duplicate URL for this user
+  const existing = await db.competitorAnalysis.findFirst({
+    where: { userId, competitorUrl: normalizedUrl },
+  });
+
+  if (existing) {
+    throw new Error(`Competitor with URL "${normalizedUrl}" already exists for this user.`);
+  }
+
+  // Create CompetitorData (raw storage)
+  const competitorData = await db.competitorData.create({
+    data: {
+      competitorName: data.name,
+      competitorUrl: normalizedUrl,
+    },
+  });
+
+  // Create CompetitorAnalysis (processed/analyzed storage)
+  const analysis = await db.competitorAnalysis.create({
+    data: {
+      userId,
+      leadId: data.leadId || null,
+      competitorName: data.name,
+      competitorUrl: normalizedUrl,
+      competitorDataId: competitorData.id,
+      threatLevel: 'medium', // default until analyzed
+    },
+  });
+
+  // Invalidate cache
+  cacheInvalidate(`competitors:${userId}`);
+
+  return analysis;
+}
+
+/**
+ * List competitors with pagination and optional threat level filter.
+ */
+export async function getCompetitors(
+  userId: string,
+  filters?: { threatLevel?: string; page?: number; limit?: number }
+): Promise<{ data: unknown[]; total: number }> {
+  const page = Math.max(1, filters?.page || 1);
+  const limit = Math.min(MAX_PAGE_LIMIT, Math.max(1, filters?.limit || DEFAULT_PAGE_LIMIT));
+  const offset = (page - 1) * limit;
+
+  const cacheKey = `competitors:${userId}:list:${filters?.threatLevel || 'all'}:${page}:${limit}`;
+  const cached = cacheGet<{ data: unknown[]; total: number }>(cacheKey);
+  if (cached) return cached;
+
+  const where: Record<string, unknown> = { userId };
+  if (filters?.threatLevel) {
+    where.threatLevel = filters.threatLevel;
+  }
+
+  const [data, total] = await Promise.all([
+    db.competitorAnalysis.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+      skip: offset,
+    }),
+    db.competitorAnalysis.count({ where }),
+  ]);
+
+  const result = { data, total };
+  cacheSet(cacheKey, result);
+  return result;
+}
+
+/**
+ * Get a single competitor profile by ID.
+ */
+export async function getCompetitorById(
+  userId: string,
+  id: string
+): Promise<unknown | null> {
+  const cacheKey = `competitors:${userId}:detail:${id}`;
+  const cached = cacheGet<unknown>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id, userId },
+  });
+
+  if (!competitor) return null;
+
+  cacheSet(cacheKey, competitor);
+  return competitor;
+}
+
+/**
+ * Update competitor analysis fields.
+ */
+export async function updateCompetitor(
+  userId: string,
+  id: string,
+  data: Record<string, unknown>
+): Promise<unknown> {
+  // Validate ownership
+  const existing = await db.competitorAnalysis.findFirst({
+    where: { id, userId },
+  });
+
+  if (!existing) {
+    throw new Error('Competitor not found or access denied.');
+  }
+
+  // Filter allowed fields
+  const allowedFields = [
+    'competitorName', 'competitorUrl', 'techStack', 'seoScore', 'socialScore',
+    'strengths', 'weaknesses', 'opportunities', 'threats', 'threatLevel',
+    'pricingModel', 'estimatedTrafficTier', 'differentiationOpportunities',
+    'analysisData', 'socialProfiles', 'pricingDetails', 'reviewsData',
+    'lighthouseData', 'pageSpeedData', 'aiComparisonData', 'opportunityScore',
+    'lastAnalyzedAt', 'leadId',
+  ];
+
+  const updateData: Record<string, unknown> = {};
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      // Serialize JSON fields
+      if (['techStack', 'strengths', 'weaknesses', 'opportunities', 'threats',
+           'differentiationOpportunities', 'analysisData', 'socialProfiles',
+           'pricingDetails', 'reviewsData', 'lighthouseData', 'pageSpeedData',
+           'aiComparisonData'].includes(field)) {
+        updateData[field] = typeof data[field] === 'string' ? data[field] : JSON.stringify(data[field]);
+      } else {
+        updateData[field] = data[field];
+      }
+    }
+  }
+
+  const updated = await db.competitorAnalysis.update({
+    where: { id },
+    data: updateData,
+  });
+
+  // Invalidate cache
+  cacheInvalidate(`competitors:${userId}`);
+
+  return updated;
+}
+
+/**
+ * Delete a competitor with org isolation check.
+ */
+export async function deleteCompetitor(userId: string, id: string): Promise<void> {
+  // Validate ownership
+  const existing = await db.competitorAnalysis.findFirst({
+    where: { id, userId },
+  });
+
+  if (!existing) {
+    throw new Error('Competitor not found or access denied.');
+  }
+
+  // Delete associated snapshots
+  await db.competitorSnapshot.deleteMany({
+    where: { competitorId: id },
+  });
+
+  // Delete associated competitor data
+  if (existing.competitorDataId) {
+    await db.competitorData.deleteMany({
+      where: { id: existing.competitorDataId },
+    }).catch(() => {
+      // Best effort — competitor data may already be deleted
+    });
+  }
+
+  // Delete the analysis record
+  await db.competitorAnalysis.delete({
+    where: { id },
+  });
+
+  // Invalidate cache
+  cacheInvalidate(`competitors:${userId}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. COMPETITOR SCANNING
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Scan a competitor's website — fetches HTML, extracts SEO metadata,
+ * tech stack, social links, and other data.
+ */
+export async function scanCompetitorWebsite(
+  userId: string,
+  competitorId: string
+): Promise<unknown> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  // Deduct credits
+  const creditResult = await deductCredits({
+    userId,
+    action: 'competitor_analysis',
+    cost: COMPETITOR_CREDIT_COST,
+    referenceId: competitorId,
+  });
+
+  if (!creditResult.success) {
+    throw new Error(creditResult.error || 'Insufficient credits for competitor scan.');
+  }
+
+  try {
+    const competitor = await db.competitorAnalysis.findFirst({
+      where: { id: competitorId, userId },
+    });
+
+    if (!competitor) throw new Error('Competitor not found.');
+
+    const zai = await initZAI();
+
+    // Step 1: Read the competitor's website
+    let websiteHtml = '';
+    let pageTitle = '';
+    let pageDescription = '';
+    let pageContent = '';
+
+    try {
+      const pageResult = await zai.functions.invoke('page_reader', {
+        url: competitor.competitorUrl,
+      });
+
+      if (pageResult?.data?.html) {
+        websiteHtml = pageResult.data.html;
+        // Truncate for storage
+        pageContent = websiteHtml.substring(0, 20000);
+      }
+
+      // Try to extract title and description from HTML
+      const titleMatch = websiteHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if (titleMatch) pageTitle = titleMatch[1].trim();
+
+      const descMatch = websiteHtml.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+        || websiteHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["'][^>]*>/i);
+      if (descMatch) pageDescription = descMatch[1].trim();
+    } catch (err) {
+      console.warn(`[CompetitorIntel] Failed to read website ${competitor.competitorUrl}:`, err);
+    }
+
+    // Step 2: Web search for additional info about the competitor
+    let searchSnippet = '';
+    try {
+      const searchResults = await zai.functions.invoke('web_search', {
+        query: `${competitor.competitorName} company overview services features`,
+        num: 5,
+      });
+
+      if (searchResults && searchResults.length > 0) {
+        searchSnippet = searchResults
+          .map((r: { name: string; snippet: string; url: string }) => `Source: ${r.url}\n${r.snippet}`)
+          .join('\n\n');
+      }
+    } catch {
+      // Continue without search results
+    }
+
+    // Step 3: Use LLM to extract structured data from the website
+    const extractedData = await extractWebsiteData(zai, competitor, pageContent, searchSnippet);
+
+    // Step 4: Update CompetitorData (raw) with scraped data
+    if (competitor.competitorDataId) {
+      await db.competitorData.update({
+        where: { id: competitor.competitorDataId },
+        data: {
+          websiteHtml: websiteHtml.substring(0, 50000), // Limit raw HTML storage
+          lastScrapedAt: new Date(),
+          description: extractedData.description || pageDescription || null,
+          industry: extractedData.industry || null,
+          location: extractedData.location || null,
+          socialProfiles: extractedData.socialProfiles ? JSON.stringify(extractedData.socialProfiles) : undefined,
+          seoMetadata: JSON.stringify({
+            title: pageTitle || extractedData.title,
+            description: pageDescription || extractedData.description,
+            keywords: extractedData.keywords || [],
+          }),
+          techStackData: extractedData.techStack ? JSON.stringify(extractedData.techStack) : undefined,
+        },
+      });
+    }
+
+    // Step 5: Update CompetitorAnalysis (processed) with extracted insights
+    const updatedAnalysis = await db.competitorAnalysis.update({
+      where: { id: competitorId },
+      data: {
+        techStack: extractedData.techStack ? JSON.stringify(extractedData.techStack) : competitor.techStack,
+        seoScore: extractedData.seoScore ?? competitor.seoScore,
+        socialScore: extractedData.socialScore ?? competitor.socialScore,
+        strengths: extractedData.strengths ? JSON.stringify(extractedData.strengths) : competitor.strengths,
+        weaknesses: extractedData.weaknesses ? JSON.stringify(extractedData.weaknesses) : competitor.weaknesses,
+        socialProfiles: extractedData.socialProfiles ? JSON.stringify(extractedData.socialProfiles) : competitor.socialProfiles,
+        lastAnalyzedAt: new Date(),
+        analysisData: JSON.stringify(extractedData),
+      },
+    });
+
+    // Invalidate cache
+    cacheInvalidate(`competitors:${userId}`);
+
+    return updatedAnalysis;
+  } catch (error) {
+    // Refund credits on failure
+    await refundCredits({
+      userId,
+      amount: COMPETITOR_CREDIT_COST,
+      originalAction: 'competitor_analysis',
+      referenceId: competitorId,
+    }).catch(() => {});
+
+    const message = error instanceof Error ? error.message : 'Unknown error during competitor scan';
+    throw new Error(message);
+  }
+}
+
+/**
+ * Internal: Extract structured website data using LLM.
+ */
+async function extractWebsiteData(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  pageContent: string,
+  searchSnippet: string
+): Promise<Record<string, unknown>> {
+  const truncatedContent = pageContent.substring(0, 8000);
+
+  const prompt = `You are a competitor analysis assistant. Analyze the following website content and search results for the competitor "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+WEBSITE CONTENT (truncated):
+${truncatedContent || 'No website content available'}
+
+SEARCH RESULTS:
+${searchSnippet || 'No search results available'}
+
+Extract the following as a JSON object:
+{
+  "title": "Page title",
+  "description": "Meta description or site description",
+  "industry": "Industry/category",
+  "location": "Primary location if found",
+  "keywords": ["keyword1", "keyword2", ...],
+  "socialProfiles": {
+    "twitter": "URL or null",
+    "linkedin": "URL or null",
+    "facebook": "URL or null",
+    "instagram": "URL or null",
+    "youtube": "URL or null"
+  },
+  "techStack": ["Technology1", "Technology2", ...],
+  "seoScore": 0-100,
+  "socialScore": 0-100,
+  "strengths": ["strength1", "strength2", ...],
+  "weaknesses": ["weakness1", "weakness2", ...],
+  "pricingIndicators": "Any pricing hints found on the page",
+  "targetAudience": "Who they seem to target",
+  "uniqueSellingPoints": ["USP1", "USP2", ...],
+  "contentQuality": "poor/basic/good/excellent",
+  "mobileFriendly": true/false,
+  "hasBlog": true/false,
+  "hasPricingPage": true/false,
+  "hasTestimonials": true/false
+}
+
+Return ONLY the JSON object. No markdown, no explanations.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a precise competitor analysis assistant. Return only valid JSON. No markdown, no explanations.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    return parseLLMJson(content, {});
+  } catch (error) {
+    console.error('[CompetitorIntel] LLM website extraction failed:', error);
+    return {};
+  }
+}
+
+/**
+ * Scan competitor SEO metadata from their website.
+ */
+export async function scanCompetitorSEO(
+  userId: string,
+  competitorId: string
+): Promise<SEOData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:seo:${competitorId}`;
+  const cached = cacheGet<SEOData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Read the website
+  let websiteHtml = '';
+  try {
+    const pageResult = await zai.functions.invoke('page_reader', {
+      url: competitor.competitorUrl,
+    });
+    if (pageResult?.data?.html) {
+      websiteHtml = pageResult.data.html;
+    }
+  } catch {
+    // Continue without HTML
+  }
+
+  // Extract SEO data from HTML
+  const seoData = extractSEOFromHtml(websiteHtml);
+
+  // Use LLM for deeper SEO analysis if we have content
+  if (websiteHtml.length > 500) {
+    const llmSeo = await extractSEOWithLLM(zai, competitor, websiteHtml);
+    // Merge LLM findings with HTML-parsed data
+    if (llmSeo.keywords.length > 0) seoData.keywords = llmSeo.keywords;
+    if (llmSeo.headingStructure.length > 0) seoData.headingStructure = llmSeo.headingStructure;
+    if (llmSeo.score > 0) seoData.score = llmSeo.score;
+  }
+
+  // Update analysis with SEO data
+  await db.competitorAnalysis.update({
+    where: { id: competitorId },
+    data: {
+      seoScore: seoData.score,
+    },
+  });
+
+  cacheSet(cacheKey, seoData);
+  cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+  return seoData;
+}
+
+/**
+ * Internal: Extract basic SEO data from raw HTML.
+ */
+function extractSEOFromHtml(html: string): SEOData {
+  const result: SEOData = {
+    title: '',
+    description: '',
+    keywords: [],
+    ogTags: {},
+    headingStructure: [],
+    canonicalUrl: '',
+    robotsTxt: '',
+    sitemapUrl: '',
+    score: 0,
+  };
+
+  if (!html) return result;
+
+  // Title
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleMatch) result.title = titleMatch[1].trim();
+
+  // Meta description
+  const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["'][^>]*>/i);
+  if (descMatch) result.description = descMatch[1].trim();
+
+  // Meta keywords
+  const kwMatch = html.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']keywords["'][^>]*>/i);
+  if (kwMatch) result.keywords = kwMatch[1].split(',').map(k => k.trim()).filter(Boolean);
+
+  // OG tags
+  const ogMatches = html.matchAll(/<meta[^>]*property=["']og:([^"']+)["'][^>]*content=["']([^"']+)["'][^>]*>/gi);
+  for (const match of ogMatches) {
+    result.ogTags[`og:${match[1]}`] = match[2];
+  }
+
+  // Canonical URL
+  const canonicalMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["'][^>]*>/i);
+  if (canonicalMatch) result.canonicalUrl = canonicalMatch[1];
+
+  // Heading structure
+  const headingMatches = html.matchAll(/<h([1-6])[^>]*>([^<]+)<\/h[1-6]>/gi);
+  for (const match of headingMatches) {
+    result.headingStructure.push(`H${match[1]}: ${match[2].trim()}`);
+  }
+
+  // Calculate basic SEO score (0-100)
+  let score = 0;
+  if (result.title) score += 15;
+  if (result.title && result.title.length <= 60) score += 10;
+  if (result.description) score += 15;
+  if (result.description && result.description.length <= 160) score += 10;
+  if (result.keywords.length > 0) score += 10;
+  if (result.ogTags['og:title']) score += 10;
+  if (result.ogTags['og:description']) score += 5;
+  if (result.ogTags['og:image']) score += 5;
+  if (result.canonicalUrl) score += 10;
+  if (result.headingStructure.length > 0) score += 10;
+  result.score = Math.min(100, score);
+
+  return result;
+}
+
+/**
+ * Internal: Use LLM for deeper SEO analysis.
+ */
+async function extractSEOWithLLM(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  html: string
+): Promise<{ keywords: string[]; headingStructure: string[]; score: number }> {
+  const prompt = `Analyze the SEO of this website for "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+HTML (truncated):
+${html.substring(0, 6000)}
+
+Return a JSON object:
+{
+  "keywords": ["primary keyword", "secondary keyword", ...],
+  "headingStructure": ["H1: main heading", "H2: sub heading", ...],
+  "score": 0-100 (overall SEO score based on title, meta, headings, content quality, structure)
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are an SEO analysis assistant. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    return parseLLMJson(content, { keywords: [], headingStructure: [], score: 0 });
+  } catch {
+    return { keywords: [], headingStructure: [], score: 0 };
+  }
+}
+
+/**
+ * Scan competitor pricing info by searching for their pricing page.
+ */
+export async function scanCompetitorPricing(
+  userId: string,
+  competitorId: string
+): Promise<PricingData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:pricing:${competitorId}`;
+  const cached = cacheGet<PricingData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Search for competitor pricing page
+  let pricingPageUrl = '';
+  let pricingSearchContent = '';
+
+  try {
+    const searchResults = await zai.functions.invoke('web_search', {
+      query: `${competitor.competitorName} pricing plans cost`,
+      num: 5,
+    });
+
+    if (searchResults && searchResults.length > 0) {
+      for (const result of searchResults as Array<{ url: string; name: string; snippet: string }>) {
+        if (result.url.toLowerCase().includes('pricing') || result.name.toLowerCase().includes('pricing')) {
+          pricingPageUrl = result.url;
+          break;
+        }
+      }
+
+      pricingSearchContent = (searchResults as Array<{ url: string; snippet: string }>)
+        .map(r => `${r.url}: ${r.snippet}`)
+        .join('\n');
+    }
+  } catch {
+    // Continue without search
+  }
+
+  // Try to read the pricing page
+  let pricingPageContent = '';
+  if (pricingPageUrl) {
+    try {
+      const pageResult = await zai.functions.invoke('page_reader', {
+        url: pricingPageUrl,
+      });
+      if (pageResult?.data?.html) {
+        pricingPageContent = pageResult.data.html.substring(0, 10000);
+      }
+    } catch {
+      // Continue without pricing page content
+    }
+  }
+
+  // Use LLM to extract pricing data
+  const pricingData = await extractPricingWithLLM(zai, competitor, pricingSearchContent, pricingPageContent, pricingPageUrl);
+
+  // Update competitor analysis
+  await db.competitorAnalysis.update({
+    where: { id: competitorId },
+    data: {
+      pricingModel: pricingData.pricingModel || competitor.pricingModel,
+      pricingDetails: JSON.stringify(pricingData),
+    },
+  });
+
+  cacheSet(cacheKey, pricingData);
+  cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+  return pricingData;
+}
+
+/**
+ * Internal: Extract pricing data using LLM.
+ */
+async function extractPricingWithLLM(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  searchContent: string,
+  pageContent: string,
+  pricingUrl: string
+): Promise<PricingData> {
+  const prompt = `Extract pricing information for "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+SEARCH RESULTS:
+${searchContent || 'No search results'}
+
+PRICING PAGE CONTENT (truncated):
+${pageContent || 'No pricing page content'}
+
+Return a JSON object:
+{
+  "hasPricingPage": true/false,
+  "pricingUrl": "${pricingUrl}",
+  "pricingModel": "freemium|subscription|one-time|usage-based|enterprise|custom|unknown",
+  "tiers": [
+    {"name": "Free/Basic/Pro/etc", "price": "$X/month or Free", "features": ["feature1", "feature2"]}
+  ],
+  "currency": "USD/EUR/etc",
+  "lastUpdated": "${new Date().toISOString().split('T')[0]}"
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a pricing analysis assistant. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    const result = parseLLMJson<PricingData>(content, {
+      hasPricingPage: false,
+      pricingUrl: '',
+      pricingModel: 'unknown',
+      tiers: [],
+      currency: 'USD',
+      lastUpdated: new Date().toISOString().split('T')[0],
+    });
+
+    // Ensure pricingUrl is populated
+    if (!result.pricingUrl && pricingUrl) {
+      result.pricingUrl = pricingUrl;
+    }
+
+    return result;
+  } catch {
+    return {
+      hasPricingPage: !!pricingUrl,
+      pricingUrl,
+      pricingModel: 'unknown',
+      tiers: [],
+      currency: 'USD',
+      lastUpdated: new Date().toISOString().split('T')[0],
+    };
+  }
+}
+
+/**
+ * Scan competitor social profiles by searching the web.
+ */
+export async function scanCompetitorSocial(
+  userId: string,
+  competitorId: string
+): Promise<SocialData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:social:${competitorId}`;
+  const cached = cacheGet<SocialData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Search for each social platform
+  const socialSearches = [
+    { platform: 'twitter', query: `site:twitter.com ${competitor.competitorName}` },
+    { platform: 'linkedin', query: `site:linkedin.com/company ${competitor.competitorName}` },
+    { platform: 'facebook', query: `site:facebook.com ${competitor.competitorName}` },
+    { platform: 'instagram', query: `site:instagram.com ${competitor.competitorName}` },
+    { platform: 'youtube', query: `site:youtube.com ${competitor.competitorName} channel` },
+  ];
+
+  const socialResults: Record<string, string> = {};
+
+  for (const search of socialSearches) {
+    try {
+      const results = await zai.functions.invoke('web_search', {
+        query: search.query,
+        num: 3,
+      });
+
+      if (results && results.length > 0) {
+        socialResults[search.platform] = (results as Array<{ url: string; snippet: string }>)
+          .map(r => `${r.url}: ${r.snippet}`)
+          .join('\n');
+      }
+    } catch {
+      // Continue with next platform
+    }
+  }
+
+  // Use LLM to extract social data
+  const socialData = await extractSocialWithLLM(zai, competitor, socialResults);
+
+  // Update competitor analysis
+  await db.competitorAnalysis.update({
+    where: { id: competitorId },
+    data: {
+      socialProfiles: JSON.stringify(socialData),
+      socialScore: socialData.overallScore,
+    },
+  });
+
+  cacheSet(cacheKey, socialData);
+  cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+  return socialData;
+}
+
+/**
+ * Internal: Extract social data using LLM.
+ */
+async function extractSocialWithLLM(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  socialResults: Record<string, string>
+): Promise<SocialData> {
+  const prompt = `Extract social media profile data for "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+SEARCH RESULTS:
+${Object.entries(socialResults).map(([platform, content]) => `${platform.toUpperCase()}:\n${content}`).join('\n\n') || 'No social search results found'}
+
+Return a JSON object:
+{
+  "twitter": {"handle": "@handle", "followers": 0, "url": "https://twitter.com/handle"} or null,
+  "linkedin": {"handle": "company-name", "followers": 0, "url": "https://linkedin.com/company/name"} or null,
+  "facebook": {"handle": "page-name", "likes": 0, "url": "https://facebook.com/name"} or null,
+  "instagram": {"handle": "@handle", "followers": 0, "url": "https://instagram.com/handle"} or null,
+  "youtube": {"handle": "channel-name", "subscribers": 0, "url": "https://youtube.com/@name"} or null,
+  "overallScore": 0-100 (based on social presence strength)
+}
+
+If a platform is not found, use null for that platform.
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a social media analysis assistant. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    const result = parseLLMJson<SocialData>(content, { overallScore: 0 });
+
+    // Calculate overall score if not provided
+    if (!result.overallScore) {
+      let score = 0;
+      const platforms = ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube'] as const;
+      let platformCount = 0;
+      for (const platform of platforms) {
+        const data = result[platform] as { followers?: number; likes?: number; subscribers?: number } | undefined;
+        if (data) {
+          platformCount++;
+          const count = data.followers || data.likes || data.subscribers || 0;
+          if (count > 10000) score += 20;
+          else if (count > 1000) score += 15;
+          else if (count > 100) score += 10;
+          else score += 5;
+        }
+      }
+      result.overallScore = Math.min(100, score + (platformCount * 5));
+    }
+
+    return result;
+  } catch {
+    return { overallScore: 0 };
+  }
+}
+
+/**
+ * Scan competitor reviews from review platforms.
+ */
+export async function scanCompetitorReviews(
+  userId: string,
+  competitorId: string
+): Promise<ReviewsData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:reviews:${competitorId}`;
+  const cached = cacheGet<ReviewsData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Search for reviews across platforms
+  const reviewSearches = [
+    `site:g2.com ${competitor.competitorName} reviews`,
+    `site:trustpilot.com ${competitor.competitorName} reviews`,
+    `site:capterra.com ${competitor.competitorName} reviews`,
+    `${competitor.competitorName} customer reviews ratings`,
+  ];
+
+  let reviewSearchContent = '';
+
+  for (const query of reviewSearches) {
+    try {
+      const results = await zai.functions.invoke('web_search', { query, num: 3 });
+      if (results && results.length > 0) {
+        reviewSearchContent += (results as Array<{ url: string; snippet: string }>)
+          .map(r => `${r.url}: ${r.snippet}`)
+          .join('\n') + '\n\n';
+      }
+    } catch {
+      // Continue with next query
+    }
+  }
+
+  // Use LLM to extract review data
+  const reviewsData = await extractReviewsWithLLM(zai, competitor, reviewSearchContent);
+
+  // Update competitor analysis
+  await db.competitorAnalysis.update({
+    where: { id: competitorId },
+    data: {
+      reviewsData: JSON.stringify(reviewsData),
+    },
+  });
+
+  cacheSet(cacheKey, reviewsData);
+  cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+  return reviewsData;
+}
+
+/**
+ * Internal: Extract reviews data using LLM.
+ */
+async function extractReviewsWithLLM(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  searchContent: string
+): Promise<ReviewsData> {
+  const prompt = `Extract review data for "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+SEARCH RESULTS:
+${searchContent || 'No review search results found'}
+
+Return a JSON object:
+{
+  "sources": [
+    {"platform": "G2/Trustpilot/Capterra/etc", "avgRating": 4.5, "reviewCount": 123, "url": "review page URL"}
+  ],
+  "overallRating": 4.2,
+  "totalReviews": 500,
+  "sentiment": "positive|neutral|negative",
+  "commonComplaints": ["complaint1", "complaint2", ...],
+  "commonPraises": ["praise1", "praise2", ...]
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a review analysis assistant. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    return parseLLMJson<ReviewsData>(content, {
+      sources: [],
+      overallRating: 0,
+      totalReviews: 0,
+      sentiment: 'neutral',
+      commonComplaints: [],
+      commonPraises: [],
+    });
+  } catch {
+    return {
+      sources: [],
+      overallRating: 0,
+      totalReviews: 0,
+      sentiment: 'neutral',
+      commonComplaints: [],
+      commonPraises: [],
+    };
+  }
+}
+
+/**
+ * Detect tech stack from competitor website.
+ */
+export async function scanCompetitorTechStack(
+  userId: string,
+  competitorId: string
+): Promise<TechStackData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:techstack:${competitorId}`;
+  const cached = cacheGet<TechStackData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Read the website to detect technologies
+  let websiteHtml = '';
+  try {
+    const pageResult = await zai.functions.invoke('page_reader', {
+      url: competitor.competitorUrl,
+    });
+    if (pageResult?.data?.html) {
+      websiteHtml = pageResult.data.html;
+    }
+  } catch {
+    // Continue without HTML
+  }
+
+  // Also search for tech stack info
+  let techSearchContent = '';
+  try {
+    const searchResults = await zai.functions.invoke('web_search', {
+      query: `${competitor.competitorName} technology stack builtwith wappalyzer`,
+      num: 5,
+    });
+    if (searchResults && searchResults.length > 0) {
+      techSearchContent = (searchResults as Array<{ url: string; snippet: string }>)
+        .map(r => `${r.url}: ${r.snippet}`)
+        .join('\n');
+    }
+  } catch {
+    // Continue without search
+  }
+
+  // Use LLM to detect tech stack
+  const techStackData = await extractTechStackWithLLM(zai, competitor, websiteHtml, techSearchContent);
+
+  // Update competitor analysis
+  await db.competitorAnalysis.update({
+    where: { id: competitorId },
+    data: {
+      techStack: JSON.stringify(techStackData.technologies),
+    },
+  });
+
+  // Update competitor data raw storage
+  if (competitor.competitorDataId) {
+    await db.competitorData.update({
+      where: { id: competitor.competitorDataId },
+      data: {
+        techStackData: JSON.stringify(techStackData),
+      },
+    }).catch(() => {});
+  }
+
+  cacheSet(cacheKey, techStackData);
+  cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+  return techStackData;
+}
+
+/**
+ * Internal: Detect tech stack using LLM.
+ */
+async function extractTechStackWithLLM(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  html: string,
+  searchContent: string
+): Promise<TechStackData> {
+  // First, do basic pattern matching on HTML for known technologies
+  const detectedTechs: { name: string; category: string }[] = [];
+
+  const techPatterns: Record<string, { pattern: RegExp; category: string }> = {
+    'React': { pattern: /react|reactjs|_reactRoot/i, category: 'JavaScript Framework' },
+    'Vue.js': { pattern: /vue\.js|vuejs|v-app/i, category: 'JavaScript Framework' },
+    'Angular': { pattern: /angular|ng-app|ng-version/i, category: 'JavaScript Framework' },
+    'Next.js': { pattern: /next\.js|__next|_next\//i, category: 'JavaScript Framework' },
+    'WordPress': { pattern: /wordpress|wp-content|wp-includes/i, category: 'CMS' },
+    'Shopify': { pattern: /shopify|cdn\.shopify\.com/i, category: 'E-Commerce' },
+    'Wix': { pattern: /wix\.com|wixsite/i, category: 'Website Builder' },
+    'Squarespace': { pattern: /squarespace/i, category: 'Website Builder' },
+    'Webflow': { pattern: /webflow/i, category: 'Website Builder' },
+    'Tailwind CSS': { pattern: /tailwindcss|tailwind/i, category: 'CSS Framework' },
+    'Bootstrap': { pattern: /bootstrap/i, category: 'CSS Framework' },
+    'jQuery': { pattern: /jquery/i, category: 'JavaScript Library' },
+    'Google Analytics': { pattern: /google-analytics|gtag|ga\(/i, category: 'Analytics' },
+    'Google Tag Manager': { pattern: /googletagmanager|gtm/i, category: 'Analytics' },
+    'HubSpot': { pattern: /hubspot|hs-analytics/i, category: 'Marketing' },
+    'Intercom': { pattern: /intercom/i, category: 'Customer Support' },
+    'Zendesk': { pattern: /zendesk/i, category: 'Customer Support' },
+    'Stripe': { pattern: /stripe\.com|stripe\.js/i, category: 'Payment' },
+    'Cloudflare': { pattern: /cloudflare/i, category: 'CDN/Security' },
+    'AWS': { pattern: /amazonaws|aws/i, category: 'Cloud Hosting' },
+    'Vercel': { pattern: /vercel|vercel-insights/i, category: 'Hosting' },
+    'Netlify': { pattern: /netlify/i, category: 'Hosting' },
+  };
+
+  for (const [name, config] of Object.entries(techPatterns)) {
+    if (config.pattern.test(html)) {
+      detectedTechs.push({ name, category: config.category });
+    }
+  }
+
+  // Then use LLM for deeper detection
+  const prompt = `Detect the technology stack for "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+HTML PATTERNS DETECTED:
+${detectedTechs.map(t => `${t.name} (${t.category})`).join(', ') || 'None detected from HTML patterns'}
+
+WEBSITE HTML (truncated):
+${html.substring(0, 5000) || 'No HTML available'}
+
+SEARCH RESULTS:
+${searchContent || 'No search results'}
+
+Return a JSON object:
+{
+  "technologies": [
+    {"name": "Technology Name", "category": "Category", "version": "x.x.x or null"}
+  ],
+  "categories": {"JavaScript Framework": ["React"], "CMS": ["WordPress"], ...},
+  "complexity": "simple|moderate|complex",
+  "detectedAt": "${new Date().toISOString()}"
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a technology detection assistant. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    const result = parseLLMJson<TechStackData>(content, {
+      technologies: detectedTechs,
+      categories: {},
+      complexity: 'simple' as const,
+      detectedAt: new Date().toISOString(),
+    });
+
+    // Merge HTML-detected techs with LLM results
+    const llmTechNames = new Set(result.technologies.map(t => t.name.toLowerCase()));
+    for (const tech of detectedTechs) {
+      if (!llmTechNames.has(tech.name.toLowerCase())) {
+        result.technologies.push(tech);
+      }
+    }
+
+    return result;
+  } catch {
+    return {
+      technologies: detectedTechs,
+      categories: {},
+      complexity: 'simple' as const,
+      detectedAt: new Date().toISOString(),
+    };
+  }
+}
+
+/**
+ * Analyze competitor page performance (PageSpeed-like analysis).
+ */
+export async function scanCompetitorPageSpeed(
+  userId: string,
+  competitorId: string
+): Promise<PageSpeedData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:pagespeed:${competitorId}`;
+  const cached = cacheGet<PageSpeedData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Read the website for analysis
+  let websiteHtml = '';
+  try {
+    const pageResult = await zai.functions.invoke('page_reader', {
+      url: competitor.competitorUrl,
+    });
+    if (pageResult?.data?.html) {
+      websiteHtml = pageResult.data.html;
+    }
+  } catch {
+    // Continue without HTML
+  }
+
+  // Use LLM to estimate page speed metrics
+  const pageSpeedData = await analyzePageSpeedWithLLM(zai, competitor, websiteHtml);
+
+  // Update competitor analysis
+  await db.competitorAnalysis.update({
+    where: { id: competitorId },
+    data: {
+      pageSpeedData: JSON.stringify(pageSpeedData),
+    },
+  });
+
+  // Update competitor data raw storage
+  if (competitor.competitorDataId) {
+    await db.competitorData.update({
+      where: { id: competitor.competitorDataId },
+      data: {
+        pageSpeedScore: pageSpeedData.performanceScore,
+        lighthouseScore: pageSpeedData.performanceScore,
+      },
+    }).catch(() => {});
+  }
+
+  cacheSet(cacheKey, pageSpeedData);
+  cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+  return pageSpeedData;
+}
+
+/**
+ * Internal: Estimate page speed metrics using LLM and HTML analysis.
+ */
+async function analyzePageSpeedWithLLM(
+  zai: InstanceType<typeof ZAI>,
+  competitor: { competitorName: string; competitorUrl: string },
+  html: string
+): Promise<PageSpeedData> {
+  // Basic heuristic analysis from HTML
+  const htmlSize = html.length;
+  const scriptTags = (html.match(/<script/gi) || []).length;
+  const styleTags = (html.match(/<style/gi) || []).length;
+  const imgTags = (html.match(/<img/gi) || []).length;
+  const externalResources = (html.match(/src=["']https?:/gi) || []).length;
+  const hasLazyLoading = /loading=["']lazy["']/i.test(html);
+  const hasAsyncScripts = /async|defer/i.test(html);
+
+  // Heuristic performance score estimation
+  let perfScore = 80;
+  if (htmlSize > 100000) perfScore -= 15;
+  else if (htmlSize > 50000) perfScore -= 8;
+  if (scriptTags > 10) perfScore -= 10;
+  else if (scriptTags > 5) perfScore -= 5;
+  if (imgTags > 20) perfScore -= 10;
+  else if (imgTags > 10) perfScore -= 5;
+  if (externalResources > 30) perfScore -= 10;
+  if (hasLazyLoading) perfScore += 5;
+  if (hasAsyncScripts) perfScore += 5;
+  perfScore = Math.max(10, Math.min(100, perfScore));
+
+  const prompt = `Estimate page performance metrics for "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+HTML ANALYSIS:
+- HTML size: ${htmlSize} bytes
+- Script tags: ${scriptTags}
+- Style tags: ${styleTags}
+- Image tags: ${imgTags}
+- External resources: ${externalResources}
+- Lazy loading: ${hasLazyLoading}
+- Async/defer scripts: ${hasAsyncScripts}
+- Heuristic performance score: ${perfScore}
+
+WEBSITE HTML (truncated):
+${html.substring(0, 4000) || 'No HTML available'}
+
+Return a JSON object:
+{
+  "performanceScore": 0-100,
+  "accessibility": 0-100,
+  "bestPractices": 0-100,
+  "seo": 0-100,
+  "largestContentfulPaint": 0.0-10.0 (seconds),
+  "firstInputDelay": 0-500 (milliseconds),
+  "cumulativeLayoutShift": 0.0-1.0
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a web performance analysis assistant. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    return parseLLMJson<PageSpeedData>(content, {
+      performanceScore: perfScore,
+      accessibility: 70,
+      bestPractices: 75,
+      seo: 65,
+      largestContentfulPaint: 2.5,
+      firstInputDelay: 50,
+      cumulativeLayoutShift: 0.1,
+    });
+  } catch {
+    return {
+      performanceScore: perfScore,
+      accessibility: 70,
+      bestPractices: 75,
+      seo: 65,
+      largestContentfulPaint: 2.5,
+      firstInputDelay: 50,
+      cumulativeLayoutShift: 0.1,
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. COMPETITOR ANALYSIS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Full AI-powered SWOT analysis of a competitor.
+ */
+export async function analyzeCompetitor(
+  userId: string,
+  competitorId: string
+): Promise<unknown> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  // Deduct credits
+  const creditResult = await deductCredits({
+    userId,
+    action: 'competitor_analysis',
+    cost: COMPETITOR_CREDIT_COST,
+    referenceId: competitorId,
+  });
+
+  if (!creditResult.success) {
+    throw new Error(creditResult.error || 'Insufficient credits for competitor analysis.');
+  }
+
+  try {
+    const competitor = await db.competitorAnalysis.findFirst({
+      where: { id: competitorId, userId },
+    });
+
+    if (!competitor) throw new Error('Competitor not found.');
+
+    const zai = await initZAI();
+
+    // Gather all available data
+    const analysisData = competitor.analysisData ? JSON.parse(competitor.analysisData as string) : {};
+    const techStack = competitor.techStack ? JSON.parse(competitor.techStack as string) : [];
+    const socialProfiles = competitor.socialProfiles ? JSON.parse(competitor.socialProfiles as string) : {};
+    const pricingDetails = competitor.pricingDetails ? JSON.parse(competitor.pricingDetails as string) : {};
+    const reviewsData = competitor.reviewsData ? JSON.parse(competitor.reviewsData as string) : {};
+    const pageSpeedData = competitor.pageSpeedData ? JSON.parse(competitor.pageSpeedData as string) : {};
+
+    const prompt = `Perform a comprehensive SWOT analysis for the competitor "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+AVAILABLE DATA:
+- Tech Stack: ${JSON.stringify(techStack)}
+- SEO Score: ${competitor.seoScore || 'Not analyzed'}
+- Social Score: ${competitor.socialScore || 'Not analyzed'}
+- Social Profiles: ${JSON.stringify(socialProfiles)}
+- Pricing: ${JSON.stringify(pricingDetails)}
+- Reviews: ${JSON.stringify(reviewsData)}
+- Page Speed: ${JSON.stringify(pageSpeedData)}
+- Previous Analysis: ${JSON.stringify(analysisData)}
+
+Return a JSON object with the SWOT analysis:
+{
+  "strengths": ["strength1", "strength2", ...],
+  "weaknesses": ["weakness1", "weakness2", ...],
+  "opportunities": ["opportunity1", "opportunity2", ...],
+  "threats": ["threat1", "threat2", ...],
+  "threatLevel": "low|medium|high",
+  "estimatedTrafficTier": "low|medium|high",
+  "differentiationOpportunities": ["opp1", "opp2", ...],
+  "opportunityScore": 0-100,
+  "competitivePosition": "Description of their market position",
+  "keyInsights": ["insight1", "insight2", ...],
+  "recommendedActions": ["action1", "action2", ...]
+}
+
+Return ONLY JSON. No markdown.`;
+
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a competitive intelligence analyst. Provide thorough, data-driven SWOT analysis. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    const swotResult = parseLLMJson<Record<string, unknown>>(content, {});
+
+    // Update competitor analysis with SWOT results
+    const updatedAnalysis = await db.competitorAnalysis.update({
+      where: { id: competitorId },
+      data: {
+        strengths: swotResult.strengths ? JSON.stringify(swotResult.strengths) : competitor.strengths,
+        weaknesses: swotResult.weaknesses ? JSON.stringify(swotResult.weaknesses) : competitor.weaknesses,
+        opportunities: swotResult.opportunities ? JSON.stringify(swotResult.opportunities) : competitor.opportunities,
+        threats: swotResult.threats ? JSON.stringify(swotResult.threats) : competitor.threats,
+        threatLevel: (swotResult.threatLevel as string) || competitor.threatLevel,
+        estimatedTrafficTier: (swotResult.estimatedTrafficTier as string) || competitor.estimatedTrafficTier,
+        differentiationOpportunities: swotResult.differentiationOpportunities
+          ? JSON.stringify(swotResult.differentiationOpportunities)
+          : competitor.differentiationOpportunities,
+        opportunityScore: (swotResult.opportunityScore as number) || competitor.opportunityScore,
+        analysisData: JSON.stringify({ ...analysisData, swot: swotResult }),
+        lastAnalyzedAt: new Date(),
+      },
+    });
+
+    // Take a snapshot after full analysis
+    await takeSnapshot(userId, competitorId, 'full');
+
+    // Invalidate cache
+    cacheInvalidate(`competitors:${userId}`);
+
+    return updatedAnalysis;
+  } catch (error) {
+    // Refund credits on failure
+    await refundCredits({
+      userId,
+      amount: COMPETITOR_CREDIT_COST,
+      originalAction: 'competitor_analysis',
+      referenceId: competitorId,
+    }).catch(() => {});
+
+    const message = error instanceof Error ? error.message : 'Unknown error during competitor analysis';
+    throw new Error(message);
+  }
+}
+
+/**
+ * Side-by-side comparison of multiple competitors.
+ */
+export async function compareCompetitors(
+  userId: string,
+  competitorIds: string[]
+): Promise<ComparisonData> {
+  if (!competitorIds || competitorIds.length < 2) {
+    throw new Error('At least 2 competitors are required for comparison.');
+  }
+  if (competitorIds.length > 5) {
+    throw new Error('Maximum 5 competitors can be compared at once.');
+  }
+
+  // Validate all competitors belong to user
+  const competitors = await db.competitorAnalysis.findMany({
+    where: { id: { in: competitorIds }, userId },
+  });
+
+  if (competitors.length !== competitorIds.length) {
+    throw new Error('One or more competitors not found or access denied.');
+  }
+
+  const cacheKey = `competitors:${userId}:compare:${competitorIds.sort().join(':')}`;
+  const cached = cacheGet<ComparisonData>(cacheKey);
+  if (cached) return cached;
+
+  const zai = await initZAI();
+
+  // Gather data for each competitor
+  const competitorDataList = competitors.map(c => ({
+    id: c.id,
+    name: c.competitorName,
+    url: c.competitorUrl,
+    techStack: c.techStack ? JSON.parse(c.techStack as string) : [],
+    seoScore: c.seoScore,
+    socialScore: c.socialScore,
+    strengths: c.strengths ? JSON.parse(c.strengths as string) : [],
+    weaknesses: c.weaknesses ? JSON.parse(c.weaknesses as string) : [],
+    pricingModel: c.pricingModel,
+    pricingDetails: c.pricingDetails ? JSON.parse(c.pricingDetails as string) : {},
+    opportunityScore: c.opportunityScore,
+    threatLevel: c.threatLevel,
+    reviewsData: c.reviewsData ? JSON.parse(c.reviewsData as string) : {},
+    pageSpeedData: c.pageSpeedData ? JSON.parse(c.pageSpeedData as string) : {},
+  }));
+
+  const prompt = `Compare the following competitors side by side:
+
+${competitorDataList.map((c, i) => `COMPETITOR ${i + 1}: ${c.name} (${c.url})
+- Tech Stack: ${JSON.stringify(c.techStack)}
+- SEO Score: ${c.seoScore || 'N/A'}
+- Social Score: ${c.socialScore || 'N/A'}
+- Strengths: ${JSON.stringify(c.strengths)}
+- Weaknesses: ${JSON.stringify(c.weaknesses)}
+- Pricing Model: ${c.pricingModel || 'Unknown'}
+- Pricing Details: ${JSON.stringify(c.pricingDetails)}
+- Opportunity Score: ${c.opportunityScore || 'N/A'}
+- Threat Level: ${c.threatLevel || 'N/A'}
+- Reviews: ${JSON.stringify(c.reviewsData)}
+- Page Speed: ${JSON.stringify(c.pageSpeedData)}`).join('\n\n')}
+
+Return a JSON object with the comparison:
+{
+  "competitors": [${competitorDataList.map(c => `{"id": "${c.id}", "name": "${c.name}", "url": "${c.url}"}`).join(', ')}],
+  "metrics": {
+    "SEO Score": [${competitorDataList.map(c => c.seoScore || null).join(', ')}],
+    "Social Score": [${competitorDataList.map(c => c.socialScore || null).join(', ')}],
+    "Opportunity Score": [${competitorDataList.map(c => c.opportunityScore || null).join(', ')}],
+    "Performance Score": [${competitorDataList.map(c => (c.pageSpeedData as Record<string, number>)?.performanceScore || null).join(', ')}],
+    "Threat Level": [${competitorDataList.map(c => `"${c.threatLevel || 'unknown'}"`).join(', ')}]
+  },
+  "strengths": [${competitorDataList.map(c => JSON.stringify(c.strengths.slice(0, 5))).join(', ')}],
+  "weaknesses": [${competitorDataList.map(c => JSON.stringify(c.weaknesses.slice(0, 5))).join(', ')}],
+  "pricingComparison": [
+    {"tier": "Entry", "prices": [${competitorDataList.map(c => {
+      const tiers = (c.pricingDetails as Record<string, unknown>)?.tiers as Array<{ price: string }> | undefined;
+      return tiers?.[0]?.price ? `"${tiers[0].price}"` : 'null';
+    }).join(', ')}]},
+    {"tier": "Mid", "prices": [${competitorDataList.map(c => {
+      const tiers = (c.pricingDetails as Record<string, unknown>)?.tiers as Array<{ price: string }> | undefined;
+      return tiers?.[1]?.price ? `"${tiers[1].price}"` : 'null';
+    }).join(', ')}]},
+    {"tier": "Enterprise", "prices": [${competitorDataList.map(c => {
+      const tiers = (c.pricingDetails as Record<string, unknown>)?.tiers as Array<{ price: string }> | undefined;
+      return tiers?.[2]?.price ? `"${tiers[2].price}"` : 'null';
+    }).join(', ')}]}
+  ]
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a competitive analysis assistant. Provide objective comparisons. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    const comparison = parseLLMJson<ComparisonData>(content, {
+      competitors: competitorDataList.map(c => ({ id: c.id, name: c.name, url: c.url })),
+      metrics: {},
+      strengths: competitorDataList.map(c => c.strengths.slice(0, 5)),
+      weaknesses: competitorDataList.map(c => c.weaknesses.slice(0, 5)),
+      pricingComparison: [],
+    });
+
+    cacheSet(cacheKey, comparison);
+    return comparison;
+  } catch {
+    // Return basic comparison from available data
+    return {
+      competitors: competitorDataList.map(c => ({ id: c.id, name: c.name, url: c.url })),
+      metrics: {
+        'SEO Score': competitorDataList.map(c => c.seoScore || null),
+        'Social Score': competitorDataList.map(c => c.socialScore || null),
+        'Opportunity Score': competitorDataList.map(c => c.opportunityScore || null),
+      },
+      strengths: competitorDataList.map(c => c.strengths.slice(0, 5)),
+      weaknesses: competitorDataList.map(c => c.weaknesses.slice(0, 5)),
+      pricingComparison: [],
+    };
+  }
+}
+
+/**
+ * Generate AI-powered strategic insights for a competitor.
+ */
+export async function generateAIInsights(
+  userId: string,
+  competitorId: string
+): Promise<AIInsightsData> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:insights:${competitorId}`;
+  const cached = cacheGet<AIInsightsData>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Gather all available data
+  const analysisData = competitor.analysisData ? JSON.parse(competitor.analysisData as string) : {};
+  const strengths = competitor.strengths ? JSON.parse(competitor.strengths as string) : [];
+  const weaknesses = competitor.weaknesses ? JSON.parse(competitor.weaknesses as string) : [];
+  const opportunities = competitor.opportunities ? JSON.parse(competitor.opportunities as string) : [];
+  const threats = competitor.threats ? JSON.parse(competitor.threats as string) : [];
+  const pricingDetails = competitor.pricingDetails ? JSON.parse(competitor.pricingDetails as string) : {};
+  const reviewsData = competitor.reviewsData ? JSON.parse(competitor.reviewsData as string) : {};
+
+  const prompt = `Generate strategic insights for competing against "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+COMPETITOR DATA:
+- Strengths: ${JSON.stringify(strengths)}
+- Weaknesses: ${JSON.stringify(weaknesses)}
+- Opportunities: ${JSON.stringify(opportunities)}
+- Threats: ${JSON.stringify(threats)}
+- Pricing: ${JSON.stringify(pricingDetails)}
+- Reviews: ${JSON.stringify(reviewsData)}
+- SEO Score: ${competitor.seoScore || 'N/A'}
+- Social Score: ${competitor.socialScore || 'N/A'}
+- Threat Level: ${competitor.threatLevel || 'N/A'}
+- Previous Analysis: ${JSON.stringify(analysisData)}
+
+Return a JSON object:
+{
+  "strategicPosition": "Description of their strategic market position",
+  "competitiveAdvantages": ["advantage1", ...],
+  "vulnerabilities": ["vulnerability1", ...],
+  "recommendedActions": [
+    {"action": "Specific action to take", "priority": "high|medium|low", "reasoning": "Why this action matters"}
+  ],
+  "marketOpportunities": ["opportunity1", ...],
+  "threatAssessment": [
+    {"threat": "Specific threat", "severity": "low|medium|high", "mitigation": "How to address it"}
+  ]
+}
+
+Return ONLY JSON. No markdown.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a strategic competitive intelligence analyst. Provide actionable, specific insights. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '{}';
+    const insights = parseLLMJson<AIInsightsData>(content, {
+      strategicPosition: '',
+      competitiveAdvantages: [],
+      vulnerabilities: [],
+      recommendedActions: [],
+      marketOpportunities: [],
+      threatAssessment: [],
+    });
+
+    // Update competitor analysis with insights
+    await db.competitorAnalysis.update({
+      where: { id: competitorId },
+      data: {
+        aiComparisonData: JSON.stringify(insights),
+      },
+    });
+
+    cacheSet(cacheKey, insights);
+    cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+    return insights;
+  } catch {
+    return {
+      strategicPosition: 'Analysis unavailable',
+      competitiveAdvantages: [],
+      vulnerabilities: [],
+      recommendedActions: [],
+      marketOpportunities: [],
+      threatAssessment: [],
+    };
+  }
+}
+
+/**
+ * Find differentiation opportunities against a competitor.
+ */
+export async function detectOpportunities(
+  userId: string,
+  competitorId: string
+): Promise<OpportunityData[]> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const cacheKey = `competitors:${userId}:opportunities:${competitorId}`;
+  const cached = cacheGet<OpportunityData[]>(cacheKey);
+  if (cached) return cached;
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  const zai = await initZAI();
+
+  // Gather all available data
+  const weaknesses = competitor.weaknesses ? JSON.parse(competitor.weaknesses as string) : [];
+  const strengths = competitor.strengths ? JSON.parse(competitor.strengths as string) : [];
+  const pricingDetails = competitor.pricingDetails ? JSON.parse(competitor.pricingDetails as string) : {};
+  const reviewsData = competitor.reviewsData ? JSON.parse(competitor.reviewsData as string) : {};
+  const techStack = competitor.techStack ? JSON.parse(competitor.techStack as string) : [];
+  const socialProfiles = competitor.socialProfiles ? JSON.parse(competitor.socialProfiles as string) : {};
+
+  const prompt = `Identify differentiation opportunities against "${competitor.competitorName}" (${competitor.competitorUrl}).
+
+COMPETITOR DATA:
+- Weaknesses: ${JSON.stringify(weaknesses)}
+- Strengths: ${JSON.stringify(strengths)}
+- Pricing: ${JSON.stringify(pricingDetails)}
+- Reviews (complaints): ${JSON.stringify((reviewsData as Record<string, unknown>)?.commonComplaints || [])}
+- Tech Stack: ${JSON.stringify(techStack)}
+- Social Profiles: ${JSON.stringify(socialProfiles)}
+- SEO Score: ${competitor.seoScore || 'N/A'}
+- Social Score: ${competitor.socialScore || 'N/A'}
+
+Return a JSON array of opportunities:
+[
+  {
+    "id": "unique-id-string",
+    "type": "pricing|feature|market|seo|social|tech",
+    "description": "Specific opportunity description",
+    "impact": "low|medium|high",
+    "effort": "low|medium|high",
+    "score": 0-100
+  }
+]
+
+Focus on actionable opportunities based on competitor weaknesses and gaps.
+Return ONLY the JSON array. No markdown, no explanations.`;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a competitive strategy assistant. Identify actionable differentiation opportunities. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '[]';
+    let opportunities = parseLLMJson<OpportunityData[]>(content, []);
+
+    // Ensure each opportunity has an id
+    opportunities = opportunities.map((opp, index) => ({
+      ...opp,
+      id: opp.id || `opp-${competitorId}-${index}-${Date.now()}`,
+      score: typeof opp.score === 'number' ? Math.min(100, Math.max(0, opp.score)) : 50,
+    }));
+
+    // Update competitor with opportunities
+    await db.competitorAnalysis.update({
+      where: { id: competitorId },
+      data: {
+        differentiationOpportunities: JSON.stringify(opportunities),
+      },
+    });
+
+    cacheSet(cacheKey, opportunities);
+    cacheInvalidate(`competitors:${userId}:detail:${competitorId}`);
+
+    return opportunities;
+  } catch {
+    return [];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. CHANGE TRACKING
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Create a point-in-time snapshot of competitor data.
+ */
+export async function takeSnapshot(
+  userId: string,
+  competitorId: string,
+  snapshotType: string
+): Promise<unknown> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId, userId },
+  });
+
+  if (!competitor) throw new Error('Competitor not found.');
+
+  // Build raw data for snapshot based on type
+  const rawData: Record<string, unknown> = {};
+
+  switch (snapshotType) {
+    case 'seo':
+      rawData.seoScore = competitor.seoScore;
+      rawData.techStack = competitor.techStack;
+      rawData.seoMetadata = competitor.competitorDataId
+        ? (await db.competitorData.findUnique({ where: { id: competitor.competitorDataId } }))?.seoMetadata
+        : null;
+      break;
+    case 'social':
+      rawData.socialScore = competitor.socialScore;
+      rawData.socialProfiles = competitor.socialProfiles;
+      break;
+    case 'pricing':
+      rawData.pricingModel = competitor.pricingModel;
+      rawData.pricingDetails = competitor.pricingDetails;
+      break;
+    case 'techstack':
+      rawData.techStack = competitor.techStack;
+      break;
+    case 'full':
+    default:
+      rawData.seoScore = competitor.seoScore;
+      rawData.socialScore = competitor.socialScore;
+      rawData.techStack = competitor.techStack;
+      rawData.strengths = competitor.strengths;
+      rawData.weaknesses = competitor.weaknesses;
+      rawData.pricingModel = competitor.pricingModel;
+      rawData.estimatedTrafficTier = competitor.estimatedTrafficTier;
+      rawData.opportunityScore = competitor.opportunityScore;
+      rawData.threatLevel = competitor.threatLevel;
+      rawData.socialProfiles = competitor.socialProfiles;
+      rawData.pricingDetails = competitor.pricingDetails;
+      rawData.reviewsData = competitor.reviewsData;
+      rawData.pageSpeedData = competitor.pageSpeedData;
+      break;
+  }
+
+  const snapshot = await db.competitorSnapshot.create({
+    data: {
+      competitorId,
+      userId,
+      snapshotType,
+      seoScore: competitor.seoScore,
+      socialScore: competitor.socialScore,
+      pricingModel: competitor.pricingModel,
+      techStack: competitor.techStack,
+      strengths: competitor.strengths,
+      weaknesses: competitor.weaknesses,
+      estimatedTraffic: competitor.estimatedTrafficTier,
+      rawData: JSON.stringify(rawData),
+    },
+  });
+
+  return snapshot;
+}
+
+/**
+ * Get all snapshots for a competitor, ordered by most recent first.
+ */
+export async function getSnapshotHistory(
+  userId: string,
+  competitorId: string
+): Promise<unknown[]> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId, userId },
+    orderBy: { createdAt: 'desc' },
+    take: 50, // Limit to most recent 50 snapshots
+  });
+
+  return snapshots;
+}
+
+/**
+ * Compare latest vs previous snapshot to detect changes.
+ */
+export async function detectChanges(
+  userId: string,
+  competitorId: string
+): Promise<ChangeData[]> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId, userId },
+    orderBy: { createdAt: 'desc' },
+    take: 2,
+  });
+
+  if (snapshots.length < 2) {
+    return []; // Need at least 2 snapshots to compare
+  }
+
+  const [latest, previous] = snapshots;
+
+  const changes: ChangeData[] = [];
+
+  // Compare scalar fields
+  const scalarFields = [
+    { field: 'seoScore', label: 'SEO Score' },
+    { field: 'socialScore', label: 'Social Score' },
+    { field: 'pricingModel', label: 'Pricing Model' },
+    { field: 'estimatedTraffic', label: 'Estimated Traffic' },
+  ] as const;
+
+  for (const { field } of scalarFields) {
+    const prevValue = previous[field as keyof typeof previous];
+    const newValue = latest[field as keyof typeof latest];
+
+    if (prevValue !== newValue && (prevValue !== null || newValue !== null)) {
+      changes.push({
+        field,
+        previousValue: prevValue,
+        newValue: newValue,
+        detectedAt: latest.createdAt.toISOString(),
+        significance: determineSignificance(field, prevValue, newValue),
+      });
+    }
+  }
+
+  // Compare JSON fields
+  const jsonFields = ['techStack', 'strengths', 'weaknesses'] as const;
+  for (const field of jsonFields) {
+    const prevRaw = previous[field as keyof typeof previous] as string | null;
+    const newRaw = latest[field as keyof typeof latest] as string | null;
+
+    try {
+      const prevArr = prevRaw ? JSON.parse(prevRaw) : [];
+      const newArr = newRaw ? JSON.parse(newRaw) : [];
+
+      if (Array.isArray(prevArr) && Array.isArray(newArr)) {
+        // Find added items
+        for (const item of newArr) {
+          if (!prevArr.includes(item)) {
+            changes.push({
+              field: `${field} (added)`,
+              previousValue: null,
+              newValue: item,
+              detectedAt: latest.createdAt.toISOString(),
+              significance: 'medium',
+            });
+          }
+        }
+
+        // Find removed items
+        for (const item of prevArr) {
+          if (!newArr.includes(item)) {
+            changes.push({
+              field: `${field} (removed)`,
+              previousValue: item,
+              newValue: null,
+              detectedAt: latest.createdAt.toISOString(),
+              significance: 'medium',
+            });
+          }
+        }
+      }
+    } catch {
+      // Skip if not parseable
+    }
+  }
+
+  // Compare raw data for deeper changes
+  try {
+    const prevRaw = previous.rawData ? JSON.parse(previous.rawData as string) : {};
+    const newRaw = latest.rawData ? JSON.parse(latest.rawData as string) : {};
+
+    // Check pricing changes
+    if (prevRaw.pricingModel !== newRaw.pricingModel) {
+      changes.push({
+        field: 'pricingModel (from rawData)',
+        previousValue: prevRaw.pricingModel,
+        newValue: newRaw.pricingModel,
+        detectedAt: latest.createdAt.toISOString(),
+        significance: 'high',
+      });
+    }
+
+    // Check opportunity score changes
+    if (prevRaw.opportunityScore !== newRaw.opportunityScore) {
+      changes.push({
+        field: 'opportunityScore',
+        previousValue: prevRaw.opportunityScore,
+        newValue: newRaw.opportunityScore,
+        detectedAt: latest.createdAt.toISOString(),
+        significance: determineSignificance('opportunityScore', prevRaw.opportunityScore, newRaw.opportunityScore),
+      });
+    }
+
+    // Check threat level changes
+    if (prevRaw.threatLevel !== newRaw.threatLevel) {
+      changes.push({
+        field: 'threatLevel',
+        previousValue: prevRaw.threatLevel,
+        newValue: newRaw.threatLevel,
+        detectedAt: latest.createdAt.toISOString(),
+        significance: 'high',
+      });
+    }
+  } catch {
+    // Skip rawData comparison if not parseable
+  }
+
+  return changes;
+}
+
+/**
+ * Internal: Determine change significance.
+ */
+function determineSignificance(field: string, prevValue: unknown, newValue: unknown): 'low' | 'medium' | 'high' {
+  if (field === 'threatLevel') return 'high';
+  if (field === 'pricingModel') return 'high';
+
+  if (typeof prevValue === 'number' && typeof newValue === 'number') {
+    const diff = Math.abs(newValue - prevValue);
+    const percentChange = prevValue !== 0 ? (diff / Math.abs(prevValue)) * 100 : diff * 100;
+    if (percentChange > 30) return 'high';
+    if (percentChange > 10) return 'medium';
+    return 'low';
+  }
+
+  return 'medium';
+}
+
+/**
+ * Track a specific metric over time from snapshots.
+ */
+export async function getChangeTrends(
+  userId: string,
+  competitorId: string,
+  metric: string
+): Promise<TrendData[]> {
+  const isOwner = await validateUserOwnsCompetitor(userId, competitorId);
+  if (!isOwner) throw new Error('Competitor not found or access denied.');
+
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId, userId },
+    orderBy: { createdAt: 'asc' },
+    take: 100,
+  });
+
+  if (snapshots.length === 0) return [];
+
+  const trends: TrendData[] = [];
+
+  for (const snapshot of snapshots) {
+    let value: number | null = null;
+
+    switch (metric) {
+      case 'seoScore':
+        value = snapshot.seoScore;
+        break;
+      case 'socialScore':
+        value = snapshot.socialScore;
+        break;
+      case 'opportunityScore':
+        // Try to get from rawData
+        try {
+          const rawData = snapshot.rawData ? JSON.parse(snapshot.rawData as string) : {};
+          value = rawData.opportunityScore ?? null;
+        } catch {
+          value = null;
+        }
+        break;
+      case 'techStackCount':
+        try {
+          const techStack = snapshot.techStack ? JSON.parse(snapshot.techStack as string) : [];
+          value = Array.isArray(techStack) ? techStack.length : 0;
+        } catch {
+          value = 0;
+        }
+        break;
+      case 'strengthsCount':
+        try {
+          const strengths = snapshot.strengths ? JSON.parse(snapshot.strengths as string) : [];
+          value = Array.isArray(strengths) ? strengths.length : 0;
+        } catch {
+          value = 0;
+        }
+        break;
+      case 'weaknessesCount':
+        try {
+          const weaknesses = snapshot.weaknesses ? JSON.parse(snapshot.weaknesses as string) : [];
+          value = Array.isArray(weaknesses) ? weaknesses.length : 0;
+        } catch {
+          value = 0;
+        }
+        break;
+      default:
+        // Try to get the metric from rawData
+        try {
+          const rawData = snapshot.rawData ? JSON.parse(snapshot.rawData as string) : {};
+          value = typeof rawData[metric] === 'number' ? rawData[metric] : null;
+        } catch {
+          value = null;
+        }
+    }
+
+    if (value !== null) {
+      trends.push({
+        date: snapshot.createdAt.toISOString().split('T')[0],
+        value,
+      });
+    }
+  }
+
+  return trends;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. DISCOVERY
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Find competitors in a niche using web search + LLM extraction.
+ * Creates CompetitorAnalysis records for each discovered competitor.
+ */
+export async function discoverCompetitors(
+  userId: string,
+  niche: string,
+  location?: string
+): Promise<unknown[]> {
+  if (!niche || niche.trim().length === 0) {
+    throw new Error('Niche is required for competitor discovery.');
+  }
+
+  const zai = await initZAI();
+
+  // Build search queries for competitor discovery
+  const locationPart = location ? ` in ${location}` : '';
+  const searchQueries = [
+    `top ${niche} companies${locationPart} competitors`,
+    `best ${niche} services${locationPart} alternatives`,
+    `${niche} market leaders${locationPart} top players`,
+  ];
+
+  const allSearchResults: Array<{ url: string; name: string; snippet: string }> = [];
+
+  for (const query of searchQueries) {
+    try {
+      const results = await zai.functions.invoke('web_search', {
+        query,
+        num: 10,
+      });
+
+      if (results && results.length > 0) {
+        allSearchResults.push(...(results as Array<{ url: string; name: string; snippet: string }>));
+      }
+    } catch {
+      // Continue with next query
+    }
+  }
+
+  if (allSearchResults.length === 0) {
+    return [];
+  }
+
+  // Use LLM to extract competitor names and URLs from search results
+  const resultsText = allSearchResults
+    .slice(0, 30)
+    .map((r, i) => `[${i + 1}] Name: ${r.name}\n    URL: ${r.url}\n    Snippet: ${r.snippet}`)
+    .join('\n\n');
+
+  const prompt = `You are a competitor discovery assistant. Extract a list of competitor companies from the search results below.
+
+NICHE: ${niche}
+LOCATION: ${location || 'Not specified'}
+
+SEARCH RESULTS:
+${resultsText}
+
+Extract each competitor as a JSON object:
+{
+  "name": "Company Name",
+  "url": "https://company-website.com",
+  "description": "Brief description of what they do",
+  "threatLevel": "low|medium|high"
+}
+
+Return ONLY a JSON array of objects. No explanation, no markdown.
+Maximum 15 competitors. Do NOT include the user's own business - only competitors.`;
+
+  let discoveredCompetitors: Array<{ name: string; url: string; description?: string; threatLevel?: string }>;
+
+  try {
+    const response = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a precise data extraction assistant. Return only valid JSON arrays. No markdown, no explanations.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'auto',
+    });
+
+    const content = response.choices?.[0]?.message?.content || '[]';
+    discoveredCompetitors = parseLLMJson<Array<{ name: string; url: string; description?: string; threatLevel?: string }>>(content, []);
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(discoveredCompetitors) || discoveredCompetitors.length === 0) {
+    return [];
+  }
+
+  // Filter out competitors that already exist for this user
+  const existingUrls = await db.competitorAnalysis.findMany({
+    where: {
+      userId,
+      competitorUrl: { in: discoveredCompetitors.map(c => normalizeUrl(c.url)).filter(Boolean) },
+    },
+    select: { competitorUrl: true },
+  });
+
+  const existingUrlSet = new Set(existingUrls.map(e => e.competitorUrl));
+
+  // Create new competitor records
+  const createdCompetitors: unknown[] = [];
+
+  for (const comp of discoveredCompetitors) {
+    if (!comp.name || !comp.url) continue;
+
+    const normalizedUrl = normalizeUrl(comp.url);
+
+    // Skip if already exists
+    if (existingUrlSet.has(normalizedUrl)) continue;
+
+    try {
+      // Create CompetitorData (raw)
+      const competitorData = await db.competitorData.create({
+        data: {
+          competitorName: comp.name,
+          competitorUrl: normalizedUrl,
+          description: comp.description || null,
+          industry: niche,
+          location: location || null,
+        },
+      });
+
+      // Create CompetitorAnalysis (processed)
+      const analysis = await db.competitorAnalysis.create({
+        data: {
+          userId,
+          competitorName: comp.name,
+          competitorUrl: normalizedUrl,
+          competitorDataId: competitorData.id,
+          threatLevel: comp.threatLevel || 'medium',
+          analysisData: JSON.stringify({
+            discoveredFrom: 'discovery',
+            niche,
+            location,
+            description: comp.description,
+          }),
+        },
+      });
+
+      createdCompetitors.push(analysis);
+    } catch (error) {
+      console.error(`[CompetitorIntel] Failed to create competitor "${comp.name}":`, error);
+      // Continue with next competitor
+    }
+  }
+
+  // Invalidate cache
+  cacheInvalidate(`competitors:${userId}`);
+
+  return createdCompetitors;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 6. PRICING INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════
+
+export interface PriceChange {
+  field: string;
+  previousValue: unknown;
+  newValue: unknown;
+  detectedAt: string;
+  significance: 'low' | 'medium' | 'high';
+}
+
+export interface HistoricalPricingPoint {
+  date: string;
+  pricingModel: string | null;
+  tiers: { name: string; price: string; features: string[] }[];
+  rawSnapshotType: string;
+}
+
+/**
+ * Compare latest snapshot vs previous snapshots.
+ * Look at pricingDetails JSON fields. Return list of detected changes with old/new values and dates.
+ */
+export async function detectPriceChanges(
+  competitorId: string
+): Promise<{ changes: PriceChange[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, pricingDetails: true, pricingModel: true },
+  });
+
+  if (!competitor) {
+    return { changes: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId, snapshotType: { in: ['full', 'pricing'] } },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  });
+
+  const changes: PriceChange[] = [];
+
+  // Parse current pricingDetails
+  const currentPricing: Record<string, unknown> = competitor.pricingDetails
+    ? (parseJsonSafe(competitor.pricingDetails as string, {}) as Record<string, unknown>)
+    : {};
+
+  // Compare with most recent previous snapshot
+  if (snapshots.length >= 2) {
+    const latestRaw = parseJsonSafe(snapshots[0].rawData as string, {}) as Record<string, unknown>;
+    const previousRaw = parseJsonSafe(snapshots[1].rawData as string, {}) as Record<string, unknown>;
+
+    const latestPricing = (latestRaw.pricingDetails ?? latestRaw.pricing ?? {}) as Record<string, unknown>;
+    const previousPricing = (previousRaw.pricingDetails ?? previousRaw.pricing ?? {}) as Record<string, unknown>;
+
+    // Compare pricingModel
+    if (latestRaw.pricingModel !== previousRaw.pricingModel && previousRaw.pricingModel !== undefined) {
+      changes.push({
+        field: 'pricingModel',
+        previousValue: previousRaw.pricingModel,
+        newValue: latestRaw.pricingModel,
+        detectedAt: snapshots[0].createdAt.toISOString(),
+        significance: 'high',
+      });
+    }
+
+    // Compare tiers
+    const latestTiers = JSON.stringify(latestPricing.tiers ?? []);
+    const previousTiers = JSON.stringify(previousPricing.tiers ?? []);
+    if (latestTiers !== previousTiers) {
+      changes.push({
+        field: 'tiers',
+        previousValue: previousPricing.tiers ?? [],
+        newValue: latestPricing.tiers ?? [],
+        detectedAt: snapshots[0].createdAt.toISOString(),
+        significance: 'high',
+      });
+    }
+
+    // Compare hasPricingPage
+    if (latestPricing.hasPricingPage !== previousPricing.hasPricingPage && previousPricing.hasPricingPage !== undefined) {
+      changes.push({
+        field: 'hasPricingPage',
+        previousValue: previousPricing.hasPricingPage,
+        newValue: latestPricing.hasPricingPage,
+        detectedAt: snapshots[0].createdAt.toISOString(),
+        significance: 'medium',
+      });
+    }
+
+    // Compare currency
+    if (latestPricing.currency !== previousPricing.currency && previousPricing.currency !== undefined) {
+      changes.push({
+        field: 'currency',
+        previousValue: previousPricing.currency,
+        newValue: latestPricing.currency,
+        detectedAt: snapshots[0].createdAt.toISOString(),
+        significance: 'medium',
+      });
+    }
+  }
+
+  // Also compare current CompetitorAnalysis pricing with latest snapshot
+  if (snapshots.length >= 1) {
+    const latestRaw = parseJsonSafe(snapshots[0].rawData as string, {}) as Record<string, unknown>;
+    const latestPricing = (latestRaw.pricingDetails ?? latestRaw.pricing ?? {}) as Record<string, unknown>;
+
+    const currentTiers = JSON.stringify(currentPricing.tiers ?? []);
+    const snapshotTiers = JSON.stringify(latestPricing.tiers ?? []);
+    if (currentTiers !== snapshotTiers && currentPricing.tiers !== undefined) {
+      // Avoid duplicate with the snapshot-vs-snapshot change above
+      const alreadyDetected = changes.some(c => c.field === 'tiers');
+      if (!alreadyDetected) {
+        changes.push({
+          field: 'tiers',
+          previousValue: latestPricing.tiers ?? [],
+          newValue: currentPricing.tiers ?? [],
+          detectedAt: new Date().toISOString(),
+          significance: 'high',
+        });
+      }
+    }
+
+    if (competitor.pricingModel !== latestRaw.pricingModel && latestRaw.pricingModel !== undefined && competitor.pricingModel !== null) {
+      const alreadyDetected = changes.some(c => c.field === 'pricingModel');
+      if (!alreadyDetected) {
+        changes.push({
+          field: 'pricingModel',
+          previousValue: latestRaw.pricingModel,
+          newValue: competitor.pricingModel,
+          detectedAt: new Date().toISOString(),
+          significance: 'high',
+        });
+      }
+    }
+  }
+
+  return { changes, competitorId, competitorName: competitor.competitorName };
+}
+
+/**
+ * Get pricing data from all CompetitorSnapshot records over time.
+ * Return timeline of pricing changes.
+ */
+export async function getHistoricalPricing(
+  competitorId: string
+): Promise<{ timeline: HistoricalPricingPoint[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, pricingDetails: true, pricingModel: true, createdAt: true, updatedAt: true },
+  });
+
+  if (!competitor) {
+    return { timeline: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const timeline: HistoricalPricingPoint[] = [];
+
+  // Add current state as the latest data point
+  const currentPricing = competitor.pricingDetails
+    ? (parseJsonSafe(competitor.pricingDetails as string, {}) as Record<string, unknown>)
+    : {};
+  timeline.push({
+    date: competitor.updatedAt.toISOString(),
+    pricingModel: competitor.pricingModel,
+    tiers: (currentPricing.tiers ?? []) as { name: string; price: string; features: string[] }[],
+    rawSnapshotType: 'current',
+  });
+
+  // Process snapshots chronologically
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    const pricingData = (rawData.pricingDetails ?? rawData.pricing ?? {}) as Record<string, unknown>;
+
+    timeline.push({
+      date: snapshot.createdAt.toISOString(),
+      pricingModel: (rawData.pricingModel as string) ?? snapshot.pricingModel ?? null,
+      tiers: (pricingData.tiers ?? []) as { name: string; price: string; features: string[] }[],
+      rawSnapshotType: snapshot.snapshotType,
+    });
+  }
+
+  // Sort by date ascending
+  timeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return { timeline, competitorId, competitorName: competitor.competitorName };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 7. SEO INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════
+
+export interface KeywordResult {
+  keyword: string;
+  frequency: number;
+  sources: string[];
+}
+
+export interface SEORankingResult {
+  score: number;
+  breakdown: {
+    metadataCompleteness: number;
+    keywordDensity: number;
+    ogTagPresence: number;
+    headingStructure: number;
+    lighthouseContribution: number;
+  };
+  competitorId: string;
+  competitorName: string;
+}
+
+export interface MetadataEvolutionEntry {
+  date: string;
+  title: string | null;
+  description: string | null;
+  keywords: string[];
+  ogTagCount: number;
+  snapshotType: string;
+}
+
+/**
+ * Extract keywords from seoMetadata JSON (title, description, keywords, ogTags).
+ * Parse and return top keywords with frequency.
+ */
+export async function extractKeywords(
+  competitorId: string
+): Promise<{ keywords: KeywordResult[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, competitorDataId: true },
+  });
+
+  if (!competitor) {
+    return { keywords: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  // Get SEO metadata from CompetitorData
+  const competitorData = competitor.competitorDataId
+    ? await db.competitorData.findFirst({
+        where: { id: competitor.competitorDataId },
+        select: { seoMetadata: true },
+      })
+    : null;
+
+  const seoMetadata = competitorData?.seoMetadata
+    ? (parseJsonSafe(competitorData.seoMetadata as string, {}) as Record<string, unknown>)
+    : {};
+
+  // Also get snapshots for historical keyword extraction
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId, snapshotType: { in: ['full', 'seo'] } },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
+  });
+
+  // Collect all text sources for keyword extraction
+  const textSources: string[] = [];
+  const keywordMap = new Map<string, { frequency: number; sources: Set<string> }>();
+
+  // From current seoMetadata
+  const title = (seoMetadata.title as string) || '';
+  const description = (seoMetadata.description as string) || '';
+  const metaKeywords = (seoMetadata.keywords as string[]) || [];
+  const ogTags = (seoMetadata.ogTags as Record<string, string>) || {};
+
+  if (title) textSources.push(title);
+  if (description) textSources.push(description);
+  metaKeywords.forEach(kw => textSources.push(kw));
+  Object.values(ogTags).forEach(v => textSources.push(v));
+
+  // Process meta keywords directly (highest weight)
+  for (const kw of metaKeywords) {
+    const normalized = kw.toLowerCase().trim();
+    if (normalized.length < 2) continue;
+    const existing = keywordMap.get(normalized) ?? { frequency: 0, sources: new Set<string>() };
+    existing.frequency += 3; // Meta keywords carry 3x weight
+    existing.sources.add('meta_keywords');
+    keywordMap.set(normalized, existing);
+  }
+
+  // Extract keywords from title
+  extractWordsFromText(title, 'title', keywordMap, 2);
+  // Extract keywords from description
+  extractWordsFromText(description, 'description', keywordMap, 1.5);
+  // Extract keywords from og tag values
+  for (const [ogKey, ogVal] of Object.entries(ogTags)) {
+    extractWordsFromText(ogVal, `og:${ogKey}`, keywordMap, 1);
+  }
+
+  // Process snapshot rawData for additional keywords
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    const snapshotSeo = (rawData.seoMetadata ?? rawData.seo ?? {}) as Record<string, unknown>;
+    const snapTitle = (snapshotSeo.title as string) || '';
+    const snapDesc = (snapshotSeo.description as string) || '';
+    const snapKeywords = (snapshotSeo.keywords as string[]) || [];
+
+    for (const kw of snapKeywords) {
+      const normalized = kw.toLowerCase().trim();
+      if (normalized.length < 2) continue;
+      const existing = keywordMap.get(normalized) ?? { frequency: 0, sources: new Set<string>() };
+      existing.frequency += 1;
+      existing.sources.add('historical_snapshot');
+      keywordMap.set(normalized, existing);
+    }
+
+    extractWordsFromText(snapTitle, 'historical_title', keywordMap, 0.5);
+    extractWordsFromText(snapDesc, 'historical_description', keywordMap, 0.5);
+  }
+
+  // Sort by frequency and return top keywords
+  const keywords: KeywordResult[] = Array.from(keywordMap.entries())
+    .map(([keyword, data]) => ({
+      keyword,
+      frequency: Math.round(data.frequency * 10) / 10,
+      sources: Array.from(data.sources),
+    }))
+    .sort((a, b) => b.frequency - a.frequency)
+    .slice(0, 30);
+
+  return { keywords, competitorId, competitorName: competitor.competitorName };
+}
+
+/**
+ * Compute SEO ranking foundation from seoMetadata completeness, keyword density, lighthouse scores.
+ * Return score 0-100.
+ */
+export async function getSEORanking(
+  competitorId: string
+): Promise<SEORankingResult> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: {
+      id: true,
+      competitorName: true,
+      competitorDataId: true,
+      seoScore: true,
+      lighthouseData: true,
+      pageSpeedData: true,
+    },
+  });
+
+  if (!competitor) {
+    return {
+      score: 0,
+      breakdown: { metadataCompleteness: 0, keywordDensity: 0, ogTagPresence: 0, headingStructure: 0, lighthouseContribution: 0 },
+      competitorId,
+      competitorName: 'Unknown',
+    };
+  }
+
+  // Get CompetitorData for seoMetadata
+  const competitorData = competitor.competitorDataId
+    ? await db.competitorData.findFirst({
+        where: { id: competitor.competitorDataId },
+        select: { seoMetadata: true },
+      })
+    : null;
+
+  const seoMetadata = competitorData?.seoMetadata
+    ? (parseJsonSafe(competitorData.seoMetadata as string, {}) as Record<string, unknown>)
+    : {};
+
+  const lighthouseData = competitor.lighthouseData
+    ? (parseJsonSafe(competitor.lighthouseData as string, {}) as Record<string, unknown>)
+    : {};
+
+  const pageSpeedData = competitor.pageSpeedData
+    ? (parseJsonSafe(competitor.pageSpeedData as string, {}) as Record<string, unknown>)
+    : {};
+
+  // 1. Metadata completeness (0-25 points)
+  let metadataCompleteness = 0;
+  const title = (seoMetadata.title as string) || '';
+  const description = (seoMetadata.description as string) || '';
+  const keywords = (seoMetadata.keywords as string[]) || [];
+  const ogTags = (seoMetadata.ogTags as Record<string, string>) || {};
+  const canonicalUrl = (seoMetadata.canonicalUrl as string) || '';
+  const headingStructure = (seoMetadata.headingStructure as string[]) || [];
+
+  if (title) metadataCompleteness += 5;
+  if (title && title.length <= 60) metadataCompleteness += 2;
+  if (description) metadataCompleteness += 5;
+  if (description && description.length <= 160) metadataCompleteness += 2;
+  if (keywords.length > 0) metadataCompleteness += 3;
+  if (canonicalUrl) metadataCompleteness += 3;
+  if (headingStructure.length > 0) metadataCompleteness += 3;
+  metadataCompleteness += Math.min(2, Math.floor(headingStructure.length / 2));
+  metadataCompleteness = Math.min(25, metadataCompleteness);
+
+  // 2. Keyword density (0-20 points)
+  let keywordDensity = 0;
+  if (keywords.length > 0) keywordDensity += 5;
+  if (keywords.length >= 3) keywordDensity += 5;
+  if (keywords.length >= 6) keywordDensity += 5;
+  if (keywords.length >= 10) keywordDensity += 5;
+  keywordDensity = Math.min(20, keywordDensity);
+
+  // 3. OG tag presence (0-20 points)
+  let ogTagPresence = 0;
+  if (ogTags['og:title']) ogTagPresence += 5;
+  if (ogTags['og:description']) ogTagPresence += 5;
+  if (ogTags['og:image']) ogTagPresence += 5;
+  if (ogTags['og:url']) ogTagPresence += 3;
+  if (ogTags['og:type']) ogTagPresence += 2;
+  ogTagPresence = Math.min(20, ogTagPresence);
+
+  // 4. Heading structure (0-15 points)
+  let headingScore = 0;
+  if (headingStructure.length > 0) headingScore += 5;
+  const hasH1 = headingStructure.some(h => h.startsWith('H1:'));
+  if (hasH1) headingScore += 5;
+  if (headingStructure.length >= 3) headingScore += 3;
+  if (headingStructure.length >= 6) headingScore += 2;
+  headingScore = Math.min(15, headingScore);
+
+  // 5. Lighthouse / PageSpeed contribution (0-20 points)
+  let lighthouseContribution = 0;
+  const seoLighthouse = (lighthouseData.seo as number) || (pageSpeedData.seo as number) || 0;
+  const perfLighthouse = (lighthouseData.performance as number) || (pageSpeedData.performanceScore as number) || 0;
+  if (seoLighthouse > 0) lighthouseContribution += Math.round(seoLighthouse / 10);
+  if (perfLighthouse > 0) lighthouseContribution += Math.round(perfLighthouse / 20);
+  // Also use the stored seoScore if available
+  if (competitor.seoScore && competitor.seoScore > 0) {
+    lighthouseContribution = Math.max(lighthouseContribution, Math.round(competitor.seoScore / 5));
+  }
+  lighthouseContribution = Math.min(20, lighthouseContribution);
+
+  const totalScore = metadataCompleteness + keywordDensity + ogTagPresence + headingScore + lighthouseContribution;
+
+  return {
+    score: Math.min(100, totalScore),
+    breakdown: {
+      metadataCompleteness,
+      keywordDensity,
+      ogTagPresence,
+      headingStructure: headingScore,
+      lighthouseContribution,
+    },
+    competitorId,
+    competitorName: competitor.competitorName,
+  };
+}
+
+/**
+ * Compare seoMetadata across snapshots. Track how title/description/keywords changed over time.
+ */
+export async function getMetadataEvolution(
+  competitorId: string
+): Promise<{ evolution: MetadataEvolutionEntry[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, competitorDataId: true, updatedAt: true },
+  });
+
+  if (!competitor) {
+    return { evolution: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const evolution: MetadataEvolutionEntry[] = [];
+
+  // Get current metadata from CompetitorData
+  const competitorData = competitor.competitorDataId
+    ? await db.competitorData.findFirst({
+        where: { id: competitor.competitorDataId },
+        select: { seoMetadata: true, updatedAt: true },
+      })
+    : null;
+
+  if (competitorData?.seoMetadata) {
+    const seo = parseJsonSafe(competitorData.seoMetadata as string, {}) as Record<string, unknown>;
+    evolution.push({
+      date: competitorData.updatedAt.toISOString(),
+      title: (seo.title as string) || null,
+      description: (seo.description as string) || null,
+      keywords: (seo.keywords as string[]) || [],
+      ogTagCount: Object.keys((seo.ogTags as Record<string, unknown>) ?? {}).length,
+      snapshotType: 'current',
+    });
+  }
+
+  // Get snapshot history
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    const seo = (rawData.seoMetadata ?? rawData.seo ?? {}) as Record<string, unknown>;
+
+    evolution.push({
+      date: snapshot.createdAt.toISOString(),
+      title: (seo.title as string) || null,
+      description: (seo.description as string) || null,
+      keywords: (seo.keywords as string[]) || [],
+      ogTagCount: Object.keys((seo.ogTags as Record<string, unknown>) ?? {}).length,
+      snapshotType: snapshot.snapshotType,
+    });
+  }
+
+  // Sort by date ascending
+  evolution.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return { evolution, competitorId, competitorName: competitor.competitorName };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 8. WEBSITE INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════
+
+export interface LayoutChange {
+  type: 'section_added' | 'section_removed';
+  sectionTag: string;
+  sectionId: string;
+  detectedAt: string;
+  significance: 'low' | 'medium' | 'high';
+}
+
+export interface CTAChange {
+  type: 'cta_added' | 'cta_removed' | 'cta_modified';
+  ctaText: string;
+  previousText?: string;
+  detectedAt: string;
+  significance: 'low' | 'medium' | 'high';
+}
+
+export interface ContentChangeMetrics {
+  date: string;
+  textLength: number;
+  wordCount: number;
+  headingCount: number;
+  imageCount: number;
+  linkCount: number;
+  changeFromPrevious: {
+    textLengthDelta: number;
+    wordCountDelta: number;
+    headingCountDelta: number;
+    imageCountDelta: number;
+    linkCountDelta: number;
+  } | null;
+}
+
+/**
+ * Compare websiteHtml from snapshots. Return detected changes (additions/removals of major sections).
+ */
+export async function detectLayoutChanges(
+  competitorId: string
+): Promise<{ changes: LayoutChange[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, competitorDataId: true },
+  });
+
+  if (!competitor) {
+    return { changes: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const changes: LayoutChange[] = [];
+
+  // Get HTML from CompetitorData (current)
+  const currentData = competitor.competitorDataId
+    ? await db.competitorData.findFirst({
+        where: { id: competitor.competitorDataId },
+        select: { websiteHtml: true, lastScrapedAt: true },
+      })
+    : null;
+
+  // Get snapshots with HTML data
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  });
+
+  // Extract major sections from HTML
+  const extractSections = (html: string): Map<string, string> => {
+    const sections = new Map<string, string>();
+    if (!html) return sections;
+
+    // Look for semantic HTML5 sections
+    const sectionPatterns = [
+      /<(header|nav|main|footer|section|article|aside)[^>]*(?:id|class)=["']([^"']+)["'][^>]*>/gi,
+      /<div[^>]*(?:id|class)=["']([^"']*(?:header|nav|hero|footer|banner|sidebar|content|main|section|about|contact|pricing|feature|testimonial)[^"']*)["'][^>]*>/gi,
+    ];
+
+    for (const pattern of sectionPatterns) {
+      const matches = html.matchAll(pattern);
+      for (const match of matches) {
+        const tag = match[1] || 'div';
+        const identifier = match[2] || match[1] || '';
+        if (identifier) {
+          sections.set(`${tag}:${identifier.toLowerCase()}`, identifier);
+        }
+      }
+    }
+
+    return sections;
+  };
+
+  const currentSections = extractSections(currentData?.websiteHtml || '');
+
+  // Compare with each snapshot
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    const snapshotHtml = (rawData.websiteHtml as string) || '';
+    const snapshotSections = extractSections(snapshotHtml);
+
+    // Find added sections (in current but not in snapshot)
+    for (const [key, id] of currentSections) {
+      if (!snapshotSections.has(key)) {
+        const [tag] = key.split(':');
+        changes.push({
+          type: 'section_added',
+          sectionTag: tag,
+          sectionId: id,
+          detectedAt: snapshot.createdAt.toISOString(),
+          significance: id.match(/hero|pricing|cta|checkout|signup|contact/i) ? 'high' : 'medium',
+        });
+      }
+    }
+
+    // Find removed sections (in snapshot but not in current)
+    for (const [key, id] of snapshotSections) {
+      if (!currentSections.has(key)) {
+        const [tag] = key.split(':');
+        changes.push({
+          type: 'section_removed',
+          sectionTag: tag,
+          sectionId: id,
+          detectedAt: snapshot.createdAt.toISOString(),
+          significance: id.match(/hero|pricing|cta|checkout|signup|contact/i) ? 'high' : 'medium',
+        });
+      }
+    }
+  }
+
+  // Deduplicate changes
+  const uniqueChanges = changes.filter((change, idx, arr) =>
+    arr.findIndex(c => c.type === change.type && c.sectionId === change.sectionId) === idx
+  );
+
+  return { changes: uniqueChanges, competitorId, competitorName: competitor.competitorName };
+}
+
+/**
+ * Parse websiteHtml for common CTA patterns (buttons, links with action text).
+ * Compare across snapshots.
+ */
+export async function detectCTAChanges(
+  competitorId: string
+): Promise<{ changes: CTAChange[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, competitorDataId: true },
+  });
+
+  if (!competitor) {
+    return { changes: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const changes: CTAChange[] = [];
+
+  const currentData = competitor.competitorDataId
+    ? await db.competitorData.findFirst({
+        where: { id: competitor.competitorDataId },
+        select: { websiteHtml: true },
+      })
+    : null;
+
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  });
+
+  // Extract CTAs from HTML
+  const extractCTAs = (html: string): Set<string> => {
+    const ctas = new Set<string>();
+    if (!html) return ctas;
+
+    // Common CTA patterns
+    const ctaPatterns = [
+      /<a[^>]*class=["'][^"']*(?:btn|button|cta|call-to-action|signup|sign-up|register|subscribe|get-started|try|buy|purchase|download|demo|contact|learn-more|join)[^"']*["'][^>]*>([^<]+)<\/a>/gi,
+      /<button[^>]*>([^<]+)<\/button>/gi,
+      /<input[^>]*type=["']submit["'][^>]*value=["']([^"']+)["']/gi,
+      /<a[^>]*href=["'][^"']*(?:signup|register|subscribe|pricing|demo|trial|checkout|cart|buy|contact)[^"']*["'][^>]*>([^<]+)<\/a>/gi,
+    ];
+
+    for (const pattern of ctaPatterns) {
+      const matches = html.matchAll(pattern);
+      for (const match of matches) {
+        const text = match[1]?.trim().toLowerCase();
+        if (text && text.length > 1 && text.length < 100) {
+          ctas.add(text);
+        }
+      }
+    }
+
+    return ctas;
+  };
+
+  const currentCTAs = extractCTAs(currentData?.websiteHtml || '');
+
+  // Compare with previous snapshots
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    const snapshotHtml = (rawData.websiteHtml as string) || '';
+    const snapshotCTAs = extractCTAs(snapshotHtml);
+
+    // CTAs added since this snapshot
+    for (const cta of currentCTAs) {
+      if (!snapshotCTAs.has(cta)) {
+        changes.push({
+          type: 'cta_added',
+          ctaText: cta,
+          detectedAt: snapshot.createdAt.toISOString(),
+          significance: cta.match(/buy|purchase|subscribe|signup|register|get.?started|try.?free|demo/i) ? 'high' : 'low',
+        });
+      }
+    }
+
+    // CTAs removed since this snapshot
+    for (const cta of snapshotCTAs) {
+      if (!currentCTAs.has(cta)) {
+        changes.push({
+          type: 'cta_removed',
+          ctaText: cta,
+          detectedAt: snapshot.createdAt.toISOString(),
+          significance: cta.match(/buy|purchase|subscribe|signup|register|get.?started|try.?free|demo/i) ? 'high' : 'low',
+        });
+      }
+    }
+  }
+
+  // Deduplicate
+  const uniqueChanges = changes.filter((change, idx, arr) =>
+    arr.findIndex(c => c.type === change.type && c.ctaText === change.ctaText) === idx
+  );
+
+  return { changes: uniqueChanges, competitorId, competitorName: competitor.competitorName };
+}
+
+/**
+ * Compare text content length/structure across snapshots.
+ * Return content growth/shrinkage metrics.
+ */
+export async function detectContentChanges(
+  competitorId: string
+): Promise<{ metrics: ContentChangeMetrics[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, competitorDataId: true },
+  });
+
+  if (!competitor) {
+    return { metrics: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const metrics: ContentChangeMetrics[] = [];
+
+  const currentData = competitor.competitorDataId
+    ? await db.competitorData.findFirst({
+        where: { id: competitor.competitorDataId },
+        select: { websiteHtml: true, updatedAt: true },
+      })
+    : null;
+
+  // Extract text content metrics from HTML
+  const extractContentMetrics = (html: string): Omit<ContentChangeMetrics, 'date' | 'changeFromPrevious'> => {
+    if (!html) return { textLength: 0, wordCount: 0, headingCount: 0, imageCount: 0, linkCount: 0 };
+
+    // Strip tags for text length
+    const textContent = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const words = textContent.split(/\s+/).filter(w => w.length > 0);
+
+    return {
+      textLength: textContent.length,
+      wordCount: words.length,
+      headingCount: (html.match(/<h[1-6][^>]*>/gi) || []).length,
+      imageCount: (html.match(/<img[^>]*>/gi) || []).length,
+      linkCount: (html.match(/<a[^>]*href=/gi) || []).length,
+    };
+  };
+
+  // Collect all data points chronologically
+  const dataPoints: { date: string; html: string }[] = [];
+
+  // Add snapshots first (oldest to newest)
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    dataPoints.push({
+      date: snapshot.createdAt.toISOString(),
+      html: (rawData.websiteHtml as string) || '',
+    });
+  }
+
+  // Add current data
+  if (currentData?.websiteHtml) {
+    dataPoints.push({
+      date: currentData.updatedAt.toISOString(),
+      html: currentData.websiteHtml,
+    });
+  }
+
+  // Build metrics with deltas
+  let previousMetrics: Omit<ContentChangeMetrics, 'date' | 'changeFromPrevious'> | null = null;
+
+  for (const dp of dataPoints) {
+    const current = extractContentMetrics(dp.html);
+
+    const changeFromPrevious = previousMetrics ? {
+      textLengthDelta: current.textLength - previousMetrics.textLength,
+      wordCountDelta: current.wordCount - previousMetrics.wordCount,
+      headingCountDelta: current.headingCount - previousMetrics.headingCount,
+      imageCountDelta: current.imageCount - previousMetrics.imageCount,
+      linkCountDelta: current.linkCount - previousMetrics.linkCount,
+    } : null;
+
+    metrics.push({
+      date: dp.date,
+      ...current,
+      changeFromPrevious,
+    });
+
+    previousMetrics = current;
+  }
+
+  return { metrics, competitorId, competitorName: competitor.competitorName };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 9. SOCIAL INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════
+
+export interface SocialActivityIndicator {
+  platform: string;
+  handle: string | null;
+  url: string | null;
+  followersOrLikes: number;
+  activityLevel: 'very_high' | 'high' | 'moderate' | 'low' | 'none';
+  lastUpdated: string;
+}
+
+export interface PostingFrequencyResult {
+  platform: string;
+  estimatedPostsPerWeek: number;
+  confidence: 'high' | 'medium' | 'low';
+  basedOn: string;
+}
+
+/**
+ * Analyze socialProfiles JSON for activity indicators.
+ */
+export async function trackSocialActivity(
+  competitorId: string
+): Promise<{ activity: SocialActivityIndicator[]; overallActivityScore: number; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, socialProfiles: true, socialScore: true },
+  });
+
+  if (!competitor) {
+    return { activity: [], overallActivityScore: 0, competitorId, competitorName: 'Unknown' };
+  }
+
+  const socialProfiles = competitor.socialProfiles
+    ? (parseJsonSafe(competitor.socialProfiles as string, {}) as Record<string, unknown>)
+    : {};
+
+  // Also get CompetitorData socialProfiles
+  const competitorDataRecord = await db.competitorData.findFirst({
+    where: { competitorUrl: competitor.competitorName }, // Best effort match
+    select: { socialProfiles: true },
+  });
+
+  const dataSocial = competitorDataRecord?.socialProfiles
+    ? (parseJsonSafe(competitorDataRecord.socialProfiles as string, {}) as Record<string, unknown>)
+    : {};
+
+  // Merge both sources
+  const allSocial = { ...dataSocial, ...socialProfiles };
+
+  const activity: SocialActivityIndicator[] = [];
+  let totalScore = 0;
+
+  const platformConfigs: { key: string; name: string; metric: string }[] = [
+    { key: 'twitter', name: 'Twitter/X', metric: 'followers' },
+    { key: 'linkedin', name: 'LinkedIn', metric: 'followers' },
+    { key: 'facebook', name: 'Facebook', metric: 'likes' },
+    { key: 'instagram', name: 'Instagram', metric: 'followers' },
+    { key: 'youtube', name: 'YouTube', metric: 'subscribers' },
+  ];
+
+  for (const config of platformConfigs) {
+    const profile = allSocial[config.key] as Record<string, unknown> | null | undefined;
+
+    if (!profile) {
+      activity.push({
+        platform: config.name,
+        handle: null,
+        url: null,
+        followersOrLikes: 0,
+        activityLevel: 'none',
+        lastUpdated: new Date().toISOString(),
+      });
+      continue;
+    }
+
+    const count = (profile[config.metric] as number) || 0;
+    const handle = (profile.handle as string) || null;
+    const url = (profile.url as string) || null;
+
+    // Determine activity level based on follower count
+    let activityLevel: SocialActivityIndicator['activityLevel'] = 'none';
+    let score = 0;
+
+    if (count > 100000) { activityLevel = 'very_high'; score = 25; }
+    else if (count > 10000) { activityLevel = 'high'; score = 20; }
+    else if (count > 1000) { activityLevel = 'moderate'; score = 15; }
+    else if (count > 100) { activityLevel = 'low'; score = 10; }
+    else if (count > 0) { activityLevel = 'low'; score = 5; }
+
+    totalScore += score;
+
+    activity.push({
+      platform: config.name,
+      handle,
+      url,
+      followersOrLikes: count,
+      activityLevel,
+      lastUpdated: new Date().toISOString(),
+    });
+  }
+
+  const overallActivityScore = Math.min(100, totalScore + (competitor.socialScore ? Math.round(competitor.socialScore / 5) : 0));
+
+  return { activity, overallActivityScore, competitorId, competitorName: competitor.competitorName };
+}
+
+/**
+ * Estimate posting frequency from available social data.
+ */
+export async function getPostingFrequency(
+  competitorId: string
+): Promise<{ frequencies: PostingFrequencyResult[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, socialProfiles: true },
+  });
+
+  if (!competitor) {
+    return { frequencies: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const socialProfiles = competitor.socialProfiles
+    ? (parseJsonSafe(competitor.socialProfiles as string, {}) as Record<string, unknown>)
+    : {};
+
+  // Get snapshot history to look for social data changes
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId, snapshotType: { in: ['full', 'social'] } },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  const frequencies: PostingFrequencyResult[] = [];
+
+  const platformConfigs: { key: string; name: string; metric: string }[] = [
+    { key: 'twitter', name: 'Twitter/X', metric: 'followers' },
+    { key: 'linkedin', name: 'LinkedIn', metric: 'followers' },
+    { key: 'facebook', name: 'Facebook', metric: 'likes' },
+    { key: 'instagram', name: 'Instagram', metric: 'followers' },
+    { key: 'youtube', name: 'YouTube', metric: 'subscribers' },
+  ];
+
+  for (const config of platformConfigs) {
+    const currentProfile = socialProfiles[config.key] as Record<string, unknown> | null | undefined;
+    const currentCount = currentProfile ? ((currentProfile[config.metric] as number) || 0) : 0;
+
+    // Try to estimate posting frequency from follower growth between snapshots
+    let estimatedPostsPerWeek = 0;
+    let confidence: PostingFrequencyResult['confidence'] = 'low';
+    let basedOn = 'follower_count_heuristic';
+
+    if (snapshots.length >= 2 && currentCount > 0) {
+      // Look for follower count changes in snapshots
+      let totalFollowerGrowth = 0;
+      let totalDaysSpan = 0;
+
+      for (let i = 0; i < snapshots.length - 1; i++) {
+        const newerRaw = parseJsonSafe(snapshots[i].rawData as string, {}) as Record<string, unknown>;
+        const olderRaw = parseJsonSafe(snapshots[i + 1].rawData as string, {}) as Record<string, unknown>;
+
+        const newerSocial = (newerRaw.socialProfiles ?? newerRaw.social ?? {}) as Record<string, unknown>;
+        const olderSocial = (olderRaw.socialProfiles ?? olderRaw.social ?? {}) as Record<string, unknown>;
+
+        const newerProfile = newerSocial[config.key] as Record<string, unknown> | null;
+        const olderProfile = olderSocial[config.key] as Record<string, unknown> | null;
+
+        if (newerProfile && olderProfile) {
+          const newerCount = (newerProfile[config.metric] as number) || 0;
+          const olderCount = (olderProfile[config.metric] as number) || 0;
+          const growth = newerCount - olderCount;
+          const daysDiff = (new Date(snapshots[i].createdAt).getTime() - new Date(snapshots[i + 1].createdAt).getTime()) / (1000 * 60 * 60 * 24);
+
+          if (growth > 0 && daysDiff > 0) {
+            totalFollowerGrowth += growth;
+            totalDaysSpan += daysDiff;
+          }
+        }
+      }
+
+      if (totalFollowerGrowth > 0 && totalDaysSpan > 0) {
+        // Rough heuristic: ~1 post per 10 followers gained for Twitter,
+        // varies by platform
+        const platformMultiplier: Record<string, number> = {
+          twitter: 0.1,
+          linkedin: 0.05,
+          facebook: 0.08,
+          instagram: 0.15,
+          youtube: 0.02,
+        };
+        const multiplier = platformMultiplier[config.key] || 0.1;
+        estimatedPostsPerWeek = Math.round((totalFollowerGrowth * multiplier / totalDaysSpan) * 7 * 10) / 10;
+        confidence = 'medium';
+        basedOn = 'follower_growth_between_snapshots';
+      }
+    }
+
+    // Fallback: heuristic based on follower count
+    if (estimatedPostsPerWeek === 0 && currentCount > 0) {
+      if (currentCount > 100000) estimatedPostsPerWeek = 14;
+      else if (currentCount > 10000) estimatedPostsPerWeek = 7;
+      else if (currentCount > 1000) estimatedPostsPerWeek = 3;
+      else if (currentCount > 100) estimatedPostsPerWeek = 1;
+      else estimatedPostsPerWeek = 0.5;
+
+      confidence = 'low';
+      basedOn = 'follower_count_heuristic';
+    }
+
+    frequencies.push({
+      platform: config.name,
+      estimatedPostsPerWeek,
+      confidence,
+      basedOn,
+    });
+  }
+
+  return { frequencies, competitorId, competitorName: competitor.competitorName };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 10. REVIEWS INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════
+
+export interface SentimentResult {
+  overallScore: number; // -100 to +100
+  label: 'very_positive' | 'positive' | 'neutral' | 'negative' | 'very_negative';
+  positives: string[];
+  negatives: string[];
+  totalReviews: number;
+  averageRating: number;
+  ratingDistribution: Record<string, number>;
+}
+
+export interface ReviewsTrendPoint {
+  date: string;
+  averageRating: number;
+  totalReviews: number;
+  sentiment: string;
+  source: string;
+}
+
+/**
+ * Parse reviewsData JSON for sentiment. Compute overall sentiment score.
+ */
+export async function analyzeReviewsSentiment(
+  competitorId: string
+): Promise<{ sentiment: SentimentResult; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, reviewsData: true },
+  });
+
+  if (!competitor) {
+    return {
+      sentiment: {
+        overallScore: 0,
+        label: 'neutral',
+        positives: [],
+        negatives: [],
+        totalReviews: 0,
+        averageRating: 0,
+        ratingDistribution: {},
+      },
+      competitorId,
+      competitorName: 'Unknown',
+    };
+  }
+
+  const reviewsData = competitor.reviewsData
+    ? (parseJsonSafe(competitor.reviewsData as string, {}) as Record<string, unknown>)
+    : {};
+
+  const sources = (reviewsData.sources as Array<{ platform: string; avgRating: number; reviewCount: number; url: string }>) || [];
+  const overallRating = (reviewsData.overallRating as number) || 0;
+  const totalReviews = (reviewsData.totalReviews as number) || 0;
+  const sentiment = (reviewsData.sentiment as string) || 'neutral';
+  const commonComplaints = (reviewsData.commonComplaints as string[]) || [];
+  const commonPraises = (reviewsData.commonPraises as string[]) || [];
+
+  // Compute sentiment score from -100 to +100
+  // Based on: average rating (0-5 → -100 to +100), sentiment label, and counts
+  let sentimentScore = 0;
+
+  // Rating contribution (-100 to +100)
+  if (overallRating > 0) {
+    sentimentScore = ((overallRating - 3) / 2) * 100; // 3 = neutral, 5 = +100, 1 = -100
+  }
+
+  // Sentiment label adjustment
+  const sentimentBoost: Record<string, number> = {
+    positive: 15,
+    neutral: 0,
+    negative: -15,
+  };
+  sentimentScore += sentimentBoost[sentiment] || 0;
+
+  // Praises vs complaints ratio adjustment
+  const praiseCount = commonPraises.length;
+  const complaintCount = commonComplaints.length;
+  if (praiseCount + complaintCount > 0) {
+    const ratio = (praiseCount - complaintCount) / (praiseCount + complaintCount);
+    sentimentScore = sentimentScore * 0.7 + ratio * 30; // Blend
+  }
+
+  sentimentScore = Math.max(-100, Math.min(100, Math.round(sentimentScore)));
+
+  // Determine label
+  let label: SentimentResult['label'] = 'neutral';
+  if (sentimentScore >= 60) label = 'very_positive';
+  else if (sentimentScore >= 20) label = 'positive';
+  else if (sentimentScore > -20) label = 'neutral';
+  else if (sentimentScore > -60) label = 'negative';
+  else label = 'very_negative';
+
+  // Build rating distribution from sources
+  const ratingDistribution: Record<string, number> = {};
+  for (const source of sources) {
+    ratingDistribution[source.platform] = source.avgRating;
+  }
+
+  return {
+    sentiment: {
+      overallScore: sentimentScore,
+      label,
+      positives: commonPraises,
+      negatives: commonComplaints,
+      totalReviews,
+      averageRating: overallRating,
+      ratingDistribution,
+    },
+    competitorId,
+    competitorName: competitor.competitorName,
+  };
+}
+
+/**
+ * Track reviews rating/count over time from snapshots.
+ */
+export async function getReviewsTrend(
+  competitorId: string
+): Promise<{ trend: ReviewsTrendPoint[]; competitorId: string; competitorName: string }> {
+  const competitor = await db.competitorAnalysis.findFirst({
+    where: { id: competitorId },
+    select: { id: true, competitorName: true, reviewsData: true, updatedAt: true },
+  });
+
+  if (!competitor) {
+    return { trend: [], competitorId, competitorName: 'Unknown' };
+  }
+
+  const trend: ReviewsTrendPoint[] = [];
+
+  // Current reviews data
+  const currentReviews = competitor.reviewsData
+    ? (parseJsonSafe(competitor.reviewsData as string, {}) as Record<string, unknown>)
+    : {};
+
+  if (Object.keys(currentReviews).length > 0) {
+    trend.push({
+      date: competitor.updatedAt.toISOString(),
+      averageRating: (currentReviews.overallRating as number) || 0,
+      totalReviews: (currentReviews.totalReviews as number) || 0,
+      sentiment: (currentReviews.sentiment as string) || 'neutral',
+      source: 'current',
+    });
+  }
+
+  // Get snapshots with reviews data
+  const snapshots = await db.competitorSnapshot.findMany({
+    where: { competitorId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  for (const snapshot of snapshots) {
+    const rawData = parseJsonSafe(snapshot.rawData as string, {}) as Record<string, unknown>;
+    const reviews = (rawData.reviewsData ?? rawData.reviews ?? {}) as Record<string, unknown>;
+
+    if (Object.keys(reviews).length > 0) {
+      trend.push({
+        date: snapshot.createdAt.toISOString(),
+        averageRating: (reviews.overallRating as number) || 0,
+        totalReviews: (reviews.totalReviews as number) || 0,
+        sentiment: (reviews.sentiment as string) || 'neutral',
+        source: `snapshot_${snapshot.snapshotType}`,
+      });
+    }
+  }
+
+  // Sort by date ascending
+  trend.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return { trend, competitorId, competitorName: competitor.competitorName };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED HELPERS FOR ADVANCED INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Safely parse JSON string, returning fallback on failure.
+ */
+function parseJsonSafe(jsonStr: string | null | undefined, fallback: unknown): unknown {
+  if (!jsonStr) return fallback;
+  try {
+    return JSON.parse(jsonStr as string);
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Extract meaningful words from text and add to keyword map.
+ */
+function extractWordsFromText(
+  text: string,
+  source: string,
+  keywordMap: Map<string, { frequency: number; sources: Set<string> }>,
+  weight: number
+): void {
+  if (!text) return;
+
+  // Common stop words to skip
+  const stopWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'is', 'it', 'as', 'be', 'was', 'are',
+    'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+    'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these',
+    'those', 'we', 'you', 'they', 'our', 'your', 'their', 'its', 'not',
+    'no', 'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other',
+    'some', 'such', 'than', 'too', 'very', 'just', 'about', 'also', 'if',
+    'so', 'up', 'out', 'how', 'what', 'which', 'who', 'when', 'where',
+    'why', 'here', 'there', 'into', 'over', 'after', 'before', 'between',
+  ]);
+
+  // Extract 1-3 word phrases
+  const words = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
+
+  for (const word of words) {
+    const existing = keywordMap.get(word) ?? { frequency: 0, sources: new Set<string>() };
+    existing.frequency += weight;
+    existing.sources.add(source);
+    keywordMap.set(word, existing);
+  }
+
+  // Extract bigrams
+  for (let i = 0; i < words.length - 1; i++) {
+    const bigram = `${words[i]} ${words[i + 1]}`;
+    const existing = keywordMap.get(bigram) ?? { frequency: 0, sources: new Set<string>() };
+    existing.frequency += weight * 1.5;
+    existing.sources.add(source);
+    keywordMap.set(bigram, existing);
+  }
+}

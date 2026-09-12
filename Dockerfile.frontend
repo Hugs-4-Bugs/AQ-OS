@@ -1,0 +1,37 @@
+# ═══════════════════════════════════════════════════════════════════
+# AcquisitionOS — Frontend Dockerfile (Development)
+# Phase 10: DevOps + Deployment
+# Used by docker-compose.yml for local development
+# ═══════════════════════════════════════════════════════════════════
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install libc6-compat for bun/node compatibility
+RUN apk add --no-cache libc6-compat
+
+# Copy package files, lockfile, and .npmrc for dependency installation
+COPY package.json package-lock.json .npmrc ./
+
+# Install all dependencies (dev + prod for development)
+RUN npm install
+
+# Copy prisma schema and generate client
+COPY prisma ./prisma/
+RUN npx prisma generate
+
+# Copy source code
+COPY . .
+
+# Create non-root user for development
+RUN addgroup --system --gid 1001 devjs && \
+    adduser --system --uid 1001 devuser
+RUN mkdir -p /app/data && chown devuser:devjs /app/data
+
+USER devuser
+
+EXPOSE 3000
+
+# Development server with hot reload
+CMD ["npm", "run", "dev"]

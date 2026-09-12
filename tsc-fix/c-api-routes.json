@@ -1,0 +1,983 @@
+{
+ "src/app/api/admin/backup/[id]/route.ts": [
+  {
+   "line": 41,
+   "code": "TS2322",
+   "msg": "Type '{ size: number; lastModified: string; }' is not assignable to type 'null'."
+  }
+ ],
+ "src/app/api/admin/feedback/[id]/route.ts": [
+  {
+   "line": 125,
+   "code": "TS2322",
+   "msg": "Type '{ feedbackId: string | undefined; fromStatus: string; toStatus: string; changedBy: string; note: string | null; }' is not assignable to type '(Without<FeedbackStatusLogCreateInput, FeedbackStatusLogUncheckedCreateInput> & FeedbackStatusLogUncheckedCreateInput) | (Without<...> & FeedbackStatusLogCreateInput)'."
+  }
+ ],
+ "src/app/api/admin/feedback/analytics/route.ts": [
+  {
+   "line": 46,
+   "code": "TS2322",
+   "msg": "Type 'null' is not assignable to type 'InputJsonValue | JsonNullValueFilter | FieldRef<\"FeedbackReport\", \"Json\"> | undefined'."
+  }
+ ],
+ "src/app/api/ai/chat/stream/route.ts": [
+  {
+   "line": 11,
+   "code": "TS2345",
+   "msg": "Argument of type '(user: AuthUser) => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/analytics/ai/route.ts": [
+  {
+   "line": 19,
+   "code": "TS2554",
+   "msg": "Expected 1-2 arguments, but got 4."
+  }
+ ],
+ "src/app/api/analytics/billing/route.ts": [
+  {
+   "line": 19,
+   "code": "TS2554",
+   "msg": "Expected 1-2 arguments, but got 4."
+  }
+ ],
+ "src/app/api/analytics/insights/route.ts": [
+  {
+   "line": 59,
+   "code": "TS2538",
+   "msg": "Type 'null' cannot be used as an index type."
+  },
+  {
+   "line": 60,
+   "code": "TS2538",
+   "msg": "Type 'null' cannot be used as an index type."
+  }
+ ],
+ "src/app/api/analytics/leads/route.ts": [
+  {
+   "line": 30,
+   "code": "TS2554",
+   "msg": "Expected 1-3 arguments, but got 4."
+  },
+  {
+   "line": 31,
+   "code": "TS2554",
+   "msg": "Expected 4 arguments, but got 6."
+  }
+ ],
+ "src/app/api/analytics/route.ts": [
+  {
+   "line": 54,
+   "code": "TS2345",
+   "msg": "Argument of type '{ start: Date; end: Date; }' is not assignable to parameter of type '\"ai\" | \"executive\" | \"sales\" | \"ops\" | undefined'."
+  }
+ ],
+ "src/app/api/analytics/share/[token]/route.ts": [
+  {
+   "line": 37,
+   "code": "TS2322",
+   "msg": "Type 'Promise<AuthUser>' is not assignable to type 'Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/analytics/workflows/route.ts": [
+  {
+   "line": 19,
+   "code": "TS2554",
+   "msg": "Expected 1-3 arguments, but got 4."
+  }
+ ],
+ "src/app/api/audit/export/route.ts": [
+  {
+   "line": 29,
+   "code": "TS2322",
+   "msg": "Type '{}' is not assignable to type 'never'."
+  },
+  {
+   "line": 31,
+   "code": "TS2339",
+   "msg": "Property 'userId' does not exist on type 'never'."
+  },
+  {
+   "line": 32,
+   "code": "TS2339",
+   "msg": "Property 'action' does not exist on type 'never'."
+  },
+  {
+   "line": 33,
+   "code": "TS2339",
+   "msg": "Property 'resource' does not exist on type 'never'."
+  },
+  {
+   "line": 36,
+   "code": "TS2339",
+   "msg": "Property 'createdAt' does not exist on type 'never'."
+  },
+  {
+   "line": 37,
+   "code": "TS2339",
+   "msg": "Property 'createdAt' does not exist on type 'never'."
+  },
+  {
+   "line": 38,
+   "code": "TS2339",
+   "msg": "Property 'createdAt' does not exist on type 'never'."
+  }
+ ],
+ "src/app/api/audit/route.ts": [
+  {
+   "line": 33,
+   "code": "TS2322",
+   "msg": "Type '{}' is not assignable to type 'never'."
+  },
+  {
+   "line": 35,
+   "code": "TS2339",
+   "msg": "Property 'userId' does not exist on type 'never'."
+  },
+  {
+   "line": 36,
+   "code": "TS2339",
+   "msg": "Property 'action' does not exist on type 'never'."
+  },
+  {
+   "line": 37,
+   "code": "TS2339",
+   "msg": "Property 'resource' does not exist on type 'never'."
+  },
+  {
+   "line": 38,
+   "code": "TS2339",
+   "msg": "Property 'resourceId' does not exist on type 'never'."
+  },
+  {
+   "line": 39,
+   "code": "TS2339",
+   "msg": "Property 'ipAddress' does not exist on type 'never'."
+  },
+  {
+   "line": 42,
+   "code": "TS2339",
+   "msg": "Property 'createdAt' does not exist on type 'never'."
+  },
+  {
+   "line": 43,
+   "code": "TS2339",
+   "msg": "Property 'createdAt' does not exist on type 'never'."
+  },
+  {
+   "line": 44,
+   "code": "TS2339",
+   "msg": "Property 'createdAt' does not exist on type 'never'."
+  },
+  {
+   "line": 48,
+   "code": "TS2339",
+   "msg": "Property 'OR' does not exist on type 'never'."
+  }
+ ],
+ "src/app/api/autonomous/campaign/parse/route.ts": [
+  {
+   "line": 23,
+   "code": "TS2344",
+   "msg": "Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'."
+  }
+ ],
+ "src/app/api/billing/history/route.ts": [
+  {
+   "line": 181,
+   "code": "TS2339",
+   "msg": "Property 'paymentOrderId' does not exist on type '{ id: string; createdAt: Date; currency: string; subtotal: number; taxRate: number; taxAmount: number; total: number; invoiceNumber: string; pdfUrl: string | null; lineItems: string; }'."
+  },
+  {
+   "line": 240,
+   "code": "TS2322",
+   "msg": "Type 'string | null' is not assignable to type 'null'."
+  }
+ ],
+ "src/app/api/calendar/ai-book/route.ts": [
+  {
+   "line": 113,
+   "code": "TS2339",
+   "msg": "Property 'bestContactTime' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; leadId: string; weaknesses: string | null; replyScore: number; urgencyScore: number; revenuePotentialScore: number; outreachMessages: string | null; ... 10 more ...; analysisVersion: number; }[]'."
+  }
+ ],
+ "src/app/api/calendar/availability/route.ts": [
+  {
+   "line": 69,
+   "code": "TS2304",
+   "msg": "Cannot find name 'db'."
+  },
+  {
+   "line": 108,
+   "code": "TS2304",
+   "msg": "Cannot find name 'db'."
+  }
+ ],
+ "src/app/api/chat-sessions/route.ts": [
+  {
+   "line": 48,
+   "code": "TS2322",
+   "msg": "Type '{ title: any; salesCoachMode: boolean; }' is not assignable to type '(Without<AiChatSessionCreateInput, AiChatSessionUncheckedCreateInput> & AiChatSessionUncheckedCreateInput) | (Without<...> & AiChatSessionCreateInput)'."
+  }
+ ],
+ "src/app/api/competitor/route.ts": [
+  {
+   "line": 51,
+   "code": "TS2673",
+   "msg": "Constructor of class 'ZAI' is private and only accessible within the class declaration."
+  }
+ ],
+ "src/app/api/competitors/[id]/route.ts": [
+  {
+   "line": 36,
+   "code": "TS2322",
+   "msg": "Type '{ userId: string | null; id: string; createdAt: Date; updatedAt: Date; description: string | null; competitorName: string; competitorUrl: string; socialProfiles: string | null; ... 5 more ...; seoMetadata: string | null; } | null' is not assignable to type 'null'."
+  }
+ ],
+ "src/app/api/competitors/[id]/snapshots/route.ts": [
+  {
+   "line": 20,
+   "code": "TS2554",
+   "msg": "Expected 2 arguments, but got 3."
+  }
+ ],
+ "src/app/api/competitors/analyze/route.ts": [
+  {
+   "line": 48,
+   "code": "TS2554",
+   "msg": "Expected 2 arguments, but got 3."
+  },
+  {
+   "line": 63,
+   "code": "TS2339",
+   "msg": "Property 'seoScore' does not exist on type '{}'."
+  },
+  {
+   "line": 64,
+   "code": "TS2339",
+   "msg": "Property 'socialScore' does not exist on type '{}'."
+  },
+  {
+   "line": 65,
+   "code": "TS2339",
+   "msg": "Property 'pricingModel' does not exist on type '{}'."
+  },
+  {
+   "line": 66,
+   "code": "TS2339",
+   "msg": "Property 'techStack' does not exist on type '{}'."
+  },
+  {
+   "line": 67,
+   "code": "TS2339",
+   "msg": "Property 'strengths' does not exist on type '{}'."
+  },
+  {
+   "line": 68,
+   "code": "TS2339",
+   "msg": "Property 'weaknesses' does not exist on type '{}'."
+  },
+  {
+   "line": 69,
+   "code": "TS2339",
+   "msg": "Property 'estimatedTrafficTier' does not exist on type '{}'."
+  },
+  {
+   "line": 71,
+   "code": "TS2339",
+   "msg": "Property 'opportunityScore' does not exist on type '{}'."
+  },
+  {
+   "line": 72,
+   "code": "TS2339",
+   "msg": "Property 'threatLevel' does not exist on type '{}'."
+  },
+  {
+   "line": 87,
+   "code": "TS2339",
+   "msg": "Property 'threatLevel' does not exist on type '{}'."
+  },
+  {
+   "line": 88,
+   "code": "TS2339",
+   "msg": "Property 'opportunityScore' does not exist on type '{}'."
+  }
+ ],
+ "src/app/api/competitors/route.ts": [
+  {
+   "line": 44,
+   "code": "TS18046",
+   "msg": "'result' is of type 'unknown'."
+  },
+  {
+   "line": 50,
+   "code": "TS18046",
+   "msg": "'result' is of type 'unknown'."
+  },
+  {
+   "line": 54,
+   "code": "TS18046",
+   "msg": "'result' is of type 'unknown'."
+  },
+  {
+   "line": 82,
+   "code": "TS2554",
+   "msg": "Expected 1-2 arguments, but got 4."
+  }
+ ],
+ "src/app/api/cron/credit-renewal/route.ts": [
+  {
+   "line": 39,
+   "code": "TS2339",
+   "msg": "Property 'renewed' does not exist on type '{ checked: number; expired: number; planChanged: number; }'."
+  },
+  {
+   "line": 41,
+   "code": "TS2339",
+   "msg": "Property 'errors' does not exist on type '{ checked: number; expired: number; planChanged: number; }'."
+  }
+ ],
+ "src/app/api/dashboard/email-templates/route.ts": [
+  {
+   "line": 22,
+   "code": "TS18047",
+   "msg": "'t.content' is possibly 'null'."
+  },
+  {
+   "line": 28,
+   "code": "TS2345",
+   "msg": "Argument of type 'string | null' is not assignable to parameter of type 'string'."
+  }
+ ],
+ "src/app/api/dashboard/funnel-velocity/route.ts": [
+  {
+   "line": 161,
+   "code": "TS18047",
+   "msg": "'bottleneckStage' is possibly 'null'."
+  }
+ ],
+ "src/app/api/dashboard/workflow-analytics/route.ts": [
+  {
+   "line": 21,
+   "code": "TS18047",
+   "msg": "'w.avgRuntimeMs' is possibly 'null'."
+  }
+ ],
+ "src/app/api/discovery/start/route.ts": [
+  {
+   "line": 72,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'config' does not exist in type 'Without<DiscoveryJobCreateInput, DiscoveryJobUncheckedCreateInput> & DiscoveryJobUncheckedCreateInput'."
+  },
+  {
+   "line": 181,
+   "code": "TS2322",
+   "msg": "Type 'WebsiteScore' is not assignable to type 'undefined'."
+  }
+ ],
+ "src/app/api/email/tracking/open/[id]/route.ts": [
+  {
+   "line": 36,
+   "code": "TS2345",
+   "msg": "Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'."
+  }
+ ],
+ "src/app/api/events/analytics/route.ts": [
+  {
+   "line": 109,
+   "code": "TS2345",
+   "msg": "Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'."
+  },
+  {
+   "line": 110,
+   "code": "TS2345",
+   "msg": "Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'."
+  },
+  {
+   "line": 251,
+   "code": "TS2345",
+   "msg": "Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'."
+  },
+  {
+   "line": 252,
+   "code": "TS2345",
+   "msg": "Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'."
+  }
+ ],
+ "src/app/api/feedback/crash/route.ts": [
+  {
+   "line": 64,
+   "code": "TS2322",
+   "msg": "Type 'null' is not assignable to type 'InputJsonValue | NullableJsonNullValueInput | undefined'."
+  }
+ ],
+ "src/app/api/gmail/accounts/route.ts": [
+  {
+   "line": 43,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/connect/route.ts": [
+  {
+   "line": 29,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/disconnect/route.ts": [
+  {
+   "line": 39,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/draft/route.ts": [
+  {
+   "line": 135,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/outreach-to-draft/route.ts": [
+  {
+   "line": 185,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/pubsub/setup/route.ts": [
+  {
+   "line": 58,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/reply/route.ts": [
+  {
+   "line": 62,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/status/route.ts": [
+  {
+   "line": 56,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/sync/route.ts": [
+  {
+   "line": 42,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  },
+  {
+   "line": 102,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/thread/[id]/route.ts": [
+  {
+   "line": 72,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/threads/route.ts": [
+  {
+   "line": 59,
+   "code": "TS2352",
+   "msg": "Conversion of type 'Error & Record<\"statusCode\", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  }
+ ],
+ "src/app/api/gmail/tracking/pixel/[messageId]/route.ts": [
+  {
+   "line": 32,
+   "code": "TS2345",
+   "msg": "Argument of type '{ messageId: string; eventType: \"open\" | \"click\"; } | null' is not assignable to parameter of type 'string'."
+  }
+ ],
+ "src/app/api/health/route.ts": [
+  {
+   "line": 20,
+   "code": "TS2741",
+   "msg": "Property 'status' is missing in type '{}' but required in type '{ status: string; responseTime?: number | undefined; error?: string | undefined; }'."
+  }
+ ],
+ "src/app/api/insights/route.ts": [
+  {
+   "line": 193,
+   "code": "TS2345",
+   "msg": "Argument of type '{ week: string; newLeads: number; dealsClosed: number; }' is not assignable to parameter of type 'never'."
+  }
+ ],
+ "src/app/api/leads/[id]/research/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/leads/ai-scores/route.ts": [
+  {
+   "line": 227,
+   "code": "TS2345",
+   "msg": "Argument of type '{ id: string; country: string | null; createdAt: Date; updatedAt: Date; city: string | null; niche: string | null; businessName: string; replyScore: number; conversionScore: number; ... 9 more ...; lastContactedAt: Date | null; }[]' is not assignable to parameter of type '{ revenuePotentialScore: number; niche: string | null; estimatedQuality: string | null; }[]'."
+  }
+ ],
+ "src/app/api/leads/discover/route.ts": [
+  {
+   "line": 51,
+   "code": "TS2345",
+   "msg": "Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'."
+  }
+ ],
+ "src/app/api/leads/discover/suggestions/route.ts": [
+  {
+   "line": 19,
+   "code": "TS2673",
+   "msg": "Constructor of class 'ZAI' is private and only accessible within the class declaration."
+  }
+ ],
+ "src/app/api/leads/hot/route.ts": [
+  {
+   "line": 16,
+   "code": "TS2345",
+   "msg": "Argument of type '(user: AuthUser) => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/leads/hot/scan/route.ts": [
+  {
+   "line": 14,
+   "code": "TS2345",
+   "msg": "Argument of type '(user: AuthUser) => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/leads/hot/stats/route.ts": [
+  {
+   "line": 13,
+   "code": "TS2345",
+   "msg": "Argument of type '(user: AuthUser) => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/leads/import/route.ts": [
+  {
+   "line": 42,
+   "code": "TS2322",
+   "msg": "Type 'string | null' is not assignable to type 'string | undefined'."
+  }
+ ],
+ "src/app/api/leads/scraping-metrics/route.ts": [
+  {
+   "line": 38,
+   "code": "TS2322",
+   "msg": "Type 'QueueObservabilityReport' is not assignable to type 'null'."
+  }
+ ],
+ "src/app/api/meetings/[id]/action-items/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/agenda/route.ts": [
+  {
+   "line": 14,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/approve/route.ts": [
+  {
+   "line": 13,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/extract-actions/route.ts": [
+  {
+   "line": 14,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/follow-up-email/route.ts": [
+  {
+   "line": 15,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 51,
+   "code": "TS2345",
+   "msg": "Argument of type '{ lead: { email: string | null; businessName: string; ownerName: string | null; } | null; } & { userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; ... 25 more ...; rescheduledFrom: string | null; }' is not assignable to parameter of type '{ id: string; title: string; description?: string | null | undefined; startDateTime: Date; endDateTime: Date; timezone: string; notes?: string | null | undefined; actionItems?: string | ... 1 more ... | undefined; leadId?: string | ... 1 more ... | undefined; userId: string; }'."
+  }
+ ],
+ "src/app/api/meetings/[id]/follow-up/route.ts": [
+  {
+   "line": 18,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 54,
+   "code": "TS2345",
+   "msg": "Argument of type '{ lead: { email: string | null; businessName: string; ownerName: string | null; } | null; } & { userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; ... 25 more ...; rescheduledFrom: string | null; }' is not assignable to parameter of type '{ id: string; title: string; description?: string | null | undefined; startDateTime: Date; endDateTime: Date; timezone: string; notes?: string | null | undefined; actionItems?: string | ... 1 more ... | undefined; leadId?: string | ... 1 more ... | undefined; userId: string; }'."
+  }
+ ],
+ "src/app/api/meetings/[id]/objections/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/prep/route.ts": [
+  {
+   "line": 14,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/reschedule/route.ts": [
+  {
+   "line": 11,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/meetings/[id]/sentiment/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/messaging/media/[id]/route.ts": [
+  {
+   "line": 51,
+   "code": "TS2345",
+   "msg": "Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'."
+  }
+ ],
+ "src/app/api/metrics/dashboard/route.ts": [
+  {
+   "line": 147,
+   "code": "TS2339",
+   "msg": "Property 'getRecentLogs' does not exist on type '{ debug: (message: string, options?: LoggerOptions | undefined, extra?: Record<string, unknown> | undefined) => void; info: (message: string, options?: LoggerOptions | undefined, extra?: Record<...> | undefined) => void; ... 11 more ...; getDefaultContext: () => Record<...>; }'."
+  },
+  {
+   "line": 148,
+   "code": "TS2339",
+   "msg": "Property 'getLogCounts' does not exist on type '{ debug: (message: string, options?: LoggerOptions | undefined, extra?: Record<string, unknown> | undefined) => void; info: (message: string, options?: LoggerOptions | undefined, extra?: Record<...> | undefined) => void; ... 11 more ...; getDefaultContext: () => Record<...>; }'."
+  }
+ ],
+ "src/app/api/outreach/autonomy-status/route.ts": [
+  {
+   "line": 54,
+   "code": "TS2345",
+   "msg": "Argument of type 'string' is not assignable to parameter of type 'OutreachAutonomyMode'."
+  }
+ ],
+ "src/app/api/payments/confirm-payment/route.ts": [
+  {
+   "line": 275,
+   "code": "TS2322",
+   "msg": "Type 'GenerateInvoicePdfResult' is not assignable to type 'null'."
+  },
+  {
+   "line": 276,
+   "code": "TS18047",
+   "msg": "'invoiceResult' is possibly 'null'."
+  },
+  {
+   "line": 278,
+   "code": "TS18047",
+   "msg": "'invoiceResult' is possibly 'null'."
+  },
+  {
+   "line": 279,
+   "code": "TS18047",
+   "msg": "'invoiceResult' is possibly 'null'."
+  },
+  {
+   "line": 282,
+   "code": "TS18047",
+   "msg": "'invoiceResult' is possibly 'null'."
+  },
+  {
+   "line": 320,
+   "code": "TS2339",
+   "msg": "Property 'success' does not exist on type 'never'."
+  },
+  {
+   "line": 321,
+   "code": "TS2339",
+   "msg": "Property 'pdfUrl' does not exist on type 'never'."
+  },
+  {
+   "line": 338,
+   "code": "TS2339",
+   "msg": "Property 'pdfUrl' does not exist on type 'never'."
+  }
+ ],
+ "src/app/api/payments/confirm/route.ts": [
+  {
+   "line": 90,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'creditsAdded' does not exist in type '{ amount: number; currency: string; provider: string; plan: string; paymentOrderId?: string | undefined; reason?: string | undefined; }'."
+  }
+ ],
+ "src/app/api/payments/invoices/[id]/download/route.ts": [
+  {
+   "line": 159,
+   "code": "TS2345",
+   "msg": "Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'."
+  }
+ ],
+ "src/app/api/payments/process-billing/route.ts": [
+  {
+   "line": 83,
+   "code": "TS2322",
+   "msg": "Type 'null' is not assignable to type 'string'."
+  }
+ ],
+ "src/app/api/payments/provider-status/route.ts": [
+  {
+   "line": 18,
+   "code": "TS18048",
+   "msg": "'process.env.STRIPE_SECRET_KEY' is possibly 'undefined'."
+  },
+  {
+   "line": 27,
+   "code": "TS18048",
+   "msg": "'process.env.RAZORPAY_KEY_ID' is possibly 'undefined'."
+  }
+ ],
+ "src/app/api/payments/sse/route.ts": [
+  {
+   "line": 14,
+   "code": "TS2345",
+   "msg": "Argument of type '(user: AuthUser) => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/payments/verify-session/route.ts": [
+  {
+   "line": 103,
+   "code": "TS2339",
+   "msg": "Property 'latest_charge' does not exist on type 'Response<Session>'."
+  },
+  {
+   "line": 319,
+   "code": "TS2339",
+   "msg": "Property 'latest_charge' does not exist on type 'Response<Session>'."
+  }
+ ],
+ "src/app/api/payments/webhook/razorpay/route.ts": [
+  {
+   "line": 201,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'creditsAdded' does not exist in type '{ amount: number; currency: string; provider: string; plan: string; paymentOrderId?: string | undefined; reason?: string | undefined; }'."
+  },
+  {
+   "line": 751,
+   "code": "TS2322",
+   "msg": "Type 'number | undefined' is not assignable to type 'number'."
+  }
+ ],
+ "src/app/api/payments/webhook/stripe/route.ts": [
+  {
+   "line": 71,
+   "code": "TS2554",
+   "msg": "Expected 1-2 arguments, but got 3."
+  },
+  {
+   "line": 1006,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'reason' does not exist in type '{ fromPlan?: string | undefined; toPlan?: string | undefined; fromStatus?: string | undefined; toStatus?: string | undefined; billingCycle?: string | undefined; scheduledChange?: string | undefined; }'."
+  },
+  {
+   "line": 1073,
+   "code": "TS2345",
+   "msg": "Argument of type '{ userId: string; amount: number; currency: any; reason: any; chargebackId: any; }' is not assignable to parameter of type '{ userId: string; plan: string; amount: number; currency?: string | undefined; reason?: string | undefined; chargebackId?: string | undefined; }'."
+  },
+  {
+   "line": 1081,
+   "code": "TS2345",
+   "msg": "Argument of type '\"chargeback_received\"' is not assignable to parameter of type '\"payment_initiated\" | \"payment_completed\" | \"payment_failed\" | \"payment_refunded\"'."
+  },
+  {
+   "line": 1190,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'source' does not exist in type '{ amount: number; currency: string; provider: string; plan: string; paymentOrderId?: string | undefined; reason?: string | undefined; }'."
+  },
+  {
+   "line": 1231,
+   "code": "TS2345",
+   "msg": "Argument of type '\"subscription_created_stripe\"' is not assignable to parameter of type '\"upgrade_initiated\" | \"upgrade_completed\" | \"downgrade_scheduled\" | \"downgrade_completed\" | \"subscription_created\" | \"subscription_canceled\" | \"subscription_reactivated\" | \"subscription_expired\" | \"subscription_past_due\" | \"plan_change_scheduled\" | \"plan_change_processed\"'."
+  },
+  {
+   "line": 1288,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'source' does not exist in type '{ amount: number; currency: string; provider: string; plan: string; paymentOrderId?: string | undefined; reason?: string | undefined; }'."
+  }
+ ],
+ "src/app/api/sequences/[id]/enroll/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/sequences/[id]/pause/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/sequences/[id]/resume/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/sequences/[id]/route.ts": [
+  {
+   "line": 12,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 31,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 71,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/sequences/enrollments/[id]/route.ts": [
+  {
+   "line": 13,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 90,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 111,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  },
+  {
+   "line": 132,
+   "code": "TS2345",
+   "msg": "Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<NextResponse<unknown>>' is not assignable to parameter of type '(request: NextRequest) => Promise<NextResponse<unknown>>'."
+  }
+ ],
+ "src/app/api/settings/export/route.ts": [
+  {
+   "line": 40,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'timezone' does not exist in type 'UserSelect<DefaultArgs>'."
+  }
+ ],
+ "src/app/api/settings/onboarding/route.ts": [
+  {
+   "line": 35,
+   "code": "TS2339",
+   "msg": "Property 'data' does not exist on type '{ userId: string; id: string; createdAt: Date; updatedAt: Date; completed: boolean; currentStep: number; profileCompleted: boolean; nichesSelected: boolean; countriesSelected: boolean; ... 4 more ...; bonusCreditsAwarded: boolean; }'."
+  }
+ ],
+ "src/app/api/whatsapp/meta/webhook/route.ts": [
+  {
+   "line": 75,
+   "code": "TS2339",
+   "msg": "Property 'metaVerifyToken' does not exist on type '{ id: string; userId: string; }'."
+  }
+ ],
+ "src/app/api/workflows/validate/route.ts": [
+  {
+   "line": 111,
+   "code": "TS2322",
+   "msg": "Type '{ error: string | null; userId: string | null; durationMs: number | null; status: string; id: string; createdAt: Date; idempotencyKey: string | null; maxRetries: number; completedAt: Date | null; ... 14 more ...; isDeadLetter: boolean; }' is not assignable to type 'null'."
+  },
+  {
+   "line": 137,
+   "code": "TS2339",
+   "msg": "Property 'id' does not exist on type 'never'."
+  },
+  {
+   "line": 138,
+   "code": "TS2339",
+   "msg": "Property 'status' does not exist on type 'never'."
+  }
+ ],
+ "src/app/api/ws/route.ts": [
+  {
+   "line": 21,
+   "code": "TS2345",
+   "msg": "Argument of type 'Request' is not assignable to parameter of type 'NextRequest'."
+  }
+ ],
+ "src/app/payment/success/page.tsx": [
+  {
+   "line": 127,
+   "code": "TS2345",
+   "msg": "Argument of type 'string | null' is not assignable to parameter of type 'string | number | boolean'."
+  }
+ ],
+ "src/hooks/use-live-ai.ts": [
+  {
+   "line": 226,
+   "code": "TS2322",
+   "msg": "Type '{}' is not assignable to type 'void'."
+  }
+ ],
+ "src/hooks/use-live-leads.ts": [
+  {
+   "line": 296,
+   "code": "TS2322",
+   "msg": "Type '{}' is not assignable to type 'void'."
+  }
+ ],
+ "src/hooks/use-live-messages.ts": [
+  {
+   "line": 274,
+   "code": "TS2322",
+   "msg": "Type '{}' is not assignable to type 'void'."
+  }
+ ],
+ "src/hooks/use-live-payments.ts": [
+  {
+   "line": 234,
+   "code": "TS2322",
+   "msg": "Type '{}' is not assignable to type 'void'."
+  }
+ ],
+ "src/hooks/use-overflow-audit.ts": [
+  {
+   "line": 60,
+   "code": "TS2554",
+   "msg": "Expected 1 arguments, but got 0."
+  }
+ ],
+ "src/hooks/use-websocket.ts": [
+  {
+   "line": 4,
+   "code": "TS2307",
+   "msg": "Cannot find module 'socket.io-client' or its corresponding type declarations."
+  }
+ ]
+}

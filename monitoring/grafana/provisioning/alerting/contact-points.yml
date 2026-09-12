@@ -1,0 +1,74 @@
+# AcquisitionOS — Grafana Alerting Contact Points
+# Phase 11: Observability
+#
+# Configures notification channels for Grafana alerts.
+# The webhook URL is configurable via the ALERT_WEBHOOK_URL env var.
+# When not set, alerts are logged to Grafana internal DB only.
+#
+# To add Slack, Discord, PagerDuty, etc., add additional contact_points below.
+
+apiVersion: 1
+
+contactPoints:
+  # ─────────────────────────────────────────────────────────────────
+  # Default Webhook — sends all alerts to a configurable webhook URL
+  # ─────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: default-webhook
+    receivers:
+      - uid: default-webhook-receiver
+        type: webhook
+        name: webhook
+        settings:
+          url: ${ALERT_WEBHOOK_URL}
+          # Optional: HTTP method (default POST)
+          # method: POST
+          # Optional: custom HTTP headers
+          # header: |
+          #   Authorization: Bearer ${ALERT_WEBHOOK_TOKEN}
+
+  # ─────────────────────────────────────────────────────────────────
+  # Critical Alerts — PagerDuty / OpsGenie / Slack (when configured)
+  # ─────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: critical-alerts
+    receivers:
+      - uid: critical-webhook-receiver
+        type: webhook
+        name: critical-webhook
+        settings:
+          url: ${ALERT_WEBHOOK_URL_CRITICAL:-${ALERT_WEBHOOK_URL}}
+          header: |
+            X-Alert-Severity: critical
+      # Uncomment to enable Slack integration:
+      # - uid: critical-slack-receiver
+      #   type: slack
+      #   name: critical-slack
+      #   settings:
+      #     endpoint: ${SLACK_WEBHOOK_URL}
+      #     url: ${SLACK_WEBHOOK_URL}
+      #     username: AcquisitionOS Alerts
+
+  # ─────────────────────────────────────────────────────────────────
+  # Warning Alerts — lower urgency channel
+  # ─────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: warning-alerts
+    receivers:
+      - uid: warning-webhook-receiver
+        type: webhook
+        name: warning-webhook
+        settings:
+          url: ${ALERT_WEBHOOK_URL_WARNING:-${ALERT_WEBHOOK_URL}}
+
+  # ─────────────────────────────────────────────────────────────────
+  # Grafana Internal — always-on internal receiver
+  # ─────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: grafana-default-email
+    receivers:
+      - uid: grafana-default-email-receiver
+        type: email
+        name: email
+        settings:
+          addresses: ${ALERT_EMAIL:-admin@acquisitionos.local}

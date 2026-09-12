@@ -1,0 +1,16 @@
+== B: signup w/ Google-registered email (expect 409 emailRegistered) => HTTP 409
+{"error":"This email is already registered. Please log in instead — you can use Google, OTP, Magic Link, or your password (if you set one). Any login method on this platform works for a registered email.","emailRegistered":true,"email":"kattyboy785@gmail.com"}
+
+== C: signin w/ Google-only account (expect 409 noPasswordSet+suggestedMethods) => HTTP 409
+{"error":"This email is registered but has no password set (it was registered via Google / OTP / Magic Link). Please continue with Google, or use OTP or Magic Link login — or set a password via \"Forgot Password\".","noPasswordSet":true,"email":"kattyboy785@gmail.com","suggestedMethods":["google","otp","magic-link","forgot-password"]}
+
+== D: signin w/ unverified pw account (expect 403 emailNotVerified+resent) => HTTP 403
+{"error":"Please verify your email first — a fresh verification code has just been sent to your inbox (check your spam folder too).","emailNotVerified":true,"email":"testsignup-check-1788938079@gmail.com","verificationResent":true}
+
+== E: OTP request for Google-registered email (expect 200) => HTTP 200
+{"message":"If an account exists with this email, an OTP has been sent."}
+
+== F: magic link for Google-registered email (expect 200) => HTTP 200
+{"message":"If an account exists with this email, a magic link has been sent."}
+
+DONE

@@ -1,0 +1,3866 @@
+[
+ {
+  "path": "/.",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 49
+ },
+ {
+  "path": "/admin/backup",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 225
+ },
+ {
+  "path": "/admin/backup/[id]",
+  "methods": [
+   "GET",
+   "POST",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 239
+ },
+ {
+  "path": "/admin/billing",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 176
+ },
+ {
+  "path": "/admin/billing/failed-payments",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 85
+ },
+ {
+  "path": "/admin/billing/webhooks",
+  "methods": [
+   "GET"
+  ],
+  "auth": "webhook",
+  "lines": 65
+ },
+ {
+  "path": "/admin/feedback",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 102
+ },
+ {
+  "path": "/admin/feedback/[id]",
+  "methods": [
+   "GET",
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 211
+ },
+ {
+  "path": "/admin/feedback/[id]/comment",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 104
+ },
+ {
+  "path": "/admin/feedback/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 138
+ },
+ {
+  "path": "/admin/feedback/crashes",
+  "methods": [
+   "GET",
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 104
+ },
+ {
+  "path": "/admin/refund",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 206
+ },
+ {
+  "path": "/ai/analysis/[leadId]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 62
+ },
+ {
+  "path": "/ai/analyze",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 51
+ },
+ {
+  "path": "/ai/chat",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 114
+ },
+ {
+  "path": "/ai/chat/cancel",
+  "methods": [
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 41
+ },
+ {
+  "path": "/ai/chat/stream",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 117
+ },
+ {
+  "path": "/ai/costs",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 53
+ },
+ {
+  "path": "/ai/outreach/generate",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 66
+ },
+ {
+  "path": "/ai/prompts",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 141
+ },
+ {
+  "path": "/ai/rag/context",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 85
+ },
+ {
+  "path": "/ai/rag/ingest",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 40
+ },
+ {
+  "path": "/ai/rag/ingest-csv",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/ai/rag/ingest-url",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 42
+ },
+ {
+  "path": "/ai/score",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 51
+ },
+ {
+  "path": "/ai/usage",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/ai/vector-search",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 55
+ },
+ {
+  "path": "/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 94
+ },
+ {
+  "path": "/analytics/ai",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 43
+ },
+ {
+  "path": "/analytics/anomalies",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 143
+ },
+ {
+  "path": "/analytics/anomalies/[id]",
+  "methods": [
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 79
+ },
+ {
+  "path": "/analytics/benchmarks",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 88
+ },
+ {
+  "path": "/analytics/billing",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 43
+ },
+ {
+  "path": "/analytics/formulas",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 75
+ },
+ {
+  "path": "/analytics/formulas/[id]",
+  "methods": [
+   "GET",
+   "POST",
+   "PATCH",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 186
+ },
+ {
+  "path": "/analytics/insights",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 142
+ },
+ {
+  "path": "/analytics/insights/[id]",
+  "methods": [
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 80
+ },
+ {
+  "path": "/analytics/leads",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 62
+ },
+ {
+  "path": "/analytics/predictions",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 347
+ },
+ {
+  "path": "/analytics/predictions/[id]",
+  "methods": [
+   "GET",
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 156
+ },
+ {
+  "path": "/analytics/share",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 100
+ },
+ {
+  "path": "/analytics/share/[token]",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 116
+ },
+ {
+  "path": "/analytics/workflows",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 44
+ },
+ {
+  "path": "/audit",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 126
+ },
+ {
+  "path": "/audit/export",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 150
+ },
+ {
+  "path": "/auth/callback/google",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 665
+ },
+ {
+  "path": "/auth/config",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 60
+ },
+ {
+  "path": "/auth/debug",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 171
+ },
+ {
+  "path": "/auth/email-diagnostic",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 169
+ },
+ {
+  "path": "/auth/forgot-password",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 105
+ },
+ {
+  "path": "/auth/google",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/auth/google/callback",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 471
+ },
+ {
+  "path": "/auth/google/redirect-uri",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 60
+ },
+ {
+  "path": "/auth/google/relay",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 68
+ },
+ {
+  "path": "/auth/google/state",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 132
+ },
+ {
+  "path": "/auth/magic-link/request",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 148
+ },
+ {
+  "path": "/auth/magic-link/verify",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 575
+ },
+ {
+  "path": "/auth/me",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 36
+ },
+ {
+  "path": "/auth/mfa/confirm",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 100
+ },
+ {
+  "path": "/auth/mfa/disable",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 117
+ },
+ {
+  "path": "/auth/mfa/setup",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 135
+ },
+ {
+  "path": "/auth/mfa/verify",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 194
+ },
+ {
+  "path": "/auth/otp/request",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 138
+ },
+ {
+  "path": "/auth/otp/verify",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 258
+ },
+ {
+  "path": "/auth/refresh",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 132
+ },
+ {
+  "path": "/auth/resend-verification",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 105
+ },
+ {
+  "path": "/auth/reset-password",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 171
+ },
+ {
+  "path": "/auth/security/alerts",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 285
+ },
+ {
+  "path": "/auth/security/devices",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 208
+ },
+ {
+  "path": "/auth/security/lock-status",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 212
+ },
+ {
+  "path": "/auth/signin",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 290
+ },
+ {
+  "path": "/auth/signout",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 62
+ },
+ {
+  "path": "/auth/signup",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 173
+ },
+ {
+  "path": "/auth/verify-email",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 141
+ },
+ {
+  "path": "/autonomous-outreach/dispatch",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 79
+ },
+ {
+  "path": "/autonomous-outreach/generate",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 59
+ },
+ {
+  "path": "/autonomous/campaign",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 180
+ },
+ {
+  "path": "/autonomous/campaign/[campaignId]",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 177
+ },
+ {
+  "path": "/autonomous/campaign/list",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 77
+ },
+ {
+  "path": "/autonomous/campaign/parse",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 85
+ },
+ {
+  "path": "/autonomous/classify-reply",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 87
+ },
+ {
+  "path": "/autonomous/pipeline/move",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 74
+ },
+ {
+  "path": "/autonomous/research",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 64
+ },
+ {
+  "path": "/autonomous/send-outreach",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 141
+ },
+ {
+  "path": "/billing/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/billing/history",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 311
+ },
+ {
+  "path": "/billing/invoices/[invoiceId]/download",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 140
+ },
+ {
+  "path": "/billing/recovery",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 90
+ },
+ {
+  "path": "/calendar/[eventId]",
+  "methods": [
+   "PATCH",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 145
+ },
+ {
+  "path": "/calendar/ai-book",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 300
+ },
+ {
+  "path": "/calendar/availability",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 132
+ },
+ {
+  "path": "/calendar/callback",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 106
+ },
+ {
+  "path": "/calendar/connect",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 47
+ },
+ {
+  "path": "/calendar/disconnect",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 49
+ },
+ {
+  "path": "/calendar/events",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 333
+ },
+ {
+  "path": "/calendar/events/[id]",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 366
+ },
+ {
+  "path": "/calendar/intelligence",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 150
+ },
+ {
+  "path": "/calendar/reminders",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 112
+ },
+ {
+  "path": "/calendar/watch",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 208
+ },
+ {
+  "path": "/calendar/watch/stop",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 131
+ },
+ {
+  "path": "/calendar/webhook",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 346
+ },
+ {
+  "path": "/chat-sessions",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 80
+ },
+ {
+  "path": "/company-research",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 99
+ },
+ {
+  "path": "/competitor",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 150
+ },
+ {
+  "path": "/competitor/[id]",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 51
+ },
+ {
+  "path": "/competitors",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 101
+ },
+ {
+  "path": "/competitors/[id]",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 80
+ },
+ {
+  "path": "/competitors/[id]/compare",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 39
+ },
+ {
+  "path": "/competitors/[id]/insights",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 27
+ },
+ {
+  "path": "/competitors/[id]/opportunities",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 27
+ },
+ {
+  "path": "/competitors/[id]/pricing",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 29
+ },
+ {
+  "path": "/competitors/[id]/reviews",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 29
+ },
+ {
+  "path": "/competitors/[id]/seo",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 34
+ },
+ {
+  "path": "/competitors/[id]/snapshots",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/competitors/[id]/social",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 30
+ },
+ {
+  "path": "/competitors/[id]/website",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 31
+ },
+ {
+  "path": "/competitors/analyze",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 121
+ },
+ {
+  "path": "/competitors/discover",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 34
+ },
+ {
+  "path": "/credits",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 178
+ },
+ {
+  "path": "/credits/history",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 75
+ },
+ {
+  "path": "/cron/autonomous-outreach",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 38
+ },
+ {
+  "path": "/cron/credit-renewal",
+  "methods": [],
+  "auth": "cron",
+  "lines": 49
+ },
+ {
+  "path": "/cron/end-of-period",
+  "methods": [],
+  "auth": "cron",
+  "lines": 52
+ },
+ {
+  "path": "/cron/expire-api-keys",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 117
+ },
+ {
+  "path": "/cron/hot-lead-scan",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 72
+ },
+ {
+  "path": "/cron/meeting-reminders",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 72
+ },
+ {
+  "path": "/cron/payment-reconciliation",
+  "methods": [
+   "GET"
+  ],
+  "auth": "cron",
+  "lines": 359
+ },
+ {
+  "path": "/cron/process-gmail-replies",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 102
+ },
+ {
+  "path": "/cron/process-sequences",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 40
+ },
+ {
+  "path": "/cron/renew-subscriptions",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 202
+ },
+ {
+  "path": "/cron/sdr-cycle",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 78
+ },
+ {
+  "path": "/cron/sequence-processing",
+  "methods": [
+   "POST"
+  ],
+  "auth": "cron",
+  "lines": 52
+ },
+ {
+  "path": "/dashboard/account-growth",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 111
+ },
+ {
+  "path": "/dashboard/activities",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 134
+ },
+ {
+  "path": "/dashboard/ai-copilot",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 108
+ },
+ {
+  "path": "/dashboard/audit-logs",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 149
+ },
+ {
+  "path": "/dashboard/automation-rules",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 106
+ },
+ {
+  "path": "/dashboard/budget",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 59
+ },
+ {
+  "path": "/dashboard/campaigns",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/dashboard/churn-risk",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 103
+ },
+ {
+  "path": "/dashboard/client-onboarding",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 46
+ },
+ {
+  "path": "/dashboard/competitors",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 69
+ },
+ {
+  "path": "/dashboard/compliance-security",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 62
+ },
+ {
+  "path": "/dashboard/contacts",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 105
+ },
+ {
+  "path": "/dashboard/credit-usage",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 116
+ },
+ {
+  "path": "/dashboard/custom-alerts",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 151
+ },
+ {
+  "path": "/dashboard/data-quality",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 68
+ },
+ {
+  "path": "/dashboard/deal-pipeline",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 79
+ },
+ {
+  "path": "/dashboard/deal-risk",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 113
+ },
+ {
+  "path": "/dashboard/deals-performance",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 107
+ },
+ {
+  "path": "/dashboard/document-collaboration",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/dashboard/email-performance",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 104
+ },
+ {
+  "path": "/dashboard/email-templates",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 40
+ },
+ {
+  "path": "/dashboard/engagement-scores",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 166
+ },
+ {
+  "path": "/dashboard/executive-summary",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 152
+ },
+ {
+  "path": "/dashboard/exports",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 85
+ },
+ {
+  "path": "/dashboard/funnel-velocity",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 170
+ },
+ {
+  "path": "/dashboard/goals",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 24
+ },
+ {
+  "path": "/dashboard/integration-health",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 55
+ },
+ {
+  "path": "/dashboard/lead-activities",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 129
+ },
+ {
+  "path": "/dashboard/lead-scoring",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 195
+ },
+ {
+  "path": "/dashboard/lead-sources",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/dashboard/market-analysis",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 110
+ },
+ {
+  "path": "/dashboard/meetings",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 168
+ },
+ {
+  "path": "/dashboard/messaging",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 204
+ },
+ {
+  "path": "/dashboard/notifications",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 49
+ },
+ {
+  "path": "/dashboard/performance-benchmark",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 82
+ },
+ {
+  "path": "/dashboard/pipeline-forecast",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 139
+ },
+ {
+  "path": "/dashboard/pipeline-health",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 215
+ },
+ {
+  "path": "/dashboard/revenue-forecast",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 107
+ },
+ {
+  "path": "/dashboard/revenue-waterfall",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 88
+ },
+ {
+  "path": "/dashboard/sales-playbook",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/dashboard/search",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 83
+ },
+ {
+  "path": "/dashboard/settings",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 143
+ },
+ {
+  "path": "/dashboard/tasks",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 22
+ },
+ {
+  "path": "/dashboard/team-leaderboard",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 121
+ },
+ {
+  "path": "/dashboard/team-workload",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 204
+ },
+ {
+  "path": "/dashboard/telegram",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 71
+ },
+ {
+  "path": "/dashboard/territory-map",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 51
+ },
+ {
+  "path": "/dashboard/weekly-digest",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 137
+ },
+ {
+  "path": "/dashboard/whatsapp",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 120
+ },
+ {
+  "path": "/dashboard/workflow-analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/deals",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 37
+ },
+ {
+  "path": "/deals/[id]",
+  "methods": [
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 221
+ },
+ {
+  "path": "/discovery/leads",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 96
+ },
+ {
+  "path": "/discovery/start",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 271
+ },
+ {
+  "path": "/discovery/status",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 77
+ },
+ {
+  "path": "/email/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 97
+ },
+ {
+  "path": "/email/bounces",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 105
+ },
+ {
+  "path": "/email/schedule",
+  "methods": [
+   "GET",
+   "POST",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 102
+ },
+ {
+  "path": "/email/tracking/click/[id]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/email/tracking/open/[id]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 55
+ },
+ {
+  "path": "/entitlements",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/entitlements/check-credits",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/entitlements/quota",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 25
+ },
+ {
+  "path": "/events/ai",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 95
+ },
+ {
+  "path": "/events/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 468
+ },
+ {
+  "path": "/events/messages",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 95
+ },
+ {
+  "path": "/events/notifications",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 111
+ },
+ {
+  "path": "/events/payments",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 95
+ },
+ {
+  "path": "/events/workflows",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 131
+ },
+ {
+  "path": "/export",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 275
+ },
+ {
+  "path": "/export/preview",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 125
+ },
+ {
+  "path": "/feedback",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 251
+ },
+ {
+  "path": "/feedback/[id]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 39
+ },
+ {
+  "path": "/feedback/[id]/comment",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 93
+ },
+ {
+  "path": "/feedback/crash",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 108
+ },
+ {
+  "path": "/gap-analysis",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 71
+ },
+ {
+  "path": "/gap-analysis/remediation",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 34
+ },
+ {
+  "path": "/gap-analysis/score",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/gdpr/consent",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 210
+ },
+ {
+  "path": "/gdpr/delete",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 333
+ },
+ {
+  "path": "/gdpr/dpa",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 168
+ },
+ {
+  "path": "/gdpr/export",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 222
+ },
+ {
+  "path": "/gdpr/policies",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 155
+ },
+ {
+  "path": "/gdpr/retention",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 81
+ },
+ {
+  "path": "/gmail/accounts",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/gmail/callback",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 65
+ },
+ {
+  "path": "/gmail/connect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 48
+ },
+ {
+  "path": "/gmail/disconnect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 70
+ },
+ {
+  "path": "/gmail/draft",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 160
+ },
+ {
+  "path": "/gmail/inbox",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 167
+ },
+ {
+  "path": "/gmail/jobs/process",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 65
+ },
+ {
+  "path": "/gmail/outreach-to-draft",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 198
+ },
+ {
+  "path": "/gmail/process-replies",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/gmail/process-replies/status",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 36
+ },
+ {
+  "path": "/gmail/pubsub/setup",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 77
+ },
+ {
+  "path": "/gmail/pubsub/webhook",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 83
+ },
+ {
+  "path": "/gmail/reply",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 87
+ },
+ {
+  "path": "/gmail/reply-intelligence",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 82
+ },
+ {
+  "path": "/gmail/send",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 192
+ },
+ {
+  "path": "/gmail/status",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 69
+ },
+ {
+  "path": "/gmail/sync",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 115
+ },
+ {
+  "path": "/gmail/thread/[id]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 91
+ },
+ {
+  "path": "/gmail/threads",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 78
+ },
+ {
+  "path": "/gmail/tracking/click",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 93
+ },
+ {
+  "path": "/gmail/tracking/pixel/[messageId]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 59
+ },
+ {
+  "path": "/gmail/unsubscribe",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 107
+ },
+ {
+  "path": "/health",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 92
+ },
+ {
+  "path": "/health/database",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 234
+ },
+ {
+  "path": "/health/detailed",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 30
+ },
+ {
+  "path": "/hot-leads/detect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 42
+ },
+ {
+  "path": "/hot-leads/feed",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 36
+ },
+ {
+  "path": "/insights",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 546
+ },
+ {
+  "path": "/integrations/gmail",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 142
+ },
+ {
+  "path": "/integrations/gmail/connect",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 37
+ },
+ {
+  "path": "/integrations/gmail/revoke",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 19
+ },
+ {
+  "path": "/integrations/google/callback",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 198
+ },
+ {
+  "path": "/integrations/google/connect",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 33
+ },
+ {
+  "path": "/integrations/google/disconnect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 105
+ },
+ {
+  "path": "/integrations/telegram",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 336
+ },
+ {
+  "path": "/integrations/telegram/disconnect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 18
+ },
+ {
+  "path": "/integrations/telegram/generate-code",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 30
+ },
+ {
+  "path": "/integrations/whatsapp",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 63
+ },
+ {
+  "path": "/integrations/whatsapp/send-otp",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 42
+ },
+ {
+  "path": "/integrations/whatsapp/verify-otp",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 34
+ },
+ {
+  "path": "/lead-discovery",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 120
+ },
+ {
+  "path": "/leads",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 119
+ },
+ {
+  "path": "/leads/[id]",
+  "methods": [
+   "GET",
+   "PUT",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 180
+ },
+ {
+  "path": "/leads/[id]/activities",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 78
+ },
+ {
+  "path": "/leads/[id]/analyze",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 170
+ },
+ {
+  "path": "/leads/[id]/analyze-website",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 108
+ },
+ {
+  "path": "/leads/[id]/communications",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 128
+ },
+ {
+  "path": "/leads/[id]/deals",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 155
+ },
+ {
+  "path": "/leads/[id]/enrich",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 47
+ },
+ {
+  "path": "/leads/[id]/explain-scores",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 102
+ },
+ {
+  "path": "/leads/[id]/move-stage",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 42
+ },
+ {
+  "path": "/leads/[id]/notes",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 109
+ },
+ {
+  "path": "/leads/[id]/outreach",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 153
+ },
+ {
+  "path": "/leads/[id]/reminders",
+  "methods": [
+   "GET",
+   "POST",
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 98
+ },
+ {
+  "path": "/leads/[id]/research",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 54
+ },
+ {
+  "path": "/leads/ai-scores",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 621
+ },
+ {
+  "path": "/leads/compare",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 71
+ },
+ {
+  "path": "/leads/discover",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 67
+ },
+ {
+  "path": "/leads/discover/status/[jobId]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 34
+ },
+ {
+  "path": "/leads/discover/suggestions",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 98
+ },
+ {
+  "path": "/leads/export",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/leads/gap-analysis",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 91
+ },
+ {
+  "path": "/leads/hot",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 46
+ },
+ {
+  "path": "/leads/hot-leads",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 44
+ },
+ {
+  "path": "/leads/hot/scan",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 47
+ },
+ {
+  "path": "/leads/hot/stats",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 29
+ },
+ {
+  "path": "/leads/import",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/leads/merge",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 190
+ },
+ {
+  "path": "/leads/proxy-pool",
+  "methods": [
+   "GET",
+   "POST",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 179
+ },
+ {
+  "path": "/leads/reply-intelligence",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 81
+ },
+ {
+  "path": "/leads/scraping-metrics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/leads/search",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 118
+ },
+ {
+  "path": "/leads/stats",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 172
+ },
+ {
+  "path": "/meetings",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 135
+ },
+ {
+  "path": "/meetings/[id]",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 144
+ },
+ {
+  "path": "/meetings/[id]/action-items",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 54
+ },
+ {
+  "path": "/meetings/[id]/agenda",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 93
+ },
+ {
+  "path": "/meetings/[id]/approve",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 327
+ },
+ {
+  "path": "/meetings/[id]/complete",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 68
+ },
+ {
+  "path": "/meetings/[id]/extract-actions",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 67
+ },
+ {
+  "path": "/meetings/[id]/follow-up",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 85
+ },
+ {
+  "path": "/meetings/[id]/follow-up-email",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 82
+ },
+ {
+  "path": "/meetings/[id]/objections",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 54
+ },
+ {
+  "path": "/meetings/[id]/prep",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 75
+ },
+ {
+  "path": "/meetings/[id]/reschedule",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 71
+ },
+ {
+  "path": "/meetings/[id]/sentiment",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 54
+ },
+ {
+  "path": "/meetings/[id]/status",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 159
+ },
+ {
+  "path": "/meetings/approve",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 114
+ },
+ {
+  "path": "/meetings/check-availability",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 87
+ },
+ {
+  "path": "/meetings/detect-intent",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 64
+ },
+ {
+  "path": "/meetings/pending-approvals",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 28
+ },
+ {
+  "path": "/meetings/reminders",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 169
+ },
+ {
+  "path": "/meetings/reminders/process",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/meetings/settings",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 214
+ },
+ {
+  "path": "/meetings/stats",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 25
+ },
+ {
+  "path": "/meetings/suggest-slots",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 46
+ },
+ {
+  "path": "/messages",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 81
+ },
+ {
+  "path": "/messages/[id]",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 130
+ },
+ {
+  "path": "/messaging/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 76
+ },
+ {
+  "path": "/messaging/broadcasts",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 89
+ },
+ {
+  "path": "/messaging/broadcasts/[id]",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 110
+ },
+ {
+  "path": "/messaging/media/[id]",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 88
+ },
+ {
+  "path": "/messaging/templates",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 80
+ },
+ {
+  "path": "/messaging/templates/[id]",
+  "methods": [
+   "GET",
+   "POST",
+   "PUT",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 185
+ },
+ {
+  "path": "/metrics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 92
+ },
+ {
+  "path": "/metrics/dashboard",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 200
+ },
+ {
+  "path": "/notifications",
+  "methods": [
+   "GET",
+   "PATCH"
+  ],
+  "auth": "auth",
+  "lines": 113
+ },
+ {
+  "path": "/notifications/[id]",
+  "methods": [
+   "PATCH",
+   "DELETE"
+  ],
+  "auth": "auth",
+  "lines": 86
+ },
+ {
+  "path": "/notifications/[id]/read",
+  "methods": [
+   "PATCH"
+  ],
+  "auth": "auth",
+  "lines": 51
+ },
+ {
+  "path": "/notifications/archive",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 45
+ },
+ {
+  "path": "/notifications/mark-read",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 64
+ },
+ {
+  "path": "/notifications/push/subscribe",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 43
+ },
+ {
+  "path": "/notifications/push/vapid-keys",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 17
+ },
+ {
+  "path": "/notifications/read",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/outreach",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 217
+ },
+ {
+  "path": "/outreach/autonomous",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 75
+ },
+ {
+  "path": "/outreach/autonomy-status",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 78
+ },
+ {
+  "path": "/outreach/batch",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 84
+ },
+ {
+  "path": "/outreach/enroll",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 88
+ },
+ {
+  "path": "/outreach/execute",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 87
+ },
+ {
+  "path": "/outreach/send",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 67
+ },
+ {
+  "path": "/payments/cancel",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 69
+ },
+ {
+  "path": "/payments/confirm",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 173
+ },
+ {
+  "path": "/payments/confirm-payment",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 350
+ },
+ {
+  "path": "/payments/create-order",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 474
+ },
+ {
+  "path": "/payments/create-stripe-session",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 132
+ },
+ {
+  "path": "/payments/credit-addons",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 63
+ },
+ {
+  "path": "/payments/history",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 80
+ },
+ {
+  "path": "/payments/invoice/[id]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 163
+ },
+ {
+  "path": "/payments/invoices",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 60
+ },
+ {
+  "path": "/payments/invoices/[id]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 127
+ },
+ {
+  "path": "/payments/invoices/[id]/download",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 176
+ },
+ {
+  "path": "/payments/invoices/generate",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 74
+ },
+ {
+  "path": "/payments/invoices/resend-email",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 57
+ },
+ {
+  "path": "/payments/preview",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 85
+ },
+ {
+  "path": "/payments/process-billing",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 101
+ },
+ {
+  "path": "/payments/provider-status",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 37
+ },
+ {
+  "path": "/payments/refund",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 78
+ },
+ {
+  "path": "/payments/retry",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 84
+ },
+ {
+  "path": "/payments/sse",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 34
+ },
+ {
+  "path": "/payments/status",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 26
+ },
+ {
+  "path": "/payments/stripe-portal",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 45
+ },
+ {
+  "path": "/payments/stripe-success",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 24
+ },
+ {
+  "path": "/payments/validate-coupon",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 93
+ },
+ {
+  "path": "/payments/verify",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 247
+ },
+ {
+  "path": "/payments/verify-session",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 436
+ },
+ {
+  "path": "/payments/webhook-replay",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 119
+ },
+ {
+  "path": "/payments/webhook/razorpay",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 787
+ },
+ {
+  "path": "/payments/webhook/stripe",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 1354
+ },
+ {
+  "path": "/pipeline",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 43
+ },
+ {
+  "path": "/realtime/recover",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 73
+ },
+ {
+  "path": "/realtime/status",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 50
+ },
+ {
+  "path": "/reminders",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 40
+ },
+ {
+  "path": "/reply-handler",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 53
+ },
+ {
+  "path": "/reply-intel/process",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 18
+ },
+ {
+  "path": "/reply-intelligence/analytics",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 36
+ },
+ {
+  "path": "/reply-intelligence/analyze",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 60
+ },
+ {
+  "path": "/reply-intelligence/buying-signals",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 32
+ },
+ {
+  "path": "/reply-intelligence/classify",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 68
+ },
+ {
+  "path": "/reports",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 130
+ },
+ {
+  "path": "/reports/[id]",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 88
+ },
+ {
+  "path": "/reports/[id]/execute",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 45
+ },
+ {
+  "path": "/reports/[id]/export",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 88
+ },
+ {
+  "path": "/reports/[id]/schedule",
+  "methods": [
+   "POST",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 81
+ },
+ {
+  "path": "/reports/templates",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 23
+ },
+ {
+  "path": "/sales-assistant",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 426
+ },
+ {
+  "path": "/sdr",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 108
+ },
+ {
+  "path": "/sentry",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 58
+ },
+ {
+  "path": "/sequences",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 86
+ },
+ {
+  "path": "/sequences/[id]",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 87
+ },
+ {
+  "path": "/sequences/[id]/enroll",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 66
+ },
+ {
+  "path": "/sequences/[id]/pause",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 29
+ },
+ {
+  "path": "/sequences/[id]/resume",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 32
+ },
+ {
+  "path": "/sequences/analytics",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/sequences/create",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 76
+ },
+ {
+  "path": "/sequences/enroll",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 93
+ },
+ {
+  "path": "/sequences/enrollments/[id]",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 150
+ },
+ {
+  "path": "/sequences/list",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 76
+ },
+ {
+  "path": "/sequences/pause",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/sequences/process",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 18
+ },
+ {
+  "path": "/sequences/resume",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 58
+ },
+ {
+  "path": "/settings/account/delete-request",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 110
+ },
+ {
+  "path": "/settings/account/export-request",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 153
+ },
+ {
+  "path": "/settings/api-keys",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 138
+ },
+ {
+  "path": "/settings/api-keys/[id]",
+  "methods": [
+   "PATCH",
+   "DELETE"
+  ],
+  "auth": "auth",
+  "lines": 64
+ },
+ {
+  "path": "/settings/api-keys/[id]/revoke",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 28
+ },
+ {
+  "path": "/settings/api-keys/[id]/rotate",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 37
+ },
+ {
+  "path": "/settings/api-keys/analytics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 16
+ },
+ {
+  "path": "/settings/api-keys/docs",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 219
+ },
+ {
+  "path": "/settings/appearance",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 126
+ },
+ {
+  "path": "/settings/audit-log",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 41
+ },
+ {
+  "path": "/settings/autonomy-mode",
+  "methods": [
+   "GET",
+   "PATCH"
+  ],
+  "auth": "public/mixed",
+  "lines": 101
+ },
+ {
+  "path": "/settings/avatar",
+  "methods": [
+   "POST",
+   "DELETE"
+  ],
+  "auth": "auth",
+  "lines": 130
+ },
+ {
+  "path": "/settings/checklist",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 282
+ },
+ {
+  "path": "/settings/clear-data",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 27
+ },
+ {
+  "path": "/settings/delete-account",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 150
+ },
+ {
+  "path": "/settings/export",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 208
+ },
+ {
+  "path": "/settings/integrations",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 384
+ },
+ {
+  "path": "/settings/integrations/telegram/link",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 69
+ },
+ {
+  "path": "/settings/integrations/whatsapp/confirm",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 116
+ },
+ {
+  "path": "/settings/integrations/whatsapp/verify",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 80
+ },
+ {
+  "path": "/settings/login-history",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 56
+ },
+ {
+  "path": "/settings/meeting-provider",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 127
+ },
+ {
+  "path": "/settings/notifications",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 112
+ },
+ {
+  "path": "/settings/onboarding",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 234
+ },
+ {
+  "path": "/settings/org",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 138
+ },
+ {
+  "path": "/settings/org/branding",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 98
+ },
+ {
+  "path": "/settings/org/create",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 109
+ },
+ {
+  "path": "/settings/org/invites",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 101
+ },
+ {
+  "path": "/settings/org/invites/[id]",
+  "methods": [
+   "GET",
+   "POST",
+   "DELETE"
+  ],
+  "auth": "auth",
+  "lines": 212
+ },
+ {
+  "path": "/settings/org/white-label",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 106
+ },
+ {
+  "path": "/settings/password",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 73
+ },
+ {
+  "path": "/settings/profile",
+  "methods": [
+   "GET",
+   "PUT"
+  ],
+  "auth": "auth",
+  "lines": 111
+ },
+ {
+  "path": "/settings/sessions",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 35
+ },
+ {
+  "path": "/settings/sessions/[id]",
+  "methods": [
+   "DELETE"
+  ],
+  "auth": "auth",
+  "lines": 68
+ },
+ {
+  "path": "/settings/sessions/revoke-all",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 52
+ },
+ {
+  "path": "/settings/team/accept",
+  "methods": [
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 117
+ },
+ {
+  "path": "/settings/team/invite",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "auth",
+  "lines": 150
+ },
+ {
+  "path": "/settings/team/invite/[id]",
+  "methods": [
+   "DELETE"
+  ],
+  "auth": "auth",
+  "lines": 81
+ },
+ {
+  "path": "/subscriptions/cancel",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 92
+ },
+ {
+  "path": "/subscriptions/check-eligibility",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 81
+ },
+ {
+  "path": "/subscriptions/current",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 96
+ },
+ {
+  "path": "/subscriptions/downgrade-preview",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 131
+ },
+ {
+  "path": "/subscriptions/entitlements",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 47
+ },
+ {
+  "path": "/subscriptions/trial",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 50
+ },
+ {
+  "path": "/subscriptions/upgrade-preview",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 198
+ },
+ {
+  "path": "/subscriptions/usage",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 57
+ },
+ {
+  "path": "/team",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 168
+ },
+ {
+  "path": "/team/[id]",
+  "methods": [
+   "PATCH",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 160
+ },
+ {
+  "path": "/team/invite/[token]",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 164
+ },
+ {
+  "path": "/team/invite/revoke/[id]",
+  "methods": [
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/telegram/connect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 57
+ },
+ {
+  "path": "/telegram/send",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 154
+ },
+ {
+  "path": "/telegram/status",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 47
+ },
+ {
+  "path": "/telegram/webhook",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 121
+ },
+ {
+  "path": "/templates",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 203
+ },
+ {
+  "path": "/website-score",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 60
+ },
+ {
+  "path": "/whatsapp/meta/connect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 56
+ },
+ {
+  "path": "/whatsapp/meta/send",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 127
+ },
+ {
+  "path": "/whatsapp/meta/webhook",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 199
+ },
+ {
+  "path": "/whatsapp/twilio/connect",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 54
+ },
+ {
+  "path": "/whatsapp/twilio/send",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 92
+ },
+ {
+  "path": "/whatsapp/twilio/webhook",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 155
+ },
+ {
+  "path": "/workflows",
+  "methods": [],
+  "auth": "public/mixed",
+  "lines": 96
+ },
+ {
+  "path": "/workflows/[id]",
+  "methods": [
+   "GET",
+   "PUT",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 106
+ },
+ {
+  "path": "/workflows/[id]/cancel",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/workflows/[id]/duplicate",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 35
+ },
+ {
+  "path": "/workflows/[id]/execute",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 64
+ },
+ {
+  "path": "/workflows/[id]/pause",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/workflows/[id]/resume",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 52
+ },
+ {
+  "path": "/workflows/dead-letter",
+  "methods": [
+   "GET",
+   "DELETE"
+  ],
+  "auth": "public/mixed",
+  "lines": 54
+ },
+ {
+  "path": "/workflows/dead-letter/[executionId]",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 44
+ },
+ {
+  "path": "/workflows/executions",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 33
+ },
+ {
+  "path": "/workflows/executions/[executionId]",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 35
+ },
+ {
+  "path": "/workflows/executions/[executionId]/cancel",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/workflows/executions/[executionId]/logs",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 35
+ },
+ {
+  "path": "/workflows/executions/[executionId]/pause",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/workflows/executions/[executionId]/replay",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 80
+ },
+ {
+  "path": "/workflows/executions/[executionId]/resume",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/workflows/executions/[executionId]/retry",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 38
+ },
+ {
+  "path": "/workflows/logs",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 41
+ },
+ {
+  "path": "/workflows/metrics",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 39
+ },
+ {
+  "path": "/workflows/metrics/timeline",
+  "methods": [
+   "GET"
+  ],
+  "auth": "public/mixed",
+  "lines": 64
+ },
+ {
+  "path": "/workflows/templates",
+  "methods": [
+   "GET",
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 113
+ },
+ {
+  "path": "/workflows/trigger",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 22
+ },
+ {
+  "path": "/workflows/validate",
+  "methods": [
+   "POST"
+  ],
+  "auth": "public/mixed",
+  "lines": 152
+ },
+ {
+  "path": "/workflows/webhook/[...path]",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 35
+ },
+ {
+  "path": "/workflows/webhook/[id]",
+  "methods": [
+   "POST"
+  ],
+  "auth": "webhook",
+  "lines": 98
+ },
+ {
+  "path": "/ws",
+  "methods": [
+   "GET"
+  ],
+  "auth": "auth",
+  "lines": 108
+ }
+]

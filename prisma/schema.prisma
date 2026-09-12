@@ -1,0 +1,2834 @@
+// ═══════════════════════════════════════════════════════════════════
+// AcquisitionOS — Complete Database Schema v2.0
+// Phase 1: Full Production Database Foundation
+// Phase L9: Migration Safety Annotations (PostgreSQL preparation)
+// All 53+ tables with indexes, constraints, and relations
+// ═══════════════════════════════════════════════════════════════════
+//
+// ┌──────────────────────────────────────────────────────────────┐
+// │ MIGRATION SAFETY GUIDE (SQLite → PostgreSQL)                  │
+// ├──────────────────────────────────────────────────────────────┤
+// │                                                              │
+// │ ANNOTATION KEY:                                              │
+// │   [MIGRATE-SAFE]    — Optional field, safe to add/remove.     │
+// │   [MIGRATE-CAUTION] — Required field; needs data backfill if  │
+// │                      adding as NOT NULL to existing rows.    │
+// │   [MIGRATE-RISK]    — Structural change; requires careful    │
+// │                      planning (e.g., type change, FK change). │
+// │   [CRITICAL-FK]      — Foreign key critical for data          │
+// │                      integrity. Verify all FK constraints    │
+// │                      before migration.                       │
+// │   [JSON-FIELD]       — Stored as String in SQLite, will work  │
+// │                      in PostgreSQL as-is. Consider using     │
+// │                      Prisma Json type for future.            │
+// │   [BACKFILL-NEEDED]  — If changing from optional to required,  │
+// │                      run a backfill migration first.         │
+// │   [NO-BREAKING]      — Safe to rename/modify with migration   │
+// │                      as long as data is transformed.         │
+// │                                                              │
+// │ MIGRATION NOTES:                                             │
+// │ 1. All DateTime fields map correctly (ISO-8601 in both).     │
+// │ 2. CUID() IDs are string-based — no type mismatch.           │
+// │ 3. SQLite has no real BOOLEAN type (0/1). PostgreSQL       │
+// │    handles true boolean — Prisma handles conversion.         │
+// │ 4. Float fields: SQLite uses 64-bit floats, PostgreSQL       │
+// │    DOUBLE PRECISION — compatible.                            │
+// │ 5. SQLite JSON stored as TEXT — will migrate as TEXT.         │
+// │    Consider Prisma Json type for typed JSON fields.          │
+// │ 6. CASCADE deletes are preserved in PostgreSQL.               │
+// │ 7. @unique constraints become UNIQUE indexes in PostgreSQL.  │
+// │                                                              │
+// │ FIELDS REQUIRING DATA BACKFILL IF MADE NOT NULL:            │
+// │   - User.email (currently required, safe)                    │
+// │   - Subscription.userId (required, verify FK integrity)      │
+// │   - PaymentOrder.amount (required, verify non-zero)          │
+// │   - Lead.businessName (required, verify non-empty)            │
+// │   - Organization.name (required, verify non-empty)          │
+// │                                                              │
+// │ CRITICAL RELATIONS (verify integrity before migration):     │
+// │   - User → Subscription       (userId FK, CASCADE)           │
+// │   - User → CreditsLedger       (userId FK, CASCADE)           │
+// │   - User → PaymentOrder        (userId FK, CASCADE)           │
+// │   - Lead → LeadAnalysis        (leadId FK, CASCADE)            │
+// │   - Lead → OutreachMessage     (leadId FK, CASCADE)           │
+// │   - PaymentOrder → Invoice    (paymentOrderId FK, CASCADE)   │
+// │   - Organization → OrgMember   (orgId FK, CASCADE)            │
+// │   - WorkflowDefinition → WorkflowExecution (workflowId FK)   │
+// │                                                              │
+// │ TABLES TO MIGRATE FIRST (dependency order):                  │
+// │   Phase 1: User, Organization, FeatureFlag, PlanEntitlement   │
+// │   Phase 2: Subscription, CreditsLedger, PaymentOrder, Coupon   │
+// │   Phase 3: Lead, PipelineStage, OutreachSequence             │
+// │   Phase 4: EmailAccount, Conversation, AiChatSession         │
+// │   Phase 5: All remaining tables (messages, logs, configs)     │
+// │                                                              │
+// └──────────────────────────────────────────────────────────────┘
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ── DATA SOURCE ─────────────────────────────────────────────────
+// [MIGRATE-RISK] Changing provider from "sqlite" to "postgresql"
+// requires: 1) Full backup, 2) Schema push, 3) Data migration,
+// 4) Verification. See: scripts/migrate-to-postgresql.sh
+// ───────────────────────────────────────────────────────────────
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: For PostgreSQL, change provider to "postgresql" and optionally add:
+//   directUrl = env("DIRECT_URL")  // For Supabase/PgBouncer connection pooling
+
+// ═══════════════════════════════════════════════════════════════════
+// USER & AUTH TABLES
+// [MIGRATE-NOTE] User is the root entity. Must be migrated first.
+//   All other tables reference User via FK. Verify no orphan FKs.
+// ═══════════════════════════════════════════════════════════════════
+
+model User {
+  id                         String    @id @default(cuid())
+  email                      String    @unique
+  name                       String?
+  avatar                     String?
+  passwordHash               String?
+  googleId                   String?   @unique
+  emailVerified              Boolean   @default(false)
+  phone                      String?
+  country                    String?
+  company                    String?
+  preferencesJson            String? // [JSON-FIELD][MIGRATE-SAFE] JSON: {theme, compactView, defaultCountry, defaultNiche, notificationPrefs, timezone}
+  plan                       String    @default("free")
+  credits                    Int       @default(50)
+  creditsMonthly             Int       @default(50)
+  rolloverCredits            Int       @default(0)
+  isTrial                    Boolean   @default(true)
+  trialEndsAt                DateTime?
+  role                       String    @default("owner")
+  orgId                      String?
+  authProvider               String    @default("email") // email, google
+  emailVerificationOtp       String?
+  emailVerificationOtpExpiry DateTime?
+  resetOtp                   String?
+  resetOtpExpiry             DateTime?
+  loginOtp                   String?
+  loginOtpExpiry             DateTime?
+  magicLinkToken             String?
+  magicLinkTokenExpiry       DateTime?
+  otpAttemptCount            Int       @default(0)
+  otpLockedUntil             DateTime?
+  isActive                   Boolean   @default(true)
+  lastLoginAt                DateTime?
+  deletedAt                  DateTime?
+
+  sessions                 UserSession[]
+  loginHistory             LoginHistory[]
+  mfaConfig                MfaConfig?
+  subscriptions            Subscription[]
+  creditsLedger            CreditsLedger[]
+  creditAddons             CreditAddon[]
+  paymentOrders            PaymentOrder[]
+  emailAccounts            EmailAccount[]
+  outreachSequences        OutreachSequence[]
+  workflowDefinitions      WorkflowDefinition[]
+  competitorAnalyses       CompetitorAnalysis[]
+  aiChatSessions           AiChatSession[]
+  settings                 UserSettings?
+  auditLogs                AuditLog[]
+  notifications            Notification[]
+  notificationPrefs        NotificationPreferences?
+  apiKeys                  ApiKey[]
+  gdprRequests             GdprRequest[]
+  dataExports              DataExport[]
+  onboardingProgress       OnboardingProgress?
+  organizations            OrgMember[]
+  orgInvitationsSent       OrgInvitation[]           @relation("InvitedBy")
+  leadNotes                LeadNote[]
+  emailBounces             EmailBounce[]
+  emailUnsubscribes        EmailUnsubscribe[]
+  conversationMessages     ConversationMessage[]
+  workflowLogs             WorkflowLog[]
+  apiKeyUsage              ApiKeyUsage[]
+  usageTracking            UsageTracking[]
+  discoveryJobs            DiscoveryJob[]
+  securityAlerts           SecurityAlert[]
+  knownDevices             KnownDevice[]
+  aiCostRecords            AiCostRecord[]
+  fileContexts             FileContext[]
+  meetings                 Meeting[]
+  googleCalendarTokens     GoogleCalendarToken[]
+  calendarWatches          CalendarWatch[]
+  telegramConfigs          TelegramConfig[]
+  whatsappConfigs          WhatsappConfig[]
+  mediaFiles               MediaFile[]
+  messageBroadcasts        MessageBroadcast[]
+  messageTemplateApprovals MessageTemplateApproval[]
+  scheduledEmails          ScheduledEmail[]
+  meetingIntentLogs        MeetingIntentLog[]
+  leads                    Lead[]
+  deals                    Deal[]
+  leadActivities           LeadActivity[]
+  communications           Communication[]
+  followUpReminders        FollowUpReminder[]
+  outreachMessages         OutreachMessage[]
+  invoices                 Invoice[]
+  meetingReminders         MeetingReminder[]
+  messageDeliveries        MessageDelivery[]
+  deliveryDeadLetters      DeliveryDeadLetter[]
+  wsConnections            WsConnection[]
+  sseConnections           SseConnection[]
+  realtimeEvents           RealtimeEvent[]
+  competitorData           CompetitorData[]
+  promptTemplates          PromptTemplate[]
+  feedbackReports          FeedbackReport[]
+
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  bio                        String?
+  consecutivePaymentFailures Int       @default(0)
+  lastPaymentFailureAt       DateTime?
+
+  @@index([email])
+  @@index([googleId])
+  @@index([plan])
+  @@index([orgId])
+  @@index([isActive])
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  deviceInfo   String?
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  isRevoked    Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+}
+
+model LoginHistory {
+  id         String  @id @default(cuid())
+  userId     String
+  ip         String?
+  userAgent  String?
+  country    String?
+  city       String?
+  success    Boolean
+  failReason String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([success])
+}
+
+model MfaConfig {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  secret      String // Encrypted TOTP secret
+  backupCodes String // JSON array of hashed backup codes
+  isEnabled   Boolean   @default(false)
+  verifiedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ORGANIZATION TABLES
+// [MIGRATE-NOTE] Organization should be migrated in Phase 1 with User.
+//   OrgMember has a composite unique constraint [orgId, userId].
+// ═══════════════════════════════════════════════════════════════════
+
+model Organization {
+  id           String  @id @default(cuid())
+  name         String
+  logo         String?
+  customDomain String?
+  branding     String? // JSON: { primaryColor, accentColor, hideBranding }
+  ownerId      String
+
+  members              OrgMember[]
+  invitations          OrgInvitation[]
+  pipelineCustomStages PipelineCustomStage[]
+  leads                Lead[]
+  deals                Deal[]
+  communications       Communication[]
+  leadActivities       LeadActivity[]
+  followUpReminders    FollowUpReminder[]
+  outreachSequences    OutreachSequence[]
+  conversations        Conversation[]
+  conversationMessages ConversationMessage[]
+  competitorAnalyses   CompetitorAnalysis[]
+  meetings             Meeting[]
+  meetingIntentLogs    MeetingIntentLog[]
+  discoveryJobs        DiscoveryJob[]
+  pipelineStages       PipelineStage[]
+  workflowDefinitions  WorkflowDefinition[]
+  realtimeEvents       RealtimeEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([customDomain])
+}
+
+model OrgMember {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+  role   String @default("member") // owner, admin, member, viewer
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model OrgInvitation {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       String    @default("member")
+  token      String    @unique
+  invitedBy  String
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  inviter      User         @relation("InvitedBy", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+  @@index([token])
+  @@index([email])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SUBSCRIPTION & BILLING TABLES
+// [MIGRATE-NOTE] Financial data — migrate with transaction safety.
+//   PaymentOrder.idempotencyKey is @unique — verify no duplicates.
+//   Invoice.paymentOrderId is @unique — 1:1 with PaymentOrder.
+//   PaymentWebhook.eventId is @unique — verify no duplicates.
+// ═══════════════════════════════════════════════════════════════════
+
+model Subscription {
+  id                     String    @id @default(cuid())
+  userId                 String
+  plan                   String
+  status                 String    @default("trialing") // trialing, active, past_due, canceled, expired
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  razorpaySubscriptionId String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  scheduledPlanChange    String?
+  isTrial                Boolean   @default(true)
+  trialEndsAt            DateTime?
+  billingCycle           String    @default("monthly") // monthly, yearly
+  creditsTotal           Int       @default(50)
+  creditsUsed            Int       @default(0)
+  creditsRemaining       Int       @default(50)
+  creditsResetAt         DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeCustomerId])
+  @@index([razorpaySubscriptionId])
+  @@index([stripeSubscriptionId])
+}
+
+model CreditsLedger {
+  id          String  @id @default(cuid())
+  userId      String
+  action      String // lead_discovery, deep_analysis, outreach_generation, etc.
+  credits     Int // positive for add, negative for deduct
+  balance     Int // balance after transaction
+  description String?
+  referenceId String? // ID of related entity (lead, deal, etc.)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([referenceId])
+}
+
+model CreditAddon {
+  id             String    @id @default(cuid())
+  userId         String
+  credits        Int
+  pricePaid      Float
+  currency       String    @default("USD")
+  paymentOrderId String?
+  expiresAt      DateTime? // null = never expires
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PaymentOrder {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String  @default("razorpay") // razorpay, stripe
+  providerOrderId   String?
+  providerPaymentId String?
+  amount            Float
+  currency          String  @default("USD")
+  plan              String
+  billingCycle      String  @default("monthly") // monthly, yearly
+  status            String  @default("pending") // pending, completed, failed, refunded
+  couponCode        String?
+  discountAmount    Float   @default(0)
+  subtotal          Float   @default(0)
+  taxRate           Float   @default(0)
+  taxAmount         Float   @default(0)
+  gstNumber         String?
+  isIndianUser      Boolean @default(false)
+  idempotencyKey    String? @unique
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webhooks PaymentWebhook[]
+  invoice  Invoice?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([providerOrderId])
+  @@index([providerPaymentId])
+  @@index([status])
+  @@index([idempotencyKey])
+}
+
+model PaymentWebhook {
+  id              String  @id @default(cuid())
+  paymentOrderId  String?
+  provider        String // razorpay, stripe
+  eventId         String  @unique
+  eventType       String
+  payload         String // JSON
+  signature       String?
+  processed       Boolean @default(false)
+  processingError String?
+
+  paymentOrder PaymentOrder? @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
+
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([eventId])
+  @@index([provider])
+  @@index([processed])
+}
+
+model Invoice {
+  id             String  @id @default(cuid())
+  paymentOrderId String  @unique
+  invoiceNumber  String  @unique
+  userId         String
+  subtotal       Float
+  taxRate        Float
+  taxAmount      Float
+  total          Float
+  currency       String  @default("USD")
+  gstNumber      String?
+  taxExempt      Boolean @default(false)
+  pdfUrl         String?
+  htmlContent    String? // Pre-rendered HTML invoice for display/PDF generation
+  lineItems      String // JSON
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentOrder PaymentOrder @relation(fields: [paymentOrderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  status    String?
+
+  @@index([userId])
+  @@index([invoiceNumber])
+}
+
+model Coupon {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  discountType    String // percent, fixed
+  discountValue   Float
+  maxUses         Int?
+  usedCount       Int       @default(0)
+  expiresAt       DateTime?
+  applicablePlans String    @default("[]") // JSON array
+  active          Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([active])
+}
+
+model TaxRate {
+  id       String  @id @default(cuid())
+  country  String
+  region   String?
+  rate     Float
+  name     String // e.g., "GST", "VAT"
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([country, region])
+}
+
+model UsageTracking {
+  id          String   @id @default(cuid())
+  userId      String
+  feature     String // e.g., lead_discovery, deep_analysis, etc.
+  action      String // specific action taken
+  count       Int      @default(1)
+  periodStart DateTime // billing period start
+  periodEnd   DateTime // billing period end
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, feature, periodStart])
+  @@index([userId])
+  @@index([feature])
+  @@index([periodStart])
+  @@index([periodEnd])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FEATURE FLAGS & PLAN ENTITLEMENTS
+// ═══════════════════════════════════════════════════════════════════
+
+model FeatureFlag {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  name        String
+  description String?
+  enabled     Boolean @default(true)
+  plans       String  @default("[]") // JSON array of allowed plans
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@index([enabled])
+}
+
+model PlanEntitlement {
+  id      String  @id @default(cuid())
+  plan    String // free, pro, elite
+  feature String
+  limit   Int? // null = unlimited
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([plan, feature])
+  @@index([plan])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LEAD TABLES
+// [MIGRATE-NOTE] Lead is a high-volume table. Migrate in batches.
+//   LeadAnalysis has @unique leadId — 1:1 with Lead.
+//   Float precision is compatible between SQLite (64-bit) and PG.
+// ═══════════════════════════════════════════════════════════════════
+
+model Lead {
+  id           String  @id @default(cuid())
+  userId       String?
+  orgId        String?
+  businessName String
+
+  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization      Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  ownerName         String?
+  website           String?
+  email             String?
+  phone             String?
+  whatsapp          String?
+  linkedin          String?
+  instagram         String?
+  facebook          String?
+  googleMapsListing String?
+  reviews           String?
+  rating            Float?
+  estimatedQuality  String?       @default("medium")
+  estimatedRevenue  String?       @default("medium")
+  city              String?
+  country           String?
+  niche             String?
+
+  replyScore            Float   @default(0)
+  conversionScore       Float   @default(0)
+  urgencyScore          Float   @default(0)
+  revenuePotentialScore Float   @default(0)
+  scoreReasoning        String?
+
+  stage       String  @default("discovered")
+  emailStatus String? // none, sent, bounced, opened, replied, unsubscribed
+
+  hasWebsite        Boolean @default(false)
+  websiteQuality    String? @default("none")
+  digitalWeaknesses String?
+  opportunityNotes  String?
+
+  bestContactPerson String?
+  bestChannel       String?
+  bestTiming        String?
+  outreachStyle     String?
+
+  source String?
+  notes  String?
+  tags   String  @default("[]")
+
+  followUpAt           DateTime?
+  lastContactedAt      DateTime?
+  websiteScreenshotUrl String?
+  techStack            String? // JSON array
+
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+
+  communications      Communication[]
+  deals               Deal[]
+  activities          LeadActivity[]
+  followUpReminders   FollowUpReminder[]
+  leadAnalysis        LeadAnalysis[]
+  leadScores          LeadScore[]
+  leadNotes           LeadNote[]
+  sequenceEnrollments SequenceEnrollment[]
+  outreachMessages    OutreachMessage[]
+  meetings            Meeting[]
+  conversations       Conversation[]
+  broadcastTargets    BroadcastTarget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([stage])
+  @@index([niche])
+  @@index([country])
+  @@index([email])
+  @@index([replyScore])
+  @@index([conversionScore])
+  @@index([urgencyScore])
+  @@index([createdAt])
+  @@index([isActive])
+  @@index([businessName])
+  @@index([userId, stage])
+  @@index([userId, createdAt])
+}
+
+model LeadAnalysis {
+  id                    String  @id @default(cuid())
+  leadId                String  @unique
+  websiteQualityScore   Int     @default(0)
+  digitalMaturityScore  Int     @default(0)
+  weaknesses            String? // JSON array of Weakness objects
+  replyScore            Int     @default(0)
+  dealConversionScore   Int     @default(0)
+  urgencyScore          Int     @default(0)
+  revenuePotentialScore Int     @default(0)
+  scoreExplanations     String? // JSON
+  decisionMaker         String? // JSON: { likelyName, likelyRole, bestChannel, reasoning, approachStyle }
+  recommendedServices   String? // JSON array
+  estimatedDealValueInr String?
+  estimatedDealValueUsd String?
+  outreachMessages      String? // JSON: { emailSubject, emailBody, whatsappMessage, linkedinMessage, instagramDm, followUpDay4, followUpDay10 }
+  closingStrategy       String?
+  bestContactTime       String?
+  analysisVersion       Int     @default(1)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([replyScore])
+  @@index([dealConversionScore])
+}
+
+model LeadScore {
+  id           String   @id @default(cuid())
+  leadId       String
+  scoreType    String // reply, conversion, urgency, revenue_potential, website_quality, digital_maturity
+  score        Int
+  explanation  String?
+  modelVersion String?
+  scoredAt     DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([scoreType])
+  @@index([scoredAt])
+}
+
+model LeadNote {
+  id      String  @id @default(cuid())
+  leadId  String
+  userId  String
+  content String
+  pinned  Boolean @default(false)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([pinned])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PIPELINE TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model PipelineStage {
+  id        String  @id @default(cuid())
+  name      String
+  order     Int
+  color     String?
+  isDefault Boolean @default(true)
+  orgId     String? // null = global default stage
+
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+  @@index([orgId])
+}
+
+model PipelineCustomStage {
+  id    String  @id @default(cuid())
+  orgId String
+  name  String
+  order Int
+  color String?
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([order])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OUTREACH TABLES
+// [MIGRATE-NOTE] OutreachSequence.steps is a [JSON-FIELD].
+//   OutreachMessage.trackingPixelId is @unique — verify uniqueness.
+// ═══════════════════════════════════════════════════════════════════
+
+model OutreachMessage {
+  id              String    @id @default(cuid())
+  leadId          String
+  userId          String?
+  channel         String // email, whatsapp, linkedin, instagram
+  direction       String    @default("outbound")
+  subject         String?
+  content         String
+  status          String    @default("draft") // draft, sent, delivered, opened, replied, bounced, failed
+  sentAt          DateTime?
+  openedAt        DateTime?
+  repliedAt       DateTime?
+  bouncedAt       DateTime?
+  generatedByAI   Boolean   @default(false)
+  sequenceStepId  String? // null = manual/outreach, set = from sequence
+  trackingPixelId String?   @unique
+  metadata        String? // JSON for additional data
+
+  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sequenceStep SequenceStep? @relation(fields: [sequenceStepId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([channel])
+  @@index([status])
+  @@index([sentAt])
+  @@index([trackingPixelId])
+  @@index([userId, status])
+  @@index([sequenceStepId])
+}
+
+model OutreachSequence {
+  id          String  @id @default(cuid())
+  userId      String
+  orgId       String?
+  name        String
+  description String?
+  status      String  @default("draft") // draft, active, paused, completed
+  steps       String  @default("[]") // JSON array of step definitions
+  channel     String  @default("email")
+
+  enrollments   SequenceEnrollment[]
+  sequenceSteps SequenceStep[]
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([orgId])
+}
+
+model SequenceStep {
+  id         String  @id @default(cuid())
+  sequenceId String
+  order      Int
+  channel    String // email, whatsapp, linkedin, instagram
+  subject    String?
+  template   String
+  delayDays  Int     @default(1)
+  delayHours Int     @default(0)
+
+  sequence OutreachSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  outreachMessages OutreachMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sequenceId])
+  @@index([order])
+}
+
+model SequenceEnrollment {
+  id          String    @id @default(cuid())
+  sequenceId  String
+  leadId      String
+  currentStep Int       @default(0)
+  nextSendAt  DateTime?
+  status      String    @default("active") // active, paused, completed, opted_out
+
+  sequence OutreachSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  lead     Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sequenceId])
+  @@index([leadId])
+  @@index([status])
+  @@index([nextSendAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EMAIL INTEGRATION TABLES
+// [MIGRATE-NOTE] EmailAccount.accessToken/refreshToken are encrypted
+//   strings. EmailUnsubscribe has two @unique fields: token and email.
+// ═══════════════════════════════════════════════════════════════════
+
+model EmailAccount {
+  id               String    @id @default(cuid())
+  userId           String
+  gmailEmail       String
+  accessToken      String // Encrypted at rest
+  refreshToken     String // Encrypted at rest
+  tokenExpiry      DateTime?
+  consentGiven     Boolean   @default(false)
+  consentGivenAt   DateTime?
+  status           String    @default("active") // active, revoked, expired
+  mode             String    @default("manual") // manual, auto
+  lastPollAt       DateTime?
+  pubSubConfigured Boolean   @default(false)
+  labelId          String? // Gmail label ID for "AcquisitionOS"
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads         EmailThread[]
+  scheduledEmails ScheduledEmail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gmailEmail, userId])
+  @@index([userId])
+  @@index([gmailEmail])
+  @@index([status])
+}
+
+model EmailThread {
+  id             String    @id @default(cuid())
+  emailAccountId String
+  gmailThreadId  String
+  leadId         String?
+  subject        String?
+  lastMessageAt  DateTime?
+  messageCount   Int       @default(0)
+  isRead         Boolean   @default(true)
+
+  emailAccount EmailAccount   @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  messages     EmailMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([emailAccountId])
+  @@index([gmailThreadId])
+  @@index([leadId])
+  @@index([lastMessageAt])
+}
+
+model EmailMessage {
+  id             String    @id @default(cuid())
+  threadId       String
+  gmailMessageId String?   @unique
+  fromEmail      String
+  toEmail        String
+  subject        String?
+  bodyPlain      String?
+  bodyHtml       String?
+  direction      String    @default("inbound") // inbound, outbound
+  isRead         Boolean   @default(false)
+  openedAt       DateTime?
+  labels         String? // JSON array of Gmail labels
+  leadId         String?
+
+  thread EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId])
+  @@index([gmailMessageId])
+  @@index([fromEmail])
+  @@index([leadId])
+  @@index([direction])
+}
+
+model EmailBounce {
+  id           String  @id @default(cuid())
+  userId       String
+  leadId       String?
+  email        String
+  bounceType   String? // hard, soft
+  bounceReason String?
+  messageId    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+  @@index([leadId])
+}
+
+model EmailUnsubscribe {
+  id        String  @id @default(cuid())
+  userId    String?
+  email     String
+  leadId    String?
+  token     String  @unique
+  reason    String?
+  ipAddress String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([email])
+  @@index([email])
+  @@index([token])
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONVERSATIONS TABLES
+// [MIGRATE-NOTE] ConversationMessage.content can be large text.
+//   buyingSignals and hesitationReasons are [JSON-FIELD]s.
+// ═══════════════════════════════════════════════════════════════════
+
+model Conversation {
+  id            String    @id @default(cuid())
+  leadId        String
+  orgId         String?
+  channel       String // email, whatsapp, telegram, linkedin, instagram
+  subject       String?
+  status        String    @default("active") // active, closed, archived
+  lastMessageAt DateTime?
+
+  lead         Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization?         @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  messages     ConversationMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String?
+
+  @@index([leadId])
+  @@index([channel])
+  @@index([status])
+  @@index([lastMessageAt])
+  @@index([orgId])
+}
+
+model ConversationMessage {
+  id                String  @id @default(cuid())
+  conversationId    String
+  userId            String?
+  orgId             String?
+  senderType        String // user, lead, ai
+  content           String
+  channel           String
+  direction         String  @default("inbound")
+  intent            String? // positive, neutral, negative, objection
+  buyingSignals     String? // JSON
+  hesitationReasons String? // JSON
+  aiGenerated       Boolean @default(false)
+  metadata          String? // JSON
+
+  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([userId])
+  @@index([senderType])
+  @@index([createdAt])
+  @@index([orgId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INTEGRATION CONFIG TABLES
+// [MIGRATE-NOTE] TelegramConfig/WhatsappConfig have @unique userId (1:1).
+// ═══════════════════════════════════════════════════════════════════
+
+model TelegramConfig {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  chatId            String
+  username          String?
+  isConnected       Boolean   @default(false)
+  isPaused          Boolean   @default(false)
+  linkCode          String?
+  linkCodeExpiresAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  webhookSecret     String?
+  lastWebhookAt     DateTime?
+  botToken          String?
+  healthStatus      String?
+  mode              String?
+  webhookUrl        String?
+  reconnectAttempts Int       @default(0)
+  botId             String?
+  webhookVerified   Boolean   @default(false)
+  lastHealthCheckAt DateTime?
+  metaVerifyToken   String?
+  twilioAuthToken   String?
+  twilioPhoneNumber String?
+
+  @@index([userId])
+  @@index([chatId])
+  @@index([linkCode])
+}
+
+model WhatsappConfig {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  phoneNumber     String
+  provider        String? // twilio, meta
+  isConnected     Boolean   @default(false)
+  isPaused        Boolean   @default(false)
+  verificationOtp String?
+  otpExpiresAt    DateTime?
+  monthlyQuota    Int       @default(100)
+  monthlyUsed     Int       @default(0)
+  quotaResetAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  metaVerifyToken     String?
+  metaWebhookVerified Boolean   @default(false)
+  metaPhoneNumberId   String?
+  metaWabaId          String?
+  twilioAccountSid    String?
+  lastTemplateSyncAt  DateTime?
+  metaAccessToken     String?
+  healthStatus        String?
+  reconnectAttempts   Int       @default(0)
+  lastWebhookAt       DateTime?
+  twilioAuthToken     String?
+  twilioPhoneNumber   String?
+  lastHealthCheckAt   DateTime?
+
+  @@index([userId])
+  @@index([phoneNumber])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NOTIFICATION TABLES
+// [MIGRATE-NOTE] NotificationPreferences has @unique userId — 1:1.
+//   typePreferences is a [JSON-FIELD].
+// ═══════════════════════════════════════════════════════════════════
+
+model Notification {
+  id           String  @id @default(cuid())
+  userId       String
+  type         String // email_reply, deal_won, credit_low, payment_success, etc.
+  title        String
+  message      String
+  read         Boolean @default(false)
+  actionUrl    String?
+  metadata     String? // JSON
+  deliveredVia String? // in_app, telegram, whatsapp, email
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([type])
+  @@index([createdAt])
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+model NotificationPreferences {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  inAppEnabled    Boolean @default(true)
+  emailEnabled    Boolean @default(true)
+  telegramEnabled Boolean @default(false)
+  whatsappEnabled Boolean @default(false)
+  dndStartTime    String? // "22:00"
+  dndEndTime      String? // "07:00"
+  dndTimezone     String? // "Asia/Kolkata"
+  typePreferences String? // JSON: { email_reply: { inApp: true, telegram: true }, ... }
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  pushEnabled       Boolean  @default(false)
+  pushSubscriptions String?
+
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AI CHAT TABLES
+// [MIGRATE-NOTE] AiChatMessage.content can be large (conversations).
+//   metadata is a [JSON-FIELD]. These tables grow very large.
+// ═══════════════════════════════════════════════════════════════════
+
+model AiChatSession {
+  id             String  @id @default(cuid())
+  userId         String
+  title          String?
+  salesCoachMode Boolean @default(false)
+  currentPage    String?
+  leadContext    String?
+  isActive       Boolean @default(true)
+
+  messages AiChatMessage[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model AiChatMessage {
+  id        String  @id @default(cuid())
+  sessionId String
+  role      String // user, assistant, system
+  content   String
+  metadata  String? // JSON: { intent, buyingSignals, hesitationFactors, recommendedResponse, closingStrategy }
+
+  session AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKFLOW TABLES
+// [MIGRATE-NOTE] WorkflowDefinition.nodes/edges are [JSON-FIELD]s.
+//   WorkflowExecution has many JSON fields (triggerData, logs, error).
+// ═══════════════════════════════════════════════════════════════════
+
+model WorkflowDefinition {
+  id               String  @id @default(cuid())
+  userId           String
+  orgId            String?
+  name             String
+  description      String?
+  status           String  @default("draft") // draft, active, paused, archived
+  triggerType      String // lead_stage_change, lead_reply, score_change, manual, scheduled, payment_received
+  triggerConfig    String? // JSON: { stage: "replied", scoreThreshold: 80, schedule: "daily", ... }
+  nodes            String  @default("[]") // JSON array of workflow node definitions
+  edges            String  @default("[]") // JSON array of edge connections
+  version          Int     @default(1)
+  isTemplate       Boolean @default(false)
+  templateCategory String?
+  // Distinguishes "system-paused due to subscription expiry" (true)
+  // from "user-manually-paused" (false). Only the former auto-resumes on repurchase.
+  disabledBySubscription Boolean @default(false)
+
+  executions    WorkflowExecution[]
+  workflowSteps WorkflowStep[]
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  runCount       Int       @default(0)
+  successCount   Int       @default(0)
+  failureCount   Int       @default(0)
+  avgRuntimeMs   Float?
+  lastRunAt      DateTime?
+  webhookPath    String?
+  maxRetries     Int?
+  maxConcurrency Int?
+
+  @@index([userId])
+  @@index([status])
+  @@index([triggerType])
+  @@index([orgId])
+}
+
+model WorkflowStep {
+  id         String  @id @default(cuid())
+  workflowId String
+  type       String // action, condition, delay, ai_action
+  name       String
+  config     String // JSON: step-specific configuration
+  order      Int
+  nextStepId String? // For linear workflows
+
+  workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowId])
+  @@index([order])
+}
+
+model WorkflowExecution {
+  id               String    @id @default(cuid())
+  workflowId       String
+  status           String    @default("running") // running, completed, failed, cancelled, paused
+  triggerData      String? // JSON: data that triggered this execution
+  logs             String? // JSON array of execution logs
+  currentStep      Int       @default(0)
+  totalSteps       Int       @default(0)
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  error            String?
+  retryCount       Int       @default(0)
+  maxRetries       Int       @default(3)
+  timeoutMs        Int       @default(300000)
+  idempotencyKey   String?
+  pausedAt         DateTime?
+  resumedAt        DateTime?
+  triggerEvent     String? // JSON: the event that triggered this execution
+  deadLettered     Boolean   @default(false)
+  deadLetterReason String?
+
+  workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepLogs WorkflowLog[]
+
+  createdAt    DateTime  @default(now())
+  durationMs   Int?
+  isDeadLetter Boolean   @default(false)
+  lastRetryAt  DateTime?
+  userId       String?
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([idempotencyKey])
+  @@index([deadLettered])
+}
+
+model WorkflowLog {
+  id          String  @id @default(cuid())
+  executionId String
+  stepName    String
+  stepType    String
+  status      String // success, failed, skipped
+  input       String? // JSON
+  output      String? // JSON
+  error       String?
+  durationMs  Int?
+  userId      String?
+
+  execution WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  user      User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime @default(now())
+  retryAttempt Int?
+
+  @@index([executionId])
+  @@index([status])
+}
+
+model WorkflowTemplate {
+  id            String   @id @default(cuid())
+  name          String
+  description   String
+  category      String // nurture, follow_up, alert, onboarding, enrichment, outreach
+  triggerType   String
+  triggerConfig String?
+  nodes         String   @default("[]") // JSON
+  edges         String   @default("[]") // JSON
+  isPremium     Boolean  @default(false)
+  usageCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPETITOR INTELLIGENCE TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model CompetitorData {
+  id             String    @id @default(cuid())
+  userId         String?
+  competitorName String
+  competitorUrl  String
+  websiteHtml    String? // Raw HTML stored for analysis
+  screenshotUrl  String? // S3 URL
+  lastScrapedAt  DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  description    String?
+  techStackData  String?
+  pageSpeedScore Float?
+  seoMetadata    String?
+  socialProfiles String?
+
+  @@index([userId])
+  @@index([competitorUrl])
+  @@index([lastScrapedAt])
+}
+
+model CompetitorAnalysis {
+  id                           String  @id @default(cuid())
+  userId                       String
+  orgId                        String?
+  leadId                       String?
+  competitorName               String
+  competitorUrl                String
+  techStack                    String? // JSON array
+  seoScore                     Int?
+  socialScore                  Int?
+  strengths                    String? // JSON array
+  weaknesses                   String? // JSON array
+  opportunities                String? // JSON array
+  threats                      String? // JSON array
+  threatLevel                  String? // low, medium, high
+  pricingModel                 String?
+  estimatedTrafficTier         String? // low, medium, high
+  differentiationOpportunities String? // JSON array
+  analysisData                 String? // Full JSON analysis result
+  competitorDataId             String?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  opportunityScore Float?
+  pricingDetails   String?
+  socialProfiles   String?
+  reviewsData      String?
+  pageSpeedData    String?
+  aiComparisonData String?
+  lighthouseData   String?
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([competitorUrl])
+  @@index([threatLevel])
+  @@index([orgId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUDIT & SYSTEM TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  userId     String
+  action     String // login, logout, plan_change, gmail_connect, email_sent, etc.
+  details    String? // JSON
+  ipAddress  String?
+  userAgent  String?
+  resource   String? // lead, deal, user, etc.
+  resourceId String? // ID of the affected resource
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  metadata  String?
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+model SystemEvent {
+  id         String    @id @default(cuid())
+  type       String // error, warning, info, critical
+  source     String // backend, celery, websocket, etc.
+  message    String
+  details    String? // JSON
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([source])
+  @@index([resolved])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// API KEY TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model ApiKey {
+  id               String    @id @default(cuid())
+  userId           String
+  orgId            String? // Organization ID for team keys
+  name             String
+  keyPrefix        String // First 8 chars for identification (e.g. aq_live_)
+  keyHash          String // SHA-256 hash of the full key — NEVER store plaintext
+  environment      String    @default("live") // "live" or "test"
+  scopes           String    @default("leads.read,leads.write") // Comma-separated: leads.read,leads.write,workflows.read,etc.
+  status           String    @default("active") // active, disabled, revoked, expired
+  isActive         Boolean   @default(true)
+  lastUsedAt       DateTime?
+  expiresAt        DateTime?
+  revokedAt        DateTime?
+  rateLimitPerHour Int       @default(1000)
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usage ApiKeyUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([keyPrefix])
+  @@index([keyHash])
+  @@index([isActive])
+  @@index([status])
+  @@index([environment])
+}
+
+model ApiKeyUsage {
+  id           String  @id @default(cuid())
+  apiKeyId     String
+  userId       String
+  endpoint     String
+  method       String
+  statusCode   Int
+  responseTime Int? // ms
+  ipAddress    String?
+
+  apiKey ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([apiKeyId])
+  @@index([userId])
+  @@index([endpoint])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GDPR & DATA EXPORT TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model GdprRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  requestType String // access, deletion, portability, rectification
+  status      String    @default("pending") // pending, processing, completed, failed
+  completedAt DateTime?
+  downloadUrl String?
+  expiresAt   DateTime?
+  notes       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([requestType])
+  @@index([status])
+}
+
+model DataExport {
+  id          String  @id @default(cuid())
+  userId      String
+  exportType  String // leads_csv, leads_pdf, deals_csv, full_json
+  status      String  @default("pending") // pending, processing, completed, failed
+  fileUrl     String?
+  fileSize    Int?
+  recordCount Int?
+  error       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  type        String?
+
+  @@index([userId])
+  @@index([status])
+  @@index([exportType])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ONBOARDING TABLE
+// ═══════════════════════════════════════════════════════════════════
+
+model OnboardingProgress {
+  id                  String  @id @default(cuid())
+  userId              String  @unique
+  currentStep         Int     @default(0)
+  completed           Boolean @default(false)
+  profileCompleted    Boolean @default(false)
+  nichesSelected      Boolean @default(false)
+  countriesSelected   Boolean @default(false)
+  channelsSelected    Boolean @default(false)
+  toolsConnected      Boolean @default(false)
+  firstLeadAdded      Boolean @default(false)
+  firstAnalysisRun    Boolean @default(false)
+  bonusCreditsAwarded Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([completed])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LEGACY COMPATIBILITY MODELS (keeping existing UI working)
+// ═══════════════════════════════════════════════════════════════════
+
+model Communication {
+  id                   String  @id @default(cuid())
+  leadId               String
+  orgId                String?
+  channel              String  @default("email")
+  direction            String  @default("outbound")
+  content              String
+  messageGeneratedByAI Boolean @default(false)
+  responseSummary      String?
+  intent               String?
+  buyingSignals        String?
+  hesitationReasons    String?
+
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([channel])
+  @@index([userId])
+  @@index([orgId])
+}
+
+model Deal {
+  id                     String  @id @default(cuid())
+  leadId                 String
+  orgId                  String?
+  status                 String  @default("draft")
+  projectType            String?
+  projectScope           String?
+  proposedPrice          Float?
+  finalPrice             Float?
+  currency               String  @default("USD")
+  implementationTimeline String?
+  maintenancePlan        String?
+  proposalContent        String?
+  notes                  String?
+
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  lead     Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  meetings Meeting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String?
+
+  @@index([leadId])
+  @@index([status])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([orgId])
+}
+
+model LeadActivity {
+  id          String  @id @default(cuid())
+  leadId      String
+  orgId       String?
+  type        String
+  description String
+  metadata    String?
+
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([type])
+  @@index([userId])
+  @@index([userId, type])
+  @@index([orgId])
+}
+
+model FollowUpReminder {
+  id        String   @id @default(cuid())
+  leadId    String
+  orgId     String?
+  message   String
+  dueAt     DateTime
+  completed Boolean  @default(false)
+
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([completed])
+  @@index([dueAt])
+  @@index([userId])
+  @@index([orgId])
+}
+
+model Insight {
+  id      String  @id @default(cuid())
+  type    String
+  content String
+  data    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserSettings {
+  id                       String  @id @default(cuid())
+  userId                   String  @unique
+  telegramChatId           String?
+  telegramConnected        Boolean @default(false)
+  whatsappNumber           String?
+  whatsappConnected        Boolean @default(false)
+  whatsappProvider         String?
+  notificationPreferences  String  @default("{}")
+  dndStartTime             String?
+  dndEndTime               String?
+  onboardingCompleted      Boolean @default(false)
+  onboardingStep           Int     @default(0)
+  targetNiches             String  @default("[]")
+  targetCountries          String  @default("[]")
+  targetChannels           String  @default("[]")
+  companyName              String?
+  reminderCheckInterval    Int     @default(60)
+  gmailConnected           Boolean @default(false)
+  gmailEmail               String?
+  googleCalendarConnected  Boolean @default(false)
+  meetingPlatform          String  @default("google_meet") // google_meet, zoom, teams, custom
+  meetingDurationDefault   Int     @default(30) // minutes
+  meetingBufferMinutes     Int     @default(15) // buffer between meetings
+  meetingWorkingHoursStart String  @default("09:00")
+  meetingWorkingHoursEnd   String  @default("18:00")
+  meetingWorkingDays       String  @default("[1,2,3,4,5]") // Mon-Fri
+  meetingTimezone          String  @default("UTC")
+  meetingAutoSchedule      Boolean @default(false) // approval mode by default
+  meetingAutonomyMode      String  @default("approval") // approval, assisted, autonomous
+  meetingRemindersEnabled  Boolean @default(true)
+  meetingReminderMinutes   String  @default("[10,60]") // JSON array of minutes before meeting
+  meetingEmailConfirmation Boolean @default(true) // Send confirmation email to client
+  meetingEmailReminder     Boolean @default(true) // Send reminder emails
+  calendarSyncEnabled      Boolean @default(true) // Sync meetings with Google Calendar
+  calendarWatchEnabled     Boolean @default(false) // Google Calendar push notifications
+  outreachAutonomyMode     String  @default("manual") // manual, assisted, autonomous
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  theme               String?
+  compactMode         Boolean  @default(false)
+  defaultNiche        String?
+  defaultCountry      String?
+  timezone            String?
+  businessDescription String?
+
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GOOGLE CALENDAR TOKEN TABLE
+// ═══════════════════════════════════════════════════════════════════
+
+model GoogleCalendarToken {
+  id            String    @id @default(cuid())
+  userId        String
+  calendarEmail String
+  accessToken   String
+  refreshToken  String
+  tokenExpiry   DateTime?
+  scope         String?
+  status        String    @default("active") // active, expired, revoked
+  lastSyncAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  isConnected  Boolean   @default(false)
+  lastSyncedAt DateTime?
+
+  @@index([userId])
+  @@index([calendarEmail])
+  @@index([status])
+}
+
+model CalendarWatch {
+  id            String    @id @default(cuid())
+  userId        String
+  channelId     String
+  resourceId    String
+  calendarEmail String
+  expiration    DateTime?
+  status        String    @default("active") // active, stopped, expired
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([channelId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MEETING TABLES — Autonomous Meeting Orchestration
+// ═══════════════════════════════════════════════════════════════════
+
+model Meeting {
+  id                 String   @id @default(cuid())
+  userId             String
+  leadId             String?
+  dealId             String?
+  orgId              String?
+  title              String
+  description        String?
+  meetingType        String   @default("video") // video, phone, in-person
+  platform           String   @default("google_meet") // google_meet, zoom, teams, custom
+  meetingUrl         String? // Google Meet link, Zoom link, etc.
+  calendarEventId    String? // Google Calendar event ID
+  status             String   @default("scheduled") // pending_approval, scheduled, confirmed, completed, cancelled, rescheduled
+  startDateTime      DateTime
+  endDateTime        DateTime
+  durationMinutes    Int      @default(30)
+  timezone           String   @default("UTC")
+  agenda             String? // JSON: agenda items
+  attendees          String   @default("[]") // JSON: [{ email, name, status }]
+  location           String? // Physical location for in-person
+  conferenceData     String? // JSON: Google Meet/Zoom conference data
+  reminders          String   @default("[]") // JSON: [{ minutesBefore, type }]
+  followUpActions    String? // JSON: action items after meeting
+  actionItems        Json? // JSON: structured action items extracted by AI
+  notes              String? // Post-meeting notes
+  recordingUrl       String? // Meeting recording URL
+  createdBy          String   @default("user") // user, ai_suggestion, ai_auto
+  approvalStatus     String   @default("approved") // pending, approved, rejected
+  cancellationReason String?
+  rescheduledFrom    String? // ID of original meeting if rescheduled
+  metadata           String? // JSON: additional data
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead             Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  deal             Deal?             @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  organization     Organization?     @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  meetingReminders MeetingReminder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([dealId])
+  @@index([status])
+  @@index([startDateTime])
+  @@index([calendarEventId])
+  @@index([platform])
+  @@index([createdBy])
+  @@index([userId, status])
+  @@index([orgId])
+}
+
+model MeetingIntentLog {
+  id              String    @id @default(cuid())
+  userId          String
+  orgId           String?
+  leadId          String?
+  sourceType      String // email, chat, whatsapp, telegram, manual
+  sourceId        String? // message/conversation ID
+  detectedIntent  String // schedule_call, book_meeting, discuss, connect, available, interested
+  confidence      Float     @default(0)
+  originalText    String?
+  suggestedAction String? // JSON: { action, suggestedTimes, meetingType }
+  status          String    @default("detected") // detected, dismissed, actioned, expired
+  actionedAt      DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([status])
+  @@index([detectedIntent])
+  @@index([createdAt])
+  @@index([orgId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DISCOVERY JOB TABLES (Phase 7)
+// ═══════════════════════════════════════════════════════════════════
+
+model DiscoveryJob {
+  id           String    @id @default(cuid())
+  userId       String
+  orgId        String?
+  status       String    @default("pending") // pending, running, completed, failed
+  source       String // google_maps, google_business, justdial, indiamart, yelp, yellow_pages, sulekha, linkedin, instagram, facebook, ai_search
+  niche        String
+  country      String
+  city         String?
+  totalFound   Int       @default(0)
+  imported     Int       @default(0)
+  duplicates   Int       @default(0)
+  failed       Int       @default(0)
+  errorMessage String?
+  resultData   String? // JSON: { leads: [...] }
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  total     Int      @default(0)
+  progress  Int      @default(0)
+
+  @@index([userId])
+  @@index([status])
+  @@index([source])
+  @@index([orgId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SECURITY TABLES (Phase 3 Remediation)
+// ═══════════════════════════════════════════════════════════════════
+
+model SecurityAlert {
+  id         String    @id @default(cuid())
+  userId     String
+  alertType  String // suspicious_login, new_device, impossible_travel, brute_force, account_locked
+  ipAddress  String?
+  userAgent  String?
+  country    String?
+  city       String?
+  isResolved Boolean   @default(false)
+  resolvedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([alertType])
+  @@index([isResolved])
+  @@index([createdAt])
+}
+
+model KnownDevice {
+  id                String   @id @default(cuid())
+  userId            String
+  deviceFingerprint String
+  deviceName        String
+  lastSeenAt        DateTime @default(now())
+  isTrusted         Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, deviceFingerprint])
+  @@index([userId])
+  @@index([deviceFingerprint])
+  @@index([lastSeenAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SYSTEM METRICS TABLES (Phase 1 Remediation - Monitoring)
+// ═══════════════════════════════════════════════════════════════════
+
+model SystemMetrics {
+  id          String  @id @default(cuid())
+  source      String // nextjs, fastapi, redis, celery, system
+  metricType  String // cpu, memory, disk, request_rate, error_rate, latency, connections, queue_length
+  metricName  String // specific metric name (e.g., http_requests_total, cpu_usage_percent)
+  value       Float
+  unit        String? // percent, bytes, requests, milliseconds, count
+  labels      String? // JSON: additional labels for the metric (method, path, status, etc.)
+  hostname    String?
+  environment String? // production, staging, development
+
+  createdAt DateTime @default(now())
+
+  @@index([source])
+  @@index([metricType])
+  @@index([metricName])
+  @@index([createdAt])
+  @@index([environment])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AI COST TRACKING TABLES (Phase 8)
+// ═══════════════════════════════════════════════════════════════════
+
+model AiCostRecord {
+  id           String  @id @default(cuid())
+  userId       String
+  feature      String // discovery, enrichment, chat, sales_coach, proposal, competitor, vector_search, rag
+  model        String // auto, gpt-4, gpt-4-turbo, gpt-3.5-turbo, claude-3, unknown
+  inputTokens  Int     @default(0)
+  outputTokens Int     @default(0)
+  costUsd      Float   @default(0)
+  requestId    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([feature])
+  @@index([model])
+  @@index([costUsd])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROMPT TEMPLATE TABLES (Phase 8)
+// ═══════════════════════════════════════════════════════════════════
+
+model PromptTemplate {
+  id       String  @id @default(cuid())
+  userId   String?
+  name     String
+  version  Int
+  content  String
+  isActive Boolean @default(true)
+  metadata String  @default("{}") // JSON
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([name])
+  @@index([version])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE CONTEXT TABLES (Phase 8)
+// ═══════════════════════════════════════════════════════════════════
+
+model FileContext {
+  id        String  @id @default(cuid())
+  userId    String
+  leadId    String?
+  fileName  String
+  fileType  String // text, csv, json, markdown, pdf_text
+  content   String
+  chunks    String  @default("[]") // JSON array of DocumentChunk objects
+  embedding String? // JSON: document-level embedding vector
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([fileType])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROXY & SCRAPING TABLES (Phase 7 Remediation - Lead Engine Fixes)
+// ═══════════════════════════════════════════════════════════════════
+
+model ProxyEndpoint {
+  id                    String    @id @default(cuid())
+  url                   String    @unique
+  type                  String    @default("datacenter") // datacenter, residential, mobile, isp
+  isActive              Boolean   @default(true)
+  successRate           Float     @default(1.0)
+  avgLatency            Int       @default(0)
+  lastUsedAt            DateTime?
+  failureCount          Int       @default(0)
+  totalRequests         Int       @default(0)
+  successCount          Int       @default(0)
+  lastError             String?
+  rateLimitPerMinute    Int       @default(60)
+  currentMinuteRequests Int       @default(0)
+  minuteResetAt         DateTime?
+  country               String?
+  provider              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([type])
+  @@index([successRate])
+  @@index([lastUsedAt])
+}
+
+model ScrapingMetric {
+  id              String   @id @default(cuid())
+  source          String // ai_search, google_maps, justdial, etc.
+  totalRequests   Int      @default(0)
+  successCount    Int      @default(0)
+  failCount       Int      @default(0)
+  avgResponseTime Int      @default(0)
+  rateLimitHits   Int      @default(0)
+  date            DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, date])
+  @@index([source])
+  @@index([date])
+  @@index([rateLimitHits])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REALTIME EVENT TABLES (Phase 11 - Realtime Remediation)
+// ═══════════════════════════════════════════════════════════════════
+
+model RealtimeEvent {
+  id          String  @id @default(cuid())
+  channel     String // lead_events, payment_events, notification_events, message_events, workflow_events, ai_events
+  eventType   String // specific event type within the channel
+  payload     String // JSON event data
+  userId      String?
+  orgId       String?
+  eventId     String  @unique // deduplication ID
+  deliveredAt Boolean @default(false)
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([channel])
+  @@index([eventType])
+  @@index([userId])
+  @@index([orgId])
+  @@index([eventId])
+  @@index([deliveredAt])
+  @@index([createdAt])
+}
+
+model WsConnection {
+  id            String   @id @default(cuid())
+  userId        String
+  socketId      String
+  rooms         String   @default("[]") // JSON array of room names
+  connectedAt   DateTime @default(now())
+  lastHeartbeat DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([socketId])
+  @@index([lastHeartbeat])
+}
+
+model SseConnection {
+  id           String   @id @default(cuid())
+  userId       String
+  channel      String // notifications, payments, messages, ai
+  lastEventId  String?
+  connectedAt  DateTime @default(now())
+  lastActivity DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([channel])
+  @@index([lastActivity])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MESSAGING TABLES (Phase 10 — Messaging Remediation)
+// ═══════════════════════════════════════════════════════════════════
+
+model MediaFile {
+  id            String  @id @default(cuid())
+  userId        String
+  fileName      String
+  fileType      String // image, document, audio, video
+  fileSize      Int
+  mimeType      String
+  filePath      String
+  thumbnailPath String?
+  metadata      String? // JSON: { width, height, duration, originalName, etc. }
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([fileType])
+  @@index([mimeType])
+  @@index([createdAt])
+}
+
+model MessageBroadcast {
+  id             String    @id @default(cuid())
+  userId         String
+  orgId          String?
+  name           String
+  channel        String // whatsapp, telegram, email
+  audienceFilter String? // JSON: { tags, stage, lastContactedBefore, minScore, country, niche, etc. }
+  messageContent String
+  templateId     String?
+  status         String    @default("draft") // draft, scheduled, running, paused, completed, cancelled
+  scheduledAt    DateTime?
+  totalTargets   Int       @default(0)
+  deliveredCount Int       @default(0)
+  readCount      Int       @default(0)
+  respondedCount Int       @default(0)
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targets BroadcastTarget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([channel])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdAt])
+}
+
+model BroadcastTarget {
+  id          String    @id @default(cuid())
+  broadcastId String
+  leadId      String
+  status      String    @default("pending") // pending, sent, delivered, read, responded, failed, opted_out
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  respondedAt DateTime?
+
+  broadcast MessageBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  lead      Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([broadcastId])
+  @@index([leadId])
+  @@index([status])
+  @@index([sentAt])
+}
+
+model MessageTemplateApproval {
+  id              String    @id @default(cuid())
+  userId          String
+  name            String
+  category        String // marketing, utility, authentication
+  content         String
+  status          String    @default("pending") // pending, approved, rejected, active, disabled
+  rejectionReason String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  version         Int       @default(1)
+  metadata        String? // JSON: { language, variables, channel, previousVersion, etc. }
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
+  @@index([status])
+  @@index([name])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PHASE 9: SCHEDULED EMAIL & TRACKING TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model ScheduledEmail {
+  id              String   @id @default(cuid())
+  userId          String
+  leadId          String?
+  to              String
+  subject         String
+  body            String
+  scheduledAt     DateTime
+  status          String   @default("pending") // pending, sending, sent, failed, cancelled
+  emailAccountId  String?
+  trackingPixelId String?
+  metadata        String?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailAccount EmailAccount? @relation(fields: [emailAccountId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([leadId])
+  @@index([emailAccountId])
+  @@index([trackingPixelId])
+}
+
+model EmailOpenEvent {
+  id              String   @id @default(cuid())
+  trackingPixelId String
+  ipAddress       String?
+  userAgent       String?
+  country         String?
+  city            String?
+  openedAt        DateTime @default(now())
+
+  @@index([trackingPixelId])
+  @@index([openedAt])
+  @@index([country])
+  @@index([city])
+}
+
+model EmailClickEvent {
+  id             String   @id @default(cuid())
+  trackingLinkId String
+  url            String
+  ipAddress      String?
+  userAgent      String?
+  clickedAt      DateTime @default(now())
+
+  @@index([trackingLinkId])
+  @@index([clickedAt])
+  @@index([url])
+}
+
+model EmailTrackingLink {
+  id             String  @id @default(cuid())
+  emailMessageId String?
+  originalUrl    String
+  trackingId     String  @unique
+  clickCount     Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([emailMessageId])
+  @@index([trackingId])
+  @@index([originalUrl])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MEETING REMINDER TABLE — Autonomous Meeting Orchestration Phase 2
+// ═══════════════════════════════════════════════════════════════════
+
+model MeetingReminder {
+  id            String    @id @default(cuid())
+  meetingId     String
+  userId        String
+  remindAt      DateTime
+  type          String    @default("popup") // popup, email, both
+  minutesBefore Int
+  sent          Boolean   @default(false)
+  sentAt        DateTime?
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([meetingId])
+  @@index([userId])
+  @@index([remindAt])
+  @@index([sent])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MESSAGE DELIVERY TABLE — Cross-channel delivery tracking
+// Tracks status lifecycle: pending → queued → sent → delivered → read
+// Also tracks failures: failed, bounced
+// Supports retry with exponential backoff and dead-letter handling
+// ═══════════════════════════════════════════════════════════════════
+
+model MessageDelivery {
+  id                String    @id @default(cuid())
+  userId            String
+  conversationId    String?
+  leadId            String?
+  channel           String    @default("email") // email, telegram, whatsapp, linkedin, instagram
+  provider          String? // gmail, telegram_bot, meta, twilio, etc.
+  providerMessageId String?   @unique // External message ID from provider (dedup key)
+  direction         String    @default("outbound") // inbound, outbound
+  status            String    @default("pending") // pending, queued, sent, delivered, read, failed, bounced
+  content           String? // Message content
+  contentMetadata   String? // JSON: extra content info (media type, template vars, etc.)
+  recipientId       String? // Recipient identifier (email, phone, chat ID)
+  recipientName     String?
+  senderId          String?
+  templateId        String?
+  templateName      String?
+  metadata          String? // JSON: arbitrary metadata (workflow step, tracking, etc.)
+  errorMessage      String? // Latest error message
+  errorCategory     String? // Categorized error: rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, unknown
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  nextRetryAt       DateTime?
+  lastRetryAt       DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  deadLettered      Boolean   @default(false)
+  deadLetterReason  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([leadId])
+  @@index([channel])
+  @@index([status])
+  @@index([direction])
+  @@index([templateName])
+  @@index([createdAt])
+  @@index([status, nextRetryAt]) // For retry queue processing
+  @@index([deadLettered])
+  @@index([userId, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DELIVERY DEAD LETTER TABLE — Messages that exhausted all retries
+// Preserved for inspection, manual retry, and analytics
+// ═══════════════════════════════════════════════════════════════════
+
+model DeliveryDeadLetter {
+  id                String    @id @default(cuid())
+  deliveryId        String    @unique // Original delivery record ID
+  userId            String
+  channel           String
+  recipientId       String?
+  recipientName     String?
+  content           String?
+  errorCategory     String?
+  failureSummary    String // Concatenated error history
+  retryCount        Int
+  maxRetries        Int
+  originalCreatedAt DateTime
+  deadLetteredAt    DateTime  @default(now())
+  resolved          Boolean   @default(false)
+  resolvedAt        DateTime?
+  resolutionNote    String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([channel])
+  @@index([errorCategory])
+  @@index([resolved])
+  @@index([deadLetteredAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Feedback Intelligence System
+// ═══════════════════════════════════════════════════════════════════
+
+model FeedbackReport {
+  id                String    @id @default(cuid())
+  userId            String
+  ticketNumber      String    @unique
+  type              String
+  title             String
+  description       String
+  severity          String    @default("medium")
+  priority          String    @default("medium")
+  status            String    @default("new")
+  assignedTo        String?
+  pageUrl           String?
+  previousPageUrl   String?
+  navigationHistory Json?
+  userAgent         String?
+  browserName       String?
+  browserVersion    String?
+  osName            String?
+  osVersion         String?
+  screenResolution  String?
+  timezone          String?
+  locale            String?
+  networkType       String?
+  appVersion        String?
+  sessionId         String?
+  lastApiRequests   Json?
+  errorLogs         Json?
+  stackTrace        String?
+  performanceData   Json?
+  attachments       Json?
+  tags              Json?
+  labels            Json?
+  duplicateOf       String?
+  reproSteps        String?
+  expectedBehavior  String?
+  actualBehavior    String?
+  aiClassification  Json?
+  aiSeverity        String?
+  aiModule          String?
+  aiDuplicateScore  Float?
+  resolutionNotes   String?
+  resolvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id])
+  comments      FeedbackComment[]
+  statusHistory FeedbackStatusLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([severity])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([createdAt])
+}
+
+model FeedbackComment {
+  id         String   @id @default(cuid())
+  feedbackId String
+  authorId   String
+  authorRole String   @default("user")
+  content    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  feedback FeedbackReport @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+  @@index([authorId])
+}
+
+model FeedbackStatusLog {
+  id         String   @id @default(cuid())
+  feedbackId String
+  fromStatus String
+  toStatus   String
+  changedBy  String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  feedback FeedbackReport @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+}
+
+model CrashReport {
+  id            String   @id @default(cuid())
+  userId        String?
+  errorMessage  String
+  stackTrace    String?
+  componentName String?
+  pageUrl       String?
+  userAgent     String?
+  sessionData   Json?
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([errorMessage])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([resolved])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXTENDED FEATURE MODELS — added to align Prisma Client with the
+// service-layer code (analytics engines, competitor intelligence,
+// messaging integrations, reports, RAG, sharing). Additive only:
+// standalone tables, no FK constraints, JSON stored as String (SQLite).
+// ═══════════════════════════════════════════════════════════════════
+
+model AcquisitionCampaign {
+  id                 String    @id @default(cuid())
+  userId             String?
+  orgId              String?
+  status             String    @default("pending")
+  niche              String?
+  country            String?
+  city               String?
+  source             String?
+  channel            String?
+  tone               String?
+  maxLeads           Int?
+  customInstructions String?
+  errorMessage       String?
+  discoveryJobId     String?
+  autoSend           Boolean   @default(false)
+  discovered         Int       @default(0)
+  totalLeads         Int       @default(0)
+  analyzed           Int       @default(0)
+  outreachGenerated  Int       @default(0)
+  sent               Int       @default(0)
+  errors             Int       @default(0)
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Report {
+  id            String    @id @default(cuid())
+  userId        String?
+  orgId         String?
+  name          String?
+  description   String?
+  type          String?
+  dashboard     String?
+  filters       String?
+  chartConfig   String?
+  scheduleCron  String?
+  exportFormat  String?
+  lastExportUrl String?
+  isPublic      Boolean   @default(false)
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model CompetitorSnapshot {
+  id               String   @id @default(cuid())
+  competitorId     String
+  userId           String?
+  snapshotType     String?
+  seoScore         Float?
+  socialScore      Float?
+  pricingModel     String?
+  techStack        String?
+  strengths        String?
+  weaknesses       String?
+  estimatedTraffic Int?
+  rawData          String?
+  createdAt        DateTime @default(now())
+
+  @@index([competitorId])
+}
+
+model MessageTemplate {
+  id            String    @id @default(cuid())
+  userId        String?
+  orgId         String?
+  name          String?
+  channel       String?
+  category      String?
+  subject       String?
+  body          String?
+  variables     String?
+  usageCount    Int       @default(0)
+  isAiGenerated Boolean   @default(false)
+  isDefault     Boolean   @default(false)
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  content       String?
+
+  @@index([userId])
+}
+
+model AnalyticsPrediction {
+  id                String    @id @default(cuid())
+  userId            String?
+  orgId             String?
+  category          String?
+  predictionType    String?
+  targetEntityId    String?
+  predictedValue    Float?
+  actualValue       Float?
+  confidence        Float?
+  modelVersion      String?
+  inputData         String?
+  predictionHorizon String?
+  expiresAt         DateTime?
+  actualizedAt      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model AnalyticsInsight {
+  id               String    @id @default(cuid())
+  userId           String?
+  orgId            String?
+  category         String?
+  insightType      String?
+  title            String?
+  description      String?
+  impact           String?
+  metricName       String?
+  metricBefore     Float?
+  metricAfter      Float?
+  changePercent    Float?
+  dataSource       String?
+  isActionable     Boolean   @default(false)
+  isRead           Boolean   @default(false)
+  actionSuggestion String?
+  validUntil       DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model AnalyticsAnomaly {
+  id            String    @id @default(cuid())
+  userId        String?
+  orgId         String?
+  category      String?
+  anomalyType   String?
+  severity      String?
+  metricName    String?
+  expectedValue Float?
+  actualValue   Float?
+  deviation     Float?
+  description   String?
+  status        String    @default("open")
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model DashboardShare {
+  id             String    @id @default(cuid())
+  dashboardId    String?
+  userId         String?
+  orgId          String?
+  allowedUsers   String?
+  orgSharing     Boolean   @default(false)
+  accessCount    Int       @default(0)
+  isActive       Boolean   @default(true)
+  expiresAt      DateTime?
+  lastAccessedAt DateTime?
+  createdAt      DateTime  @default(now())
+  dashboardType  String?
+  shareToken     String?
+  permissions    String?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([dashboardId])
+}
+
+model AnalyticsFormula {
+  id             String    @id @default(cuid())
+  userId         String?
+  orgId          String?
+  name           String?
+  description    String?
+  formula        String?
+  variables      String?
+  resultType     String?
+  category       String?
+  isPublic       Boolean   @default(false)
+  lastResult     Float?
+  lastComputedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model RagDocument {
+  id          String   @id @default(cuid())
+  leadId      String?
+  userId      String?
+  title       String?
+  type        String?
+  content     String?
+  chunkIndex  Int?
+  keywords    String?
+  source      String?
+  metadata    String?
+  tfidfScores String?
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model AnalyticsBenchmark {
+  id              String    @id @default(cuid())
+  userId          String?
+  orgId           String?
+  category        String?
+  benchmarkType   String?
+  metricName      String?
+  yourValue       Float?
+  benchmarkValue  Float?
+  percentile      Float?
+  comparisonGroup String?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  dataPoints      Int?
+  metadata        String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model AnalyticsSnapshot {
+  id          String    @id @default(cuid())
+  userId      String
+  category    String
+  period      String
+  periodStart DateTime
+  periodEnd   DateTime?
+  metrics     String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, category, period, periodStart])
+  @@index([userId])
+}

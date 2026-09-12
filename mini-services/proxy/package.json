@@ -1,0 +1,10 @@
+{
+  "name": "acquisitionos-proxy",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun --hot index.js"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  }
+}

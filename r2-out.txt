@@ -1,0 +1,168 @@
+═══ ROUND-2 MODEL FIELD ADDITIONS ═══
+User: content(5), maxRetries(4), paymentOrderId(1), bestContactTime(1), metaVerifyToken(1), updatedAt(1), lastPaymentFailureAt(1), maxConcurrency(1), border(1), failedAt(1)
+UserSession: twilioAuthToken(12), lead(9), deal(9), permissions(6), twilioPhoneNumber(6), dashboardType(5), lastHealthCheckAt(3), shareToken(3), compactMode(2), defaultNiche(2), defaultCountry(2), updatedAt(2), botId(2), errorMessage(2), timezone(1), businessDescription(1), data(1), webhookVerified(1)
+Notification: getRecentLogs(1), getLogCounts(1)
+Subscription: lead(1)
+PipelineStage: border(1)
+SystemMetrics: name(3), payload(1)
+
+═══ TS2304 (44) — samples ═══
+  src/app/api/calendar/availability/route.ts:69  Cannot find name 'db'.
+  src/app/api/calendar/availability/route.ts:108  Cannot find name 'db'.
+  src/lib/gmail-inbox-service.ts:651  Cannot find name 'cacheDelete'.
+  src/lib/gmail-inbox-service.ts:692  Cannot find name 'cacheDelete'.
+  src/components/dashboard/campaign-tracker.tsx:251  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:252  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:253  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:254  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:255  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:256  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:257  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:261  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:344  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:460  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:499  Cannot find name 'campaigns'.
+  src/components/dashboard/campaign-tracker.tsx:519  Cannot find name 'radarData'.
+  src/components/dashboard/campaign-tracker.tsx:522  Cannot find name 'radarData'.
+  src/components/dashboard/campaign-tracker.tsx:545  Cannot find name 'calendarEvents'.
+  src/components/dashboard/client-onboarding-tracker.tsx:486  Cannot find name 'Mail'.
+  src/components/dashboard/communication-analytics-hub.tsx:197  Cannot find name 'Cell'.
+  src/components/dashboard/data-export-center.tsx:390  Cannot find name 'Plus'.
+  src/components/dashboard/performance-benchmark.tsx:792  Cannot find name 'Zap'.
+  src/components/dashboard/real-time-activity-monitor.tsx:177  Cannot find name 'heatmapData'.
+  src/components/dashboard/real-time-activity-monitor.tsx:381  Cannot find name 'CheckCircle2'.
+  src/components/dashboard/roi-investment-tracker.tsx:243  Cannot find name 'PieChart'.
+  src/components/dashboard/strategic-goals-okrs.tsx:185  Cannot find name 'quarterlyData'.
+  src/components/dashboard/strategic-goals-okrs.tsx:188  Cannot find name 'quarterlyData'.
+  src/components/dashboard/strategic-goals-okrs.tsx:220  Cannot find name 'quarterlyData'.
+  src/components/dashboard/team-chat-widget.tsx:456  Cannot find name 'teamMembers'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:150  Cannot find name 'DONUT_DATA'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:151  Cannot find name 'EXECUTION_TREND'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:154  Cannot find name 'donutData'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:208  Cannot find name 'KPI_DATA'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:212  Cannot find name 'KPI_DATA'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:272  Cannot find name 'WORKFLOWS'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:278  Cannot find name 'WORKFLOWS'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:380  Cannot find name 'EXECUTION_TREND'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:381  Cannot find name 'EXECUTION_TREND'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:382  Cannot find name 'EXECUTION_TREND'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:436  Cannot find name 'DONUT_DATA'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:463  Cannot find name 'TRIGGER_DATA'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:497  Cannot find name 'FAILED_EXECUTIONS'.
+  src/components/dashboard/workflow-analytics-dashboard.tsx:499  Cannot find name 'FAILED_EXECUTIONS'.
+  src/lib/auth-edge-cases.ts:183  Cannot find name 'expiredAccessToken'.
+
+═══ TS2305 (36) — samples ═══
+  src/components/dashboard/gmail-account-switcher.tsx:26  Module '"@/lib/api"' has no exported member 'connectGmail'.
+  src/components/dashboard/gmail-compose-dialog.tsx:41  Module '"@/lib/api"' has no exported member 'sendGmailEmail'.
+  src/components/dashboard/gmail-connect-card.tsx:7  Module '"@/lib/api"' has no exported member 'connectGmail'.
+  src/components/dashboard/gmail-sync-status.tsx:8  Module '"@/lib/api"' has no exported member 'GmailSyncStatus'.
+  src/components/dashboard/gmail-thread-panel.tsx:49  Module '"@/lib/api"' has no exported member 'fetchGmailThread'.
+  src/components/dashboard/inbox-tab.tsx:45  Module '"@/lib/api"' has no exported member 'fetchGmailAccounts'.
+  src/components/dashboard/inbox-tab.tsx:46  Module '"@/lib/api"' has no exported member 'fetchGmailThreads'.
+  src/components/dashboard/inbox-tab.tsx:47  Module '"@/lib/api"' has no exported member 'fetchGmailStatus'.
+
+═══ TS2345 (100) — samples ═══
+  src/app/api/ai/chat/stream/route.ts:11  Argument of type '(user: AuthUser) => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextR
+  src/app/api/analytics/route.ts:54  Argument of type '{ start: Date; end: Date; }' is not assignable to parameter of type '"ai" | "executive" | "sales" | "ops" | unde
+  src/app/api/dashboard/email-templates/route.ts:28  Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  src/app/api/email/tracking/open/[id]/route.ts:36  Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
+  src/app/api/events/analytics/route.ts:109  Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'.
+  src/app/api/events/analytics/route.ts:110  Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'.
+  src/app/api/events/analytics/route.ts:251  Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'.
+  src/app/api/events/analytics/route.ts:252  Argument of type 'string' is not assignable to parameter of type '{ start: Date; end: Date; }'.
+
+═══ TS2322 (129) — samples ═══
+  src/app/api/admin/backup/[id]/route.ts:41  Type '{ size: number; lastModified: string; }' is not assignable to type 'null'.
+  src/app/api/admin/feedback/[id]/route.ts:125  Type '{ feedbackId: string | undefined; fromStatus: string; toStatus: string; changedBy: string; note: string | null; }' is not as
+  src/app/api/admin/feedback/analytics/route.ts:46  Type 'null' is not assignable to type 'InputJsonValue | JsonNullValueFilter | FieldRef<"FeedbackReport", "Json"> | undefined'.
+  src/app/api/analytics/share/[token]/route.ts:37  Type 'Promise<AuthUser>' is not assignable to type 'Promise<NextResponse<unknown>>'.
+  src/app/api/audit/export/route.ts:29  Type '{}' is not assignable to type 'never'.
+  src/app/api/audit/route.ts:33  Type '{}' is not assignable to type 'never'.
+  src/app/api/billing/history/route.ts:240  Type 'string | null' is not assignable to type 'null'.
+  src/app/api/chat-sessions/route.ts:48  Type '{ title: any; salesCoachMode: boolean; }' is not assignable to type '(Without<AiChatSessionCreateInput, AiChatSessionUncheck
+
+═══ TS2540 (29) — samples ═══
+  src/__tests__/lib/email.test.ts:86  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/email.test.ts:110  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/email.test.ts:194  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/logger.test.ts:36  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/logger.test.ts:44  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/logger.test.ts:69  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/logger.test.ts:80  Cannot assign to 'NODE_ENV' because it is a read-only property.
+  src/__tests__/lib/logger.test.ts:85  Cannot assign to 'NODE_ENV' because it is a read-only property.
+
+═══ TS2741 (17) — samples ═══
+  src/app/api/health/route.ts:20  Property 'status' is missing in type '{}' but required in type '{ status: string; responseTime?: number | undefined; error?: strin
+  src/components/dashboard/settings-panel.tsx:1353  Property 'children' is missing in type '{ requiredPlan: "pro"; featureName: string; }' but required in type 'PlanGateProps'.
+  src/components/dashboard/settings-panel.tsx:1462  Property 'children' is missing in type '{ requiredPlan: "pro"; featureName: string; }' but required in type 'PlanGateProps'.
+  src/lib/ai/chat-service.ts:251  Property 'provider' is missing in type '{ maxTokens: number; temperature: number; timeout: number; retries: number; }' but require
+  src/lib/ai/chat-service.ts:273  Property 'provider' is missing in type '{ maxTokens: number; temperature: number; timeout: number; retries: number; }' but require
+  src/lib/ai/lead-analysis-engine.ts:239  Property 'provider' is missing in type '{ maxTokens: number; temperature: number; timeout: number; retries: number; }' but require
+  src/lib/ai/outreach-generator.ts:172  Property 'provider' is missing in type '{ maxTokens: number; temperature: number; timeout: number; retries: number; }' but require
+  src/lib/ai/scoring-engine.ts:166  Property 'provider' is missing in type '{ maxTokens: number; temperature: number; timeout: number; retries: number; }' but require
+
+═══ TS2352 (21) — samples ═══
+  src/app/api/gmail/accounts/route.ts:43  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/connect/route.ts:29  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/disconnect/route.ts:39  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/draft/route.ts:135  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/outreach-to-draft/route.ts:185  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/pubsub/setup/route.ts:58  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/reply/route.ts:62  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+  src/app/api/gmail/status/route.ts:56  Conversion of type 'Error & Record<"statusCode", unknown>' to type '{ statusCode: number; code: string; }' may be a mistake becaus
+
+═══ TS2339never (57) — samples ═══
+  src/app/api/audit/export/route.ts:31  userId  |  Property 'userId' does not exist on type 'never'.
+  src/app/api/audit/export/route.ts:32  action  |  Property 'action' does not exist on type 'never'.
+  src/app/api/audit/export/route.ts:33  resource  |  Property 'resource' does not exist on type 'never'.
+  src/app/api/audit/export/route.ts:36  createdAt  |  Property 'createdAt' does not exist on type 'never'.
+  src/app/api/audit/export/route.ts:37  createdAt  |  Property 'createdAt' does not exist on type 'never'.
+  src/app/api/audit/export/route.ts:38  createdAt  |  Property 'createdAt' does not exist on type 'never'.
+  src/app/api/audit/route.ts:35  userId  |  Property 'userId' does not exist on type 'never'.
+  src/app/api/audit/route.ts:36  action  |  Property 'action' does not exist on type 'never'.
+
+═══ TS2339other (68) — samples ═══
+  src/app/api/competitors/analyze/route.ts:63  seoScore on {}
+  src/app/api/competitors/analyze/route.ts:64  socialScore on {}
+  src/app/api/competitors/analyze/route.ts:65  pricingModel on {}
+  src/app/api/competitors/analyze/route.ts:66  techStack on {}
+  src/app/api/competitors/analyze/route.ts:67  strengths on {}
+  src/app/api/competitors/analyze/route.ts:68  weaknesses on {}
+  src/app/api/competitors/analyze/route.ts:69  estimatedTrafficTier on {}
+  src/app/api/competitors/analyze/route.ts:71  opportunityScore on {}
+
+═══ TS2554 (22) — samples ═══
+  src/app/api/analytics/ai/route.ts:19  Expected 1-2 arguments, but got 4.
+  src/app/api/analytics/billing/route.ts:19  Expected 1-2 arguments, but got 4.
+  src/app/api/analytics/leads/route.ts:30  Expected 1-3 arguments, but got 4.
+  src/app/api/analytics/leads/route.ts:31  Expected 4 arguments, but got 6.
+  src/app/api/analytics/workflows/route.ts:19  Expected 1-3 arguments, but got 4.
+  src/app/api/competitors/[id]/snapshots/route.ts:20  Expected 2 arguments, but got 3.
+  src/app/api/competitors/analyze/route.ts:48  Expected 2 arguments, but got 3.
+  src/app/api/competitors/route.ts:82  Expected 1-2 arguments, but got 4.
+
+═══ TS2344 (17) — samples ═══
+  src/app/api/autonomous/campaign/parse/route.ts:23  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/autonomous-outreach-engine.ts:548  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/autonomous-outreach-engine.ts:816  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/competitor-intelligence-service.ts:164  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/competitor-intelligence-service.ts:549  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/competitor-intelligence-service.ts:742  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/competitor-intelligence-service.ts:861  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+  src/lib/competitor-intelligence-service.ts:998  Type 'typeof ZAI' does not satisfy the constraint 'abstract new (...args: any) => any'.
+
+═══ TS2307 (10) — samples ═══
+  src/hooks/use-websocket.ts:4  Cannot find module 'socket.io-client' or its corresponding type declarations.
+  src/lib/observability/tracing.ts:13  Cannot find module '@opentelemetry/sdk-node' or its corresponding type declarations.
+  src/lib/observability/tracing.ts:14  Cannot find module '@opentelemetry/auto-instrumentations-node' or its corresponding type d
+  src/lib/observability/tracing.ts:15  Cannot find module '@opentelemetry/exporter-trace-otlp-http' or its corresponding type dec
+  src/lib/observability/tracing.ts:16  Cannot find module '@opentelemetry/exporter-metrics-otlp-http' or its corresponding type d
+  src/lib/observability/tracing.ts:17  Cannot find module '@opentelemetry/sdk-trace-base' or its corresponding type declarations.
+  src/lib/observability/tracing.ts:18  Cannot find module '@opentelemetry/sdk-metrics' or its corresponding type declarations.
+  src/lib/observability/tracing.ts:19  Cannot find module '@opentelemetry/resources' or its corresponding type declarations.
+
+═══ TS2724 (3) — samples ═══
+  src/components/dashboard/accessibility-audit.tsx:7  '"lucide-react"' has no exported member named 'LabelOff'. Did you mean 'BellOff'?
+  src/components/dashboard/accessibility-panel.tsx:7  '"lucide-react"' has no exported member named 'LabelOff'. Did you mean 'BellOff'?
+  src/lib/stripe-service.ts:357  '"/home/z/my-project/node_modules/stripe/esm/resources/Checkout/index".Checkout' has no exported member named 'SessionCreateParams

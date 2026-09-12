@@ -1,0 +1,9672 @@
+{
+ "models": [
+  {
+   "name": "User",
+   "line": 90,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "email",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "avatar",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "passwordHash",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "googleId",
+     "type": "String",
+     "attrs": "?   @unique"
+    },
+    {
+     "name": "emailVerified",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "phone",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "company",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "preferencesJson",
+     "type": "String",
+     "attrs": "?",
+     "comment": "[JSON-FIELD][MIGRATE-SAFE] JSON: {theme, compactView, defaultCountry, defaultNiche, notificationPrefs, timezone}"
+    },
+    {
+     "name": "plan",
+     "type": "String",
+     "attrs": "@default(\"free\")"
+    },
+    {
+     "name": "credits",
+     "type": "Int",
+     "attrs": "@default(50)"
+    },
+    {
+     "name": "creditsMonthly",
+     "type": "Int",
+     "attrs": "@default(50)"
+    },
+    {
+     "name": "rolloverCredits",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "isTrial",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "trialEndsAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "role",
+     "type": "String",
+     "attrs": "@default(\"owner\")"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "authProvider",
+     "type": "String",
+     "attrs": "@default(\"email\")",
+     "comment": "email, google"
+    },
+    {
+     "name": "emailVerificationOtp",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "emailVerificationOtpExpiry",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "resetOtp",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "resetOtpExpiry",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "loginOtp",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "loginOtpExpiry",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "magicLinkToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "magicLinkTokenExpiry",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "otpAttemptCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "otpLockedUntil",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "lastLoginAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "deletedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "meetingIntentLogs",
+     "type": "MeetingIntentLog[]",
+     "attrs": ""
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "bio",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "consecutivePaymentFailures",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "lastPaymentFailureAt",
+     "type": "DateTime",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "sessions",
+     "type": "UserSession[]",
+     "attrs": ""
+    },
+    {
+     "name": "loginHistory",
+     "type": "LoginHistory[]",
+     "attrs": ""
+    },
+    {
+     "name": "mfaConfig",
+     "type": "MfaConfig",
+     "attrs": "?"
+    },
+    {
+     "name": "subscriptions",
+     "type": "Subscription[]",
+     "attrs": ""
+    },
+    {
+     "name": "creditsLedger",
+     "type": "CreditsLedger[]",
+     "attrs": ""
+    },
+    {
+     "name": "creditAddons",
+     "type": "CreditAddon[]",
+     "attrs": ""
+    },
+    {
+     "name": "paymentOrders",
+     "type": "PaymentOrder[]",
+     "attrs": ""
+    },
+    {
+     "name": "emailAccounts",
+     "type": "EmailAccount[]",
+     "attrs": ""
+    },
+    {
+     "name": "outreachSequences",
+     "type": "OutreachSequence[]",
+     "attrs": ""
+    },
+    {
+     "name": "workflowDefinitions",
+     "type": "WorkflowDefinition[]",
+     "attrs": ""
+    },
+    {
+     "name": "competitorAnalyses",
+     "type": "CompetitorAnalysis[]",
+     "attrs": ""
+    },
+    {
+     "name": "aiChatSessions",
+     "type": "AiChatSession[]",
+     "attrs": ""
+    },
+    {
+     "name": "settings",
+     "type": "UserSettings",
+     "attrs": "?"
+    },
+    {
+     "name": "auditLogs",
+     "type": "AuditLog[]",
+     "attrs": ""
+    },
+    {
+     "name": "notifications",
+     "type": "Notification[]",
+     "attrs": ""
+    },
+    {
+     "name": "notificationPrefs",
+     "type": "NotificationPreferences",
+     "attrs": "?"
+    },
+    {
+     "name": "apiKeys",
+     "type": "ApiKey[]",
+     "attrs": ""
+    },
+    {
+     "name": "gdprRequests",
+     "type": "GdprRequest[]",
+     "attrs": ""
+    },
+    {
+     "name": "dataExports",
+     "type": "DataExport[]",
+     "attrs": ""
+    },
+    {
+     "name": "onboardingProgress",
+     "type": "OnboardingProgress",
+     "attrs": "?"
+    },
+    {
+     "name": "organizations",
+     "type": "OrgMember[]",
+     "attrs": ""
+    },
+    {
+     "name": "orgInvitationsSent",
+     "type": "OrgInvitation[]",
+     "attrs": "@relation(\"InvitedBy\")"
+    },
+    {
+     "name": "leadNotes",
+     "type": "LeadNote[]",
+     "attrs": ""
+    },
+    {
+     "name": "emailBounces",
+     "type": "EmailBounce[]",
+     "attrs": ""
+    },
+    {
+     "name": "emailUnsubscribes",
+     "type": "EmailUnsubscribe[]",
+     "attrs": ""
+    },
+    {
+     "name": "conversationMessages",
+     "type": "ConversationMessage[]",
+     "attrs": ""
+    },
+    {
+     "name": "workflowLogs",
+     "type": "WorkflowLog[]",
+     "attrs": ""
+    },
+    {
+     "name": "apiKeyUsage",
+     "type": "ApiKeyUsage[]",
+     "attrs": ""
+    },
+    {
+     "name": "usageTracking",
+     "type": "UsageTracking[]",
+     "attrs": ""
+    },
+    {
+     "name": "discoveryJobs",
+     "type": "DiscoveryJob[]",
+     "attrs": ""
+    },
+    {
+     "name": "securityAlerts",
+     "type": "SecurityAlert[]",
+     "attrs": ""
+    },
+    {
+     "name": "knownDevices",
+     "type": "KnownDevice[]",
+     "attrs": ""
+    },
+    {
+     "name": "aiCostRecords",
+     "type": "AiCostRecord[]",
+     "attrs": ""
+    },
+    {
+     "name": "fileContexts",
+     "type": "FileContext[]",
+     "attrs": ""
+    },
+    {
+     "name": "meetings",
+     "type": "Meeting[]",
+     "attrs": ""
+    },
+    {
+     "name": "googleCalendarTokens",
+     "type": "GoogleCalendarToken[]",
+     "attrs": ""
+    },
+    {
+     "name": "calendarWatches",
+     "type": "CalendarWatch[]",
+     "attrs": ""
+    },
+    {
+     "name": "telegramConfigs",
+     "type": "TelegramConfig[]",
+     "attrs": ""
+    },
+    {
+     "name": "whatsappConfigs",
+     "type": "WhatsappConfig[]",
+     "attrs": ""
+    },
+    {
+     "name": "mediaFiles",
+     "type": "MediaFile[]",
+     "attrs": ""
+    },
+    {
+     "name": "messageBroadcasts",
+     "type": "MessageBroadcast[]",
+     "attrs": ""
+    },
+    {
+     "name": "messageTemplateApprovals",
+     "type": "MessageTemplateApproval[]",
+     "attrs": ""
+    },
+    {
+     "name": "scheduledEmails",
+     "type": "ScheduledEmail[]",
+     "attrs": ""
+    },
+    {
+     "name": "leads",
+     "type": "Lead[]",
+     "attrs": ""
+    },
+    {
+     "name": "deals",
+     "type": "Deal[]",
+     "attrs": ""
+    },
+    {
+     "name": "leadActivities",
+     "type": "LeadActivity[]",
+     "attrs": ""
+    },
+    {
+     "name": "communications",
+     "type": "Communication[]",
+     "attrs": ""
+    },
+    {
+     "name": "followUpReminders",
+     "type": "FollowUpReminder[]",
+     "attrs": ""
+    },
+    {
+     "name": "outreachMessages",
+     "type": "OutreachMessage[]",
+     "attrs": ""
+    },
+    {
+     "name": "invoices",
+     "type": "Invoice[]",
+     "attrs": ""
+    },
+    {
+     "name": "meetingReminders",
+     "type": "MeetingReminder[]",
+     "attrs": ""
+    },
+    {
+     "name": "messageDeliveries",
+     "type": "MessageDelivery[]",
+     "attrs": ""
+    },
+    {
+     "name": "deliveryDeadLetters",
+     "type": "DeliveryDeadLetter[]",
+     "attrs": ""
+    },
+    {
+     "name": "wsConnections",
+     "type": "WsConnection[]",
+     "attrs": ""
+    },
+    {
+     "name": "sseConnections",
+     "type": "SseConnection[]",
+     "attrs": ""
+    },
+    {
+     "name": "realtimeEvents",
+     "type": "RealtimeEvent[]",
+     "attrs": ""
+    },
+    {
+     "name": "competitorData",
+     "type": "CompetitorData[]",
+     "attrs": ""
+    },
+    {
+     "name": "promptTemplates",
+     "type": "PromptTemplate[]",
+     "attrs": ""
+    },
+    {
+     "name": "feedbackReports",
+     "type": "FeedbackReport[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([email])",
+    "@@index([googleId])",
+    "@@index([plan])",
+    "@@index([orgId])",
+    "@@index([isActive])"
+   ]
+  },
+  {
+   "name": "UserSession",
+   "line": 199,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "refreshToken",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "deviceInfo",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "isRevoked",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([refreshToken])",
+    "@@index([expiresAt])"
+   ]
+  },
+  {
+   "name": "LoginHistory",
+   "line": 219,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "ip",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "city",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "success",
+     "type": "Boolean",
+     "attrs": ""
+    },
+    {
+     "name": "failReason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([createdAt])",
+    "@@index([success])"
+   ]
+  },
+  {
+   "name": "MfaConfig",
+   "line": 238,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "secret",
+     "type": "String",
+     "attrs": "",
+     "comment": "Encrypted TOTP secret"
+    },
+    {
+     "name": "backupCodes",
+     "type": "String",
+     "attrs": "",
+     "comment": "JSON array of hashed backup codes"
+    },
+    {
+     "name": "isEnabled",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "verifiedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": []
+  },
+  {
+   "name": "Organization",
+   "line": 258,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "logo",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "customDomain",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "branding",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { primaryColor, accentColor, hideBranding }"
+    },
+    {
+     "name": "ownerId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "meetingIntentLogs",
+     "type": "MeetingIntentLog[]",
+     "attrs": ""
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "members",
+     "type": "OrgMember[]",
+     "attrs": ""
+    },
+    {
+     "name": "invitations",
+     "type": "OrgInvitation[]",
+     "attrs": ""
+    },
+    {
+     "name": "pipelineCustomStages",
+     "type": "PipelineCustomStage[]",
+     "attrs": ""
+    },
+    {
+     "name": "leads",
+     "type": "Lead[]",
+     "attrs": ""
+    },
+    {
+     "name": "deals",
+     "type": "Deal[]",
+     "attrs": ""
+    },
+    {
+     "name": "communications",
+     "type": "Communication[]",
+     "attrs": ""
+    },
+    {
+     "name": "leadActivities",
+     "type": "LeadActivity[]",
+     "attrs": ""
+    },
+    {
+     "name": "followUpReminders",
+     "type": "FollowUpReminder[]",
+     "attrs": ""
+    },
+    {
+     "name": "outreachSequences",
+     "type": "OutreachSequence[]",
+     "attrs": ""
+    },
+    {
+     "name": "conversations",
+     "type": "Conversation[]",
+     "attrs": ""
+    },
+    {
+     "name": "conversationMessages",
+     "type": "ConversationMessage[]",
+     "attrs": ""
+    },
+    {
+     "name": "competitorAnalyses",
+     "type": "CompetitorAnalysis[]",
+     "attrs": ""
+    },
+    {
+     "name": "meetings",
+     "type": "Meeting[]",
+     "attrs": ""
+    },
+    {
+     "name": "discoveryJobs",
+     "type": "DiscoveryJob[]",
+     "attrs": ""
+    },
+    {
+     "name": "pipelineStages",
+     "type": "PipelineStage[]",
+     "attrs": ""
+    },
+    {
+     "name": "workflowDefinitions",
+     "type": "WorkflowDefinition[]",
+     "attrs": ""
+    },
+    {
+     "name": "realtimeEvents",
+     "type": "RealtimeEvent[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([ownerId])",
+    "@@index([customDomain])"
+   ]
+  },
+  {
+   "name": "OrgMember",
+   "line": 292,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "role",
+     "type": "String",
+     "attrs": "@default(\"member\")",
+     "comment": "owner, admin, member, viewer"
+    },
+    {
+     "name": "joinedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "@relation(fields: [orgId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@unique([orgId, userId])",
+    "@@index([orgId])",
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "OrgInvitation",
+   "line": 308,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "email",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "role",
+     "type": "String",
+     "attrs": "@default(\"member\")"
+    },
+    {
+     "name": "token",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "invitedBy",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "acceptedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "@relation(fields: [orgId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "inviter",
+     "type": "User",
+     "attrs": "@relation(\"InvitedBy\", fields: [invitedBy], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([orgId])",
+    "@@index([token])",
+    "@@index([email])"
+   ]
+  },
+  {
+   "name": "Subscription",
+   "line": 336,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "plan",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"trialing\")",
+     "comment": "trialing, active, past_due, canceled, expired"
+    },
+    {
+     "name": "stripeCustomerId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "stripeSubscriptionId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "razorpaySubscriptionId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "currentPeriodStart",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "currentPeriodEnd",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "cancelAtPeriodEnd",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "scheduledPlanChange",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isTrial",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "trialEndsAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "billingCycle",
+     "type": "String",
+     "attrs": "@default(\"monthly\")",
+     "comment": "monthly, yearly"
+    },
+    {
+     "name": "creditsTotal",
+     "type": "Int",
+     "attrs": "@default(50)"
+    },
+    {
+     "name": "creditsUsed",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "creditsRemaining",
+     "type": "Int",
+     "attrs": "@default(50)"
+    },
+    {
+     "name": "creditsResetAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([stripeCustomerId])",
+    "@@index([razorpaySubscriptionId])",
+    "@@index([stripeSubscriptionId])"
+   ]
+  },
+  {
+   "name": "CreditsLedger",
+   "line": 368,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "action",
+     "type": "String",
+     "attrs": "",
+     "comment": "lead_discovery, deep_analysis, outreach_generation, etc."
+    },
+    {
+     "name": "credits",
+     "type": "Int",
+     "attrs": "",
+     "comment": "positive for add, negative for deduct"
+    },
+    {
+     "name": "balance",
+     "type": "Int",
+     "attrs": "",
+     "comment": "balance after transaction"
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "referenceId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "ID of related entity (lead, deal, etc.)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([action])",
+    "@@index([createdAt])",
+    "@@index([referenceId])"
+   ]
+  },
+  {
+   "name": "CreditAddon",
+   "line": 387,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "credits",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "pricePaid",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "currency",
+     "type": "String",
+     "attrs": "@default(\"USD\")"
+    },
+    {
+     "name": "paymentOrderId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": "?",
+     "comment": "null = never expires"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([expiresAt])"
+   ]
+  },
+  {
+   "name": "PaymentOrder",
+   "line": 404,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "provider",
+     "type": "String",
+     "attrs": "@default(\"razorpay\")",
+     "comment": "razorpay, stripe"
+    },
+    {
+     "name": "providerOrderId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "providerPaymentId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "amount",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "currency",
+     "type": "String",
+     "attrs": "@default(\"USD\")"
+    },
+    {
+     "name": "plan",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "billingCycle",
+     "type": "String",
+     "attrs": "@default(\"monthly\")",
+     "comment": "monthly, yearly"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, completed, failed, refunded"
+    },
+    {
+     "name": "couponCode",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "discountAmount",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "subtotal",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "taxRate",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "taxAmount",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "gstNumber",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isIndianUser",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "idempotencyKey",
+     "type": "String",
+     "attrs": "? @unique"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "webhooks",
+     "type": "PaymentWebhook[]",
+     "attrs": ""
+    },
+    {
+     "name": "invoice",
+     "type": "Invoice",
+     "attrs": "?"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([providerOrderId])",
+    "@@index([providerPaymentId])",
+    "@@index([status])",
+    "@@index([idempotencyKey])"
+   ]
+  },
+  {
+   "name": "PaymentWebhook",
+   "line": 438,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "paymentOrderId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "provider",
+     "type": "String",
+     "attrs": "",
+     "comment": "razorpay, stripe"
+    },
+    {
+     "name": "eventId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "eventType",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "payload",
+     "type": "String",
+     "attrs": "",
+     "comment": "JSON"
+    },
+    {
+     "name": "signature",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "processed",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "processingError",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "receivedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "processedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "paymentOrder",
+     "type": "PaymentOrder",
+     "attrs": "? @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([eventId])",
+    "@@index([provider])",
+    "@@index([processed])"
+   ]
+  },
+  {
+   "name": "Invoice",
+   "line": 459,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "paymentOrderId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "invoiceNumber",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "subtotal",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "taxRate",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "taxAmount",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "total",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "currency",
+     "type": "String",
+     "attrs": "@default(\"USD\")"
+    },
+    {
+     "name": "gstNumber",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "taxExempt",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "pdfUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "htmlContent",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Pre-rendered HTML invoice for display/PDF generation"
+    },
+    {
+     "name": "lineItems",
+     "type": "String",
+     "attrs": "",
+     "comment": "JSON"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "paymentOrder",
+     "type": "PaymentOrder",
+     "attrs": "@relation(fields: [paymentOrderId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([invoiceNumber])"
+   ]
+  },
+  {
+   "name": "Coupon",
+   "line": 485,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "code",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "discountType",
+     "type": "String",
+     "attrs": "",
+     "comment": "percent, fixed"
+    },
+    {
+     "name": "discountValue",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "maxUses",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "usedCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "applicablePlans",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array"
+    },
+    {
+     "name": "active",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([code])",
+    "@@index([active])"
+   ]
+  },
+  {
+   "name": "TaxRate",
+   "line": 503,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "region",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "rate",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": "",
+     "comment": "e.g., \"GST\", \"VAT\""
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@unique([country, region])"
+   ]
+  },
+  {
+   "name": "UsageTracking",
+   "line": 517,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "feature",
+     "type": "String",
+     "attrs": "",
+     "comment": "e.g., lead_discovery, deep_analysis, etc."
+    },
+    {
+     "name": "action",
+     "type": "String",
+     "attrs": "",
+     "comment": "specific action taken"
+    },
+    {
+     "name": "count",
+     "type": "Int",
+     "attrs": "@default(1)"
+    },
+    {
+     "name": "periodStart",
+     "type": "DateTime",
+     "attrs": "",
+     "comment": "billing period start"
+    },
+    {
+     "name": "periodEnd",
+     "type": "DateTime",
+     "attrs": "",
+     "comment": "billing period end"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@unique([userId, feature, periodStart])",
+    "@@index([userId])",
+    "@@index([feature])",
+    "@@index([periodStart])",
+    "@@index([periodEnd])"
+   ]
+  },
+  {
+   "name": "FeatureFlag",
+   "line": 542,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "key",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "enabled",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "plans",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array of allowed plans"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([key])",
+    "@@index([enabled])"
+   ]
+  },
+  {
+   "name": "PlanEntitlement",
+   "line": 557,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "plan",
+     "type": "String",
+     "attrs": "",
+     "comment": "free, pro, elite"
+    },
+    {
+     "name": "feature",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "limit",
+     "type": "Int",
+     "attrs": "?",
+     "comment": "null = unlimited"
+    },
+    {
+     "name": "enabled",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@unique([plan, feature])",
+    "@@index([plan])"
+   ]
+  },
+  {
+   "name": "Lead",
+   "line": 578,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "businessName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "ownerName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "website",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "email",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "phone",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "whatsapp",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "linkedin",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "instagram",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "facebook",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "googleMapsListing",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "reviews",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "rating",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "estimatedQuality",
+     "type": "String",
+     "attrs": "?       @default(\"medium\")"
+    },
+    {
+     "name": "estimatedRevenue",
+     "type": "String",
+     "attrs": "?       @default(\"medium\")"
+    },
+    {
+     "name": "city",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "niche",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "replyScore",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "conversionScore",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "urgencyScore",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "revenuePotentialScore",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "scoreReasoning",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "stage",
+     "type": "String",
+     "attrs": "@default(\"discovered\")"
+    },
+    {
+     "name": "emailStatus",
+     "type": "String",
+     "attrs": "?",
+     "comment": "none, sent, bounced, opened, replied, unsubscribed"
+    },
+    {
+     "name": "hasWebsite",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "websiteQuality",
+     "type": "String",
+     "attrs": "? @default(\"none\")"
+    },
+    {
+     "name": "digitalWeaknesses",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "opportunityNotes",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "bestContactPerson",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "bestChannel",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "bestTiming",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "outreachStyle",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "notes",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "tags",
+     "type": "String",
+     "attrs": "@default(\"[]\")"
+    },
+    {
+     "name": "followUpAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "lastContactedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "websiteScreenshotUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "techStack",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "deletedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "communications",
+     "type": "Communication[]",
+     "attrs": ""
+    },
+    {
+     "name": "deals",
+     "type": "Deal[]",
+     "attrs": ""
+    },
+    {
+     "name": "activities",
+     "type": "LeadActivity[]",
+     "attrs": ""
+    },
+    {
+     "name": "followUpReminders",
+     "type": "FollowUpReminder[]",
+     "attrs": ""
+    },
+    {
+     "name": "leadAnalysis",
+     "type": "LeadAnalysis[]",
+     "attrs": ""
+    },
+    {
+     "name": "leadScores",
+     "type": "LeadScore[]",
+     "attrs": ""
+    },
+    {
+     "name": "leadNotes",
+     "type": "LeadNote[]",
+     "attrs": ""
+    },
+    {
+     "name": "sequenceEnrollments",
+     "type": "SequenceEnrollment[]",
+     "attrs": ""
+    },
+    {
+     "name": "outreachMessages",
+     "type": "OutreachMessage[]",
+     "attrs": ""
+    },
+    {
+     "name": "meetings",
+     "type": "Meeting[]",
+     "attrs": ""
+    },
+    {
+     "name": "conversations",
+     "type": "Conversation[]",
+     "attrs": ""
+    },
+    {
+     "name": "broadcastTargets",
+     "type": "BroadcastTarget[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([orgId])",
+    "@@index([stage])",
+    "@@index([niche])",
+    "@@index([country])",
+    "@@index([email])",
+    "@@index([replyScore])",
+    "@@index([conversionScore])",
+    "@@index([urgencyScore])",
+    "@@index([createdAt])",
+    "@@index([isActive])",
+    "@@index([businessName])",
+    "@@index([userId, stage])",
+    "@@index([userId, createdAt])"
+   ]
+  },
+  {
+   "name": "LeadAnalysis",
+   "line": 666,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "websiteQualityScore",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "digitalMaturityScore",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "weaknesses",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array of Weakness objects"
+    },
+    {
+     "name": "replyScore",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "dealConversionScore",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "urgencyScore",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "revenuePotentialScore",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "scoreExplanations",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "decisionMaker",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { likelyName, likelyRole, bestChannel, reasoning, approachStyle }"
+    },
+    {
+     "name": "recommendedServices",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "estimatedDealValueInr",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "estimatedDealValueUsd",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "outreachMessages",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { emailSubject, emailBody, whatsappMessage, linkedinMessage, instagramDm, followUpDay4, followUpDay10 }"
+    },
+    {
+     "name": "closingStrategy",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "bestContactTime",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "analysisVersion",
+     "type": "Int",
+     "attrs": "@default(1)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([replyScore])",
+    "@@index([dealConversionScore])"
+   ]
+  },
+  {
+   "name": "LeadScore",
+   "line": 696,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "scoreType",
+     "type": "String",
+     "attrs": "",
+     "comment": "reply, conversion, urgency, revenue_potential, website_quality, digital_maturity"
+    },
+    {
+     "name": "score",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "explanation",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "modelVersion",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "scoredAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([scoreType])",
+    "@@index([scoredAt])"
+   ]
+  },
+  {
+   "name": "LeadNote",
+   "line": 714,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "pinned",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([userId])",
+    "@@index([pinned])"
+   ]
+  },
+  {
+   "name": "PipelineStage",
+   "line": 736,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "order",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "color",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isDefault",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "null = global default stage"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([order])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "PipelineCustomStage",
+   "line": 753,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "order",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "color",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "@relation(fields: [orgId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([orgId])",
+    "@@index([order])"
+   ]
+  },
+  {
+   "name": "OutreachMessage",
+   "line": 775,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "",
+     "comment": "email, whatsapp, linkedin, instagram"
+    },
+    {
+     "name": "direction",
+     "type": "String",
+     "attrs": "@default(\"outbound\")"
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"draft\")",
+     "comment": "draft, sent, delivered, opened, replied, bounced, failed"
+    },
+    {
+     "name": "sentAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "openedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "repliedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "bouncedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "generatedByAI",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "sequenceStepId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "null = manual/outreach, set = from sequence"
+    },
+    {
+     "name": "trackingPixelId",
+     "type": "String",
+     "attrs": "?   @unique"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON for additional data"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "sequenceStep",
+     "type": "SequenceStep",
+     "attrs": "? @relation(fields: [sequenceStepId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([userId])",
+    "@@index([channel])",
+    "@@index([status])",
+    "@@index([sentAt])",
+    "@@index([trackingPixelId])",
+    "@@index([userId, status])",
+    "@@index([sequenceStepId])"
+   ]
+  },
+  {
+   "name": "OutreachSequence",
+   "line": 810,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"draft\")",
+     "comment": "draft, active, paused, completed"
+    },
+    {
+     "name": "steps",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array of step definitions"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "@default(\"email\")"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "enrollments",
+     "type": "SequenceEnrollment[]",
+     "attrs": ""
+    },
+    {
+     "name": "sequenceSteps",
+     "type": "SequenceStep[]",
+     "attrs": ""
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "SequenceStep",
+   "line": 834,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "sequenceId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "order",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "",
+     "comment": "email, whatsapp, linkedin, instagram"
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "template",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "delayDays",
+     "type": "Int",
+     "attrs": "@default(1)"
+    },
+    {
+     "name": "delayHours",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "sequence",
+     "type": "OutreachSequence",
+     "attrs": "@relation(fields: [sequenceId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "outreachMessages",
+     "type": "OutreachMessage[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([sequenceId])",
+    "@@index([order])"
+   ]
+  },
+  {
+   "name": "SequenceEnrollment",
+   "line": 855,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "sequenceId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "currentStep",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "nextSendAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"active\")",
+     "comment": "active, paused, completed, opted_out"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "sequence",
+     "type": "OutreachSequence",
+     "attrs": "@relation(fields: [sequenceId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([sequenceId])",
+    "@@index([leadId])",
+    "@@index([status])",
+    "@@index([nextSendAt])"
+   ]
+  },
+  {
+   "name": "EmailAccount",
+   "line": 881,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "gmailEmail",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "accessToken",
+     "type": "String",
+     "attrs": "",
+     "comment": "Encrypted at rest"
+    },
+    {
+     "name": "refreshToken",
+     "type": "String",
+     "attrs": "",
+     "comment": "Encrypted at rest"
+    },
+    {
+     "name": "tokenExpiry",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "consentGiven",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "consentGivenAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"active\")",
+     "comment": "active, revoked, expired"
+    },
+    {
+     "name": "mode",
+     "type": "String",
+     "attrs": "@default(\"manual\")",
+     "comment": "manual, auto"
+    },
+    {
+     "name": "lastPollAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "pubSubConfigured",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "labelId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Gmail label ID for \"AcquisitionOS\""
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "threads",
+     "type": "EmailThread[]",
+     "attrs": ""
+    },
+    {
+     "name": "scheduledEmails",
+     "type": "ScheduledEmail[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@unique([gmailEmail, userId])",
+    "@@index([userId])",
+    "@@index([gmailEmail])",
+    "@@index([status])"
+   ]
+  },
+  {
+   "name": "EmailThread",
+   "line": 909,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "emailAccountId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "gmailThreadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "lastMessageAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "messageCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "isRead",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "emailAccount",
+     "type": "EmailAccount",
+     "attrs": "@relation(fields: [emailAccountId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "messages",
+     "type": "EmailMessage[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([emailAccountId])",
+    "@@index([gmailThreadId])",
+    "@@index([leadId])",
+    "@@index([lastMessageAt])"
+   ]
+  },
+  {
+   "name": "EmailMessage",
+   "line": 931,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "threadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "gmailMessageId",
+     "type": "String",
+     "attrs": "?   @unique"
+    },
+    {
+     "name": "fromEmail",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "toEmail",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "bodyPlain",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "bodyHtml",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "direction",
+     "type": "String",
+     "attrs": "@default(\"inbound\")",
+     "comment": "inbound, outbound"
+    },
+    {
+     "name": "isRead",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "openedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "labels",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array of Gmail labels"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "thread",
+     "type": "EmailThread",
+     "attrs": "@relation(fields: [threadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([threadId])",
+    "@@index([gmailMessageId])",
+    "@@index([fromEmail])",
+    "@@index([leadId])",
+    "@@index([direction])"
+   ]
+  },
+  {
+   "name": "EmailBounce",
+   "line": 957,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "email",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "bounceType",
+     "type": "String",
+     "attrs": "?",
+     "comment": "hard, soft"
+    },
+    {
+     "name": "bounceReason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "messageId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([email])",
+    "@@index([leadId])"
+   ]
+  },
+  {
+   "name": "EmailUnsubscribe",
+   "line": 975,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "email",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "token",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "reason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "? @relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@unique([email])",
+    "@@index([email])",
+    "@@index([token])",
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "Conversation",
+   "line": 1000,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "",
+     "comment": "email, whatsapp, telegram, linkedin, instagram"
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"active\")",
+     "comment": "active, closed, archived"
+    },
+    {
+     "name": "lastMessageAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "?         @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "messages",
+     "type": "ConversationMessage[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([channel])",
+    "@@index([status])",
+    "@@index([lastMessageAt])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "ConversationMessage",
+   "line": 1024,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "conversationId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "senderType",
+     "type": "String",
+     "attrs": "",
+     "comment": "user, lead, ai"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "direction",
+     "type": "String",
+     "attrs": "@default(\"inbound\")"
+    },
+    {
+     "name": "intent",
+     "type": "String",
+     "attrs": "?",
+     "comment": "positive, neutral, negative, objection"
+    },
+    {
+     "name": "buyingSignals",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "hesitationReasons",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "aiGenerated",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "conversation",
+     "type": "Conversation",
+     "attrs": "@relation(fields: [conversationId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([conversationId])",
+    "@@index([userId])",
+    "@@index([senderType])",
+    "@@index([createdAt])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "TelegramConfig",
+   "line": 1057,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "chatId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "username",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "isPaused",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "linkCode",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "linkCodeExpiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "webhookSecret",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "lastWebhookAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "botToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "healthStatus",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "mode",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "webhookUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "reconnectAttempts",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "botId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "webhookVerified",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "lastHealthCheckAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "metaVerifyToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "twilioAuthToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "twilioPhoneNumber",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([chatId])",
+    "@@index([linkCode])"
+   ]
+  },
+  {
+   "name": "WhatsappConfig",
+   "line": 1090,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "phoneNumber",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "provider",
+     "type": "String",
+     "attrs": "?",
+     "comment": "twilio, meta"
+    },
+    {
+     "name": "isConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "isPaused",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "verificationOtp",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "otpExpiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "monthlyQuota",
+     "type": "Int",
+     "attrs": "@default(100)"
+    },
+    {
+     "name": "monthlyUsed",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "quotaResetAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "metaVerifyToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metaWebhookVerified",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "metaPhoneNumberId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metaWabaId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "twilioAccountSid",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "lastTemplateSyncAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "metaAccessToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "healthStatus",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "reconnectAttempts",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "lastWebhookAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "twilioAuthToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "twilioPhoneNumber",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "lastHealthCheckAt",
+     "type": "DateTime",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([phoneNumber])"
+   ]
+  },
+  {
+   "name": "Notification",
+   "line": 1131,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "",
+     "comment": "email_reply, deal_won, credit_low, payment_success, etc."
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "message",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "read",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "actionUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "deliveredVia",
+     "type": "String",
+     "attrs": "?",
+     "comment": "in_app, telegram, whatsapp, email"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([read])",
+    "@@index([type])",
+    "@@index([createdAt])",
+    "@@index([userId, read])",
+    "@@index([userId, createdAt])"
+   ]
+  },
+  {
+   "name": "NotificationPreferences",
+   "line": 1154,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "inAppEnabled",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "emailEnabled",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "telegramEnabled",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "whatsappEnabled",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "dndStartTime",
+     "type": "String",
+     "attrs": "?",
+     "comment": "\"22:00\""
+    },
+    {
+     "name": "dndEndTime",
+     "type": "String",
+     "attrs": "?",
+     "comment": "\"07:00\""
+    },
+    {
+     "name": "dndTimezone",
+     "type": "String",
+     "attrs": "?",
+     "comment": "\"Asia/Kolkata\""
+    },
+    {
+     "name": "typePreferences",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { email_reply: { inApp: true, telegram: true }, ... }"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "pushEnabled",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "pushSubscriptions",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "AiChatSession",
+   "line": 1182,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "salesCoachMode",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "currentPage",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "leadContext",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "messages",
+     "type": "AiChatMessage[]",
+     "attrs": ""
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([isActive])"
+   ]
+  },
+  {
+   "name": "AiChatMessage",
+   "line": 1202,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "sessionId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "role",
+     "type": "String",
+     "attrs": "",
+     "comment": "user, assistant, system"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { intent, buyingSignals, hesitationFactors, recommendedResponse, closingStrategy }"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "session",
+     "type": "AiChatSession",
+     "attrs": "@relation(fields: [sessionId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([sessionId])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "WorkflowDefinition",
+   "line": 1223,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"draft\")",
+     "comment": "draft, active, paused, archived"
+    },
+    {
+     "name": "triggerType",
+     "type": "String",
+     "attrs": "",
+     "comment": "lead_stage_change, lead_reply, score_change, manual, scheduled, payment_received"
+    },
+    {
+     "name": "triggerConfig",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { stage: \"replied\", scoreThreshold: 80, schedule: \"daily\", ... }"
+    },
+    {
+     "name": "nodes",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array of workflow node definitions"
+    },
+    {
+     "name": "edges",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array of edge connections"
+    },
+    {
+     "name": "version",
+     "type": "Int",
+     "attrs": "@default(1)"
+    },
+    {
+     "name": "isTemplate",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "templateCategory",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "runCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "successCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "failureCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "avgRuntimeMs",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "lastRunAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "webhookPath",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "maxRetries",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "maxConcurrency",
+     "type": "Int",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "executions",
+     "type": "WorkflowExecution[]",
+     "attrs": ""
+    },
+    {
+     "name": "workflowSteps",
+     "type": "WorkflowStep[]",
+     "attrs": ""
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([triggerType])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "WorkflowStep",
+   "line": 1261,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "workflowId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "",
+     "comment": "action, condition, delay, ai_action"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "config",
+     "type": "String",
+     "attrs": "",
+     "comment": "JSON: step-specific configuration"
+    },
+    {
+     "name": "order",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "nextStepId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "For linear workflows"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "workflow",
+     "type": "WorkflowDefinition",
+     "attrs": "@relation(fields: [workflowId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([workflowId])",
+    "@@index([order])"
+   ]
+  },
+  {
+   "name": "WorkflowExecution",
+   "line": 1279,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "workflowId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"running\")",
+     "comment": "running, completed, failed, cancelled, paused"
+    },
+    {
+     "name": "triggerData",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: data that triggered this execution"
+    },
+    {
+     "name": "logs",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array of execution logs"
+    },
+    {
+     "name": "currentStep",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "totalSteps",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "startedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "completedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "error",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "retryCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "maxRetries",
+     "type": "Int",
+     "attrs": "@default(3)"
+    },
+    {
+     "name": "timeoutMs",
+     "type": "Int",
+     "attrs": "@default(300000)"
+    },
+    {
+     "name": "idempotencyKey",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "pausedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "resumedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "triggerEvent",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: the event that triggered this execution"
+    },
+    {
+     "name": "deadLettered",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "deadLetterReason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "durationMs",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "isDeadLetter",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "lastRetryAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "workflow",
+     "type": "WorkflowDefinition",
+     "attrs": "@relation(fields: [workflowId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "stepLogs",
+     "type": "WorkflowLog[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([workflowId])",
+    "@@index([status])",
+    "@@index([startedAt])",
+    "@@index([idempotencyKey])",
+    "@@index([deadLettered])"
+   ]
+  },
+  {
+   "name": "WorkflowLog",
+   "line": 1316,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "executionId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "stepName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "stepType",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "",
+     "comment": "success, failed, skipped"
+    },
+    {
+     "name": "input",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "output",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "error",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "durationMs",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "retryAttempt",
+     "type": "Int",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "execution",
+     "type": "WorkflowExecution",
+     "attrs": "@relation(fields: [executionId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?             @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([executionId])",
+    "@@index([status])"
+   ]
+  },
+  {
+   "name": "WorkflowTemplate",
+   "line": 1338,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "",
+     "comment": "nurture, follow_up, alert, onboarding, enrichment, outreach"
+    },
+    {
+     "name": "triggerType",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "triggerConfig",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "nodes",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON"
+    },
+    {
+     "name": "edges",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON"
+    },
+    {
+     "name": "isPremium",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "usageCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([category])"
+   ]
+  },
+  {
+   "name": "CompetitorData",
+   "line": 1359,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "competitorName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "competitorUrl",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "websiteHtml",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Raw HTML stored for analysis"
+    },
+    {
+     "name": "screenshotUrl",
+     "type": "String",
+     "attrs": "?",
+     "comment": "S3 URL"
+    },
+    {
+     "name": "lastScrapedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "techStackData",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "pageSpeedScore",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "seoMetadata",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "socialProfiles",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "? @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([competitorUrl])",
+    "@@index([lastScrapedAt])"
+   ]
+  },
+  {
+   "name": "CompetitorAnalysis",
+   "line": 1383,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "competitorName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "competitorUrl",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "techStack",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "seoScore",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "socialScore",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "strengths",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "weaknesses",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "opportunities",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "threats",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "threatLevel",
+     "type": "String",
+     "attrs": "?",
+     "comment": "low, medium, high"
+    },
+    {
+     "name": "pricingModel",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "estimatedTrafficTier",
+     "type": "String",
+     "attrs": "?",
+     "comment": "low, medium, high"
+    },
+    {
+     "name": "differentiationOpportunities",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON array"
+    },
+    {
+     "name": "analysisData",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Full JSON analysis result"
+    },
+    {
+     "name": "competitorDataId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "opportunityScore",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "pricingDetails",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "socialProfiles",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "reviewsData",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "pageSpeedData",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "aiComparisonData",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "lighthouseData",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([leadId])",
+    "@@index([competitorUrl])",
+    "@@index([threatLevel])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "AuditLog",
+   "line": 1428,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "action",
+     "type": "String",
+     "attrs": "",
+     "comment": "login, logout, plan_change, gmail_connect, email_sent, etc."
+    },
+    {
+     "name": "details",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "resource",
+     "type": "String",
+     "attrs": "?",
+     "comment": "lead, deal, user, etc."
+    },
+    {
+     "name": "resourceId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "ID of the affected resource"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([action])",
+    "@@index([resource])",
+    "@@index([createdAt])",
+    "@@index([userId, createdAt])"
+   ]
+  },
+  {
+   "name": "SystemEvent",
+   "line": 1450,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "",
+     "comment": "error, warning, info, critical"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "",
+     "comment": "backend, celery, websocket, etc."
+    },
+    {
+     "name": "message",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "details",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON"
+    },
+    {
+     "name": "resolved",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "resolvedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([type])",
+    "@@index([source])",
+    "@@index([resolved])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "ApiKey",
+   "line": 1471,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Organization ID for team keys"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "keyPrefix",
+     "type": "String",
+     "attrs": "",
+     "comment": "First 8 chars for identification (e.g. aq_live_)"
+    },
+    {
+     "name": "keyHash",
+     "type": "String",
+     "attrs": "",
+     "comment": "SHA-256 hash of the full key \u2014 NEVER store plaintext"
+    },
+    {
+     "name": "environment",
+     "type": "String",
+     "attrs": "@default(\"live\")",
+     "comment": "\"live\" or \"test\""
+    },
+    {
+     "name": "scopes",
+     "type": "String",
+     "attrs": "@default(\"leads.read,leads.write\")",
+     "comment": "Comma-separated: leads.read,leads.write,workflows.read,etc."
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"active\")",
+     "comment": "active, disabled, revoked, expired"
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "lastUsedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "revokedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "rateLimitPerHour",
+     "type": "Int",
+     "attrs": "@default(1000)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "usage",
+     "type": "ApiKeyUsage[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([keyPrefix])",
+    "@@index([keyHash])",
+    "@@index([isActive])",
+    "@@index([status])",
+    "@@index([environment])"
+   ]
+  },
+  {
+   "name": "ApiKeyUsage",
+   "line": 1501,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "apiKeyId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "endpoint",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "method",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "statusCode",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "responseTime",
+     "type": "Int",
+     "attrs": "?",
+     "comment": "ms"
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "apiKey",
+     "type": "ApiKey",
+     "attrs": "@relation(fields: [apiKeyId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([apiKeyId])",
+    "@@index([userId])",
+    "@@index([endpoint])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "GdprRequest",
+   "line": 1526,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "requestType",
+     "type": "String",
+     "attrs": "",
+     "comment": "access, deletion, portability, rectification"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, processing, completed, failed"
+    },
+    {
+     "name": "completedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "downloadUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "notes",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([requestType])",
+    "@@index([status])"
+   ]
+  },
+  {
+   "name": "DataExport",
+   "line": 1545,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "exportType",
+     "type": "String",
+     "attrs": "",
+     "comment": "leads_csv, leads_pdf, deals_csv, full_json"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, processing, completed, failed"
+    },
+    {
+     "name": "fileUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "fileSize",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "recordCount",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "error",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "completedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([exportType])"
+   ]
+  },
+  {
+   "name": "OnboardingProgress",
+   "line": 1570,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "currentStep",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "completed",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "profileCompleted",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "nichesSelected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "countriesSelected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "channelsSelected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "toolsConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "firstLeadAdded",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "firstAnalysisRun",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "bonusCreditsAwarded",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([completed])"
+   ]
+  },
+  {
+   "name": "Communication",
+   "line": 1597,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "@default(\"email\")"
+    },
+    {
+     "name": "direction",
+     "type": "String",
+     "attrs": "@default(\"outbound\")"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "messageGeneratedByAI",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "responseSummary",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "intent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "buyingSignals",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "hesitationReasons",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([channel])",
+    "@@index([userId])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "Deal",
+   "line": 1625,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"draft\")"
+    },
+    {
+     "name": "projectType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "projectScope",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "proposedPrice",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "finalPrice",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "currency",
+     "type": "String",
+     "attrs": "@default(\"USD\")"
+    },
+    {
+     "name": "implementationTimeline",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "maintenancePlan",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "proposalContent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "notes",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "meetings",
+     "type": "Meeting[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([status])",
+    "@@index([userId])",
+    "@@index([userId, status])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "LeadActivity",
+   "line": 1658,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([type])",
+    "@@index([userId])",
+    "@@index([userId, type])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "FollowUpReminder",
+   "line": 1681,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "message",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "dueAt",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "completed",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([leadId])",
+    "@@index([completed])",
+    "@@index([dueAt])",
+    "@@index([userId])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "Insight",
+   "line": 1704,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "data",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": []
+  },
+  {
+   "name": "UserSettings",
+   "line": 1714,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "telegramChatId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "telegramConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "whatsappNumber",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "whatsappConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "whatsappProvider",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "notificationPreferences",
+     "type": "String",
+     "attrs": "@default(\"{}\")"
+    },
+    {
+     "name": "dndStartTime",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "dndEndTime",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "onboardingCompleted",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "onboardingStep",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "targetNiches",
+     "type": "String",
+     "attrs": "@default(\"[]\")"
+    },
+    {
+     "name": "targetCountries",
+     "type": "String",
+     "attrs": "@default(\"[]\")"
+    },
+    {
+     "name": "targetChannels",
+     "type": "String",
+     "attrs": "@default(\"[]\")"
+    },
+    {
+     "name": "companyName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "reminderCheckInterval",
+     "type": "Int",
+     "attrs": "@default(60)"
+    },
+    {
+     "name": "gmailConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "gmailEmail",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "googleCalendarConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "meetingPlatform",
+     "type": "String",
+     "attrs": "@default(\"google_meet\")",
+     "comment": "google_meet, zoom, teams, custom"
+    },
+    {
+     "name": "meetingDurationDefault",
+     "type": "Int",
+     "attrs": "@default(30)",
+     "comment": "minutes"
+    },
+    {
+     "name": "meetingBufferMinutes",
+     "type": "Int",
+     "attrs": "@default(15)",
+     "comment": "buffer between meetings"
+    },
+    {
+     "name": "meetingWorkingHoursStart",
+     "type": "String",
+     "attrs": "@default(\"09:00\")"
+    },
+    {
+     "name": "meetingWorkingHoursEnd",
+     "type": "String",
+     "attrs": "@default(\"18:00\")"
+    },
+    {
+     "name": "meetingWorkingDays",
+     "type": "String",
+     "attrs": "@default(\"[1,2,3,4,5]\")",
+     "comment": "Mon-Fri"
+    },
+    {
+     "name": "meetingTimezone",
+     "type": "String",
+     "attrs": "@default(\"UTC\")"
+    },
+    {
+     "name": "meetingAutoSchedule",
+     "type": "Boolean",
+     "attrs": "@default(false)",
+     "comment": "approval mode by default"
+    },
+    {
+     "name": "meetingAutonomyMode",
+     "type": "String",
+     "attrs": "@default(\"approval\")",
+     "comment": "approval, assisted, autonomous"
+    },
+    {
+     "name": "meetingRemindersEnabled",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "meetingReminderMinutes",
+     "type": "String",
+     "attrs": "@default(\"[10,60]\")",
+     "comment": "JSON array of minutes before meeting"
+    },
+    {
+     "name": "meetingEmailConfirmation",
+     "type": "Boolean",
+     "attrs": "@default(true)",
+     "comment": "Send confirmation email to client"
+    },
+    {
+     "name": "meetingEmailReminder",
+     "type": "Boolean",
+     "attrs": "@default(true)",
+     "comment": "Send reminder emails"
+    },
+    {
+     "name": "calendarSyncEnabled",
+     "type": "Boolean",
+     "attrs": "@default(true)",
+     "comment": "Sync meetings with Google Calendar"
+    },
+    {
+     "name": "calendarWatchEnabled",
+     "type": "Boolean",
+     "attrs": "@default(false)",
+     "comment": "Google Calendar push notifications"
+    },
+    {
+     "name": "outreachAutonomyMode",
+     "type": "String",
+     "attrs": "@default(\"manual\")",
+     "comment": "manual, assisted, autonomous"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "theme",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "compactMode",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "defaultNiche",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "defaultCountry",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "timezone",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "businessDescription",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "GoogleCalendarToken",
+   "line": 1770,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "calendarEmail",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "accessToken",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "refreshToken",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "tokenExpiry",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "scope",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"active\")",
+     "comment": "active, expired, revoked"
+    },
+    {
+     "name": "lastSyncAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "isConnected",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "lastSyncedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([calendarEmail])",
+    "@@index([status])"
+   ]
+  },
+  {
+   "name": "CalendarWatch",
+   "line": 1793,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "channelId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "resourceId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "calendarEmail",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "expiration",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"active\")",
+     "comment": "active, stopped, expired"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([channelId])"
+   ]
+  },
+  {
+   "name": "Meeting",
+   "line": 1815,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "dealId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "meetingType",
+     "type": "String",
+     "attrs": "@default(\"video\")",
+     "comment": "video, phone, in-person"
+    },
+    {
+     "name": "platform",
+     "type": "String",
+     "attrs": "@default(\"google_meet\")",
+     "comment": "google_meet, zoom, teams, custom"
+    },
+    {
+     "name": "meetingUrl",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Google Meet link, Zoom link, etc."
+    },
+    {
+     "name": "calendarEventId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Google Calendar event ID"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"scheduled\")",
+     "comment": "pending_approval, scheduled, confirmed, completed, cancelled, rescheduled"
+    },
+    {
+     "name": "startDateTime",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "endDateTime",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "durationMinutes",
+     "type": "Int",
+     "attrs": "@default(30)"
+    },
+    {
+     "name": "timezone",
+     "type": "String",
+     "attrs": "@default(\"UTC\")"
+    },
+    {
+     "name": "agenda",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: agenda items"
+    },
+    {
+     "name": "attendees",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON: [{ email, name, status }]"
+    },
+    {
+     "name": "location",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Physical location for in-person"
+    },
+    {
+     "name": "conferenceData",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: Google Meet/Zoom conference data"
+    },
+    {
+     "name": "reminders",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON: [{ minutesBefore, type }]"
+    },
+    {
+     "name": "followUpActions",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: action items after meeting"
+    },
+    {
+     "name": "notes",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Post-meeting notes"
+    },
+    {
+     "name": "recordingUrl",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Meeting recording URL"
+    },
+    {
+     "name": "createdBy",
+     "type": "String",
+     "attrs": "@default(\"user\")",
+     "comment": "user, ai_suggestion, ai_auto"
+    },
+    {
+     "name": "approvalStatus",
+     "type": "String",
+     "attrs": "@default(\"approved\")",
+     "comment": "pending, approved, rejected"
+    },
+    {
+     "name": "cancellationReason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "rescheduledFrom",
+     "type": "String",
+     "attrs": "?",
+     "comment": "ID of original meeting if rescheduled"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: additional data"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "actionItems",
+     "type": "Json",
+     "attrs": "?",
+     "comment": "JSON: structured action items extracted by AI"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "?             @relation(fields: [leadId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "deal",
+     "type": "Deal",
+     "attrs": "?             @relation(fields: [dealId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "?     @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "meetingReminders",
+     "type": "MeetingReminder[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([leadId])",
+    "@@index([dealId])",
+    "@@index([status])",
+    "@@index([startDateTime])",
+    "@@index([calendarEventId])",
+    "@@index([platform])",
+    "@@index([createdBy])",
+    "@@index([userId, status])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "MeetingIntentLog",
+   "line": 1868,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "sourceType",
+     "type": "String",
+     "attrs": "",
+     "comment": "email, chat, whatsapp, telegram, manual"
+    },
+    {
+     "name": "sourceId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "message/conversation ID"
+    },
+    {
+     "name": "detectedIntent",
+     "type": "String",
+     "attrs": "",
+     "comment": "schedule_call, book_meeting, discuss, connect, available, interested"
+    },
+    {
+     "name": "confidence",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "originalText",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "suggestedAction",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { action, suggestedTimes, meetingType }"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"detected\")",
+     "comment": "detected, dismissed, actioned, expired"
+    },
+    {
+     "name": "actionedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([leadId])",
+    "@@index([status])",
+    "@@index([detectedIntent])",
+    "@@index([createdAt])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "DiscoveryJob",
+   "line": 1899,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, running, completed, failed"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "",
+     "comment": "google_maps, google_business, justdial, indiamart, yelp, yellow_pages, sulekha, linkedin, instagram, facebook, ai_search"
+    },
+    {
+     "name": "niche",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "city",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "totalFound",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "imported",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "duplicates",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "failed",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "errorMessage",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "resultData",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { leads: [...] }"
+    },
+    {
+     "name": "startedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "completedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "total",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "progress",
+     "type": "Int",
+     "attrs": "@default(0)"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([source])",
+    "@@index([orgId])"
+   ]
+  },
+  {
+   "name": "SecurityAlert",
+   "line": 1935,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "alertType",
+     "type": "String",
+     "attrs": "",
+     "comment": "suspicious_login, new_device, impossible_travel, brute_force, account_locked"
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "city",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isResolved",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "resolvedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([alertType])",
+    "@@index([isResolved])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "KnownDevice",
+   "line": 1957,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "deviceFingerprint",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "deviceName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "lastSeenAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "isTrusted",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@unique([userId, deviceFingerprint])",
+    "@@index([userId])",
+    "@@index([deviceFingerprint])",
+    "@@index([lastSeenAt])"
+   ]
+  },
+  {
+   "name": "SystemMetrics",
+   "line": 1980,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "",
+     "comment": "nextjs, fastapi, redis, celery, system"
+    },
+    {
+     "name": "metricType",
+     "type": "String",
+     "attrs": "",
+     "comment": "cpu, memory, disk, request_rate, error_rate, latency, connections, queue_length"
+    },
+    {
+     "name": "metricName",
+     "type": "String",
+     "attrs": "",
+     "comment": "specific metric name (e.g., http_requests_total, cpu_usage_percent)"
+    },
+    {
+     "name": "value",
+     "type": "Float",
+     "attrs": ""
+    },
+    {
+     "name": "unit",
+     "type": "String",
+     "attrs": "?",
+     "comment": "percent, bytes, requests, milliseconds, count"
+    },
+    {
+     "name": "labels",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: additional labels for the metric (method, path, status, etc.)"
+    },
+    {
+     "name": "hostname",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "environment",
+     "type": "String",
+     "attrs": "?",
+     "comment": "production, staging, development"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([source])",
+    "@@index([metricType])",
+    "@@index([metricName])",
+    "@@index([createdAt])",
+    "@@index([environment])"
+   ]
+  },
+  {
+   "name": "AiCostRecord",
+   "line": 2004,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "feature",
+     "type": "String",
+     "attrs": "",
+     "comment": "discovery, enrichment, chat, sales_coach, proposal, competitor, vector_search, rag"
+    },
+    {
+     "name": "model",
+     "type": "String",
+     "attrs": "",
+     "comment": "auto, gpt-4, gpt-4-turbo, gpt-3.5-turbo, claude-3, unknown"
+    },
+    {
+     "name": "inputTokens",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "outputTokens",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "costUsd",
+     "type": "Float",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "requestId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([feature])",
+    "@@index([model])",
+    "@@index([costUsd])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "PromptTemplate",
+   "line": 2029,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "version",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "@default(\"{}\")",
+     "comment": "JSON"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "? @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([name])",
+    "@@index([version])",
+    "@@index([isActive])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "FileContext",
+   "line": 2054,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "fileName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "fileType",
+     "type": "String",
+     "attrs": "",
+     "comment": "text, csv, json, markdown, pdf_text"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "chunks",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array of DocumentChunk objects"
+    },
+    {
+     "name": "embedding",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: document-level embedding vector"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([leadId])",
+    "@@index([fileType])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "ProxyEndpoint",
+   "line": 2079,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "url",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "@default(\"datacenter\")",
+     "comment": "datacenter, residential, mobile, isp"
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "successRate",
+     "type": "Float",
+     "attrs": "@default(1.0)"
+    },
+    {
+     "name": "avgLatency",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "lastUsedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "failureCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "totalRequests",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "successCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "lastError",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "rateLimitPerMinute",
+     "type": "Int",
+     "attrs": "@default(60)"
+    },
+    {
+     "name": "currentMinuteRequests",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "minuteResetAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "provider",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([isActive])",
+    "@@index([type])",
+    "@@index([successRate])",
+    "@@index([lastUsedAt])"
+   ]
+  },
+  {
+   "name": "ScrapingMetric",
+   "line": 2106,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "",
+     "comment": "ai_search, google_maps, justdial, etc."
+    },
+    {
+     "name": "totalRequests",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "successCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "failCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "avgResponseTime",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "rateLimitHits",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "date",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@unique([source, date])",
+    "@@index([source])",
+    "@@index([date])",
+    "@@index([rateLimitHits])"
+   ]
+  },
+  {
+   "name": "RealtimeEvent",
+   "line": 2129,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "",
+     "comment": "lead_events, payment_events, notification_events, message_events, workflow_events, ai_events"
+    },
+    {
+     "name": "eventType",
+     "type": "String",
+     "attrs": "",
+     "comment": "specific event type within the channel"
+    },
+    {
+     "name": "payload",
+     "type": "String",
+     "attrs": "",
+     "comment": "JSON event data"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "eventId",
+     "type": "String",
+     "attrs": "@unique",
+     "comment": "deduplication ID"
+    },
+    {
+     "name": "deliveredAt",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "?         @relation(fields: [userId], references: [id], onDelete: SetNull)"
+    },
+    {
+     "name": "organization",
+     "type": "Organization",
+     "attrs": "? @relation(fields: [orgId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([channel])",
+    "@@index([eventType])",
+    "@@index([userId])",
+    "@@index([orgId])",
+    "@@index([eventId])",
+    "@@index([deliveredAt])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "WsConnection",
+   "line": 2153,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "socketId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "rooms",
+     "type": "String",
+     "attrs": "@default(\"[]\")",
+     "comment": "JSON array of room names"
+    },
+    {
+     "name": "connectedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "lastHeartbeat",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([socketId])",
+    "@@index([lastHeartbeat])"
+   ]
+  },
+  {
+   "name": "SseConnection",
+   "line": 2168,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "",
+     "comment": "notifications, payments, messages, ai"
+    },
+    {
+     "name": "lastEventId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "connectedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "lastActivity",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([channel])",
+    "@@index([lastActivity])"
+   ]
+  },
+  {
+   "name": "MediaFile",
+   "line": 2187,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "fileName",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "fileType",
+     "type": "String",
+     "attrs": "",
+     "comment": "image, document, audio, video"
+    },
+    {
+     "name": "fileSize",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "mimeType",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "filePath",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "thumbnailPath",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { width, height, duration, originalName, etc. }"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([fileType])",
+    "@@index([mimeType])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "MessageBroadcast",
+   "line": 2209,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "",
+     "comment": "whatsapp, telegram, email"
+    },
+    {
+     "name": "audienceFilter",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { tags, stage, lastContactedBefore, minScore, country, niche, etc. }"
+    },
+    {
+     "name": "messageContent",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "templateId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"draft\")",
+     "comment": "draft, scheduled, running, paused, completed, cancelled"
+    },
+    {
+     "name": "scheduledAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "totalTargets",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "deliveredCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "readCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "respondedCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "targets",
+     "type": "BroadcastTarget[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([channel])",
+    "@@index([status])",
+    "@@index([scheduledAt])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "BroadcastTarget",
+   "line": 2238,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "broadcastId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, sent, delivered, read, responded, failed, opted_out"
+    },
+    {
+     "name": "sentAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "deliveredAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "readAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "respondedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "broadcast",
+     "type": "MessageBroadcast",
+     "attrs": "@relation(fields: [broadcastId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "lead",
+     "type": "Lead",
+     "attrs": "@relation(fields: [leadId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([broadcastId])",
+    "@@index([leadId])",
+    "@@index([status])",
+    "@@index([sentAt])"
+   ]
+  },
+  {
+   "name": "MessageTemplateApproval",
+   "line": 2260,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "",
+     "comment": "marketing, utility, authentication"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, approved, rejected, active, disabled"
+    },
+    {
+     "name": "rejectionReason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "submittedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "approvedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "version",
+     "type": "Int",
+     "attrs": "@default(1)"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: { language, variables, channel, previousVersion, etc. }"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([category])",
+    "@@index([status])",
+    "@@index([name])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "ScheduledEmail",
+   "line": 2289,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "to",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "body",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "scheduledAt",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, sending, sent, failed, cancelled"
+    },
+    {
+     "name": "emailAccountId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "trackingPixelId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "emailAccount",
+     "type": "EmailAccount",
+     "attrs": "? @relation(fields: [emailAccountId], references: [id], onDelete: SetNull)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([scheduledAt])",
+    "@@index([leadId])",
+    "@@index([emailAccountId])",
+    "@@index([trackingPixelId])"
+   ]
+  },
+  {
+   "name": "EmailOpenEvent",
+   "line": 2316,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "trackingPixelId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "city",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "openedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([trackingPixelId])",
+    "@@index([openedAt])",
+    "@@index([country])",
+    "@@index([city])"
+   ]
+  },
+  {
+   "name": "EmailClickEvent",
+   "line": 2331,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "trackingLinkId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "url",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "ipAddress",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "clickedAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([trackingLinkId])",
+    "@@index([clickedAt])",
+    "@@index([url])"
+   ]
+  },
+  {
+   "name": "EmailTrackingLink",
+   "line": 2344,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "emailMessageId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "originalUrl",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "trackingId",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "clickCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([emailMessageId])",
+    "@@index([trackingId])",
+    "@@index([originalUrl])"
+   ]
+  },
+  {
+   "name": "MeetingReminder",
+   "line": 2363,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "meetingId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "remindAt",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "@default(\"popup\")",
+     "comment": "popup, email, both"
+    },
+    {
+     "name": "minutesBefore",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "sent",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "sentAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "meeting",
+     "type": "Meeting",
+     "attrs": "@relation(fields: [meetingId], references: [id], onDelete: Cascade)"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([meetingId])",
+    "@@index([userId])",
+    "@@index([remindAt])",
+    "@@index([sent])"
+   ]
+  },
+  {
+   "name": "MessageDelivery",
+   "line": 2391,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "conversationId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "@default(\"email\")",
+     "comment": "email, telegram, whatsapp, linkedin, instagram"
+    },
+    {
+     "name": "provider",
+     "type": "String",
+     "attrs": "?",
+     "comment": "gmail, telegram_bot, meta, twilio, etc."
+    },
+    {
+     "name": "providerMessageId",
+     "type": "String",
+     "attrs": "?   @unique",
+     "comment": "External message ID from provider (dedup key)"
+    },
+    {
+     "name": "direction",
+     "type": "String",
+     "attrs": "@default(\"outbound\")",
+     "comment": "inbound, outbound"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")",
+     "comment": "pending, queued, sent, delivered, read, failed, bounced"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Message content"
+    },
+    {
+     "name": "contentMetadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: extra content info (media type, template vars, etc.)"
+    },
+    {
+     "name": "recipientId",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Recipient identifier (email, phone, chat ID)"
+    },
+    {
+     "name": "recipientName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "senderId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "templateId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "templateName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?",
+     "comment": "JSON: arbitrary metadata (workflow step, tracking, etc.)"
+    },
+    {
+     "name": "errorMessage",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Latest error message"
+    },
+    {
+     "name": "errorCategory",
+     "type": "String",
+     "attrs": "?",
+     "comment": "Categorized error: rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, unknown"
+    },
+    {
+     "name": "retryCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "maxRetries",
+     "type": "Int",
+     "attrs": "@default(3)"
+    },
+    {
+     "name": "nextRetryAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "lastRetryAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "sentAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "deliveredAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "readAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "failedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "deadLettered",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "deadLetterReason",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([conversationId])",
+    "@@index([leadId])",
+    "@@index([channel])",
+    "@@index([status])",
+    "@@index([direction])",
+    "@@index([templateName])",
+    "@@index([createdAt])",
+    "@@index([status, nextRetryAt])",
+    "@@index([deadLettered])",
+    "@@index([userId, status])"
+   ]
+  },
+  {
+   "name": "DeliveryDeadLetter",
+   "line": 2445,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "deliveryId",
+     "type": "String",
+     "attrs": "@unique",
+     "comment": "Original delivery record ID"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "recipientId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "recipientName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "errorCategory",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "failureSummary",
+     "type": "String",
+     "attrs": "",
+     "comment": "Concatenated error history"
+    },
+    {
+     "name": "retryCount",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "maxRetries",
+     "type": "Int",
+     "attrs": ""
+    },
+    {
+     "name": "originalCreatedAt",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "deadLetteredAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "resolved",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "resolvedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "resolutionNote",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([channel])",
+    "@@index([errorCategory])",
+    "@@index([resolved])",
+    "@@index([deadLetteredAt])"
+   ]
+  },
+  {
+   "name": "FeedbackReport",
+   "line": 2478,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "ticketNumber",
+     "type": "String",
+     "attrs": "@unique"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "severity",
+     "type": "String",
+     "attrs": "@default(\"medium\")"
+    },
+    {
+     "name": "priority",
+     "type": "String",
+     "attrs": "@default(\"medium\")"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"new\")"
+    },
+    {
+     "name": "assignedTo",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "pageUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "previousPageUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "browserName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "browserVersion",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "osName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "osVersion",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "screenResolution",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "timezone",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "locale",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "networkType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "appVersion",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "sessionId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "stackTrace",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "duplicateOf",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "reproSteps",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "expectedBehavior",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "actualBehavior",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "aiSeverity",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "aiModule",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "aiDuplicateScore",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "resolutionNotes",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "resolvedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [
+    {
+     "name": "navigationHistory",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "lastApiRequests",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "errorLogs",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "performanceData",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "attachments",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "tags",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "labels",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "aiClassification",
+     "type": "Json",
+     "attrs": "?"
+    },
+    {
+     "name": "user",
+     "type": "User",
+     "attrs": "@relation(fields: [userId], references: [id])"
+    },
+    {
+     "name": "comments",
+     "type": "FeedbackComment[]",
+     "attrs": ""
+    },
+    {
+     "name": "statusHistory",
+     "type": "FeedbackStatusLog[]",
+     "attrs": ""
+    }
+   ],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])",
+    "@@index([type])",
+    "@@index([severity])",
+    "@@index([priority])",
+    "@@index([assignedTo])",
+    "@@index([createdAt])"
+   ]
+  },
+  {
+   "name": "FeedbackComment",
+   "line": 2536,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "feedbackId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "authorId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "authorRole",
+     "type": "String",
+     "attrs": "@default(\"user\")"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "isInternal",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "feedback",
+     "type": "FeedbackReport",
+     "attrs": "@relation(fields: [feedbackId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([feedbackId])",
+    "@@index([authorId])"
+   ]
+  },
+  {
+   "name": "FeedbackStatusLog",
+   "line": 2551,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "feedbackId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "fromStatus",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "toStatus",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "changedBy",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "note",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "feedback",
+     "type": "FeedbackReport",
+     "attrs": "@relation(fields: [feedbackId], references: [id], onDelete: Cascade)"
+    }
+   ],
+   "indexes": [
+    "@@index([feedbackId])"
+   ]
+  },
+  {
+   "name": "CrashReport",
+   "line": 2565,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "errorMessage",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "stackTrace",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "componentName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "pageUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userAgent",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "resolved",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [
+    {
+     "name": "sessionData",
+     "type": "Json",
+     "attrs": "?"
+    }
+   ],
+   "indexes": [
+    "@@index([errorMessage])",
+    "@@index([userId])",
+    "@@index([createdAt])",
+    "@@index([resolved])"
+   ]
+  },
+  {
+   "name": "AcquisitionCampaign",
+   "line": 2590,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"pending\")"
+    },
+    {
+     "name": "niche",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "city",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "tone",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "maxLeads",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "customInstructions",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "errorMessage",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "discoveryJobId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "autoSend",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "discovered",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "totalLeads",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "analyzed",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "outreachGenerated",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "sent",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "errors",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "completedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])",
+    "@@index([status])"
+   ]
+  },
+  {
+   "name": "Report",
+   "line": 2620,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "dashboard",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "filters",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "chartConfig",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "scheduleCron",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "exportFormat",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "lastExportUrl",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isPublic",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "lastRunAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "nextRunAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "CompetitorSnapshot",
+   "line": 2642,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "competitorId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "snapshotType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "seoScore",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "socialScore",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "pricingModel",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "techStack",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "strengths",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "weaknesses",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "estimatedTraffic",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "rawData",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([competitorId])"
+   ]
+  },
+  {
+   "name": "MessageTemplate",
+   "line": 2660,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "channel",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "subject",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "body",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "variables",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "usageCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "isAiGenerated",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "isDefault",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "lastUsedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": "?"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "AnalyticsPrediction",
+   "line": 2681,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "predictionType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "targetEntityId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "predictedValue",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "actualValue",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "confidence",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "modelVersion",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "inputData",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "predictionHorizon",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "actualizedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "AnalyticsInsight",
+   "line": 2702,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "insightType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "impact",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metricName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metricBefore",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "metricAfter",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "changePercent",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "dataSource",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isActionable",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "isRead",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "actionSuggestion",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "validUntil",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "AnalyticsAnomaly",
+   "line": 2725,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "anomalyType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "severity",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metricName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "expectedValue",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "actualValue",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "deviation",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "status",
+     "type": "String",
+     "attrs": "@default(\"open\")"
+    },
+    {
+     "name": "resolvedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "DashboardShare",
+   "line": 2744,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "dashboardId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "allowedUsers",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgSharing",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "accessCount",
+     "type": "Int",
+     "attrs": "@default(0)"
+    },
+    {
+     "name": "isActive",
+     "type": "Boolean",
+     "attrs": "@default(true)"
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "lastAccessedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    },
+    {
+     "name": "dashboardType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "shareToken",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "permissions",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "updatedAt",
+     "type": "DateTime",
+     "attrs": "@updatedAt"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([dashboardId])"
+   ]
+  },
+  {
+   "name": "AnalyticsFormula",
+   "line": 2764,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "name",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "formula",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "variables",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "resultType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "isPublic",
+     "type": "Boolean",
+     "attrs": "@default(false)"
+    },
+    {
+     "name": "lastResult",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "lastComputedAt",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "RagDocument",
+   "line": 2782,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "leadId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "title",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "type",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "content",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "chunkIndex",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "keywords",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "source",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "tfidfScores",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([leadId])"
+   ]
+  },
+  {
+   "name": "AnalyticsBenchmark",
+   "line": 2799,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "orgId",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "benchmarkType",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "metricName",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "yourValue",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "benchmarkValue",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "percentile",
+     "type": "Float",
+     "attrs": "?"
+    },
+    {
+     "name": "comparisonGroup",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "periodStart",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "periodEnd",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "dataPoints",
+     "type": "Int",
+     "attrs": "?"
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@index([userId])"
+   ]
+  },
+  {
+   "name": "AnalyticsSnapshot",
+   "line": 2819,
+   "fields": [
+    {
+     "name": "id",
+     "type": "String",
+     "attrs": "@id @default(cuid())"
+    },
+    {
+     "name": "userId",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "category",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "period",
+     "type": "String",
+     "attrs": ""
+    },
+    {
+     "name": "periodStart",
+     "type": "DateTime",
+     "attrs": ""
+    },
+    {
+     "name": "periodEnd",
+     "type": "DateTime",
+     "attrs": "?"
+    },
+    {
+     "name": "metrics",
+     "type": "String",
+     "attrs": "?"
+    },
+    {
+     "name": "createdAt",
+     "type": "DateTime",
+     "attrs": "@default(now())"
+    }
+   ],
+   "relations": [],
+   "indexes": [
+    "@@unique([userId, category, period, periodStart])",
+    "@@index([userId])"
+   ]
+  }
+ ]
+}

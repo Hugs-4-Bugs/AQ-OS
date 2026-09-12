@@ -1,0 +1,86 @@
+# AcquisitionOS — Prometheus Configuration
+# Phase 11: Observability
+#
+# Scrapes the AcquisitionOS /api/metrics endpoint (Prometheus-format)
+# and Node Exporter for system metrics.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+  external_labels:
+    cluster: 'acquisitionos'
+    environment: 'production'
+    replica: 'prometheus-1'
+
+# Load alert rules
+rule_files:
+  - 'alerts.yml'
+  - 'prometheus-alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ─────────────────────────────────────────────────────────────────
+  # Prometheus self-monitoring
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # ─────────────────────────────────────────────────────────────────
+  # AcquisitionOS Next.js Application (port 3000)
+  # Scrapes /api/metrics — our custom Prometheus-format endpoint
+  # that exposes api_requests_total, api_request_duration_seconds,
+  # credits_consumed_total, payment_*, ai_*, active_users, etc.
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'nextjs-app'
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+        labels:
+          service: 'acquisitionos'
+          team: 'platform'
+    metrics_path: '/api/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # ─────────────────────────────────────────────────────────────────
+  # Node Exporter (System metrics on port 9100)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node'
+          team: 'infrastructure'
+    scrape_interval: 15s
+
+  # ─────────────────────────────────────────────────────────────────
+  # FastAPI Backend (port 8000)
+  # Scrapes the backend /metrics endpoint for Python-side metrics:
+  #   http_requests_total, http_request_duration_seconds,
+  #   db_connection_pool_usage, redis_connection_errors_total,
+  #   celery_queue_length, celery_task_failed_total, etc.
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'fastapi-backend'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+        labels:
+          service: 'acquisitionos-backend'
+          team: 'platform'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # ─────────────────────────────────────────────────────────────────
+  # OpenTelemetry Collector (port 8889 for Prometheus exporter)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          service: 'otel-collector'
+          team: 'observability'
+    scrape_interval: 15s

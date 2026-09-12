@@ -1,0 +1,107 @@
+# AcquisitionOS — Grafana Notification Policies
+# Phase 11: Observability
+#
+# Routes alerts to the appropriate contact point based on severity.
+# Critical alerts → critical-alerts channel
+# Warning alerts → warning-alerts channel
+# Info alerts → grafana-default-email (internal only)
+
+apiVersion: 1
+
+policies:
+  # ─────────────────────────────────────────────────────────────────
+  # Root Policy — catches all alerts by default
+  # Routes to the default webhook with a 30-second wait for grouping
+  # ─────────────────────────────────────────────────────────────────
+  - orgId: 1
+    receiver: grafana-default-email
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      # ── Critical severity → critical-alerts contact point ─────────
+      - receiver: critical-alerts
+        match:
+          severity: critical
+        group_wait: 10s
+        group_interval: 2m
+        repeat_interval: 1h
+        continue: false
+
+      # ── Warning severity → warning-alerts contact point ──────────
+      - receiver: warning-alerts
+        match:
+          severity: warning
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        continue: false
+
+      # ── Security team alerts → critical-alerts ──────────────────
+      - receiver: critical-alerts
+        match:
+          team: security
+        group_wait: 10s
+        group_interval: 2m
+        repeat_interval: 1h
+        continue: false
+
+      # ── Billing team alerts → warning-alerts ────────────────────
+      - receiver: warning-alerts
+        match:
+          team: billing
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        continue: false
+
+      # ── Infrastructure alerts → warning-alerts ──────────────────
+      - receiver: warning-alerts
+        match:
+          team: infrastructure
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        continue: false
+
+      # ── Default catch-all → default-webhook ─────────────────────
+      - receiver: default-webhook
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+
+# ─────────────────────────────────────────────────────────────────
+# Alert Rule Group Timings (applied at group level)
+# ─────────────────────────────────────────────────────────────────
+# These are defaults; specific alert rules in Prometheus/Grafana
+# can override these timings via their own 'for' clauses.
+#
+# group_wait:    How long to wait before sending the first notification
+#                for a new group. Allows grouping multiple alerts.
+# group_interval: How long to wait before sending a notification about
+#                new alerts added to an existing group.
+# repeat_interval: How long to wait before re-sending a notification
+#                for an alert that is still firing.
+# ─────────────────────────────────────────────────────────────────
+
+templates:
+  # ─────────────────────────────────────────────────────────────────
+  # Alert Notification Templates
+  # ─────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: default
+    template: |
+      {{ define "default.title" }}
+      [{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}
+      {{ end }}
+
+      {{ define "default.message" }}
+      {{ range .Alerts }}
+      *Alert:* {{ .Labels.alertname }}
+      *Severity:* {{ .Labels.severity }}
+      *Team:* {{ .Labels.team }}
+      *Summary:* {{ .Annotations.summary }}
+      *Description:* {{ .Annotations.description }}
+      *Starts At:* {{ .StartsAt }}
+      {{ end }}
+      {{ end }}

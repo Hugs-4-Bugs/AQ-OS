@@ -1,0 +1,835 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — Centralized Authentication & Authorization Library
+     3→// Phase 3: Auth + Authorization + Session Security + RBAC
+     4→// ═══════════════════════════════════════════════════════════════════
+     5→
+     6→import jwt from 'jsonwebtoken';
+     7→import bcrypt from 'bcryptjs';
+     8→import crypto from 'crypto';
+     9→import { db } from '@/lib/db';
+    10→import { NextRequest, NextResponse } from 'next/server';
+    11→
+    12→// ===== CONSTANTS =====
+    13→// JWT_SECRET: In production, this MUST be set via environment variable.
+    14→// Uses a dev fallback for build-time and dev mode; runtime checks validate in production.
+    15→const JWT_SECRET = process.env.JWT_SECRET || 'acquisitionos-dev-secret-change-in-production';
+    16→
+    17→/** Runtime guard: ensure JWT_SECRET is properly configured at request time */
+    18→function ensureJwtSecret(): void {
+    19→  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    20→    throw new Error('FATAL: JWT_SECRET environment variable is not set in production.');
+    21→  }
+    22→}
+    23→const JWT_ACCESS_EXPIRY = '15m';
+    24→const JWT_REFRESH_EXPIRY = '30d';
+    25→const BCRYPT_ROUNDS = 12;
+    26→const OTP_EXPIRY_SECONDS = 600; // 10 minutes
+    27→const OTP_MAX_ATTEMPTS = 5;
+    28→const MAX_LOGIN_ATTEMPTS = 5;
+    29→const LOCKOUT_MINUTES = 15;
+    30→
+    31→// ===== TYPES =====
+    32→export interface JwtPayload {
+    33→  sub: string;        // user ID
+    34→  email: string;
+    35→  role: string;
+    36→  plan: string;
+    37→  orgId: string | null;
+    38→  isTrial: boolean;
+    39→  trialEndsAt: string | null;
+    40→  type: 'access' | 'refresh';
+    41→}
+    42→
+    43→export interface AuthUser {
+    44→  id: string;
+    45→  email: string;
+    46→  name: string;
+    47→  role: string;
+    48→  plan: string;
+    49→  orgId: string | null;
+    50→  emailVerified: boolean;
+    51→  mfaEnabled: boolean;
+    52→  avatarUrl: string | null;
+    53→}
+    54→
+    55→export type UserRole = 'super_admin' | 'owner' | 'admin' | 'member' | 'viewer';
+    56→
+    57→export type AuthEventType =
+    58→  | 'signup'
+    59→  | 'signin'
+    60→  | 'signin_failed'
+    61→  | 'signout'
+    62→  | 'password_reset'
+    63→  | 'mfa_enabled'
+    64→  | 'mfa_disabled'
+    65→  | 'mfa_verified'
+    66→  | 'magic_link_sent'
+    67→  | 'magic_link_used'
+    68→  | 'otp_login'
+    69→  | 'email_verification_sent'
+    70→  | 'email_verified'
+    71→  | 'session_revoked'
+    72→  | 'suspicious_login'
+    73→  | 'account_locked'
+    74→  | 'account_unlocked'
+    75→  | 'google_oauth_login'
+    76→  | 'refresh_token_rotated';
+    77→
+    78→// ===== TOKEN FUNCTIONS =====
+    79→
+    80→/** Generate a JWT access token (15 min) */
+    81→export function generateAccessToken(user: {
+    82→  id: string;
+    83→  email: string;
+    84→  role: string;
+    85→  plan: string;
+    86→  orgId: string | null;
+    87→  isTrial: boolean;
+    88→  trialEndsAt: Date | null;
+    89→}): string {
+    90→  ensureJwtSecret();
+    91→  return jwt.sign(
+    92→    {
+    93→      sub: user.id,
+    94→      email: user.email,
+    95→      role: user.role,
+    96→      plan: user.plan,
+    97→      orgId: user.orgId,
+    98→      isTrial: user.isTrial,
+    99→      trialEndsAt: user.trialEndsAt?.toISOString() || null,
+   100→      type: 'access',
+   101→    },
+   102→    JWT_SECRET,
+   103→    { expiresIn: JWT_ACCESS_EXPIRY, issuer: 'acquisitionos', audience: 'acquisitionos-api' }
+   104→  );
+   105→}
+   106→
+   107→/** Generate a JWT refresh token (30 days) */
+   108→export function generateRefreshToken(user: {
+   109→  id: string;
+   110→  email: string;
+   111→  role: string;
+   112→  plan: string;
+   113→  orgId: string | null;
+   114→  isTrial: boolean;
+   115→  trialEndsAt: Date | null;
+   116→}): string {
+   117→  ensureJwtSecret();
+   118→  return jwt.sign(
+   119→    {
+   120→      sub: user.id,
+   121→      email: user.email,
+   122→      role: user.role,
+   123→      plan: user.plan,
+   124→      orgId: user.orgId,
+   125→      isTrial: user.isTrial,
+   126→      trialEndsAt: user.trialEndsAt?.toISOString() || null,
+   127→      type: 'refresh',
+   128→    },
+   129→    JWT_SECRET,
+   130→    { expiresIn: JWT_REFRESH_EXPIRY, issuer: 'acquisitionos', audience: 'acquisitionos-api' }
+   131→  );
+   132→}
+   133→
+   134→/** Verify a JWT token and return the payload */
+   135→export function verifyToken(token: string): JwtPayload | null {
+   136→  try {
+   137→    const decoded = jwt.verify(token, JWT_SECRET, {
+   138→      issuer: 'acquisitionos',
+   139→      audience: 'acquisitionos-api',
+   140→    }) as JwtPayload;
+   141→    return decoded;
+   142→  } catch {
+   143→    return null;
+   144→  }
+   145→}
+   146→
+   147→/** Extract Bearer token from Authorization header */
+   148→export function extractBearerToken(request: NextRequest): string | null {
+   149→  const authHeader = request.headers.get('authorization');
+   150→  if (!authHeader?.startsWith('Bearer ')) return null;
+   151→  return authHeader.substring(7);
+   152→}
+   153→
+   154→// ===== COOKIE HELPERS =====
+   155→
+   156→/** Set auth cookies on a response */
+   157→export function setAuthCookies(
+   158→  response: NextResponse,
+   159→  accessToken: string,
+   160→  refreshToken: string
+   161→): NextResponse {
+   162→  response.cookies.set('access_token', accessToken, {
+   163→    httpOnly: true,
+   164→    secure: process.env.NODE_ENV === 'production',
+   165→    sameSite: 'strict',
+   166→    path: '/',
+   167→    maxAge: 15 * 60, // 15 minutes
+   168→  });
+   169→
+   170→  response.cookies.set('refresh_token', refreshToken, {
+   171→    httpOnly: true,
+   172→    secure: process.env.NODE_ENV === 'production',
+   173→    sameSite: 'strict',
+   174→    path: '/api/auth', // Accessible to refresh + signout endpoints
+   175→    maxAge: 30 * 24 * 60 * 60, // 30 days
+   176→  });
+   177→
+   178→  return response;
+   179→}
+   180→
+   181→/** Clear auth cookies */
+   182→export function clearAuthCookies(response: NextResponse): NextResponse {
+   183→  response.cookies.set('access_token', '', {
+   184→    httpOnly: true,
+   185→    secure: process.env.NODE_ENV === 'production',
+   186→    sameSite: 'strict',
+   187→    path: '/',
+   188→    maxAge: 0,
+   189→  });
+   190→
+   191→  response.cookies.set('refresh_token', '', {
+   192→    httpOnly: true,
+   193→    secure: process.env.NODE_ENV === 'production',
+   194→    sameSite: 'strict',
+   195→    path: '/api/auth',
+   196→    maxAge: 0,
+   197→  });
+   198→
+   199→  return response;
+   200→}
+   201→
+   202→// ===== PASSWORD FUNCTIONS =====
+   203→
+   204→/** Hash a password with bcrypt */
+   205→export async function hashPassword(password: string): Promise<string> {
+   206→  return bcrypt.hash(password, BCRYPT_ROUNDS);
+   207→}
+   208→
+   209→/** Verify a password against a hash */
+   210→export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+   211→  return bcrypt.compare(password, hash);
+   212→}
+   213→
+   214→/** Validate password strength */
+   215→export function validatePasswordStrength(password: string): {
+   216→  valid: boolean;
+   217→  errors: string[];
+   218→} {
+   219→  const errors: string[] = [];
+   220→  if (password.length < 8) errors.push('Password must be at least 8 characters');
+   221→  if (password.length > 128) errors.push('Password must be less than 128 characters');
+   222→  if (!/[A-Z]/.test(password)) errors.push('Password must contain at least one uppercase letter');
+   223→  if (!/[a-z]/.test(password)) errors.push('Password must contain at least one lowercase letter');
+   224→  if (!/[0-9]/.test(password)) errors.push('Password must contain at least one number');
+   225→  if (!/[^A-Za-z0-9]/.test(password))
+   226→    errors.push('Password must contain at least one special character');
+   227→  return { valid: errors.length === 0, errors };
+   228→}
+   229→
+   230→/** Validate email format */
+   231→export function validateEmail(email: string): boolean {
+   232→  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+   233→}
+   234→
+   235→// ===== OTP FUNCTIONS =====
+   236→
+   237→/** Generate a cryptographically secure 6-digit OTP */
+   238→export function generateOTP(): string {
+   239→  return crypto.randomInt(100000, 999999).toString();
+   240→}
+   241→
+   242→/** Constant-time string comparison to prevent timing attacks */
+   243→export function secureCompare(a: string, b: string): boolean {
+   244→  if (typeof a !== 'string' || typeof b !== 'string') return false;
+   245→  const bufA = Buffer.from(a, 'utf-8');
+   246→  const bufB = Buffer.from(b, 'utf-8');
+   247→  // If lengths differ, still compare bufB with itself to consume the same time,
+   248→  // then return false — this prevents leaking length information via timing
+   249→  if (bufA.length !== bufB.length) {
+   250→    crypto.timingSafeEqual(bufB, bufB);
+   251→    return false;
+   252→  }
+   253→  try {
+   254→    return crypto.timingSafeEqual(bufA, bufB);
+   255→  } catch {
+   256→    return false;
+   257→  }
+   258→}
+   259→
+   260→/** Check if OTP attempts are locked for a user */
+   261→export async function isOtpLocked(userId: string): Promise<boolean> {
+   262→  const user = await db.user.findUnique({ where: { id: userId }, select: { otpLockedUntil: true } });
+   263→  if (!user?.otpLockedUntil) return false;
+   264→  return new Date() < user.otpLockedUntil;
+   265→}
+   266→
+   267→/** Increment OTP attempt count and lock if exceeded max */
+   268→export async function incrementOtpAttempts(userId: string): Promise<{ locked: boolean; attempts: number }> {
+   269→  const user = await db.user.findUnique({ where: { id: userId }, select: { otpAttemptCount: true } });
+   270→  const newCount = (user?.otpAttemptCount ?? 0) + 1;
+   271→  const locked = newCount >= OTP_MAX_ATTEMPTS;
+   272→  const lockUntil = locked ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) : null;
+   273→
+   274→  await db.user.update({
+   275→    where: { id: userId },
+   276→    data: {
+   277→      otpAttemptCount: newCount,
+   278→      otpLockedUntil: lockUntil,
+   279→    },
+   280→  });
+   281→
+   282→  return { locked, attempts: newCount };
+   283→}
+   284→
+   285→/** Reset OTP attempt count after successful verification */
+   286→export async function resetOtpAttempts(userId: string): Promise<void> {
+   287→  await db.user.update({
+   288→    where: { id: userId },
+   289→    data: { otpAttemptCount: 0, otpLockedUntil: null },
+   290→  });
+   291→}
+   292→
+   293→/** Generate a secure token for magic links */
+   294→export function generateMagicLinkToken(): string {
+   295→  return crypto.randomBytes(32).toString('hex');
+   296→}
+   297→
+   298→// ===== SESSION MANAGEMENT =====
+   299→
+   300→/** Create a new user session in the database */
+   301→export async function createSession(params: {
+   302→  userId: string;
+   303→  refreshToken: string;
+   304→  deviceInfo?: string;
+   305→  ipAddress?: string;
+   306→  userAgent?: string;
+   307→}): Promise<void> {
+   308→  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+   309→
+   310→  // Pre-emptively delete any existing session with the same refreshToken
+   311→  // to avoid P2002 unique constraint errors on race conditions or re-logins.
+   312→  try {
+   313→    await db.userSession.deleteMany({
+   314→      where: { refreshToken: params.refreshToken },
+   315→    });
+   316→  } catch {
+   317→    // Ignore errors — the session may not exist
+   318→  }
+   319→
+   320→  try {
+   321→    await db.userSession.create({
+   322→      data: {
+   323→        userId: params.userId,
+   324→        refreshToken: params.refreshToken,
+   325→        deviceInfo: params.deviceInfo || null,
+   326→        ipAddress: params.ipAddress || null,
+   327→        userAgent: params.userAgent || null,
+   328→        expiresAt,
+   329→        isRevoked: false,
+   330→      },
+   331→    });
+   332→  } catch (error: unknown) {
+   333→    // Handle P2002 (unique constraint violation) gracefully.
+   334→    // This can still happen in a race condition where another request
+   335→    // inserted the same refreshToken between our deleteMany and create.
+   336→    if (
+   337→      error &&
+   338→      typeof error === 'object' &&
+   339→      'code' in error &&
+   340→      (error as { code: string }).code === 'P2002'
+   341→    ) {
+   342→      // Delete the conflicting session and retry once
+   343→      await db.userSession.deleteMany({
+   344→        where: { refreshToken: params.refreshToken },
+   345→      });
+   346→
+   347→      await db.userSession.create({
+   348→        data: {
+   349→          userId: params.userId,
+   350→          refreshToken: params.refreshToken,
+   351→          deviceInfo: params.deviceInfo || null,
+   352→          ipAddress: params.ipAddress || null,
+   353→          userAgent: params.userAgent || null,
+   354→          expiresAt,
+   355→          isRevoked: false,
+   356→        },
+   357→      });
+   358→    } else {
+   359→      throw error;
+   360→    }
+   361→  }
+   362→}
+   363→
+   364→/** Revoke a specific session by refresh token */
+   365→export async function revokeSession(refreshToken: string): Promise<void> {
+   366→  await db.userSession.updateMany({
+   367→    where: { refreshToken },
+   368→    data: { isRevoked: true },
+   369→  });
+   370→}
+   371→
+   372→/** Revoke all sessions for a user */
+   373→export async function revokeAllUserSessions(userId: string): Promise<void> {
+   374→  await db.userSession.updateMany({
+   375→    where: { userId, isRevoked: false },
+   376→    data: { isRevoked: true },
+   377→  });
+   378→}
+   379→
+   380→/** Check if a refresh token is valid (not revoked) */
+   381→export async function isSessionValid(refreshToken: string): Promise<boolean> {
+   382→  const session = await db.userSession.findFirst({
+   383→    where: { refreshToken, isRevoked: false, expiresAt: { gt: new Date() } },
+   384→  });
+   385→  return !!session;
+   386→}
+   387→
+   388→/** Get all active sessions for a user */
+   389→export async function getUserActiveSessions(userId: string) {
+   390→  return db.userSession.findMany({
+   391→    where: { userId, isRevoked: false, expiresAt: { gt: new Date() } },
+   392→    orderBy: { createdAt: 'desc' },
+   393→  });
+   394→}
+   395→
+   396→// ===== LOGIN HISTORY =====
+   397→
+   398→/** Record a login attempt — requires a valid userId (FK constraint) */
+   399→export async function recordLoginAttempt(params: {
+   400→  userId: string;
+   401→  ip: string;
+   402→  userAgent: string;
+   403→  country?: string;
+   404→  city?: string;
+   405→  success: boolean;
+   406→  failReason?: string;
+   407→}): Promise<void> {
+   408→  await db.loginHistory.create({
+   409→    data: {
+   410→      userId: params.userId,
+   411→      ip: params.ip || null,
+   412→      userAgent: params.userAgent || null,
+   413→      country: params.country || null,
+   414→      city: params.city || null,
+   415→      success: params.success,
+   416→      failReason: params.failReason || null,
+   417→    },
+   418→  });
+   419→}
+   420→
+   421→/**
+   422→ * Record a login attempt by email — looks up user first.
+   423→ * Returns the userId if found, or null if user doesn't exist.
+   424→ */
+   425→export async function recordLoginAttemptByEmail(params: {
+   426→  email: string;
+   427→  ip: string;
+   428→  userAgent: string;
+   429→  country?: string;
+   430→  success: boolean;
+   431→  failReason?: string;
+   432→}): Promise<string | null> {
+   433→  const user = await db.user.findUnique({ where: { email: params.email } });
+   434→  if (!user) return null;
+   435→
+   436→  await db.loginHistory.create({
+   437→    data: {
+   438→      userId: user.id,
+   439→      ip: params.ip || null,
+   440→      userAgent: params.userAgent || null,
+   441→      country: params.country || null,
+   442→      success: params.success,
+   443→      failReason: params.failReason || null,
+   444→    },
+   445→  });
+   446→
+   447→  return user.id;
+   448→}
+   449→
+   450→// ===== BRUTE FORCE PROTECTION =====
+   451→
+   452→/** Check if an account is temporarily locked */
+   453→export async function isAccountLocked(email: string): Promise<boolean> {
+   454→  const recentFailedAttempts = await db.loginHistory.count({
+   455→    where: {
+   456→      success: false,
+   457→      createdAt: { gt: new Date(Date.now() - LOCKOUT_MINUTES * 60 * 1000) },
+   458→      user: { email },
+   459→    },
+   460→  });
+   461→  return recentFailedAttempts >= MAX_LOGIN_ATTEMPTS;
+   462→}
+   463→
+   464→/** Check if an IP has too many failed attempts */
+   465→export function isIpRateLimited(failedAttempts: number): boolean {
+   466→  return failedAttempts >= MAX_LOGIN_ATTEMPTS;
+   467→}
+   468→
+   469→// ===== MFA / TOTP FUNCTIONS =====
+   470→
+   471→const TOTP_PERIOD = 30; // seconds per time step
+   472→const TOTP_DIGITS = 6;
+   473→const TOTP_WINDOW = 1; // allow ±1 time step for clock drift
+   474→
+   475→// Base32 alphabet (RFC 4648)
+   476→const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+   477→
+   478→/** Encode a buffer as Base32 string */
+   479→function base32Encode(buffer: Buffer): string {
+   480→  let bits = '';
+   481→  for (const byte of buffer) {
+   482→    bits += byte.toString(2).padStart(8, '0');
+   483→  }
+   484→  let result = '';
+   485→  for (let i = 0; i + 5 <= bits.length; i += 5) {
+   486→    result += BASE32_CHARS[parseInt(bits.substring(i, i + 5), 2)];
+   487→  }
+   488→  return result;
+   489→}
+   490→
+   491→/** Decode a Base32 string to a buffer */
+   492→function base32Decode(str: string): Buffer {
+   493→  const cleaned = str.toUpperCase().replace(/[^A-Z2-7]/g, '');
+   494→  let bits = '';
+   495→  for (const char of cleaned) {
+   496→    const val = BASE32_CHARS.indexOf(char);
+   497→    if (val === -1) continue;
+   498→    bits += val.toString(2).padStart(5, '0');
+   499→  }
+   500→  const bytes: number[] = [];
+   501→  for (let i = 0; i + 8 <= bits.length; i += 8) {
+   502→    bytes.push(parseInt(bits.substring(i, i + 8), 2));
+   503→  }
+   504→  return Buffer.from(bytes);
+   505→}
+   506→
+   507→/** Generate a TOTP secret as Base32 string */
+   508→export function generateTotpSecret(): string {
+   509→  return base32Encode(crypto.randomBytes(20));
+   510→}
+   511→
+   512→/** Generate an otpauth:// URI for QR code generation */
+   513→export function generateTotpUri(params: {
+   514→  secret: string;
+   515→  label: string;
+   516→  issuer: string;
+   517→}): string {
+   518→  const encodedLabel = encodeURIComponent(params.label);
+   519→  const encodedIssuer = encodeURIComponent(params.issuer);
+   520→  return `otpauth://totp/${encodedIssuer}:${encodedLabel}?secret=${params.secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=${TOTP_DIGITS}&period=${TOTP_PERIOD}`;
+   521→}
+   522→
+   523→/** Calculate TOTP code for a given secret and time */
+   524→function calculateTotp(secret: string, time: number): string {
+   525→  const timeStep = Math.floor(time / TOTP_PERIOD);
+   526→  const timeBuffer = Buffer.alloc(8);
+   527→  timeBuffer.writeUInt32BE(0, 0);
+   528→  timeBuffer.writeUInt32BE(timeStep, 4);
+   529→
+   530→  const key = base32Decode(secret);
+   531→  const hmac = crypto.createHmac('sha1', key);
+   532→  hmac.update(timeBuffer);
+   533→  const hmacResult = hmac.digest();
+   534→
+   535→  // Dynamic truncation
+   536→  const offset = hmacResult[hmacResult.length - 1] & 0x0f;
+   537→  const code =
+   538→    ((hmacResult[offset] & 0x7f) << 24) |
+   539→    ((hmacResult[offset + 1] & 0xff) << 16) |
+   540→    ((hmacResult[offset + 2] & 0xff) << 8) |
+   541→    (hmacResult[offset + 3] & 0xff);
+   542→
+   543→  return (code % Math.pow(10, TOTP_DIGITS)).toString().padStart(TOTP_DIGITS, '0');
+   544→}
+   545→
+   546→/** Verify a TOTP code against a secret with clock drift tolerance */
+   547→export function verifyTotpCode(secret: string, token: string): boolean {
+   548→  if (!/^\d{6}$/.test(token)) return false;
+   549→
+   550→  const now = Math.floor(Date.now() / 1000);
+   551→  // Check current time step and ±window steps
+   552→  for (let i = -TOTP_WINDOW; i <= TOTP_WINDOW; i++) {
+   553→    const checkTime = now + i * TOTP_PERIOD;
+   554→    const expected = calculateTotp(secret, checkTime);
+   555→    if (crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+   556→      return true;
+   557→    }
+   558→  }
+   559→  return false;
+   560→}
+   561→
+   562→/** Generate backup codes for MFA recovery */
+   563→export function generateBackupCodes(count: number = 8): string[] {
+   564→  return Array.from({ length: count }, () =>
+   565→    crypto.randomBytes(4).toString('hex').toUpperCase()
+   566→  );
+   567→}
+   568→
+   569→/** Check if a user has MFA enabled */
+   570→export async function isMfaEnabled(userId: string): Promise<boolean> {
+   571→  const mfaConfig = await db.mfaConfig.findUnique({ where: { userId } });
+   572→  return mfaConfig?.isEnabled ?? false;
+   573→}
+   574→
+   575→// ===== AUDIT LOGGING =====
+   576→
+   577→/**
+   578→ * Log an authentication event.
+   579→ * Requires a valid userId (FK constraint on AuditLog).
+   580→ * Silently fails if logging errors — never blocks the main flow.
+   581→ */
+   582→export async function logAuthEvent(params: {
+   583→  userId: string;
+   584→  action: AuthEventType | string;
+   585→  details?: string;
+   586→  ipAddress?: string;
+   587→  userAgent?: string;
+   588→  resource?: string;
+   589→  resourceId?: string;
+   590→}): Promise<void> {
+   591→  try {
+   592→    await db.auditLog.create({
+   593→      data: {
+   594→        userId: params.userId,
+   595→        action: params.action,
+   596→        details: params.details || null,
+   597→        ipAddress: params.ipAddress || null,
+   598→        userAgent: params.userAgent || null,
+   599→        resource: params.resource || 'auth',
+   600→        resourceId: params.resourceId || null,
+   601→      },
+   602→    });
+   603→  } catch (error) {
+   604→    // Never fail the main flow due to audit logging failure
+   605→    console.error('Audit log error:', error);
+   606→  }
+   607→}
+   608→
+   609→// ===== AUTH HELPER FOR API ROUTES =====
+   610→
+   611→/**
+   612→ * Map a Prisma User record to an AuthUser.
+   613→ * Handles field name differences (e.g., `avatar` → `avatarUrl`)
+   614→ * and resolves MFA status from the MfaConfig relation.
+   615→ * Resolves plan from the active subscription if available, falling back
+   616→ * to the User.plan field, and ultimately to 'free'.
+   617→ */
+   618→async function mapUserToAuthUser(
+   619→  user: {
+   620→    id: string;
+   621→    email: string;
+   622→    name: string | null;
+   623→    role: string;
+   624→    plan: string;
+   625→    orgId: string | null;
+   626→    emailVerified: boolean;
+   627→    avatar: string | null;
+   628→    mfaConfig: { isEnabled: boolean } | null;
+   629→    subscriptions: { plan: string; status: string }[];
+   630→  }
+   631→): Promise<AuthUser> {
+   632→  // Resolve the plan from the active subscription (trialing or active),
+   633→  // falling back to the User.plan field, then to 'free'.
+   634→  const activeSubscription = user.subscriptions.find(
+   635→    (s) => s.status === 'active' || s.status === 'trialing'
+   636→  );
+   637→  const resolvedPlan = activeSubscription?.plan || user.plan || 'free';
+   638→
+   639→  return {
+   640→    id: user.id,
+   641→    email: user.email,
+   642→    name: user.name || '',
+   643→    role: user.role,
+   644→    plan: resolvedPlan,
+   645→    orgId: user.orgId,
+   646→    emailVerified: user.emailVerified,
+   647→    mfaEnabled: user.mfaConfig?.isEnabled ?? false,
+   648→    avatarUrl: user.avatar,
+   649→  };
+   650→}
+   651→
+   652→/** Get the authenticated user from a request, or null */
+   653→export async function getAuthUser(request: NextRequest): Promise<AuthUser | null> {
+   654→  try {
+   655→    // Try Bearer token first
+   656→    const bearerToken = extractBearerToken(request);
+   657→    if (bearerToken) {
+   658→      const payload = verifyToken(bearerToken);
+   659→      if (payload && payload.type === 'access') {
+   660→        const user = await db.user.findUnique({
+   661→          where: { id: payload.sub },
+   662→          include: {
+   663→            mfaConfig: { select: { isEnabled: true } },
+   664→            subscriptions: {
+   665→              where: { status: { in: ['active', 'trialing'] } },
+   666→              select: { plan: true, status: true },
+   667→              orderBy: { createdAt: 'desc' },
+   668→              take: 1,
+   669→            },
+   670→          },
+   671→        });
+   672→        if (user) {
+   673→          return await mapUserToAuthUser(user);
+   674→        }
+   675→      }
+   676→    }
+   677→
+   678→    // Try access_token cookie
+   679→    const accessTokenCookie = request.cookies.get('access_token')?.value;
+   680→    if (accessTokenCookie) {
+   681→      const payload = verifyToken(accessTokenCookie);
+   682→      if (payload && payload.type === 'access') {
+   683→        const user = await db.user.findUnique({
+   684→          where: { id: payload.sub },
+   685→          include: {
+   686→            mfaConfig: { select: { isEnabled: true } },
+   687→            subscriptions: {
+   688→              where: { status: { in: ['active', 'trialing'] } },
+   689→              select: { plan: true, status: true },
+   690→              orderBy: { createdAt: 'desc' },
+   691→              take: 1,
+   692→            },
+   693→          },
+   694→        });
+   695→        if (user) {
+   696→          return await mapUserToAuthUser(user);
+   697→        }
+   698→      }
+   699→    }
+   700→
+   701→    return null;
+   702→  } catch {
+   703→    return null;
+   704→  }
+   705→}
+   706→
+   707→/** Require authentication — returns user or throws a 401 response */
+   708→export async function requireAuth(request: NextRequest): Promise<AuthUser> {
+   709→  const user = await getAuthUser(request);
+   710→  if (!user) {
+   711→    throw new AuthError('Authentication required', 401);
+   712→  }
+   713→  return user;
+   714→}
+   715→
+   716→/** Check if a user has a specific role */
+   717→export function hasRole(user: AuthUser, ...roles: UserRole[]): boolean {
+   718→  return roles.includes(user.role as UserRole);
+   719→}
+   720→
+   721→/** Check if a user has admin-level access (owner, admin, super_admin) */
+   722→export function isAdmin(user: AuthUser): boolean {
+   723→  return ['super_admin', 'owner', 'admin'].includes(user.role);
+   724→}
+   725→
+   726→// ===== CUSTOM AUTH ERROR =====
+   727→
+   728→export class AuthError extends Error {
+   729→  statusCode: number;
+   730→
+   731→  constructor(message: string, statusCode: number = 401) {
+   732→    super(message);
+   733→    this.name = 'AuthError';
+   734→    this.statusCode = statusCode;
+   735→  }
+   736→}
+   737→
+   738→// ===== REQUEST INFO HELPERS =====
+   739→
+   740→/** Extract IP address from request */
+   741→export function getClientIp(request: NextRequest): string {
+   742→  const forwarded = request.headers.get('x-forwarded-for');
+   743→  if (forwarded) return forwarded.split(',')[0].trim();
+   744→  const realIp = request.headers.get('x-real-ip');
+   745→  if (realIp) return realIp;
+   746→  return 'unknown';
+   747→}
+   748→
+   749→/** Extract user agent from request */
+   750→export function getUserAgent(request: NextRequest): string {
+   751→  return request.headers.get('user-agent') || 'unknown';
+   752→}
+   753→
+   754→// ===== SUSPICIOUS LOGIN DETECTION =====
+   755→
+   756→/**
+   757→ * Detect if a login is from a new IP or device compared to the user's
+   758→ * recent login history. Returns true if the login looks suspicious.
+   759→ */
+   760→export async function detectSuspiciousLogin(params: {
+   761→  userId: string;
+   762→  ip: string;
+   763→  userAgent: string;
+   764→}): Promise<boolean> {
+   765→  // Get recent login history for this user (last 30 days)
+   766→  const recentLogins = await db.loginHistory.findMany({
+   767→    where: {
+   768→      userId: params.userId,
+   769→      success: true,
+   770→      createdAt: { gt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+   771→    },
+   772→    orderBy: { createdAt: 'desc' },
+   773→    take: 10,
+   774→  });
+   775→
+   776→  // Check for new IP
+   777→  const knownIps = new Set(recentLogins.map(l => l.ip).filter(Boolean));
+   778→  const isNewIp = !knownIps.has(params.ip) && knownIps.size > 0;
+   779→
+   780→  // Check for new device (user agent)
+   781→  const knownUserAgents = new Set(recentLogins.map(l => l.userAgent).filter(Boolean));
+   782→  const isNewDevice = !knownUserAgents.has(params.userAgent) && knownUserAgents.size > 0;
+   783→
+   784→  return isNewIp || isNewDevice;
+   785→}
+   786→
+   787→/**
+   788→ * Send a security alert to the user about a suspicious login.
+   789→ * In production, this would send an email. For now, it logs and
+   790→ * records the event in the audit log.
+   791→ */
+   792→export async function sendSecurityAlert(params: {
+   793→  userId: string;
+   794→  email: string;
+   795→  name: string;
+   796→  event: string;
+   797→  ip: string;
+   798→  userAgent: string;
+   799→}): Promise<void> {
+   800→  // In production, send an email to the user
+   801→  console.log(`[SECURITY ALERT] ${params.event} for ${params.email} from IP ${params.ip}`);
+   802→
+   803→  // Send security alert email (non-blocking)
+   804→  try {
+   805→    const { sendSecurityAlertEmail, isEmailServiceConfigured } = await import('./email');
+   806→    const { shouldBypassEmail } = await import('./feature-flags');
+   807→    if (isEmailServiceConfigured() && !shouldBypassEmail()) {
+   808→      await sendSecurityAlertEmail(params.email, params.name, params.event, params.ip, params.userAgent);
+   809→    }
+   810→  } catch {
+   811→    // Never block the main flow
+   812→  }
+   813→
+   814→  await logAuthEvent({
+   815→    userId: params.userId,
+   816→    action: 'suspicious_login',
+   817→    details: `${params.event} from IP ${params.ip}`,
+   818→    ipAddress: params.ip,
+   819→    userAgent: params.userAgent,
+   820→  });
+   821→}
+   822→
+   823→// ===== EXPORT CONSTANTS =====
+   824→
+   825→export {
+   826→  JWT_SECRET,
+   827→  JWT_ACCESS_EXPIRY,
+   828→  JWT_REFRESH_EXPIRY,
+   829→  BCRYPT_ROUNDS,
+   830→  OTP_EXPIRY_SECONDS,
+   831→  OTP_MAX_ATTEMPTS,
+   832→  MAX_LOGIN_ATTEMPTS,
+   833→  LOCKOUT_MINUTES,
+   834→};
+   835→

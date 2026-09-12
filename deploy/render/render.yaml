@@ -1,0 +1,132 @@
+# ═══════════════════════════════════════════════════════════════════
+# AcquisitionOS — Render Blueprint
+# Phase 14.4: Deployment
+# Services: web (Next.js), worker (Celery), Redis, PostgreSQL, cron job
+# ═══════════════════════════════════════════════════════════════════
+
+services:
+  # ── PostgreSQL Database ───────────────────────────────────────────
+  - type: pserv
+    name: acquisitionos-db
+    plan: pro
+    env: docker
+    repo:
+      branch: main
+    envVars:
+      - key: POSTGRES_DB
+        value: acquisitionos
+      - key: POSTGRES_USER
+        value: postgres
+      - key: POSTGRES_PASSWORD
+        sync: false
+    disk:
+      name: pgdata
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 20
+
+  # ── Redis Cache ──────────────────────────────────────────────────
+  - type: redis
+    name: acquisitionos-redis
+    plan: pro
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+  # ── Next.js Web Service ──────────────────────────────────────────
+  - type: web
+    name: acquisitionos-web
+    plan: pro
+    runtime: node
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: acquisitionos-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+      - key: NEXT_PUBLIC_API_URL
+        value: https://acquisitionos-web.onrender.com
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: "3000"
+    disk:
+      name: app-data
+      mountPath: /opt/render/project/data
+      sizeGB: 5
+
+  # ── Celery Worker ────────────────────────────────────────────────
+  - type: worker
+    name: acquisitionos-worker
+    plan: pro
+    runtime: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && celery -A app.celery_app worker --loglevel=info --concurrency=4 -Q celery,email,billing,scraping,notifications,maintenance,workflows
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: acquisitionos-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+
+  # ── Celery Beat Scheduler ────────────────────────────────────────
+  - type: worker
+    name: acquisitionos-beat
+    plan: starter
+    runtime: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && celery -A app.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: acquisitionos-redis
+          type: redis
+          property: connectionString
+
+  # ── Cron: Daily Backup ──────────────────────────────────────────
+  - type: cron
+    name: acquisitionos-backup
+    schedule: "0 2 * * *"
+    runtime: node
+    buildCommand: npm ci
+    startCommand: bash scripts/backup/backup.sh
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: acquisitionos-db
+          property: connectionString
+      - key: S3_BACKUP_BUCKET
+        sync: false

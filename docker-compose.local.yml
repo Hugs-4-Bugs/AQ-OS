@@ -1,0 +1,201 @@
+# =============================================================================
+# AcquisitionOS — Local Development Docker Compose
+# =============================================================================
+#
+# This compose file runs ONLY infrastructure services for local development.
+# The Next.js app itself runs on the host via `bun run dev` (port 3000).
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up -d          # Start all
+#   docker compose -f docker-compose.local.yml up -d redis postgres  # Start subset
+#   docker compose -f docker-compose.local.yml down            # Stop all
+#   docker compose -f docker-compose.local.yml down -v         # Stop + destroy volumes
+#
+# =============================================================================
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  acquisitionos-local:
+    driver: bridge
+    name: acquisitionos-local
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres-local-data:
+    name: acquisitionos-postgres-local-data
+  redis-local-data:
+    name: acquisitionos-redis-local-data
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # =========================================================================
+  # PostgreSQL 16 — Primary database for production-like local testing
+  # =========================================================================
+  # For dev SQLite is used by default (file:./db/custom.db), but this
+  # PostgreSQL instance lets you validate queries and migrations against
+  # a real RDBMS before deploying.
+  # =========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: acquisitionos-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: acquisitionos
+      POSTGRES_PASSWORD: acquisitionos_secret
+      POSTGRES_DB: acquisitionos
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acquisitionos -d acquisitionos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - acquisitionos-local
+
+  # =========================================================================
+  # Redis 7 — Pub/Sub for realtime-service + Celery broker
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: acquisitionos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+        --appendonly yes
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-local-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - acquisitionos-local
+
+  # =========================================================================
+  # Mailpit — Local SMTP testing (replaces Gmail for dev)
+  # =========================================================================
+  # Send emails to localhost:1025, view them at http://localhost:8025
+  # No authentication required — perfect for local development.
+  # =========================================================================
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: acquisitionos-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "0"    # No auth required
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1" # Allow plain-text auth
+    networks:
+      - acquisitionos-local
+
+  # =========================================================================
+  # Backend — Python FastAPI (optional)
+  # =========================================================================
+  # Only needed when testing Celery tasks or backend API endpoints locally.
+  # Skip with: docker compose -f docker-compose.local.yml up -d redis postgres mailpit
+  # =========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: acquisitionos-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # --- Database ---
+      DATABASE_URL: "postgresql+asyncpg://acquisitionos:acquisitionos_secret@postgres:5432/acquisitionos"
+      # --- Redis ---
+      REDIS_URL: "redis://redis:6379/0"
+      # --- Celery ---
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      # --- SMTP (Mailpit) ---
+      SMTP_HOST: "mailpit"
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      SMTP_USE_TLS: "false"
+      # --- App ---
+      APP_ENV: "local"
+      LOG_LEVEL: "debug"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - acquisitionos-local
+    profiles:
+      - backend   # Opt-in: `docker compose --profile backend up`
+
+  # =========================================================================
+  # Celery Worker — Background task processing
+  # =========================================================================
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: acquisitionos-celery-worker
+    restart: unless-stopped
+    command: ["celery", "-A", "app.celery_app", "worker", "--loglevel=debug", "--concurrency=2"]
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://acquisitionos:acquisitionos_secret@postgres:5432/acquisitionos"
+      REDIS_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      APP_ENV: "local"
+      LOG_LEVEL: "debug"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - acquisitionos-local
+    profiles:
+      - backend   # Opt-in: started alongside the backend service
+
+  # =========================================================================
+  # Celery Beat — Periodic task scheduler
+  # =========================================================================
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: acquisitionos-celery-beat
+    restart: unless-stopped
+    command: ["celery", "-A", "app.celery_app", "beat", "--loglevel=debug"]
+    environment:
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      APP_ENV: "local"
+      LOG_LEVEL: "debug"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - acquisitionos-local
+    profiles:
+      - backend   # Opt-in: started alongside the backend service

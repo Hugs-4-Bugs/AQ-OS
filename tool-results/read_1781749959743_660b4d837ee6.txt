@@ -1,0 +1,648 @@
+    94→
+    95→// ---------------------------------------------------------------------------
+    96→// Provider: Resend
+    97→// ---------------------------------------------------------------------------
+    98→
+    99→async function sendViaResend(
+   100→  payload: EmailPayload,
+   101→  from: string,
+   102→): Promise<EmailResult> {
+   103→  try {
+   104→    // Dynamic import so the app doesn't crash if `resend` is not installed.
+   105→    const { Resend } = await import("resend");
+   106→    const resend = new Resend(process.env.RESEND_API_KEY!);
+   107→
+   108→    // Build email params — include attachments if provided
+   109→    const emailParams: Record<string, unknown> = {
+   110→      from,
+   111→      to: payload.to,
+   112→      subject: payload.subject,
+   113→      html: payload.html,
+   114→      text: payload.text,
+   115→    };
+   116→
+   117→    if (payload.attachments && payload.attachments.length > 0) {
+   118→      emailParams.attachments = payload.attachments.map((att) => ({
+   119→        filename: att.filename,
+   120→        content:
+   121→          typeof att.content === "string"
+   122→            ? att.content
+   123→            : att.content.toString("base64"),
+   124→        ...(att.contentType ? { content_type: att.contentType } : {}),
+   125→      }));
+   126→    }
+   127→
+   128→    const { data, error } = await resend.emails.send(emailParams as Parameters<typeof resend.emails.send>[0]);
+   129→
+   130→    if (error) {
+   131→      console.error("[EmailService] Resend error:", error);
+   132→      return { sent: false, error: error.message };
+   133→    }
+   134→
+   135→    return { sent: true, messageId: data?.id, provider: 'resend' };
+   136→  } catch (err: unknown) {
+   137→    const message =
+   138→      err instanceof Error ? err.message : "Failed to send via Resend";
+   139→    console.error("[EmailService] Resend exception:", message);
+   140→    return { sent: false, error: message };
+   141→  }
+   142→}
+   143→
+   144→// ---------------------------------------------------------------------------
+   145→// Provider: Nodemailer SMTP
+   146→// ---------------------------------------------------------------------------
+   147→
+   148→async function sendViaSmtp(
+   149→  payload: EmailPayload,
+   150→): Promise<EmailResult> {
+   151→  try {
+   152→    // nodemailer is a project dependency — import statically is fine, but we
+   153→    // keep the dynamic form for symmetry with the Resend path.
+   154→    const nodemailer = await import("nodemailer");
+   155→
+   156→    const smtpConfig = {
+   157→      host: process.env.SMTP_HOST,
+   158→      port: Number(process.env.SMTP_PORT) || 587,
+   159→      secure: Number(process.env.SMTP_PORT) === 465,
+   160→      auth: {
+   161→        user: process.env.SMTP_USER,
+   162→        pass: getSmtpPassword(),
+   163→      },
+   164→    };
+   165→
+   166→    console.log(`[EmailService] SMTP connecting to ${smtpConfig.host}:${smtpConfig.port} (secure=${smtpConfig.secure}, user=${smtpConfig.auth.user ? 'SET' : 'MISSING'})`);
+   167→
+   168→    const transporter = nodemailer.createTransport(smtpConfig);
+   169→
+   170→    const fromAddress =
+   171→      process.env.SMTP_FROM || "AcquisitionOS <noreply@acquisitionos.com>";
+   172→
+   173→    const mailOptions: Record<string, unknown> = {
+   174→      from: fromAddress,
+   175→      to: payload.to,
+   176→      subject: payload.subject,
+   177→      html: payload.html,
+   178→      text: payload.text,
+   179→    };
+   180→
+   181→    // Nodemailer supports attachments[] natively
+   182→    if (payload.attachments && payload.attachments.length > 0) {
+   183→      mailOptions.attachments = payload.attachments.map((att) => ({
+   184→        filename: att.filename,
+   185→        content: att.content,
+   186→        ...(att.contentType ? { contentType: att.contentType } : {}),
+   187→      }));
+   188→    }
+   189→
+   190→    const info = await transporter.sendMail(mailOptions);
+   191→
+   192→    console.log(`[EmailService] ✓ SMTP mail sent: messageId=${info.messageId}, response=${info.response}`);
+   193→    return { sent: true, messageId: info.messageId, provider: 'smtp' };
+   194→  } catch (err: unknown) {
+   195→    const message =
+   196→      err instanceof Error ? err.message : "Failed to send via SMTP";
+   197→    console.error("[EmailService] SMTP exception:", message);
+   198→    return { sent: false, error: message };
+   199→  }
+   200→}
+   201→
+   202→// ---------------------------------------------------------------------------
+   203→// Provider: Ethereal Email (REAL SMTP to test mailbox)
+   204→// ---------------------------------------------------------------------------
+   205→
+   206→/**
+   207→ * Send via Ethereal Email — a real SMTP test service operated by the
+   208→ * Nodemailer team. The message is delivered over the real SMTP protocol to a
+   209→ * real (private) mailbox, and `nodemailer.getTestMessageUrl(info)` returns a
+   210→ * permanent preview URL where the rendered email can be viewed in a browser.
+   211→ *
+   212→ * This is NOT simulation: it exercises the exact same SMTP code path as
+   213→ * production SMTP delivery, just against ethereal.email instead of Gmail /
+   214→ * SendGrid / etc. The preview URL is returned so auth routes can surface it
+   215→ * to the UI for the user to click the magic link / read the OTP.
+   216→ */
+   217→async function sendViaEthereal(
+   218→  payload: EmailPayload,
+   219→  from: string,
+   220→): Promise<EmailResult> {
+   221→  try {
+   222→    const nodemailer = await import("nodemailer");
+   223→    const transport = await getEtherealTransport();
+   224→
+   225→    const mailOptions: Record<string, unknown> = {
+   226→      from,
+   227→      to: payload.to,
+   228→      subject: payload.subject,
+   229→      html: payload.html,
+   230→      text: payload.text,
+   231→    };
+   232→
+   233→    if (payload.attachments && payload.attachments.length > 0) {
+   234→      mailOptions.attachments = payload.attachments.map((att) => ({
+   235→        filename: att.filename,
+   236→        content: att.content,
+   237→        ...(att.contentType ? { contentType: att.contentType } : {}),
+   238→      }));
+   239→    }
+   240→
+   241→    const info = await transport.sendMail(mailOptions);
+   242→    const previewUrl =
+   243→      (nodemailer.getTestMessageUrl(info) as string | undefined) || undefined;
+   244→
+   245→    console.log(
+   246→      `[EmailService] ✓ Ethereal mail sent to ${payload.to} (messageId=${info.messageId})`,
+   247→    );
+   248→    if (previewUrl) {
+   249→      console.log(`[EmailService]   Preview URL: ${previewUrl}`);
+   250→    }
+   251→
+   252→    return {
+   253→      sent: true,
+   254→      messageId: info.messageId,
+   255→      previewUrl,
+   256→      provider: 'ethereal',
+   257→    };
+   258→  } catch (err: unknown) {
+   259→    const message =
+   260→      err instanceof Error ? err.message : "Failed to send via Ethereal";
+   261→    console.error("[EmailService] Ethereal exception:", message);
+   262→    return { sent: false, error: message };
+   263→  }
+   264→}
+   265→
+   266→// ---------------------------------------------------------------------------
+   267→// Provider: Console (dev mode)
+   268→// ---------------------------------------------------------------------------
+   269→
+   270→function sendViaConsole(payload: EmailPayload): EmailResult {
+   271→  console.log("──────────────────────────────────────────────────");
+   272→  console.log("[EmailService] CONSOLE FALLBACK — email not sent");
+   273→  console.log(`  To     : ${payload.to}`);
+   274→  console.log(`  Subject: ${payload.subject}`);
+   275→  console.log(`  Text   : ${payload.text}`);
+   276→  if (payload.attachments && payload.attachments.length > 0) {
+   277→    console.log(`  Attachments: ${payload.attachments.map((a) => a.filename).join(", ")}`);
+   278→  }
+   279→  console.log("──────────────────────────────────────────────────");
+   280→
+   281→  return { sent: true, devMode: true, provider: 'console' };
+   282→}
+   283→
+   284→// ---------------------------------------------------------------------------
+   285→// Core send function (fallback chain)
+   286→// ---------------------------------------------------------------------------
+   287→
+   288→export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
+   289→  const provider = activeEmailProvider();
+   290→  console.log(
+   291→    `[EmailService] sendEmail called: to=${payload.to}, subject=${payload.subject}, activeProvider=${provider}`,
+   292→  );
+   293→
+   294→  // 1. Email bypass override — log to console instead of sending.
+   295→  // This uses the centralized feature-flags system (AUTH_BYPASS_EMAIL / AUTH_DEV_MODE).
+   296→  // Only triggered when explicitly opted in; never the default.
+   297→  if (featureFlagBypass()) {
+   298→    console.log("[EmailService] AUTH_BYPASS_EMAIL=true — logging instead of sending");
+   299→    return sendViaConsole(payload);
+   300→  }
+   301→
+   302→  const from =
+   303→    process.env.EMAIL_FROM || process.env.SMTP_FROM || "AcquisitionOS <noreply@acquisitionos.com>";
+   304→
+   305→  // 2. Try Resend (primary) — only when a REAL API key is configured.
+   306→  // Placeholder values like `re_your-...` are skipped to avoid a guaranteed 401.
+   307→  if (isRealResendConfigured()) {
+   308→    console.log("[EmailService] Attempting Resend…");
+   309→    const result = await sendViaResend(payload, from);
+   310→    if (result.sent) {
+   311→      console.log(
+   312→        `[EmailService] ✓ Sent via Resend to ${payload.to} (id: ${result.messageId})`,
+   313→      );
+   314→      return result;
+   315→    }
+   316→    console.warn("[EmailService] ✗ Resend failed, falling back…", result.error);
+   317→  }
+   318→
+   319→  // 3. Try REAL SMTP — only when real credentials are configured.
+   320→  // Placeholders (`your-email@gmail.com`, `your-app-password`) are skipped so
+   321→  // we don't waste cycles failing Gmail auth and triggering dev fallbacks.
+   322→  if (isRealSmtpConfigured()) {
+   323→    console.log(
+   324→      `[EmailService] Attempting SMTP to ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}…`,
+   325→    );
+   326→    const result = await sendViaSmtp(payload);
+   327→    if (result.sent) {
+   328→      console.log(
+   329→        `[EmailService] ✓ Sent via SMTP to ${payload.to} (id: ${result.messageId})`,
+   330→      );
+   331→      return result;
+   332→    }
+   333→    console.warn("[EmailService] ✗ SMTP failed, falling back…", result.error);
+   334→  }
+   335→
+   336→  // 4. Ethereal Email — REAL SMTP to a test mailbox with a preview URL.
+   337→  // This is the development/testing fallback that makes the entire auth flow
+   338→  // (magic link, OTP, signup verification, password reset) work end-to-end
+   339→  // without any mock code or token-in-response shortcuts.
+   340→  if (isEtherealMode()) {
+   341→    console.log("[EmailService] Attempting Ethereal (real SMTP to test inbox)…");
+   342→    return await sendViaEthereal(payload, from);
+   343→  }
+   344→
+   345→  // 5. Last resort — console log. This branch is only reached if a real
+   346→  // provider was configured but explicitly skipped above (shouldn't happen
+   347→  // in practice) and Ethereal is unavailable for some reason.
+   348→  console.warn(
+   349→    "[EmailService] ⚠ No email provider available — logging to console",
+   350→  );
+   351→  return sendViaConsole(payload);
+   352→}
+   353→
+   354→// ---------------------------------------------------------------------------
+   355→// HTML template helpers
+   356→// ---------------------------------------------------------------------------
+   357→
+   358→const BRAND_COLOR = "#0d9488"; // teal-600
+   359→const BRAND_COLOR_LIGHT = "#14b8a6"; // teal-500
+   360→const BRAND_BG = "#f0fdfa"; // teal-50
+   361→const BRAND_DARK = "#0f766e"; // teal-700
+   362→const TEXT_PRIMARY = "#1e293b"; // slate-800
+   363→const TEXT_SECONDARY = "#64748b"; // slate-500
+   364→const BORDER_COLOR = "#e2e8f0"; // slate-200
+   365→
+   366→function baseHtml(body: string, previewText: string): string {
+   367→  return `<!DOCTYPE html>
+   368→<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+   369→<head>
+   370→  <meta charset="UTF-8" />
+   371→  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   372→  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+   373→  <title>AcquisitionOS</title>
+   374→  <!--[if mso]>
+   375→  <noscript>
+   376→    <xml>
+   377→      <o:OfficeDocumentSettings>
+   378→        <o:PixelsPerInch>96</o:PixelsPerInch>
+   379→      </o:OfficeDocumentSettings>
+   380→    </xml>
+   381→  </noscript>
+   382→  <![endif]-->
+   383→  <style>
+   384→    /* Reset */
+   385→    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+   386→    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+   387→    img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+   388→    body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; background-color: ${BRAND_BG}; }
+   389→    a { color: ${BRAND_COLOR}; text-decoration: underline; }
+   390→    a:hover { color: ${BRAND_DARK}; }
+   391→  </style>
+   392→</head>
+   393→<body style="margin:0; padding:0; background-color:${BRAND_BG}; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color:${TEXT_PRIMARY};">
+   394→  <!-- Preheader (hidden text for email clients) -->
+   395→  <div style="display:none; font-size:1px; color:${BRAND_BG}; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+   396→    ${previewText}
+   397→  </div>
+   398→
+   399→  <!-- Outer wrapper -->
+   400→  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND_BG}; padding:32px 0;">
+   401→    <tr>
+   402→      <td align="center" style="padding:0 16px;">
+   403→
+   404→        <!-- Card -->
+   405→        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);">
+   406→          <!-- Brand header -->
+   407→          <tr>
+   408→            <td style="background: linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_DARK} 100%); padding:32px 40px; text-align:center;">
+   409→              <h1 style="margin:0; font-size:22px; font-weight:700; color:#ffffff; letter-spacing:-0.3px;">
+   410→                AcquisitionOS
+   411→              </h1>
+   412→            </td>
+   413→          </tr>
+   414→
+   415→          <!-- Body -->
+   416→          <tr>
+   417→            <td style="padding:40px;">
+   418→              ${body}
+   419→            </td>
+   420→          </tr>
+   421→        </table>
+   422→
+   423→        <!-- Footer -->
+   424→        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; margin-top:16px;">
+   425→          <tr>
+   426→            <td style="padding:16px 24px; text-align:center; font-size:12px; line-height:18px; color:${TEXT_SECONDARY};">
+   427→              &copy; ${new Date().getFullYear()} AcquisitionOS, Inc. All rights reserved.<br />
+   428→              This is an automated message — please do not reply directly.
+   429→            </td>
+   430→          </tr>
+   431→        </table>
+   432→
+   433→      </td>
+   434→    </tr>
+   435→  </table>
+   436→</body>
+   437→</html>`;
+   438→}
+   439→
+   440→function greeting(name: string): string {
+   441→  return `<p style="margin:0 0 20px 0; font-size:16px; line-height:24px; color:${TEXT_PRIMARY};">
+   442→    Hi <strong>${escapeHtml(name)}</strong>,
+   443→  </p>`;
+   444→}
+   445→
+   446→function signOff(): string {
+   447→  return `<p style="margin:24px 0 0 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   448→    Cheers,<br />
+   449→    <strong style="color:${BRAND_COLOR};">The AcquisitionOS Team</strong>
+   450→  </p>`;
+   451→}
+   452→
+   453→function otpBlock(otp: string): string {
+   454→  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+   455→    <tr>
+   456→      <td align="center">
+   457→        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND_BG}; border:2px dashed ${BRAND_COLOR_LIGHT}; border-radius:10px; padding:0;">
+   458→          <tr>
+   459→            <td style="padding:20px 40px; text-align:center;">
+   460→              <span style="font-size:32px; font-weight:800; letter-spacing:6px; color:${BRAND_DARK}; font-family:'Courier New', Courier, monospace;">
+   461→                ${escapeHtml(otp)}
+   462→              </span>
+   463→            </td>
+   464→          </tr>
+   465→        </table>
+   466→      </td>
+   467→    </tr>
+   468→  </table>`;
+   469→}
+   470→
+   471→function securityNote(): string {
+   472→  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0 0;">
+   473→    <tr>
+   474→      <td style="background-color:#fffbeb; border-left:4px solid #f59e0b; border-radius:6px; padding:12px 16px;">
+   475→        <p style="margin:0; font-size:13px; line-height:20px; color:#92400e;">
+   476→          <strong>Didn't request this?</strong> You can safely ignore this email. If you keep receiving unexpected messages, please contact our support team.
+   477→        </p>
+   478→      </td>
+   479→    </tr>
+   480→  </table>`;
+   481→}
+   482→
+   483→function escapeHtml(str: string): string {
+   484→  return str
+   485→    .replace(/&/g, "&amp;")
+   486→    .replace(/</g, "&lt;")
+   487→    .replace(/>/g, "&gt;")
+   488→    .replace(/"/g, "&quot;")
+   489→    .replace(/'/g, "&#039;");
+   490→}
+   491→
+   492→// ---------------------------------------------------------------------------
+   493→// Public API — Email templates
+   494→// ---------------------------------------------------------------------------
+   495→
+   496→/**
+   497→ * Email verification OTP — sent when a user signs up or changes their email.
+   498→ */
+   499→export async function sendVerificationEmail(
+   500→  email: string,
+   501→  name: string,
+   502→  otp: string,
+   503→): Promise<EmailResult> {
+   504→  const subject = "Verify your email — AcquisitionOS";
+   505→  const preview = `Your verification code is ${otp}`;
+   506→
+   507→  const html = baseHtml(
+   508→    `${greeting(name)}
+   509→    <p style="margin:0 0 8px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   510→      Welcome to AcquisitionOS! To verify your email address, please use the following code:
+   511→    </p>
+   512→    ${otpBlock(otp)}
+   513→    <p style="margin:0; font-size:13px; line-height:20px; color:${TEXT_SECONDARY};">
+   514→      This code expires in 10 minutes.
+   515→    </p>
+   516→    ${securityNote()}
+   517→    ${signOff()}`,
+   518→    preview,
+   519→  );
+   520→
+   521→  const text = `Hi ${name},\n\nWelcome to AcquisitionOS! Your verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, you can safely ignore this email.\n\n— The AcquisitionOS Team`;
+   522→
+   523→  return sendEmail({ to: email, subject, html, text });
+   524→}
+   525→
+   526→/**
+   527→ * Login OTP — sent for passwordless authentication.
+   528→ */
+   529→export async function sendOtpLoginEmail(
+   530→  email: string,
+   531→  name: string,
+   532→  otp: string,
+   533→): Promise<EmailResult> {
+   534→  const subject = "Your login code — AcquisitionOS";
+   535→  const preview = `Your login code is ${otp}`;
+   536→
+   537→  const html = baseHtml(
+   538→    `${greeting(name)}
+   539→    <p style="margin:0 0 8px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   540→      Someone requested a login code for your account. Use the following OTP to continue:
+   541→    </p>
+   542→    ${otpBlock(otp)}
+   543→    <p style="margin:0; font-size:13px; line-height:20px; color:${TEXT_SECONDARY};">
+   544→      This code expires in 10 minutes.
+   545→    </p>
+   546→    ${securityNote()}
+   547→    ${signOff()}`,
+   548→    preview,
+   549→  );
+   550→
+   551→  const text = `Hi ${name},\n\nYour login code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, you can safely ignore this email.\n\n— The AcquisitionOS Team`;
+   552→
+   553→  return sendEmail({ to: email, subject, html, text });
+   554→}
+   555→
+   556→/**
+   557→ * Magic link — sent for passwordless authentication via clickable link.
+   558→ */
+   559→export async function sendMagicLinkEmail(
+   560→  email: string,
+   561→  name: string,
+   562→  link: string,
+   563→): Promise<EmailResult> {
+   564→  const subject = "Your sign-in link — AcquisitionOS";
+   565→  const preview = "Click the link to sign in to your account";
+   566→
+   567→  const html = baseHtml(
+   568→    `${greeting(name)}
+   569→    <p style="margin:0 0 20px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   570→      Click the button below to sign in to your AcquisitionOS account. This link is one-time use and expires in 15 minutes.
+   571→    </p>
+   572→    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+   573→      <tr>
+   574→        <td align="center">
+   575→          <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer"
+   576→             style="display:inline-block; background:linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_DARK} 100%); color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; padding:14px 36px; border-radius:8px; letter-spacing:0.3px;">
+   577→            Sign in to AcquisitionOS
+   578→          </a>
+   579→        </td>
+   580→      </tr>
+   581→    </table>
+   582→    <p style="margin:0 0 4px 0; font-size:13px; line-height:20px; color:${TEXT_SECONDARY};">
+   583→      If the button doesn't work, copy and paste this URL into your browser:
+   584→    </p>
+   585→    <p style="margin:0; font-size:13px; line-height:20px; word-break:break-all;">
+   586→      <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" style="color:${BRAND_COLOR};">${escapeHtml(link)}</a>
+   587→    </p>
+   588→    ${securityNote()}
+   589→    ${signOff()}`,
+   590→    preview,
+   591→  );
+   592→
+   593→  const text = `Hi ${name},\n\nSign in to AcquisitionOS by clicking this link:\n${link}\n\nThis link expires in 15 minutes.\n\nIf you didn't request this, you can safely ignore this email.\n\n— The AcquisitionOS Team`;
+   594→
+   595→  return sendEmail({ to: email, subject, html, text });
+   596→}
+   597→
+   598→/**
+   599→ * Password reset OTP — sent when a user requests a password reset.
+   600→ */
+   601→export async function sendPasswordResetEmail(
+   602→  email: string,
+   603→  name: string,
+   604→  otp: string,
+   605→): Promise<EmailResult> {
+   606→  const subject = "Reset your password — AcquisitionOS";
+   607→  const preview = `Your password reset code is ${otp}`;
+   608→
+   609→  const html = baseHtml(
+   610→    `${greeting(name)}
+   611→    <p style="margin:0 0 8px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   612→      We received a request to reset the password for your account. Use the code below to proceed:
+   613→    </p>
+   614→    ${otpBlock(otp)}
+   615→    <p style="margin:0; font-size:13px; line-height:20px; color:${TEXT_SECONDARY};">
+   616→      This code expires in 10 minutes. If you didn't request a password reset, your account is safe — no changes will be made.
+   617→    </p>
+   618→    ${securityNote()}
+   619→    ${signOff()}`,
+   620→    preview,
+   621→  );
+   622→
+   623→  const text = `Hi ${name},\n\nYour password reset code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, your account is safe — no changes will be made.\n\n— The AcquisitionOS Team`;
+   624→
+   625→  return sendEmail({ to: email, subject, html, text });
+   626→}
+   627→
+   628→/**
+   629→ * Security alert — sent when a sensitive action occurs on the account.
+   630→ */
+   631→export async function sendSecurityAlertEmail(
+   632→  email: string,
+   633→  name: string,
+   634→  event: string,
+   635→  ip: string,
+   636→  userAgent: string,
+   637→): Promise<EmailResult> {
+   638→  const subject = "Security alert — AcquisitionOS";
+   639→  const preview = `Security activity detected on your account`;
+   640→
+   641→  const html = baseHtml(
+   642→    `${greeting(name)}
+   643→    <p style="margin:0 0 16px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   644→      We detected the following security activity on your account:
+   645→    </p>
+   646→
+   647→    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0; background-color:#f8fafc; border:1px solid ${BORDER_COLOR}; border-radius:8px; overflow:hidden;">
+   648→      <tr>
+   649→        <td style="padding:16px 20px; font-size:14px; line-height:22px; color:${TEXT_PRIMARY};">
+   650→          <strong style="color:${BRAND_DARK};">Event:</strong> ${escapeHtml(event)}<br />
+   651→          <strong style="color:${BRAND_DARK};">IP Address:</strong> ${escapeHtml(ip)}<br />
+   652→          <strong style="color:${BRAND_DARK};">Device / Browser:</strong> ${escapeHtml(userAgent)}
+   653→        </td>
+   654→      </tr>
+   655→    </table>
+   656→
+   657→    <p style="margin:0 0 8px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   658→      If this was you, no further action is needed.
+   659→    </p>
+   660→
+   661→    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 0 0;">
+   662→      <tr>
+   663→        <td style="background-color:#fef2f2; border-left:4px solid #ef4444; border-radius:6px; padding:12px 16px;">
+   664→          <p style="margin:0; font-size:13px; line-height:20px; color:#991b1b;">
+   665→            <strong>Don't recognize this activity?</strong> Change your password immediately and enable two-factor authentication if you haven't already. Contact support if you need help securing your account.
+   666→          </p>
+   667→        </td>
+   668→      </tr>
+   669→    </table>
+   670→    ${signOff()}`,
+   671→    preview,
+   672→  );
+   673→
+   674→  const text = `Hi ${name},\n\nWe detected the following security activity on your account:\n\n  Event: ${event}\n  IP Address: ${ip}\n  Device / Browser: ${userAgent}\n\nIf this was you, no further action is needed.\n\nIf you don't recognize this activity, change your password immediately and enable two-factor authentication.\n\n— The AcquisitionOS Team`;
+   675→
+   676→  return sendEmail({ to: email, subject, html, text });
+   677→}
+   678→
+   679→/**
+   680→ * Welcome email — sent after a user successfully verifies their email.
+   681→ */
+   682→export async function sendWelcomeEmail(
+   683→  email: string,
+   684→  name: string,
+   685→): Promise<EmailResult> {
+   686→  const subject = "Welcome to AcquisitionOS 🎉";
+   687→  const preview = "Your account is ready — let's get started!";
+   688→
+   689→  const html = baseHtml(
+   690→    `${greeting(name)}
+   691→    <p style="margin:0 0 16px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   692→      Your email has been verified and your account is all set. Welcome aboard!
+   693→    </p>
+   694→    <p style="margin:0 0 24px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   695→      Here are a few things you can do to get started:
+   696→    </p>
+   697→
+   698→    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;">
+   699→      <tr>
+   700→        <td style="padding:0 0 12px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   701→          <span style="display:inline-block; width:24px; height:24px; line-height:24px; text-align:center; background-color:${BRAND_BG}; color:${BRAND_COLOR}; border-radius:6px; font-size:13px; font-weight:700; margin-right:10px;">1</span>
+   702→          Complete your profile and company details
+   703→        </td>
+   704→      </tr>
+   705→      <tr>
+   706→        <td style="padding:0 0 12px 0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   707→          <span style="display:inline-block; width:24px; height:24px; line-height:24px; text-align:center; background-color:${BRAND_BG}; color:${BRAND_COLOR}; border-radius:6px; font-size:13px; font-weight:700; margin-right:10px;">2</span>
+   708→          Set up your first acquisition pipeline
+   709→        </td>
+   710→      </tr>
+   711→      <tr>
+   712→        <td style="padding:0; font-size:15px; line-height:22px; color:${TEXT_PRIMARY};">
+   713→          <span style="display:inline-block; width:24px; height:24px; line-height:24px; text-align:center; background-color:${BRAND_BG}; color:${BRAND_COLOR}; border-radius:6px; font-size:13px; font-weight:700; margin-right:10px;">3</span>
+   714→          Invite your team and start collaborating
+   715→        </td>
+   716→      </tr>
+   717→    </table>
+   718→
+   719→    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;">
+   720→      <tr>
+   721→        <td align="center">
+   722→          <a href="#" target="_blank" rel="noopener noreferrer"
+   723→             style="display:inline-block; background:linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_DARK} 100%); color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; padding:14px 36px; border-radius:8px; letter-spacing:0.3px;">
+   724→            Go to Dashboard
+   725→          </a>
+   726→        </td>
+   727→      </tr>
+   728→    </table>
+   729→
+   730→    <p style="margin:0; font-size:13px; line-height:20px; color:${TEXT_SECONDARY};">
+   731→      Questions? Reply to this email or reach out to our support team anytime — we're here to help.
+   732→    </p>
+   733→    ${signOff()}`,
+   734→    preview,
+   735→  );
+   736→
+   737→  const text = `Hi ${name},\n\nYour email has been verified and your account is all set. Welcome aboard!\n\nHere are a few things you can do to get started:\n  1. Complete your profile and company details\n  2. Set up your first acquisition pipeline\n  3. Invite your team and start collaborating\n\nQuestions? Reply to this email or reach out to our support team anytime.\n\n— The AcquisitionOS Team`;
+   738→
+   739→  return sendEmail({ to: email, subject, html, text });
+   740→}
+   741→

@@ -1,0 +1,202 @@
+// ═══════════════════════════════════════════════════════════════════
+// AcquisitionOS — Next.js Middleware for Route Protection + CSRF + Security
+// Phase 3: Auth + Authorization + Session Security + RBAC
+//
+// Uses `jose` (Edge Runtime compatible) instead of `jsonwebtoken`
+// to verify JWTs — Node.js-only modules are not available in
+// Next.js middleware which runs in the Edge Runtime.
+// ═══════════════════════════════════════════════════════════════════
+
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
+
+// Must match the secret used in auth.ts
+const _jwtSecret = process.env.JWT_SECRET;
+if (!_jwtSecret && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. The server cannot start without it in production.');
+}
+const JWT_SECRET = _jwtSecret || 'acquisitionos-dev-secret-change-in-production';
+const secretKey = new TextEncoder().encode(JWT_SECRET);
+
+// Routes that don't require authentication
+const PUBLIC_ROUTES = [
+  '/api/auth/signin',
+  '/api/auth/signup',
+  '/api/auth/verify-email',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/refresh',
+  '/api/auth/mfa/verify',
+  '/api/auth/magic-link',
+  '/api/auth/google',
+  '/api/auth/callback/',  // Google OAuth callback (both URIs)
+  '/api/auth/otp',
+  '/api/auth/resend-verification',
+  '/api/health',
+  '/api/cron/', // Cron endpoints use their own Bearer token auth
+  '/api/payments/webhook/', // Webhook endpoints verify their own signatures
+  '/',
+];
+
+// State-changing HTTP methods that require CSRF protection
+const CSRF_PROTECTED_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+
+// Security headers to apply to all responses
+// Note: In development, we allow iframe embedding for the preview panel.
+// In production, X-Frame-Options should be DENY and frame-ancestors 'none'.
+const isDev = process.env.NODE_ENV === 'development';
+
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': isDev ? 'SAMEORIGIN' : 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy':
+    isDev
+      ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: ws: wss:; frame-ancestors 'self' *.space-z.ai http://localhost:* http://127.0.0.1:*"
+      : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https:; frame-ancestors 'none'",
+};
+
+// Routes that require admin role (checked by middleware for early rejection)
+const ADMIN_ROUTES = [
+  '/api/admin/',
+];
+
+interface MiddlewareJwtPayload {
+  sub: string;
+  email: string;
+  role: string;
+  plan: string;
+  orgId: string | null;
+  type: 'access' | 'refresh';
+}
+
+/** Apply security headers to a response */
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
+/** Validate CSRF protection for state-changing requests */
+function validateCsrf(request: NextRequest): boolean {
+  // If the request has a valid access_token cookie, same-site cookies
+  // provide CSRF protection (SameSite=Strict)
+  const accessToken = request.cookies.get('access_token')?.value;
+  if (accessToken) {
+    return true;
+  }
+
+  // API key Bearer tokens (aq_live_/aq_test_) are not subject to CSRF
+  // — they are custom secret tokens that browsers don't auto-attach
+  const authHeader = request.headers.get('authorization') || '';
+  if (authHeader.startsWith('Bearer aq_live_') || authHeader.startsWith('Bearer aq_test_')) {
+    return true;
+  }
+
+  // For API clients that use Authorization header instead of cookies,
+  // require a custom header to prove the request is intentional (not CSRF)
+  const requestedWith = request.headers.get('X-Requested-With');
+  if (requestedWith === 'XMLHttpRequest') {
+    return true;
+  }
+
+  // No CSRF protection — reject
+  return false;
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ── CSRF protection for state-changing methods ───────────────
+  if (CSRF_PROTECTED_METHODS.has(request.method) && pathname.startsWith('/api/')) {
+    // Allow public auth routes to skip CSRF (they have their own rate limiting)
+    const isPublicAuthRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+
+    if (!isPublicAuthRoute && !validateCsrf(request)) {
+      const response = NextResponse.json(
+        { error: 'CSRF validation failed. Include access_token cookie or X-Requested-With header.' },
+        { status: 403 }
+      );
+      return applySecurityHeaders(response);
+    }
+  }
+
+  // ── Allow public routes ──────────────────────────────────────
+  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+    const response = NextResponse.next();
+    return applySecurityHeaders(response);
+  }
+
+  // ── Only protect /api/ routes ────────────────────────────────
+  // (the main app is client-rendered SPA)
+  if (!pathname.startsWith('/api/')) {
+    const response = NextResponse.next();
+    return applySecurityHeaders(response);
+  }
+
+  // ── Try to get auth token from cookie or Authorization header ─
+  const accessToken = request.cookies.get('access_token')?.value ||
+                      request.headers.get('authorization')?.replace('Bearer ', '');
+
+  if (!accessToken) {
+    const response = NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    return applySecurityHeaders(response);
+  }
+
+  // ── API Key Bearer token: let route handlers verify ──────────
+  // API keys use aq_live_/aq_test_ prefix — they are NOT JWTs.
+  // The route handler will verify them using the api-key-middleware.
+  if (accessToken.startsWith('aq_live_') || accessToken.startsWith('aq_test_')) {
+    // Pass through — the route handler must verify the key
+    const response = NextResponse.next();
+    return applySecurityHeaders(response);
+  }
+
+  // ── Verify JWT using jose (Edge Runtime compatible) ──────────
+  try {
+    const { payload } = await jwtVerify<MiddlewareJwtPayload>(accessToken, secretKey, {
+      issuer: 'acquisitionos',
+      audience: 'acquisitionos-api',
+    });
+
+    if (!payload || payload.type !== 'access') {
+      const response = NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+      return applySecurityHeaders(response);
+    }
+
+    // ── Add user info to request headers for downstream use ─────
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', payload.sub);
+    requestHeaders.set('x-user-email', payload.email);
+    requestHeaders.set('x-user-role', payload.role);
+    requestHeaders.set('x-user-plan', payload.plan);
+    requestHeaders.set('x-user-org', payload.orgId || '');
+
+    // ── Admin route protection ────────────────────────────────────
+    if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {
+      const role = payload.role;
+      if (!['super_admin', 'owner', 'admin'].includes(role)) {
+        const response = NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+        return applySecurityHeaders(response);
+      }
+    }
+
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    return applySecurityHeaders(response);
+  } catch {
+    const response = NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    return applySecurityHeaders(response);
+  }
+}
+
+export const config = {
+  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)'],
+};

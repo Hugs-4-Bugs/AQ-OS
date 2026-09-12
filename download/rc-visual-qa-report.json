@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-05-20T05:06:03.341Z",
+  "screenshots": [
+    {
+      "name": "01-homepage",
+      "path": "/home/z/my-project/download/rc-visual-qa-01-homepage.png"
+    },
+    {
+      "name": "03-signup-form-filled",
+      "path": "/home/z/my-project/download/rc-visual-qa-03-signup-form-filled.png"
+    },
+    {
+      "name": "06-dashboard",
+      "path": "/home/z/my-project/download/rc-visual-qa-06-dashboard.png"
+    },
+    {
+      "name": "10-mobile-viewport",
+      "path": "/home/z/my-project/download/rc-visual-qa-10-mobile-viewport.png"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "INFO",
+      "message": "Health API working"
+    },
+    {
+      "severity": "INFO",
+      "message": "Auth/me correctly returns 401 for unauthenticated users"
+    },
+    {
+      "severity": "INFO",
+      "message": "User already exists (rc-test-002@test.com) - expected on re-run"
+    },
+    {
+      "severity": "INFO",
+      "message": "Signin API working"
+    },
+    {
+      "severity": "INFO",
+      "message": "Auth cookies set correctly (2 cookies)"
+    },
+    {
+      "severity": "INFO",
+      "message": "Auth/me returns user data: name=undefined, email=undefined, plan=undefined"
+    },
+    {
+      "severity": "INFO",
+      "message": "Subscription API: status=200"
+    },
+    {
+      "severity": "INFO",
+      "message": "Entitlements: 3 features enabled for free plan"
+    },
+    {
+      "severity": "INFO",
+      "message": "Credit addons API: status=200"
+    },
+    {
+      "severity": "INFO",
+      "message": "Landed on dashboard (authenticated session)"
+    }
+  ],
+  "browserErrors": [
+    {
+      "type": "console",
+      "message": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "console",
+      "message": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ycVoiXcZwXbHKvoe55Vb1' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
+    }
+  ]
+}

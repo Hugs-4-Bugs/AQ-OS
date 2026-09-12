@@ -1,0 +1,60 @@
+# ═══════════════════════════════════════════════════════════════════
+# AcquisitionOS — Celery Beat Deployment
+# Phase 14.4: Deployment
+# ═══════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  namespace: acquisitionos
+  labels:
+    app: acquisitionos
+    component: celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acquisitionos
+      component: celery-beat
+  template:
+    metadata:
+      labels:
+        app: acquisitionos
+        component: celery-beat
+    spec:
+      containers:
+        - name: celery-beat
+          image: acquisitionos/backend:latest
+          command:
+            - celery
+            - -A
+            - app.celery_app
+            - beat
+            - --loglevel=info
+            - --scheduler
+            - celery.beat:PersistentScheduler
+          envFrom:
+            - configMapRef:
+                name: acquisitionos-config
+            - secretRef:
+                name: acquisitionos-secrets
+          env:
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)/$(REDIS_DB)"
+            - name: CELERY_BROKER_URL
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)/$(CELERY_BROKER_DB)"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)/$(CELERY_RESULT_DB)"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: beat-data
+              mountPath: /app/celerybeat-schedule
+      volumes:
+        - name: beat-data
+          emptyDir: {}

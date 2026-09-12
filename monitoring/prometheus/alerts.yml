@@ -1,0 +1,287 @@
+# AcquisitionOS — Prometheus Alert Rules
+
+groups:
+  # ─────────────────────────────────────────────────────────────────
+  # Application Alert Rules
+  # ─────────────────────────────────────────────────────────────────
+  - name: application_alerts
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High error rate detected on {{ $labels.service }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%) over the last 5 minutes."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/high-error-rate"
+
+      # High Error Rate Warning
+      - alert: ElevatedErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.02
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Elevated error rate on {{ $labels.service }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 2%) over the last 10 minutes."
+
+      # High Latency P95
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High latency P95 on {{ $labels.service }}"
+          description: "P95 latency is {{ $value }}s (threshold: 2s) over the last 5 minutes."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/high-latency"
+
+      # High Latency P99
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical latency P99 on {{ $labels.service }}"
+          description: "P99 latency is {{ $value }}s (threshold: 5s) over the last 5 minutes."
+
+      # API Endpoint Down
+      - alert: APIEndpointDown
+        expr: |
+          up{job="fastapi-backend"} == 0
+          or up{job="nextjs-app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: "The {{ $labels.job }} service has been down for more than 2 minutes."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Database Alert Rules
+  # ─────────────────────────────────────────────────────────────────
+  - name: database_alerts
+    rules:
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          db_connection_pool_usage > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Database connection pool approaching exhaustion"
+          description: "Connection pool usage is {{ $value | humanizePercentage }} (threshold: 90%)."
+
+      # Database Connection Pool Exhausted (Critical)
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          db_connection_pool_usage > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "Connection pool usage is {{ $value | humanizePercentage }} (threshold: 95%). Requests are being rejected."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Redis Alert Rules
+  # ─────────────────────────────────────────────────────────────────
+  - name: redis_alerts
+    rules:
+      # Redis Connection Failures
+      - alert: RedisConnectionFailures
+        expr: |
+          increase(redis_connection_errors_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Redis connection failures detected"
+          description: "{{ $value }} Redis connection errors in the last 5 minutes."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/redis-connection-failures"
+
+      # Redis Memory Usage High
+      - alert: RedisMemoryUsageHigh
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} of max memory."
+
+      # Redis Down
+      - alert: RedisDown
+        expr: |
+          up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been unreachable for more than 2 minutes."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Celery Alert Rules
+  # ─────────────────────────────────────────────────────────────────
+  - name: celery_alerts
+    rules:
+      # Celery Queue Backlog
+      - alert: CeleryQueueBacklog
+        expr: |
+          celery_queue_length > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Celery queue backlog detected"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} pending tasks (threshold: 1000)."
+
+      # Celery Queue Backlog Critical
+      - alert: CeleryQueueBacklogCritical
+        expr: |
+          celery_queue_length > 5000
+        for: 15m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical Celery queue backlog"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} pending tasks (threshold: 5000)."
+
+      # Celery Worker Down
+      - alert: CeleryWorkerDown
+        expr: |
+          celery_workers_active < 1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "No active Celery workers"
+          description: "Zero active Celery workers detected for 5 minutes."
+
+      # High Task Failure Rate
+      - alert: CeleryHighTaskFailureRate
+        expr: |
+          (
+            sum(rate(celery_task_failed_total[10m]))
+            /
+            sum(rate(celery_task_total[10m]))
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High Celery task failure rate"
+          description: "Task failure rate is {{ $value | humanizePercentage }} (threshold: 10%)."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Infrastructure Alert Rules
+  # ─────────────────────────────────────────────────────────────────
+  - name: infrastructure_alerts
+    rules:
+      # Disk Space Warning
+      - alert: DiskSpaceWarning
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.20
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Disk space running low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining on /."
+
+      # Disk Space Critical
+      - alert: DiskSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.10
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Disk space critically low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining on /. Immediate action required."
+
+      # Memory Pressure Warning
+      - alert: MemoryPressureWarning
+        expr: |
+          (
+            1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Memory pressure detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 85%)."
+
+      # Memory Pressure Critical
+      - alert: MemoryPressureCritical
+        expr: |
+          (
+            1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+          ) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Critical memory pressure"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 95%). OOM kills imminent."
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 15m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% (threshold: 85%) for the last 15 minutes."

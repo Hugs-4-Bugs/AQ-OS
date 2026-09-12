@@ -1,0 +1,339 @@
+{
+ "modelFields": {
+  "acquisitionCampaign": {
+   "usages": 41,
+   "fields": [
+    "orgId",
+    "status",
+    "autoSend",
+    "id",
+    "niche",
+    "country",
+    "city",
+    "source",
+    "channel",
+    "tone",
+    "maxLeads",
+    "customInstructions",
+    "errorMessage",
+    "discoveryJobId",
+    "completedAt",
+    "discovered",
+    "totalLeads",
+    "analyzed",
+    "outreachGenerated",
+    "sent",
+    "errors",
+    "createdAt",
+    "userId",
+    "id (sel)",
+    "niche (sel)",
+    "country (sel)",
+    "city (sel)",
+    "status (sel)",
+    "channel (sel)",
+    "tone (sel)",
+    "maxLeads (sel)",
+    "totalLeads (sel)",
+    "discovered (sel)",
+    "analyzed (sel)",
+    "outreachGenerated (sel)",
+    "sent (sel)",
+    "autoSend (sel)",
+    "createdAt (sel)",
+    "completedAt (sel)"
+   ]
+  },
+  "report": {
+   "usages": 27,
+   "fields": [
+    "userId",
+    "description",
+    "dashboard",
+    "filters",
+    "chartConfig",
+    "scheduleCron",
+    "exportFormat",
+    "orgId",
+    "createdAt",
+    "lastRunAt",
+    "name",
+    "type",
+    "isPublic",
+    "id",
+    "lastExportUrl",
+    "nextRunAt"
+   ]
+  },
+  "competitorSnapshot": {
+   "usages": 19,
+   "fields": [
+    "createdAt",
+    "snapshotType",
+    "seoScore (sel)",
+    "competitorId (sel)",
+    "seoScore",
+    "socialScore",
+    "pricingModel",
+    "techStack",
+    "strengths",
+    "weaknesses",
+    "estimatedTraffic",
+    "rawData",
+    "userId",
+    "competitorId"
+   ]
+  },
+  "messageTemplate": {
+   "usages": 16,
+   "fields": [
+    "usageCount",
+    "name (sel)",
+    "channel (sel)",
+    "usageCount (sel)",
+    "category (sel)",
+    "userId",
+    "channel",
+    "lastUsedAt",
+    "name",
+    "category",
+    "subject",
+    "variables",
+    "isAiGenerated",
+    "isDefault",
+    "id"
+   ]
+  },
+  "analyticsPrediction": {
+   "usages": 12,
+   "fields": [
+    "expiresAt",
+    "createdAt",
+    "userId",
+    "predictionType",
+    "targetEntityId",
+    "actualizedAt",
+    "id",
+    "predictedValue",
+    "confidence",
+    "modelVersion",
+    "inputData",
+    "predictionHorizon",
+    "updatedAt",
+    "category",
+    "predictionType (sel)",
+    "predictedValue (sel)",
+    "actualValue (sel)",
+    "userId (sel)",
+    "actualizedAt (sel)"
+   ]
+  },
+  "analyticsInsight": {
+   "usages": 10,
+   "fields": [
+    "category",
+    "insightType",
+    "title",
+    "createdAt",
+    "description",
+    "impact",
+    "metricName",
+    "metricBefore",
+    "metricAfter",
+    "changePercent",
+    "dataSource",
+    "isActionable",
+    "actionSuggestion",
+    "validUntil",
+    "id",
+    "isRead"
+   ]
+  },
+  "analyticsAnomaly": {
+   "usages": 10,
+   "fields": [
+    "status",
+    "createdAt",
+    "category",
+    "anomalyType",
+    "severity",
+    "metricName",
+    "expectedValue",
+    "actualValue",
+    "deviation",
+    "description",
+    "id",
+    "resolvedAt"
+   ]
+  },
+  "dashboardShare": {
+   "usages": 10,
+   "fields": [
+    "allowedUsers",
+    "orgSharing",
+    "expiresAt",
+    "accessCount",
+    "isActive",
+    "id",
+    "lastAccessedAt",
+    "createdAt"
+   ]
+  },
+  "analyticsFormula": {
+   "usages": 10,
+   "fields": [
+    "name",
+    "description",
+    "formula",
+    "variables",
+    "resultType",
+    "category",
+    "isPublic",
+    "id",
+    "lastResult",
+    "lastComputedAt",
+    "OR",
+    "createdAt"
+   ]
+  },
+  "ragDocument": {
+   "usages": 7,
+   "fields": [
+    "keywords",
+    "title",
+    "type",
+    "content",
+    "chunkIndex",
+    "source",
+    "metadata",
+    "tfidfScores",
+    "leadId",
+    "id (sel)",
+    "leadId (sel)",
+    "title (sel)",
+    "type (sel)",
+    "content (sel)",
+    "keywords (sel)",
+    "tfidfScores (sel)",
+    "source (sel)",
+    "metadata (sel)"
+   ]
+  },
+  "analyticsBenchmark": {
+   "usages": 3,
+   "fields": [
+    "userId",
+    "orgId",
+    "category",
+    "benchmarkType",
+    "metricName",
+    "yourValue",
+    "benchmarkValue",
+    "percentile",
+    "comparisonGroup",
+    "periodStart",
+    "periodEnd",
+    "dataPoints",
+    "metadata",
+    "createdAt"
+   ]
+  },
+  "analyticsSnapshot": {
+   "usages": 1,
+   "fields": [
+    "userId_category_period_periodStart",
+    "metrics"
+   ]
+  }
+ },
+ "missingByModel": {
+  "Invoice": {
+   "status": "src/app/api/admin/refund/route.ts:105"
+  },
+  "GoogleCalendarToken": {
+   "isConnected": "src/app/api/calendar/[eventId]/route.ts:61",
+   "lastSyncedAt": "src/lib/calendar/calendar-service.ts:146"
+  },
+  "WorkflowExecution": {
+   "durationMs": "src/app/api/dashboard/automation-rules/route.ts:28",
+   "isDeadLetter": "src/app/api/workflows/executions/[executionId]/replay/route.ts:55",
+   "userId": "src/lib/auto-insight-engine.ts:657",
+   "lastRetryAt": "src/lib/workflow-executor.ts:849"
+  },
+  "WorkflowDefinition": {
+   "runCount": "src/app/api/dashboard/workflow-analytics/route.ts:11",
+   "successCount": "src/lib/metric-formulas-engine.ts:585",
+   "failureCount": "src/lib/metric-formulas-engine.ts:593",
+   "avgRuntimeMs": "src/lib/metric-formulas-engine.ts:611",
+   "lastRunAt": "src/lib/workflow-executor.ts:300",
+   "webhookPath": "src/lib/workflow-executor.ts:819"
+  },
+  "DiscoveryJob": {
+   "total": "src/app/api/discovery/start/route.ts:70",
+   "progress": "src/app/api/discovery/start/route.ts:238"
+  },
+  "UserSettings": {
+   "theme": "src/app/api/settings/appearance/route.ts:16"
+  },
+  "User": {
+   "bio": "src/app/api/settings/export/route.ts:39",
+   "consecutivePaymentFailures": "src/lib/payment-failure-utils.ts:85"
+  },
+  "TelegramConfig": {
+   "webhookSecret": "src/app/api/telegram/webhook/route.ts:68",
+   "lastWebhookAt": "src/app/api/telegram/webhook/route.ts:109",
+   "botToken": "src/lib/telegram-service.ts:510",
+   "healthStatus": "src/lib/telegram-service.ts:587",
+   "mode": "src/lib/telegram-service.ts:636",
+   "webhookUrl": "src/lib/telegram-service.ts:664",
+   "reconnectAttempts": "src/lib/telegram-service.ts:1134"
+  },
+  "WhatsappConfig": {
+   "metaVerifyToken": "src/app/api/whatsapp/meta/webhook/route.ts:45",
+   "metaWebhookVerified": "src/app/api/whatsapp/meta/webhook/route.ts:89",
+   "metaPhoneNumberId": "src/app/api/whatsapp/meta/webhook/route.ts:149",
+   "metaWabaId": "src/app/api/whatsapp/meta/webhook/route.ts:162",
+   "twilioAccountSid": "src/app/api/whatsapp/twilio/webhook/route.ts:84",
+   "lastTemplateSyncAt": "src/lib/message-template-service.ts:789",
+   "metaAccessToken": "src/lib/whatsapp-service.ts:477",
+   "healthStatus": "src/lib/whatsapp-service.ts:536",
+   "reconnectAttempts": "src/lib/whatsapp-service.ts:1977",
+   "lastWebhookAt": "src/lib/whatsapp-service.ts:2269"
+  },
+  "CompetitorAnalysis": {
+   "opportunityScore": "src/lib/benchmarking-engine.ts:572",
+   "pricingDetails": "src/lib/benchmarking-engine.ts:732",
+   "socialProfiles": "src/lib/competitor-intelligence-service.ts:521",
+   "reviewsData": "src/lib/competitor-intelligence-service.ts:1109",
+   "pageSpeedData": "src/lib/competitor-intelligence-service.ts:1399",
+   "aiComparisonData": "src/lib/competitor-intelligence-service.ts:1845",
+   "lighthouseData": "src/lib/competitor-intelligence-service.ts:2794"
+  },
+  "CompetitorData": {
+   "description": "src/lib/competitor-intelligence-service.ts:498",
+   "techStackData": "src/lib/competitor-intelligence-service.ts:1243",
+   "pageSpeedScore": "src/lib/competitor-intelligence-service.ts:1408",
+   "seoMetadata": "src/lib/competitor-intelligence-service.ts:2697",
+   "socialProfiles": "src/lib/competitor-intelligence-service.ts:3335"
+  },
+  "Deal": {
+   "title": "src/lib/meeting-orchestration-service.ts:1365"
+  },
+  "NotificationPreferences": {
+   "pushEnabled": "src/lib/notification-channels/push-channel.ts:97",
+   "pushSubscriptions": "src/lib/notification-channels/push-channel.ts:161"
+  },
+  "AuditLog": {
+   "metadata": "src/lib/payment-notification-service.ts:103"
+  },
+  "Conversation": {
+   "userId": "src/lib/reply-intelligence-service.ts:709"
+  },
+  "DataExport": {
+   "type": "src/lib/workflow-actions.ts:636"
+  },
+  "WorkflowLog": {
+   "retryAttempt": "src/lib/workflow-executor.ts:198"
+  }
+ }
+}

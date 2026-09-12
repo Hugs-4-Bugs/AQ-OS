@@ -1,0 +1,187 @@
+{
+ "src/__tests__/api/health-credits-routes.test.ts": [
+  {
+   "line": 230,
+   "code": "TS2339",
+   "msg": "Property '__mockGetAuthUser' does not exist on type 'typeof import(\"/home/z/my-project/src/lib/auth\")'."
+  },
+  {
+   "line": 240,
+   "code": "TS2339",
+   "msg": "Property '__mockGetAuthUser' does not exist on type 'typeof import(\"/home/z/my-project/src/lib/auth\")'."
+  },
+  {
+   "line": 268,
+   "code": "TS2339",
+   "msg": "Property '__mockGetAuthUser' does not exist on type 'typeof import(\"/home/z/my-project/src/lib/auth\")'."
+  },
+  {
+   "line": 278,
+   "code": "TS2339",
+   "msg": "Property '__mockGetAuthUser' does not exist on type 'typeof import(\"/home/z/my-project/src/lib/auth\")'."
+  }
+ ],
+ "src/__tests__/helpers/mock-request.ts": [
+  {
+   "line": 94,
+   "code": "TS2345",
+   "msg": "Argument of type 'RequestInit' is not assignable to parameter of type 'import(\"/home/z/my-project/node_modules/next/dist/server/web/spec-extension/request\").RequestInit'."
+  }
+ ],
+ "src/__tests__/helpers/mock-user.ts": [
+  {
+   "line": 34,
+   "code": "TS2353",
+   "msg": "Object literal may only specify known properties, and 'authProvider' does not exist in type 'AuthUser'."
+  }
+ ],
+ "src/__tests__/lib/email.test.ts": [
+  {
+   "line": 86,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 110,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 194,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  }
+ ],
+ "src/__tests__/lib/logger.test.ts": [
+  {
+   "line": 36,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 44,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 69,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 80,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 85,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 93,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 98,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 107,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 116,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 124,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 129,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 136,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 145,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 154,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 159,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 168,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 173,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 184,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 189,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 200,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 209,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 220,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 229,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 239,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 244,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  },
+  {
+   "line": 257,
+   "code": "TS2540",
+   "msg": "Cannot assign to 'NODE_ENV' because it is a read-only property."
+  }
+ ]
+}

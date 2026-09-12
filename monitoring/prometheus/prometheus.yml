@@ -1,0 +1,111 @@
+# AcquisitionOS — Prometheus Configuration
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+  external_labels:
+    cluster: 'acquisitionos'
+    environment: 'production'
+    replica: 'prometheus-1'
+
+# Alertmanager configuration (to be added when deployed)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load alert rules
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ─────────────────────────────────────────────────────────────────
+  # Prometheus self-monitoring
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # ─────────────────────────────────────────────────────────────────
+  # Next.js Frontend Application (port 3000)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'nextjs-app'
+    static_configs:
+      - targets: ['nextjs:3000']
+        labels:
+          service: 'frontend'
+          team: 'platform'
+    metrics_path: '/api/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # ─────────────────────────────────────────────────────────────────
+  # FastAPI Backend (port 8000)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'fastapi-backend'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          service: 'backend'
+          team: 'platform'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # ─────────────────────────────────────────────────────────────────
+  # Redis (via redis_exporter on port 9121)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          team: 'platform'
+    scrape_interval: 15s
+
+  # ─────────────────────────────────────────────────────────────────
+  # Celery Workers (via flower on port 5555)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'celery-workers'
+    static_configs:
+      - targets: ['celery-flower:5555']
+        labels:
+          service: 'celery'
+          team: 'platform'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # ─────────────────────────────────────────────────────────────────
+  # Node Exporter (System metrics on port 9100)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node'
+          team: 'infrastructure'
+    scrape_interval: 15s
+
+  # ─────────────────────────────────────────────────────────────────
+  # OpenTelemetry Collector (port 8889 for Prometheus exporter)
+  # ─────────────────────────────────────────────────────────────────
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          service: 'otel-collector'
+          team: 'observability'
+    scrape_interval: 15s
+
+  # ─────────────────────────────────────────────────────────────────
+  # PostgreSQL / SQLite metrics (if using postgres exporter)
+  # ─────────────────────────────────────────────────────────────────
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #   scrape_interval: 30s

@@ -1,0 +1,5 @@
+$ bun --hot index.ts
+[EmailService] ✓ Ethereal account ready: mntd756usd2lrjfn@ethereal.email
+[EmailService] ✓ View emails at: https://ethereal.email
+[EmailService] 🚀 Running on port 3031
+[EmailService] Provider chain: Resend → SMTP → Ethereal

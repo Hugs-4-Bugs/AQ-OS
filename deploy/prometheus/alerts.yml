@@ -1,0 +1,93 @@
+groups:
+  - name: acquisitionos_alerts
+    rules:
+      # High Error Rate — >5% 5xx over 5 minutes
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(api_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(api_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)"
+
+      # High Latency — p95 > 2 seconds
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High API latency detected"
+          description: "p95 latency is {{ $value }}s (threshold: 2s)"
+
+      # Credit Exhaustion — less than 10% credits remaining across system
+      - alert: CreditExhaustion
+        expr: credits_remaining < 50
+        for: 5m
+        labels:
+          severity: warning
+          team: billing
+        annotations:
+          summary: "Low credit balance detected"
+          description: "System-wide credits remaining: {{ $value }} (threshold: 50)"
+
+      # Payment Failure Spike — >5 failures in 10 minutes
+      - alert: PaymentFailureSpike
+        expr: |
+          increase(payment_failures_total[10m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+          team: billing
+        annotations:
+          summary: "Payment failure spike detected"
+          description: "{{ $value }} payment failures in the last 10 minutes (threshold: 5)"
+
+      # Workflow Failure Spike — >10 failed workflows in 15 minutes
+      - alert: WorkflowFailureSpike
+        expr: |
+          increase(workflow_executions_total{status="failed"}[15m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Workflow failure spike detected"
+          description: "{{ $value }} workflow failures in the last 15 minutes (threshold: 10)"
+
+      # Database Latency — p95 > 500ms
+      - alert: DBLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High database latency detected"
+          description: "p95 DB query latency is {{ $value }}s (threshold: 500ms)"
+
+      # High Memory Usage — heap usage > 85%
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes / process_heap_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory utilization is {{ $value | humanizePercentage }} (threshold: 85%)"

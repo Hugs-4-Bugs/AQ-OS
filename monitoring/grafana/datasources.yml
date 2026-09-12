@@ -1,0 +1,39 @@
+# AcquisitionOS — Grafana Datasources Configuration
+
+apiVersion: 1
+
+datasources:
+  # ─────────────────────────────────────────────────────────────────
+  # Prometheus - Primary metrics datasource
+  # ─────────────────────────────────────────────────────────────────
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: '15s'
+      queryTimeout: '60s'
+      httpMethod: POST
+    version: 1
+
+  # ─────────────────────────────────────────────────────────────────
+  # Loki - Log aggregation datasource
+  # ─────────────────────────────────────────────────────────────────
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: prometheus
+          matcherRegex: 'trace_id=(\w+)'
+          name: TraceID
+          url: '$${__value.raw}'
+    version: 1

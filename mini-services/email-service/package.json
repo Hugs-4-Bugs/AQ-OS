@@ -1,0 +1,11 @@
+{
+  "name": "acquisitionos-email-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "nodemailer": "^8.0.7"
+  }
+}

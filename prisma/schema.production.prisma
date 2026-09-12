@@ -1,0 +1,166 @@
+// Production Schema — PostgreSQL (Supabase)
+// This schema is used for Vercel deployment with Supabase as the database.
+// To use: DATABASE_URL="postgresql://..." npx prisma db push --schema=prisma/schema.production.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Lead {
+  id                  String   @id @default(cuid())
+  businessName        String
+  ownerName           String?
+  website             String?
+  email               String?
+  phone               String?
+  whatsapp            String?
+  linkedin            String?
+  instagram           String?
+  facebook            String?
+  googleMapsListing   String?
+  reviews             String?
+  rating              Float?
+  estimatedQuality    String?  @default("medium")
+  estimatedRevenue    String?  @default("medium")
+  city                String?
+  country             String?
+  niche               String?
+
+  replyScore          Float    @default(0)
+  conversionScore     Float    @default(0)
+  urgencyScore        Float    @default(0)
+  revenuePotentialScore Float  @default(0)
+  scoreReasoning      String?
+
+  stage               String   @default("discovered")
+
+  hasWebsite          Boolean  @default(false)
+  websiteQuality      String?  @default("none")
+  digitalWeaknesses   String?
+  opportunityNotes    String?
+
+  bestContactPerson   String?
+  bestChannel         String?
+  bestTiming          String?
+  outreachStyle       String?
+
+  source              String?
+  notes               String?
+  tags                String   @default("[]")
+
+  followUpAt          DateTime?
+
+  communications      Communication[]
+  deals               Deal[]
+  activities          LeadActivity[]
+  followUpReminders   FollowUpReminder[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([stage])
+  @@index([niche])
+  @@index([country])
+  @@index([conversionScore])
+  @@index([createdAt])
+  @@index([businessName, country])
+}
+
+model Communication {
+  id                    String   @id @default(cuid())
+  leadId                String
+  channel               String   @default("email")
+  direction             String   @default("outbound")
+  content               String
+  messageGeneratedByAI  Boolean  @default(false)
+  responseSummary       String?
+  intent                String?
+  buyingSignals         String?
+  hesitationReasons     String?
+
+  lead                  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([channel])
+  @@index([createdAt])
+}
+
+model Deal {
+  id                    String   @id @default(cuid())
+  leadId                String
+  status                String   @default("draft")
+
+  projectType           String?
+  projectScope          String?
+  proposedPrice         Float?
+  finalPrice            Float?
+  currency              String   @default("USD")
+
+  implementationTimeline String?
+  maintenancePlan       String?
+  proposalContent       String?
+  notes                 String?
+
+  lead                  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LeadActivity {
+  id                    String   @id @default(cuid())
+  leadId                String
+  type                  String
+  description           String
+  metadata              String?
+
+  lead                  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+
+  @@index([leadId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model FollowUpReminder {
+  id                    String   @id @default(cuid())
+  leadId                String
+  message               String
+  dueAt                 DateTime
+  completed             Boolean  @default(false)
+
+  lead                  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+
+  @@index([leadId])
+  @@index([dueAt])
+  @@index([completed])
+}
+
+model Insight {
+  id                    String   @id @default(cuid())
+  type                  String
+  content               String
+  data                  String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([type])
+  @@index([createdAt])
+}

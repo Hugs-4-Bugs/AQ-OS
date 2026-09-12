@@ -1,0 +1,934 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — Complete Subscription Lifecycle Management
+     3→// Phase 4: Subscription System + Credits Engine + Plan Gates + Billing
+     4→//
+     5→// Subscription states: trialing → active → past_due → canceled → expired
+     6→// Plan hierarchy: free < pro < elite
+     7→// Billing cycles: monthly, yearly
+     8→// ═══════════════════════════════════════════════════════════════════
+     9→
+    10→import { db } from '@/lib/db';
+    11→import { logSubscriptionEvent } from '@/lib/billing-audit';
+    12→import { PLAN_CREDITS, type PlanType, getPlanLevel, getPlanChangeDirection, isValidPlanChange } from '@/lib/entitlement-service';
+    13→import { resetMonthlyCredits } from '@/lib/credit-service';
+    14→
+    15→// ===== TYPES =====
+    16→
+    17→export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired';
+    18→export type BillingCycle = 'monthly' | 'yearly';
+    19→
+    20→// ===== VALID STATE TRANSITIONS =====
+    21→
+    22→export const VALID_TRANSITIONS: Record<SubscriptionStatus, SubscriptionStatus[]> = {
+    23→  trialing: ['active', 'expired', 'canceled'],
+    24→  active: ['past_due', 'canceled', 'expired'],
+    25→  past_due: ['active', 'canceled', 'expired'],
+    26→  canceled: ['expired'],
+    27→  expired: [], // Terminal state
+    28→};
+    29→
+    30→// ===== INTERFACES =====
+    31→
+    32→export interface SubscriptionResult {
+    33→  success: boolean;
+    34→  subscription?: {
+    35→    id: string;
+    36→    plan: string;
+    37→    status: SubscriptionStatus;
+    38→    currentPeriodStart: Date | null;
+    39→    currentPeriodEnd: Date | null;
+    40→    cancelAtPeriodEnd: boolean;
+    41→    scheduledPlanChange: string | null;
+    42→    isTrial: boolean;
+    43→    trialEndsAt: Date | null;
+    44→    stripeCustomerId: string | null;
+    45→    stripeSubscriptionId: string | null;
+    46→    razorpaySubscriptionId: string | null;
+    47→  };
+    48→  error?: string;
+    49→}
+    50→
+    51→export interface SubscriptionStatusResult {
+    52→  subscription: {
+    53→    id: string;
+    54→    plan: PlanType;
+    55→    status: SubscriptionStatus;
+    56→    currentPeriodStart: Date | null;
+    57→    currentPeriodEnd: Date | null;
+    58→    cancelAtPeriodEnd: boolean;
+    59→    scheduledPlanChange: string | null;
+    60→    isTrial: boolean;
+    61→    trialEndsAt: Date | null;
+    62→  } | null;
+    63→  planDetails: {
+    64→    plan: PlanType;
+    65→    creditsMonthly: number;
+    66→    creditsRemaining: number;
+    67→  };
+    68→  trialInfo: {
+    69→    isTrial: boolean;
+    70→    trialEndsAt: Date | null;
+    71→    daysRemaining: number;
+    72→  };
+    73→}
+    74→
+    75→export interface UpgradeResult {
+    76→  success: boolean;
+    77→  paymentOrderId?: string;
+    78→  effectiveImmediately?: boolean;
+    79→  error?: string;
+    80→}
+    81→
+    82→export interface DowngradeResult {
+    83→  success: boolean;
+    84→  scheduledFor?: Date;
+    85→  newPlan?: PlanType;
+    86→  error?: string;
+    87→}
+    88→
+    89→export interface CancelResult {
+    90→  success: boolean;
+    91→  cancelAtPeriodEnd?: boolean;
+    92→  currentPeriodEnd?: Date | null;
+    93→  error?: string;
+    94→}
+    95→
+    96→export interface ReactivateResult {
+    97→  success: boolean;
+    98→  status?: SubscriptionStatus;
+    99→  error?: string;
+   100→}
+   101→
+   102→export interface StateTransitionResult {
+   103→  success: boolean;
+   104→  previousStatus?: SubscriptionStatus;
+   105→  newStatus?: SubscriptionStatus;
+   106→  error?: string;
+   107→}
+   108→
+   109→export interface ScheduledChangeResult {
+   110→  success: boolean;
+   111→  processed?: boolean;
+   112→  newPlan?: PlanType;
+   113→  error?: string;
+   114→}
+   115→
+   116→// ===== SUBSCRIPTION SERVICE FUNCTIONS =====
+   117→
+   118→/**
+   119→ * Get user's active subscription or create one (default: free plan, trialing).
+   120→ * If no subscription exists, creates one with free plan and trialing status.
+   121→ */
+   122→export async function getOrCreateSubscription(userId: string): Promise<SubscriptionResult> {
+   123→  try {
+   124→    // Look for any active subscription
+   125→    let subscription = await db.subscription.findFirst({
+   126→      where: {
+   127→        userId,
+   128→        status: { in: ['trialing', 'active', 'past_due'] },
+   129→      },
+   130→      orderBy: { createdAt: 'desc' },
+   131→    });
+   132→
+   133→    if (subscription) {
+   134→      return {
+   135→        success: true,
+   136→        subscription: {
+   137→          id: subscription.id,
+   138→          plan: subscription.plan,
+   139→          status: subscription.status as SubscriptionStatus,
+   140→          currentPeriodStart: subscription.currentPeriodStart,
+   141→          currentPeriodEnd: subscription.currentPeriodEnd,
+   142→          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+   143→          scheduledPlanChange: subscription.scheduledPlanChange,
+   144→          isTrial: subscription.isTrial,
+   145→          trialEndsAt: subscription.trialEndsAt,
+   146→          stripeCustomerId: subscription.stripeCustomerId,
+   147→          stripeSubscriptionId: subscription.stripeSubscriptionId,
+   148→          razorpaySubscriptionId: subscription.razorpaySubscriptionId,
+   149→        },
+   150→      };
+   151→    }
+   152→
+   153→    // No active subscription — create one with free plan
+   154→    const now = new Date();
+   155→    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+   156→
+   157→    subscription = await db.subscription.create({
+   158→      data: {
+   159→        userId,
+   160→        plan: 'free',
+   161→        status: 'trialing',
+   162→        isTrial: true,
+   163→        trialEndsAt: periodEnd,
+   164→        currentPeriodStart: now,
+   165→        currentPeriodEnd: periodEnd,
+   166→      },
+   167→    });
+   168→
+   169→    // Log creation
+   170→    await logSubscriptionEvent(userId, 'subscription_created', {
+   171→      fromPlan: undefined,
+   172→      toPlan: 'free',
+   173→      toStatus: 'trialing',
+   174→    });
+   175→
+   176→    return {
+   177→      success: true,
+   178→      subscription: {
+   179→        id: subscription.id,
+   180→        plan: subscription.plan,
+   181→        status: subscription.status as SubscriptionStatus,
+   182→        currentPeriodStart: subscription.currentPeriodStart,
+   183→        currentPeriodEnd: subscription.currentPeriodEnd,
+   184→        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+   185→        scheduledPlanChange: subscription.scheduledPlanChange,
+   186→        isTrial: subscription.isTrial,
+   187→        trialEndsAt: subscription.trialEndsAt,
+   188→        stripeCustomerId: subscription.stripeCustomerId,
+   189→        stripeSubscriptionId: subscription.stripeSubscriptionId,
+   190→        razorpaySubscriptionId: subscription.razorpaySubscriptionId,
+   191→      },
+   192→    };
+   193→  } catch (error) {
+   194→    console.error('[SubscriptionService] Failed to get/create subscription:', error);
+   195→    return { success: false, error: 'Failed to get or create subscription' };
+   196→  }
+   197→}
+   198→
+   199→/**
+   200→ * Returns subscription with current state, plan details, and trial info.
+   201→ */
+   202→export async function getSubscriptionStatus(userId: string): Promise<SubscriptionStatusResult> {
+   203→  try {
+   204→    const subscription = await db.subscription.findFirst({
+   205→      where: {
+   206→        userId,
+   207→        status: { in: ['trialing', 'active', 'past_due', 'canceled'] },
+   208→      },
+   209→      orderBy: { createdAt: 'desc' },
+   210→    });
+   211→
+   212→    const user = await db.user.findUnique({
+   213→      where: { id: userId },
+   214→      select: { credits: true, creditsMonthly: true, plan: true, isTrial: true, trialEndsAt: true },
+   215→    });
+   216→
+   217→    const plan = (user?.plan || 'free') as PlanType;
+   218→    const creditsMonthly = PLAN_CREDITS[plan] || PLAN_CREDITS.free;
+   219→
+   220→    // Calculate trial days remaining
+   221→    let trialDaysRemaining = 0;
+   222→    if (user?.isTrial && user.trialEndsAt) {
+   223→      const now = new Date();
+   224→      if (user.trialEndsAt > now) {
+   225→        trialDaysRemaining = Math.ceil(
+   226→          (user.trialEndsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+   227→        );
+   228→      }
+   229→    }
+   230→
+   231→    return {
+   232→      subscription: subscription ? {
+   233→        id: subscription.id,
+   234→        plan: subscription.plan as PlanType,
+   235→        status: subscription.status as SubscriptionStatus,
+   236→        currentPeriodStart: subscription.currentPeriodStart,
+   237→        currentPeriodEnd: subscription.currentPeriodEnd,
+   238→        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+   239→        scheduledPlanChange: subscription.scheduledPlanChange,
+   240→        isTrial: subscription.isTrial,
+   241→        trialEndsAt: subscription.trialEndsAt,
+   242→      } : null,
+   243→      planDetails: {
+   244→        plan,
+   245→        creditsMonthly,
+   246→        creditsRemaining: user?.credits ?? 0,
+   247→      },
+   248→      trialInfo: {
+   249→        isTrial: user?.isTrial ?? false,
+   250→        trialEndsAt: user?.trialEndsAt ?? null,
+   251→        daysRemaining: trialDaysRemaining,
+   252→      },
+   253→    };
+   254→  } catch (error) {
+   255→    console.error('[SubscriptionService] Failed to get subscription status:', error);
+   256→    return {
+   257→      subscription: null,
+   258→      planDetails: { plan: 'free', creditsMonthly: PLAN_CREDITS.free, creditsRemaining: 0 },
+   259→      trialInfo: { isTrial: false, trialEndsAt: null, daysRemaining: 0 },
+   260→    };
+   261→  }
+   262→}
+   263→
+   264→/**
+   265→ * Handle plan upgrade (create payment order, schedule change).
+   266→ * Upgrades are effective immediately after payment.
+   267→ */
+   268→export async function upgradeSubscription(
+   269→  userId: string,
+   270→  plan: PlanType,
+   271→  billingCycle: BillingCycle = 'monthly'
+   272→): Promise<UpgradeResult> {
+   273→  try {
+   274→    // Get current subscription
+   275→    const subResult = await getOrCreateSubscription(userId);
+   276→    if (!subResult.success || !subResult.subscription) {
+   277→      return { success: false, error: subResult.error || 'No subscription found' };
+   278→    }
+   279→
+   280→    const currentPlan = subResult.subscription.plan as PlanType;
+   281→
+   282→    // Validate plan change
+   283→    if (!isValidPlanChange(currentPlan, plan)) {
+   284→      return { success: false, error: 'Invalid plan change' };
+   285→    }
+   286→
+   287→    const direction = getPlanChangeDirection(currentPlan, plan);
+   288→    if (direction !== 'upgrade') {
+   289→      return { success: false, error: 'This is not an upgrade. Use downgradeSubscription instead.' };
+   290→    }
+   291→
+   292→    // Calculate pricing
+   293→    const pricing = getPlanPricing(plan, billingCycle);
+   294→
+   295→    // Create a payment order
+   296→    const now = new Date();
+   297→    const periodEnd = billingCycle === 'monthly'
+   298→      ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+   299→      : new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+   300→
+   301→    const paymentOrder = await db.paymentOrder.create({
+   302→      data: {
+   303→        userId,
+   304→        provider: 'razorpay',
+   305→        amount: pricing.amount,
+   306→        currency: pricing.currency,
+   307→        plan,
+   308→        billingCycle,
+   309→        status: 'pending',
+   310→        subtotal: pricing.amount,
+   311→        taxRate: 0,
+   312→        taxAmount: 0,
+   313→      },
+   314→    });
+   315→
+   316→    // Log the upgrade initiation
+   317→    await logSubscriptionEvent(userId, 'upgrade_initiated', {
+   318→      fromPlan: currentPlan,
+   319→      toPlan: plan,
+   320→      billingCycle,
+   321→    });
+   322→
+   323→    return {
+   324→      success: true,
+   325→      paymentOrderId: paymentOrder.id,
+   326→      effectiveImmediately: false, // Will be true after payment confirmation
+   327→    };
+   328→  } catch (error) {
+   329→    console.error('[SubscriptionService] Failed to upgrade subscription:', error);
+   330→    return { success: false, error: 'Failed to upgrade subscription' };
+   331→  }
+   332→}
+   333→
+   334→/**
+   335→ * Handle downgrade (schedule for end of period).
+   336→ * Downgrades take effect at the end of the current billing period.
+   337→ */
+   338→export async function downgradeSubscription(userId: string, plan: PlanType): Promise<DowngradeResult> {
+   339→  try {
+   340→    // Get current subscription
+   341→    const subResult = await getOrCreateSubscription(userId);
+   342→    if (!subResult.success || !subResult.subscription) {
+   343→      return { success: false, error: subResult.error || 'No subscription found' };
+   344→    }
+   345→
+   346→    const currentPlan = subResult.subscription.plan as PlanType;
+   347→
+   348→    // Validate plan change
+   349→    if (!isValidPlanChange(currentPlan, plan)) {
+   350→      return { success: false, error: 'Invalid plan change' };
+   351→    }
+   352→
+   353→    const direction = getPlanChangeDirection(currentPlan, plan);
+   354→    if (direction !== 'downgrade') {
+   355→      return { success: false, error: 'This is not a downgrade. Use upgradeSubscription instead.' };
+   356→    }
+   357→
+   358→    // Schedule the downgrade for end of current period
+   359→    const scheduledFor = subResult.subscription.currentPeriodEnd || new Date();
+   360→
+   361→    await db.subscription.update({
+   362→      where: { id: subResult.subscription.id },
+   363→      data: {
+   364→        scheduledPlanChange: plan,
+   365→      },
+   366→    });
+   367→
+   368→    // Log the scheduled downgrade
+   369→    await logSubscriptionEvent(userId, 'downgrade_scheduled', {
+   370→      fromPlan: currentPlan,
+   371→      toPlan: plan,
+   372→      scheduledChange: plan,
+   373→    });
+   374→
+   375→    return {
+   376→      success: true,
+   377→      scheduledFor,
+   378→      newPlan: plan,
+   379→    };
+   380→  } catch (error) {
+   381→    console.error('[SubscriptionService] Failed to downgrade subscription:', error);
+   382→    return { success: false, error: 'Failed to downgrade subscription' };
+   383→  }
+   384→}
+   385→
+   386→/**
+   387→ * Cancel subscription at end of period.
+   388→ * Sets cancelAtPeriodEnd = true but keeps the subscription active until the period ends.
+   389→ */
+   390→export async function cancelSubscription(userId: string): Promise<CancelResult> {
+   391→  try {
+   392→    const subResult = await getOrCreateSubscription(userId);
+   393→    if (!subResult.success || !subResult.subscription) {
+   394→      return { success: false, error: subResult.error || 'No subscription found' };
+   395→    }
+   396→
+   397→    if (subResult.subscription.status === 'canceled') {
+   398→      return { success: false, error: 'Subscription is already canceled' };
+   399→    }
+   400→
+   401→    if (subResult.subscription.status === 'expired') {
+   402→      return { success: false, error: 'Subscription is already expired' };
+   403→    }
+   404→
+   405→    // Set cancelAtPeriodEnd = true
+   406→    await db.subscription.update({
+   407→      where: { id: subResult.subscription.id },
+   408→      data: { cancelAtPeriodEnd: true },
+   409→    });
+   410→
+   411→    // Log the cancellation
+   412→    await logSubscriptionEvent(userId, 'subscription_canceled', {
+   413→      fromStatus: subResult.subscription.status,
+   414→      toStatus: subResult.subscription.status, // Status doesn't change yet
+   415→    });
+   416→
+   417→    return {
+   418→      success: true,
+   419→      cancelAtPeriodEnd: true,
+   420→      currentPeriodEnd: subResult.subscription.currentPeriodEnd,
+   421→    };
+   422→  } catch (error) {
+   423→    console.error('[SubscriptionService] Failed to cancel subscription:', error);
+   424→    return { success: false, error: 'Failed to cancel subscription' };
+   425→  }
+   426→}
+   427→
+   428→/**
+   429→ * Reactivate a canceled subscription.
+   430→ * Removes the cancelAtPeriodEnd flag.
+   431→ */
+   432→export async function reactivateSubscription(userId: string): Promise<ReactivateResult> {
+   433→  try {
+   434→    const subscription = await db.subscription.findFirst({
+   435→      where: {
+   436→        userId,
+   437→        cancelAtPeriodEnd: true,
+   438→        status: { in: ['active', 'trialing'] },
+   439→      },
+   440→    });
+   441→
+   442→    if (!subscription) {
+   443→      return { success: false, error: 'No canceled subscription found to reactivate' };
+   444→    }
+   445→
+   446→    // Remove the cancelAtPeriodEnd flag
+   447→    await db.subscription.update({
+   448→      where: { id: subscription.id },
+   449→      data: {
+   450→        cancelAtPeriodEnd: false,
+   451→        scheduledPlanChange: null,
+   452→      },
+   453→    });
+   454→
+   455→    // Log the reactivation
+   456→    await logSubscriptionEvent(userId, 'subscription_reactivated', {
+   457→      fromStatus: subscription.status as SubscriptionStatus,
+   458→      toStatus: subscription.status as SubscriptionStatus,
+   459→    });
+   460→
+   461→    return {
+   462→      success: true,
+   463→      status: subscription.status as SubscriptionStatus,
+   464→    };
+   465→  } catch (error) {
+   466→    console.error('[SubscriptionService] Failed to reactivate subscription:', error);
+   467→    return { success: false, error: 'Failed to reactivate subscription' };
+   468→  }
+   469→}
+   470→
+   471→/**
+   472→ * Check if trial has expired, auto-downgrade if so.
+   473→ * Returns true if trial was expired (and downgraded), false if still active.
+   474→ */
+   475→export async function checkTrialExpiry(userId: string): Promise<boolean> {
+   476→  try {
+   477→    const user = await db.user.findUnique({
+   478→      where: { id: userId },
+   479→      select: { isTrial: true, trialEndsAt: true },
+   480→    });
+   481→
+   482→    if (!user || !user.isTrial || !user.trialEndsAt) {
+   483→      return false;
+   484→    }
+   485→
+   486→    const now = new Date();
+   487→    if (user.trialEndsAt > now) {
+   488→      // Trial still active
+   489→      return false;
+   490→    }
+   491→
+   492→    // Trial expired — downgrade to free
+   493→    const freeCredits = PLAN_CREDITS.free;
+   494→
+   495→    await db.$transaction(async (tx) => {
+   496→      // Update user
+   497→      await tx.user.update({
+   498→        where: { id: userId },
+   499→        data: {
+   500→          plan: 'free',
+   501→          isTrial: false,
+   502→          trialEndsAt: null,
+   503→          credits: freeCredits,
+   504→          creditsMonthly: freeCredits,
+   505→          rolloverCredits: 0,
+   506→        },
+   507→      });
+   508→
+   509→      // Update subscription
+   510→      await tx.subscription.updateMany({
+   511→        where: { userId, status: 'trialing' },
+   512→        data: {
+   513→          status: 'expired',
+   514→          isTrial: false,
+   515→          trialEndsAt: null,
+   516→        },
+   517→      });
+   518→
+   519→      // Create ledger entry
+   520→      await tx.creditsLedger.create({
+   521→        data: {
+   522→          userId,
+   523→          action: 'trial_expired',
+   524→          credits: freeCredits,
+   525→          balance: freeCredits,
+   526→          description: 'Trial expired — auto-downgraded to free plan',
+   527→        },
+   528→      });
+   529→    });
+   530→
+   531→    // Log the event
+   532→    await logSubscriptionEvent(userId, 'subscription_expired', {
+   533→      fromPlan: 'pro',
+   534→      toPlan: 'free',
+   535→      fromStatus: 'trialing',
+   536→      toStatus: 'expired',
+   537→    });
+   538→
+   539→    return true;
+   540→  } catch (error) {
+   541→    console.error('[SubscriptionService] Failed to check trial expiry:', error);
+   542→    return false;
+   543→  }
+   544→}
+   545→
+   546→/**
+   547→ * Validate and execute state transitions.
+   548→ * Only allows valid transitions per the VALID_TRANSITIONS map.
+   549→ */
+   550→export async function handleSubscriptionStateTransition(
+   551→  userId: string,
+   552→  fromStatus: SubscriptionStatus,
+   553→  toStatus: SubscriptionStatus
+   554→): Promise<StateTransitionResult> {
+   555→  try {
+   556→    // Validate transition
+   557→    const allowedTransitions = VALID_TRANSITIONS[fromStatus];
+   558→    if (!allowedTransitions || !allowedTransitions.includes(toStatus)) {
+   559→      return {
+   560→        success: false,
+   561→        previousStatus: fromStatus,
+   562→        error: `Invalid transition: ${fromStatus} → ${toStatus}`,
+   563→      };
+   564→    }
+   565→
+   566→    // Find and update the subscription
+   567→    const subscription = await db.subscription.findFirst({
+   568→      where: {
+   569→        userId,
+   570→        status: fromStatus,
+   571→      },
+   572→    });
+   573→
+   574→    if (!subscription) {
+   575→      return {
+   576→        success: false,
+   577→        previousStatus: fromStatus,
+   578→        error: `No subscription found with status ${fromStatus}`,
+   579→      };
+   580→    }
+   581→
+   582→    await db.subscription.update({
+   583→      where: { id: subscription.id },
+   584→      data: { status: toStatus },
+   585→    });
+   586→
+   587→    // Handle specific transitions
+   588→    if (toStatus === 'expired') {
+   589→      // Downgrade to free plan on expiration
+   590→      const freeCredits = PLAN_CREDITS.free;
+   591→      await db.user.update({
+   592→        where: { id: userId },
+   593→        data: {
+   594→          plan: 'free',
+   595→          isTrial: false,
+   596→          trialEndsAt: null,
+   597→          credits: freeCredits,
+   598→          creditsMonthly: freeCredits,
+   599→          rolloverCredits: 0,
+   600→        },
+   601→      });
+   602→
+   603→      // Reset monthly credits
+   604→      await resetMonthlyCredits(userId, 'free');
+   605→    }
+   606→
+   607→    if (toStatus === 'active' && fromStatus === 'trialing') {
+   608→      // Transition from trial to active — ensure user record matches subscription
+   609→      await db.user.update({
+   610→        where: { id: userId },
+   611→        data: {
+   612→          isTrial: false,
+   613→        },
+   614→      });
+   615→    }
+   616→
+   617→    // Log the transition
+   618→    await logSubscriptionEvent(userId, 'plan_change_processed', {
+   619→      fromStatus,
+   620→      toStatus,
+   621→    });
+   622→
+   623→    return {
+   624→      success: true,
+   625→      previousStatus: fromStatus,
+   626→      newStatus: toStatus,
+   627→    };
+   628→  } catch (error) {
+   629→    console.error('[SubscriptionService] Failed to handle state transition:', error);
+   630→    return {
+   631→      success: false,
+   632→      previousStatus: fromStatus,
+   633→      error: 'Failed to handle subscription state transition',
+   634→    };
+   635→  }
+   636→}
+   637→
+   638→/**
+   639→ * Process any scheduled plan changes for a user.
+   640→ * Called at the end of a billing period.
+   641→ */
+   642→export async function processScheduledPlanChange(userId: string): Promise<ScheduledChangeResult> {
+   643→  try {
+   644→    const subscription = await db.subscription.findFirst({
+   645→      where: {
+   646→        userId,
+   647→        status: { in: ['active', 'trialing'] },
+   648→        scheduledPlanChange: { not: null },
+   649→      },
+   650→    });
+   651→
+   652→    if (!subscription || !subscription.scheduledPlanChange) {
+   653→      return { success: true, processed: false };
+   654→    }
+   655→
+   656→    // Check if current period has ended
+   657→    const now = new Date();
+   658→    if (subscription.currentPeriodEnd && subscription.currentPeriodEnd > now) {
+   659→      // Period hasn't ended yet — don't process
+   660→      return {
+   661→        success: true,
+   662→        processed: false,
+   663→        error: 'Current period has not ended yet',
+   664→      };
+   665→    }
+   666→
+   667→    const newPlan = subscription.scheduledPlanChange as PlanType;
+   668→    const previousPlan = subscription.plan as PlanType;
+   669→
+   670→    // Execute the plan change
+   671→    await db.$transaction(async (tx) => {
+   672→      // Update subscription
+   673→      await tx.subscription.update({
+   674→        where: { id: subscription.id },
+   675→        data: {
+   676→          plan: newPlan,
+   677→          scheduledPlanChange: null,
+   678→          currentPeriodStart: now,
+   679→          currentPeriodEnd: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+   680→        },
+   681→      });
+   682→
+   683→      // Update user
+   684→      const newCredits = PLAN_CREDITS[newPlan] || PLAN_CREDITS.free;
+   685→      await tx.user.update({
+   686→        where: { id: userId },
+   687→        data: {
+   688→          plan: newPlan,
+   689→          creditsMonthly: newCredits,
+   690→          // Don't change credits immediately — they'll reset on rollover
+   691→        },
+   692→      });
+   693→    });
+   694→
+   695→    // Reset monthly credits for the new plan
+   696→    await resetMonthlyCredits(userId, newPlan);
+   697→
+   698→    // Log the plan change
+   699→    const direction = getPlanChangeDirection(previousPlan, newPlan);
+   700→    await logSubscriptionEvent(userId, direction === 'downgrade' ? 'downgrade_completed' : 'upgrade_completed', {
+   701→      fromPlan: previousPlan,
+   702→      toPlan: newPlan,
+   703→    });
+   704→
+   705→    return {
+   706→      success: true,
+   707→      processed: true,
+   708→      newPlan,
+   709→    };
+   710→  } catch (error) {
+   711→    console.error('[SubscriptionService] Failed to process scheduled plan change:', error);
+   712→    return { success: false, error: 'Failed to process scheduled plan change' };
+   713→  }
+   714→}
+   715→
+   716→// ===== HELPER FUNCTIONS =====
+   717→
+   718→/**
+   719→ * Get pricing for a plan and billing cycle.
+   720→ */
+   721→function getPlanPricing(plan: PlanType, billingCycle: BillingCycle): {
+   722→  amount: number;
+   723→  currency: string;
+   724→} {
+   725→  const PRICING: Record<PlanType, { monthly: number; yearly: number; currency: string }> = {
+   726→    free: { monthly: 0, yearly: 0, currency: 'USD' },
+   727→    pro: { monthly: 29, yearly: 279, currency: 'USD' },
+   728→    elite: { monthly: 89, yearly: 849, currency: 'USD' },
+   729→  };
+   730→
+   731→  const planPricing = PRICING[plan] || PRICING.free;
+   732→  return {
+   733→    amount: billingCycle === 'monthly' ? planPricing.monthly : planPricing.yearly,
+   734→    currency: planPricing.currency,
+   735→  };
+   736→}
+   737→
+   738→/**
+   739→ * Confirm a payment and activate the subscription upgrade.
+   740→ * Called after payment gateway confirms successful payment.
+   741→ */
+   742→export async function confirmPaymentAndActivate(
+   743→  userId: string,
+   744→  paymentOrderId: string,
+   745→  providerPaymentId: string
+   746→): Promise<{ success: boolean; error?: string }> {
+   747→  try {
+   748→    // Validate user owns the order (lightweight check outside tx is fine)
+   749→    const paymentOrderPreCheck = await db.paymentOrder.findUnique({
+   750→      where: { id: paymentOrderId },
+   751→    });
+   752→
+   753→    if (!paymentOrderPreCheck) {
+   754→      return { success: false, error: 'Payment order not found' };
+   755→    }
+   756→
+   757→    if (paymentOrderPreCheck.userId !== userId) {
+   758→      return { success: false, error: 'Payment order does not belong to this user' };
+   759→    }
+   760→
+   761→    const newPlan = paymentOrderPreCheck.plan as PlanType;
+   762→    const now = new Date();
+   763→
+   764→    await db.$transaction(async (tx) => {
+   765→      // Atomic check: find the order with status 'pending' inside the transaction.
+   766→      // If two concurrent webhooks race, only one will find status='pending';
+   767→      // the other gets null and skips (idempotent).
+   768→      const paymentOrder = await tx.paymentOrder.findFirst({
+   769→        where: { id: paymentOrderId, status: 'pending' },
+   770→      });
+   771→
+   772→      if (!paymentOrder) {
+   773→        // Already processed by another concurrent call — silently succeed (idempotent)
+   774→        return;
+   775→      }
+   776→
+   777→      // Mark as completed atomically
+   778→      await tx.paymentOrder.update({
+   779→        where: { id: paymentOrderId },
+   780→        data: {
+   781→          status: 'completed',
+   782→          providerPaymentId,
+   783→        },
+   784→      });
+   785→
+   786→      // Update or create subscription
+   787→      const subscription = await tx.subscription.findFirst({
+   788→        where: { userId, status: { in: ['trialing', 'active', 'past_due'] } },
+   789→      });
+   790→
+   791→      const periodEnd = paymentOrder.billingCycle === 'monthly'
+   792→        ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+   793→        : new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+   794→
+   795→      if (subscription) {
+   796→        await tx.subscription.update({
+   797→          where: { id: subscription.id },
+   798→          data: {
+   799→            plan: newPlan,
+   800→            status: 'active',
+   801→            isTrial: false,
+   802→            trialEndsAt: null,
+   803→            cancelAtPeriodEnd: false,
+   804→            scheduledPlanChange: null,
+   805→            currentPeriodStart: now,
+   806→            currentPeriodEnd: periodEnd,
+   807→          },
+   808→        });
+   809→      } else {
+   810→        // No active subscription found — create one
+   811→        await tx.subscription.create({
+   812→          data: {
+   813→            userId,
+   814→            plan: newPlan,
+   815→            status: 'active',
+   816→            isTrial: false,
+   817→            trialEndsAt: null,
+   818→            cancelAtPeriodEnd: false,
+   819→            scheduledPlanChange: null,
+   820→            currentPeriodStart: now,
+   821→            currentPeriodEnd: periodEnd,
+   822→            billingCycle: paymentOrder.billingCycle || 'monthly',
+   823→          },
+   824→        });
+   825→      }
+   826→
+   827→      // Update user — preserve existing credits as rollover, add new plan credits
+   828→      const user = await tx.user.findUnique({
+   829→        where: { id: userId },
+   830→        select: { credits: true, creditsMonthly: true, rolloverCredits: true },
+   831→      });
+   832→      const previousCredits = user?.credits ?? 0;
+   833→      const newPlanCredits = PLAN_CREDITS[newPlan] || PLAN_CREDITS.free;
+   834→
+   835→      // Calculate rollover: unused credits from current plan carry forward
+   836→      // Only rollover the unused portion (credits above 0 that haven't been used)
+   837→      const unusedCredits = Math.max(0, previousCredits);
+   838→      const rolloverCredits = unusedCredits; // Preserve all unused credits as rollover
+   839→      const newCredits = newPlanCredits + rolloverCredits;
+   840→
+   841→      await tx.user.update({
+   842→        where: { id: userId },
+   843→        data: {
+   844→          plan: newPlan,
+   845→          isTrial: false,
+   846→          trialEndsAt: null,
+   847→          credits: newCredits,
+   848→          creditsMonthly: newPlanCredits,
+   849→          rolloverCredits: rolloverCredits,
+   850→        },
+   851→      });
+   852→
+   853→      // Create ledger entry — record the full credit adjustment
+   854→      const creditDelta = newCredits - previousCredits;
+   855→      await tx.creditsLedger.create({
+   856→        data: {
+   857→          userId,
+   858→          action: 'plan_upgrade',
+   859→          credits: creditDelta,
+   860→          balance: newCredits,
+   861→          description: `Upgraded to ${newPlan} plan — ${newPlanCredits} plan credits + ${rolloverCredits} rollover from previous plan (total: ${newCredits})`,
+   862→          referenceId: paymentOrderId,
+   863→        },
+   864→      });
+   865→    });
+   866→
+   867→    // Log the upgrade completion
+   868→    await logSubscriptionEvent(userId, 'upgrade_completed', {
+   869→      toPlan: newPlan,
+   870→      billingCycle: paymentOrderPreCheck.billingCycle,
+   871→    });
+   872→
+   873→    return { success: true };
+   874→  } catch (error) {
+   875→    console.error('[SubscriptionService] Failed to confirm payment:', error);
+   876→    return { success: false, error: 'Failed to confirm payment and activate subscription' };
+   877→  }
+   878→}
+   879→
+   880→/**
+   881→ * Process all subscriptions that need end-of-period handling.
+   882→ * Can be called by a scheduled job/cron.
+   883→ * - Expires canceled subscriptions whose period has ended
+   884→ * - Processes scheduled plan changes
+   885→ */
+   886→export async function processEndOfPeriodSubscriptions(): Promise<{
+   887→  checked: number;
+   888→  expired: number;
+   889→  planChanged: number;
+   890→}> {
+   891→  try {
+   892→    const now = new Date();
+   893→    let expired = 0;
+   894→    let planChanged = 0;
+   895→
+   896→    // Find subscriptions with cancelAtPeriodEnd = true and period has ended
+   897→    const toExpire = await db.subscription.findMany({
+   898→      where: {
+   899→        cancelAtPeriodEnd: true,
+   900→        currentPeriodEnd: { lte: now },
+   901→        status: { in: ['active', 'trialing'] },
+   902→      },
+   903→    });
+   904→
+   905→    for (const sub of toExpire) {
+   906→      const result = await handleSubscriptionStateTransition(sub.userId, sub.status as SubscriptionStatus, 'expired');
+   907→      if (result.success) expired++;
+   908→    }
+   909→
+   910→    // Find subscriptions with scheduled plan changes
+   911→    const withScheduledChange = await db.subscription.findMany({
+   912→      where: {
+   913→        scheduledPlanChange: { not: null },
+   914→        status: { in: ['active', 'trialing'] },
+   915→        currentPeriodEnd: { lte: now },
+   916→      },
+   917→    });
+   918→
+   919→    for (const sub of withScheduledChange) {
+   920→      const result = await processScheduledPlanChange(sub.userId);
+   921→      if (result.processed) planChanged++;
+   922→    }
+   923→
+   924→    return {
+   925→      checked: toExpire.length + withScheduledChange.length,
+   926→      expired,
+   927→      planChanged,
+   928→    };
+   929→  } catch (error) {
+   930→    console.error('[SubscriptionService] Failed to process end-of-period subscriptions:', error);
+   931→    return { checked: 0, expired: 0, planChanged: 0 };
+   932→  }
+   933→}
+   934→

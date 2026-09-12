@@ -1,0 +1,395 @@
+# AcquisitionOS — Prometheus Alert Rules
+# Phase 11: Observability
+#
+# Business-critical alerts for AcquisitionOS:
+#   - High error rate (>5% for 5 minutes)
+#   - High latency (P95 > 2s for 5 minutes)
+#   - Payment failure spike (>3 failures in 10 minutes)
+#   - Credit exhaustion (user credits < 5)
+#   - Database slow query (>1s average for 5 minutes)
+#   - AI cost spike (>$10 in 1 hour)
+
+groups:
+  # ─────────────────────────────────────────────────────────────────
+  # Application Health Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: application_health
+    rules:
+      # High Error Rate — >5% of API requests return 5xx for 5 minutes
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(api_requests_total{statusGroup="5xx"}[5m]))
+            /
+            sum(rate(api_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%) over the last 5 minutes. Check /api/metrics for details."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/high-error-rate"
+
+      # Elevated Error Rate — Warning level at 2%
+      - alert: ElevatedErrorRate
+        expr: |
+          (
+            sum(rate(api_requests_total{statusGroup="5xx"}[5m]))
+            /
+            sum(rate(api_requests_total[5m]))
+          ) > 0.02
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Elevated API error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 2%) over the last 10 minutes."
+
+      # High Latency P95 — >2s for 5 minutes
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (le, route)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High API latency P95 on {{ $labels.route }}"
+          description: "P95 latency on route '{{ $labels.route }}' is {{ $value }}s (threshold: 2s) over the last 5 minutes."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/high-latency"
+
+      # High Latency P99 — Critical at 5s
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical API latency P99"
+          description: "P99 latency is {{ $value }}s (threshold: 5s) over the last 5 minutes. Users are experiencing severe delays."
+
+      # Application Down
+      - alert: ApplicationDown
+        expr: |
+          up{job="nextjs-app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "AcquisitionOS application is down"
+          description: "The Next.js application has been unreachable for more than 2 minutes."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Authentication & Security Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: auth_alerts
+    rules:
+      # High Auth Failure Rate — >50 401 responses in 5 minutes
+      - alert: HighAuthFailureRate
+        expr: |
+          sum(rate(api_requests_total{statusGroup="4xx"}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High authentication failure rate detected"
+          description: "4xx error rate is {{ $value | humanizePercentage }} over the last 5 minutes. Possible brute-force attack or service misconfiguration."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/high-auth-failures"
+
+      # Auth Failure Spike — >100 401s in 1 minute
+      - alert: AuthFailureSpike
+        expr: |
+          increase(api_requests_total{statusGroup="4xx"}[1m]) > 100
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Authentication failure spike"
+          description: "{{ $value }} 4xx errors in the last minute. Immediate investigation required — possible credential stuffing or DDoS."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Lead Processing Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: lead_alerts
+    rules:
+      # Lead Processing Error Rate — >10% failure rate for 10 minutes
+      - alert: LeadProcessingErrorRate
+        expr: |
+          (
+            sum(rate(workflow_executions_total{status="failed"}[10m]))
+            /
+            sum(rate(workflow_executions_total[10m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Lead processing error rate elevated"
+          description: "Workflow failure rate is {{ $value | humanizePercentage }} (threshold: 10%) over the last 10 minutes."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/lead-processing-errors"
+
+      # Lead Processing Backlog — queue depth > 500
+      - alert: LeadProcessingBacklog
+        expr: |
+          queue_depth > 500
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Lead processing backlog growing"
+          description: "Queue depth is {{ $value }} (threshold: 500). Lead processing may be falling behind."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Credit System Error Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: credit_error_alerts
+    rules:
+      # Credit System Error Rate — high rate of credit operation failures
+      - alert: CreditSystemErrorRate
+        expr: |
+          (
+            sum(rate(credits_consumed_total{error="true"}[5m]))
+            /
+            sum(rate(credits_consumed_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: billing
+        annotations:
+          summary: "Credit system error rate elevated"
+          description: "Credit operation error rate is {{ $value | humanizePercentage }} (threshold: 5%) over the last 5 minutes."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/credit-system-errors"
+
+      # Anomaly Alert Spike — >10 anomaly alerts in 5 minutes
+      - alert: AnomalyAlertSpike
+        expr: |
+          increase(anomaly_alerts_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Anomaly alert spike detected"
+          description: "{{ $value }} anomaly alerts triggered in the last 5 minutes. Review for potential abuse patterns."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Payment & Billing Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: payment_alerts
+    rules:
+      # Payment Failure Spike — >3 failures in 10 minutes
+      - alert: PaymentFailureSpike
+        expr: |
+          increase(payment_failures_total[10m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+          team: billing
+        annotations:
+          summary: "Payment failure spike detected"
+          description: "{{ $value }} payment failures in the last 10 minutes (threshold: 3). Check payment provider status and webhook logs."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/payment-failures"
+
+      # Payment Success Rate Below 90%
+      - alert: LowPaymentSuccessRate
+        expr: |
+          (
+            sum(payment_success_total)
+            /
+            (sum(payment_success_total) + sum(payment_failures_total))
+          ) < 0.90
+        for: 15m
+        labels:
+          severity: warning
+          team: billing
+        annotations:
+          summary: "Payment success rate below 90%"
+          description: "Payment success rate is {{ $value | humanizePercentage }}. Investigate payment gateway issues."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Credit & Usage Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: credit_alerts
+    rules:
+      # Credit Exhaustion — total credits remaining across all users < 5 per active user
+      - alert: CreditExhaustion
+        expr: |
+          (credits_remaining / active_users) < 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Users running low on credits"
+          description: "Average credits per active user is {{ $value }} (threshold: 5). Users may be unable to use features."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/credit-exhaustion"
+
+      # Rapid Credit Consumption — >50% of monthly credits consumed in 1 hour
+      - alert: RapidCreditConsumption
+        expr: |
+          rate(credits_consumed_total[1h]) > 0
+          and
+          increase(credits_consumed_total[1h]) > (credits_remaining * 0.1)
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Unusually rapid credit consumption"
+          description: "Credit consumption rate suggests >10% of remaining credits used in the last hour."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Database Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: database_alerts
+    rules:
+      # Database Slow Query — average query duration >1s for 5 minutes
+      - alert: DatabaseSlowQuery
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation)
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Database slow queries detected ({{ $labels.operation }})"
+          description: "P95 database query duration for '{{ $labels.operation }}' is {{ $value }}s (threshold: 1s). Check for missing indexes or slow queries."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/database-slow-queries"
+
+      # Critical Database Latency
+      - alert: CriticalDatabaseLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (le)
+          ) > 3.0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical database latency"
+          description: "P99 database query duration is {{ $value }}s (threshold: 3s). Database is severely degraded."
+
+  # ─────────────────────────────────────────────────────────────────
+  # AI Cost Alerts
+  # ─────────────────────────────────────────────────────────────────
+  - name: ai_cost_alerts
+    rules:
+      # AI Cost Spike — >$10 in 1 hour
+      - alert: AICostSpike
+        expr: |
+          increase(ai_cost_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "AI cost spike detected"
+          description: "AI cost in the last hour is ${{ $value }} (threshold: $10). Check for runaway AI requests or abuse."
+          runbook_url: "https://docs.acquisitionos.com/runbooks/ai-cost-spike"
+
+      # High AI Request Volume
+      - alert: HighAIRequestVolume
+        expr: |
+          rate(ai_requests_total[5m]) > 10
+        for: 15m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "Sustained high AI request volume"
+          description: "AI request rate is {{ $value }}/sec sustained for 15 minutes. Verify this is expected traffic."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Infrastructure Alerts (Node Exporter)
+  # ─────────────────────────────────────────────────────────────────
+  - name: infrastructure_alerts
+    rules:
+      # Disk Space Warning
+      - alert: DiskSpaceWarning
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.20
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Disk space running low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining on /."
+
+      # Disk Space Critical
+      - alert: DiskSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.10
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Disk space critically low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining on /. Immediate action required."
+
+      # Memory Pressure Warning
+      - alert: MemoryPressureWarning
+        expr: |
+          (
+            1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Memory pressure detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 85%)."
+
+      # Memory Pressure Critical
+      - alert: MemoryPressureCritical
+        expr: |
+          (
+            1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+          ) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Critical memory pressure"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 95%). OOM kills imminent."
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 15m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% (threshold: 85%) for the last 15 minutes."

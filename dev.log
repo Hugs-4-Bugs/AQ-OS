@@ -1,0 +1,451 @@
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://21.0.5.46:3000
+- Environments: .env
+- Experiments (use with caution):
+  · optimizePackageImports
+
+✓ Starting...
+[instrumentation] No new env vars loaded from .env files (all already set in process.env)
+─────────────────────────────────────────────────
+[env-safeguard] Environment Variable Health Report
+  Status: DEGRADED
+  DEGRADED — Missing/degraded: Gmail Password (alias), Resend API Key
+  Auth Summary:
+    Dev Mode: DISABLED ✓
+    Email (SMTP): CONFIGURED ✓
+    Google OAuth: CONFIGURED ✓
+─────────────────────────────────────────────────
+[env-safeguard] .env.backup created/updated
+
+═══════════════════════════════════════════════════════
+  AcquisitionOS — Auth Provider Startup Check
+═══════════════════════════════════════════════════════
+  STARTUP OK: GOOGLE_CLIENT_ID is configured
+  STARTUP OK: GOOGLE_CLIENT_SECRET is configured
+  STARTUP ERROR: AUTH_SECRET is NOT SET in environment
+  STARTUP OK: NEXTAUTH_SECRET is configured
+  STARTUP OK: DATABASE_URL is configured
+  STARTUP OK: JWT_SECRET is configured
+  SMTP OK: SMTP_HOST is configured
+  SMTP OK: SMTP_PORT is configured
+  SMTP OK: SMTP_USER is configured
+  SMTP OK: SMTP_PASSWORD is configured
+  Google OAuth : AVAILABLE
+  App URL      : https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+  Database     : CONFIGURED
+═══════════════════════════════════════════════════════
+
+[SMTP-Env-Diag] user    : SMTP_USER=SET, SMTP_USERNAME=MISSING, GMAIL_USER=SET, EMAIL_USER=MISSING, EMAIL_USERNAME=MISSING, MAIL_USER=MISSING, MAIL_USERNAME=MISSING
+[SMTP-Env-Diag] pass    : SMTP_PASSWORD=SET, SMTP_PASS=SET, SMTP_AUTH_PASSWORD=MISSING, GMAIL_APP_PASSWORD=SET, GMAIL_PASSWORD=MISSING, EMAIL_PASSWORD=MISSING, EMAIL_PASS=MISSING, MAIL_PASSWORD=MISSING, MAIL_PASS=MISSING
+[SMTP-Env-Diag] host    : SMTP_HOST=SET, MAIL_HOST=MISSING, EMAIL_HOST=MISSING
+[SMTP-Env-Diag] port    : SMTP_PORT=SET, MAIL_PORT=MISSING, EMAIL_PORT=MISSING
+[SMTP-Env-Diag] from    : SMTP_FROM=SET, EMAIL_FROM=SET, MAIL_FROM=MISSING, MAIL_FROM_ADDRESS=MISSING
+[SMTP-Env-Diag] resend  : RESEND_API_KEY=MISSING
+[SMTP-Env-Diag] resolved: user=SET, pass=SET, configured=YES
+[Sentry] No NEXT_PUBLIC_SENTRY_DSN configured — Sentry is in no-op mode
+[2m2026-09-12T16:58:52.741Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v24.19.0","environment":"development"}[0m
+✓ Ready in 1972ms
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<12af2404-5aaf-2ba5-ae05-e41a915a9059@gmail.com>, response=250 2.0.0 OK  1789232336 98e67ed59e1d1-39d94bafb3bsm11666267a91.1 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <12af2404-5aaf-2ba5-ae05-e41a915a9059@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<12af2404-5aaf-2ba5-ae05-e41a915a9059@gmail.com>
+ POST /api/auth/otp/request 200 in 3.9s (compile: 403ms, proxy.ts: 162ms, render: 3.3s)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+○ Compiling / ...
+ GET / 200 in 8.5s (compile: 8.2s, proxy.ts: 5ms, render: 322ms)
+ GET / 200 in 64ms (compile: 6ms, proxy.ts: 7ms, render: 51ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 401 in 102ms (compile: 91ms, proxy.ts: 5ms, render: 6ms)
+⚠ Blocked cross-origin request from preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /api/auth/me 401 in 22ms (compile: 12ms, proxy.ts: 4ms, render: 5ms)
+ GET /api/auth/me 401 in 28ms (compile: 16ms, proxy.ts: 5ms, render: 6ms)
+ GET / 200 in 52ms (compile: 8ms, proxy.ts: 7ms, render: 38ms)
+ GET /business-ai/workflows 200 in 95ms (compile: 7ms, proxy.ts: 52ms, render: 37ms)
+ GET /workflows/documentation 200 in 1544ms (compile: 225ms, proxy.ts: 3ms, render: 1316ms)
+[AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+ GET /api/auth/config 200 in 110ms (compile: 96ms, proxy.ts: 5ms, render: 9ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[download-source] OK acquisitionos-source-95fc5a37a-20260912.tar.gz 90.7MB in 5381ms
+ GET /api/workspace/download-source 200 in 5.4s (compile: 50ms, proxy.ts: 3ms, render: 5.4s)
+[AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+ GET /api/auth/config 200 in 23ms (compile: 8ms, proxy.ts: 5ms, render: 10ms)
+ POST /api/auth/otp/request 429 in 34ms (compile: 17ms, proxy.ts: 5ms, render: 13ms)
+ GET / 200 in 77ms (compile: 5ms, proxy.ts: 3ms, render: 69ms)
+ GET / 200 in 51ms (compile: 3ms, proxy.ts: 7ms, render: 41ms)
+ POST /api/auth/otp/request 429 in 24ms (compile: 11ms, proxy.ts: 4ms, render: 9ms)
+ GET / 200 in 48ms (compile: 4ms, proxy.ts: 3ms, render: 40ms)
+ GET / 200 in 48ms (compile: 4ms, proxy.ts: 4ms, render: 40ms)
+ GET / 200 in 48ms (compile: 5ms, proxy.ts: 7ms, render: 36ms)
+ GET / 200 in 45ms (compile: 4ms, proxy.ts: 3ms, render: 38ms)
+ GET / 200 in 59ms (compile: 5ms, proxy.ts: 7ms, render: 47ms)
+ GET / 200 in 137ms (compile: 11ms, proxy.ts: 9ms, render: 117ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 401 in 43ms (compile: 27ms, proxy.ts: 6ms, render: 10ms)
+ GET /api/auth/me 401 in 21ms (compile: 13ms, proxy.ts: 5ms, render: 4ms)
+ GET / 200 in 208ms (compile: 34ms, proxy.ts: 22ms, render: 152ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 401 in 61ms (compile: 41ms, proxy.ts: 8ms, render: 12ms)
+ GET /api/auth/me 401 in 14ms (compile: 8ms, proxy.ts: 3ms, render: 3ms)
+ GET / 200 in 88ms (compile: 5ms, proxy.ts: 7ms, render: 76ms)
+ GET / 200 in 68ms (compile: 7ms, proxy.ts: 8ms, render: 52ms)
+ GET / 200 in 109ms (compile: 6ms, proxy.ts: 4ms, render: 99ms)
+ GET / 200 in 63ms (compile: 8ms, proxy.ts: 4ms, render: 52ms)
+ GET / 200 in 76ms (compile: 13ms, proxy.ts: 11ms, render: 52ms)
+ GET / 200 in 56ms (compile: 9ms, proxy.ts: 4ms, render: 43ms)
+ GET / 200 in 71ms (compile: 9ms, proxy.ts: 3ms, render: 58ms)
+ GET / 200 in 90ms (compile: 9ms, proxy.ts: 7ms, render: 75ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<b663a7d6-2eaf-8108-8529-0762992f757c@gmail.com>, response=250 2.0.0 OK  1789232572 d9443c01a7336-2dd48ae3cacsm11087175ad.26 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <b663a7d6-2eaf-8108-8529-0762992f757c@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<b663a7d6-2eaf-8108-8529-0762992f757c@gmail.com>
+ POST /api/auth/otp/request 200 in 3.8s (compile: 19ms, proxy.ts: 6ms, render: 3.7s)
+ POST /api/auth/otp/verify 200 in 410ms (compile: 235ms, proxy.ts: 4ms, render: 171ms)
+ GET / 200 in 57ms (compile: 4ms, proxy.ts: 4ms, render: 49ms)
+ GET /api/auth/me 200 in 30ms (compile: 16ms, proxy.ts: 4ms, render: 10ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=20 200 in 236ms (compile: 210ms, proxy.ts: 9ms, render: 17ms)
+ GET /api/reminders? 200 in 185ms (compile: 165ms, proxy.ts: 7ms, render: 13ms)
+ GET /api/reminders?overdue=true 200 in 54ms (compile: 14ms, proxy.ts: 8ms, render: 32ms)
+[MeetingReminders] Getting upcoming reminders for user cmqrtgnjx0000qfgnsbhzyzxq
+[2m2026-09-12T17:03:12.036Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":13}[0m
+ GET /api/meetings/reminders?limit=10 200 in 427ms (compile: 371ms, proxy.ts: 7ms, render: 49ms)
+ GET /api/subscriptions/current 200 in 314ms (compile: 147ms, proxy.ts: 8ms, render: 159ms)
+ GET /api/reminders?overdue=true 200 in 59ms (compile: 35ms, proxy.ts: 12ms, render: 12ms)
+ GET /api/notifications?limit=20 200 in 99ms (compile: 17ms, proxy.ts: 47ms, render: 35ms)
+ GET /api/subscriptions/entitlements 200 in 147ms (compile: 125ms, proxy.ts: 4ms, render: 18ms)
+ GET /api/notifications?limit=20 200 in 146ms (compile: 14ms, proxy.ts: 7ms, render: 125ms)
+ GET /api/reminders?overdue=true 200 in 141ms (compile: 103ms, proxy.ts: 4ms, render: 33ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/leads/stats 200 in 226ms (compile: 127ms, proxy.ts: 4ms, render: 96ms)
+[2m2026-09-12T17:03:12.918Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"7dfb261aaedb421388b964b2abf05a86","method":"GET","path":"/api/leads","statusCode":200,"durationMs":22.09415999997873}[0m
+ GET /api/leads?sortBy=conversionScore&sortOrder=desc 200 in 223ms (compile: 183ms, proxy.ts: 4ms, render: 37ms)
+ GET /api/deals 200 in 488ms (compile: 240ms, proxy.ts: 21ms, render: 228ms)
+[2m2026-09-12T17:03:13.411Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/stats → 200 [2m{"method":"GET","path":"/api/meetings/stats","route":"meetings/stats","statusCode":200,"durationMs":142}[0m
+ GET /api/meetings/stats 200 in 490ms (compile: 269ms, proxy.ts: 43ms, render: 177ms)
+[2m2026-09-12T17:03:13.429Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings → 200 [2m{"method":"GET","path":"/api/meetings","route":"meetings","statusCode":200,"durationMs":105}[0m
+ GET /api/meetings 200 in 515ms (compile: 389ms, proxy.ts: 16ms, render: 110ms)
+[2m2026-09-12T17:03:17.105Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"de10190e55b24512aaaab2216a7c9a04","method":"GET","path":"/api/leads","statusCode":200,"durationMs":8.339861999964342}[0m
+ GET /api/leads?limit=20 200 in 31ms (compile: 13ms, proxy.ts: 5ms, render: 13ms)
+[2m2026-09-12T17:03:20.267Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"314c1803b9374f3cb638f607284ad77a","method":"GET","path":"/api/leads","statusCode":200,"durationMs":6.55415699997684}[0m
+ GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 26ms (compile: 12ms, proxy.ts: 4ms, render: 10ms)
+[2m2026-09-12T17:03:22.885Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"7b7388de970941ae850a8ad562661f41","method":"GET","path":"/api/leads","statusCode":200,"durationMs":9.04505000001518}[0m
+ GET /api/leads?limit=200 200 in 37ms (compile: 11ms, proxy.ts: 4ms, render: 22ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 46ms (compile: 24ms, proxy.ts: 6ms, render: 16ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 46ms (compile: 21ms, proxy.ts: 6ms, render: 18ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 47ms (compile: 27ms, proxy.ts: 9ms, render: 11ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 121ms (compile: 29ms, proxy.ts: 20ms, render: 72ms)
+ GET /api/reminders?overdue=true 200 in 116ms (compile: 56ms, proxy.ts: 21ms, render: 40ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 33ms (compile: 15ms, proxy.ts: 4ms, render: 15ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 26ms (compile: 10ms, proxy.ts: 4ms, render: 12ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 31ms (compile: 16ms, proxy.ts: 4ms, render: 11ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 33ms (compile: 14ms, proxy.ts: 4ms, render: 16ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 31ms (compile: 17ms, proxy.ts: 5ms, render: 10ms)
+ GET /api/reminders?overdue=true 200 in 37ms (compile: 19ms, proxy.ts: 4ms, render: 13ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 68ms (compile: 19ms, proxy.ts: 34ms, render: 15ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 46ms (compile: 18ms, proxy.ts: 8ms, render: 20ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 31ms (compile: 17ms, proxy.ts: 4ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 37ms (compile: 18ms, proxy.ts: 4ms, render: 15ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 26ms (compile: 12ms, proxy.ts: 3ms, render: 11ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 28ms (compile: 16ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/reminders?overdue=true 200 in 123ms (compile: 27ms, proxy.ts: 20ms, render: 75ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 121ms (compile: 76ms, proxy.ts: 13ms, render: 33ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 95ms (compile: 25ms, proxy.ts: 12ms, render: 58ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 65ms (compile: 14ms, proxy.ts: 5ms, render: 45ms)
+ GET / 200 in 74ms (compile: 12ms, proxy.ts: 4ms, render: 58ms)
+ GET / 200 in 65ms (compile: 7ms, proxy.ts: 7ms, render: 51ms)
+ GET / 200 in 66ms (compile: 10ms, proxy.ts: 4ms, render: 53ms)
+e: 10ms, proxy.ts: 4ms, render: 53ms)

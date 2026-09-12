@@ -1,0 +1,152 @@
+# AcquisitionOS — OpenTelemetry Collector Configuration
+
+receivers:
+  # ─────────────────────────────────────────────────────────────────
+  # OTLP Receiver - Accept traces and metrics from instrumented services
+  # ─────────────────────────────────────────────────────────────────
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 0.0.0.0:4318
+        max_request_body_size: 16777216  # 16 MiB
+
+  # ─────────────────────────────────────────────────────────────────
+  # Prometheus Receiver - Scrape Prometheus-style metrics
+  # ─────────────────────────────────────────────────────────────────
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['localhost:8888']
+
+processors:
+  # ─────────────────────────────────────────────────────────────────
+  # Batch Processor - Batch telemetry data for efficient export
+  # ─────────────────────────────────────────────────────────────────
+  batch:
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+    timeout: 5s
+
+  # ─────────────────────────────────────────────────────────────────
+  # Memory Limiter - Protect against out-of-memory situations
+  # ─────────────────────────────────────────────────────────────────
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # ─────────────────────────────────────────────────────────────────
+  # Resource Processor - Add common resource attributes
+  # ─────────────────────────────────────────────────────────────────
+  resource:
+    attributes:
+      - key: service.namespace
+        value: acquisitionos
+        action: upsert
+      - key: deployment.environment
+        value: production
+        action: upsert
+
+  # ─────────────────────────────────────────────────────────────────
+  # Filter Processor - Remove noisy or unwanted telemetry
+  # ─────────────────────────────────────────────────────────────────
+  filter/health:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["http.route"] == "/health"'
+        - 'attributes["http.route"] == "/health/ready"'
+        - 'attributes["http.route"] == "/health/live"'
+
+exporters:
+  # ─────────────────────────────────────────────────────────────────
+  # Prometheus Exporter - Export metrics for Prometheus to scrape
+  # ─────────────────────────────────────────────────────────────────
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: acquisitionos
+    const_labels:
+      environment: production
+
+  # ─────────────────────────────────────────────────────────────────
+  # Loki Exporter - Send logs to Loki
+  # ─────────────────────────────────────────────────────────────────
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: false
+      job: true
+
+  # ─────────────────────────────────────────────────────────────────
+  # OTLP Exporter - Forward traces to a backend (e.g., Jaeger, Tempo)
+  # ─────────────────────────────────────────────────────────────────
+  # otlp/traces:
+  #   endpoint: tempo:4317
+  #   tls:
+  #     insecure: true
+
+  # ─────────────────────────────────────────────────────────────────
+  # Debug Exporter - For development/troubleshooting
+  # ─────────────────────────────────────────────────────────────────
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  # ─────────────────────────────────────────────────────────────────
+  # Telemetry - OTel Collector's own telemetry
+  # ─────────────────────────────────────────────────────────────────
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888
+
+  # ─────────────────────────────────────────────────────────────────
+  # Pipelines - Connect receivers → processors → exporters
+  # ─────────────────────────────────────────────────────────────────
+  pipelines:
+    # Metrics pipeline
+    metrics:
+      receivers:
+        - otlp
+        - prometheus
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - prometheus
+        - debug
+
+    # Traces pipeline
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - filter/health
+        - batch
+      exporters:
+        - debug
+        # - otlp/traces
+
+    # Logs pipeline
+    logs:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - loki
+        - debug
