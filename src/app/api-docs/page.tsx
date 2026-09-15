@@ -282,6 +282,14 @@ export default function ApiDocsPage() {
                 You can create keys in <strong>Settings → API Keys</strong>; the full raw key is shown only once.
               </p>
 
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  <strong>Developer Access must be enabled in Settings → API before creating API keys.</strong>{' '}
+                  When Developer Access is OFF, API key creation is locked (existing API keys are preserved).
+                  API documentation remains available regardless of this setting.
+                </p>
+              </div>
+
               <div className="rounded-lg border bg-muted/30 p-4">
                 <p className="text-xs text-muted-foreground mb-2">Example request — authenticate with Bearer token</p>
                 <pre className="text-xs font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap break-all"><code>{`curl -X GET https://acquisition.space-z.ai/api/leads?limit=5 \\

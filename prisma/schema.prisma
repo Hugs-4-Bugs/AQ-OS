@@ -121,6 +121,7 @@ model User {
   isActive                   Boolean   @default(true)
   lastLoginAt                DateTime?
   deletedAt                  DateTime?
+  developerAccessEnabled     Boolean   @default(false)
 
   sessions                 UserSession[]
   loginHistory             LoginHistory[]

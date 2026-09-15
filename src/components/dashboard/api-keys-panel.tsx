@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Key,
@@ -23,6 +23,7 @@ import {
   EyeOff,
   Info,
   Shield,
+  Lock,
   MoreHorizontal,
   BarChart3,
   Activity,
@@ -218,6 +219,11 @@ export default function ApiKeysPanel() {
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const [selectedKeyName, setSelectedKeyName] = useState('');
 
+  // Developer Access state (per-user security gate for API key creation)
+  const [developerAccessEnabled, setDeveloperAccessEnabled] = useState(false);
+  const [developerAccessLoading, setDeveloperAccessLoading] = useState(false);
+  const [showDevAccessModal, setShowDevAccessModal] = useState(false);
+
   // Create form state
   const [formName, setFormName] = useState('');
   const [formEnvironment, setFormEnvironment] = useState<'live' | 'test'>('live');
@@ -261,6 +267,65 @@ export default function ApiKeysPanel() {
   });
 
   const apiKeys = keysData?.apiKeys ?? [];
+
+  // Fetch Developer Access state on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings/developer-access', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { developerAccessEnabled?: boolean };
+        if (!cancelled && typeof data.developerAccessEnabled === 'boolean') {
+          setDeveloperAccessEnabled(data.developerAccessEnabled);
+        }
+      } catch {
+        // Silently ignore — defaults to OFF which is the safe state
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Toggle Developer Access (used by both the control Switch and the modal's Enable button)
+  const toggleDeveloperAccess = useCallback(async (enable: boolean) => {
+    setDeveloperAccessLoading(true);
+    try {
+      const res = await fetch('/api/settings/developer-access', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ enabled: enable }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to update Developer Access' }));
+        throw new Error(err.error || 'Failed to update Developer Access');
+      }
+      const data = (await res.json()) as { developerAccessEnabled: boolean };
+      setDeveloperAccessEnabled(data.developerAccessEnabled);
+      toast.success(
+        data.developerAccessEnabled
+          ? 'Developer Access enabled — API key creation unlocked'
+          : 'Developer Access disabled — API key creation locked'
+      );
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update Developer Access');
+      return false;
+    } finally {
+      setDeveloperAccessLoading(false);
+    }
+  }, []);
+
+  // Handle "Create API Key" click — gated by Developer Access
+  const handleCreateClick = useCallback(() => {
+    if (!developerAccessEnabled) {
+      setShowDevAccessModal(true);
+      return;
+    }
+    setCreateOpen(true);
+  }, [developerAccessEnabled]);
 
   // Create mutation
   const createMutation = useMutation({
@@ -510,6 +575,75 @@ export default function ApiKeysPanel() {
 
   return (
     <div className="space-y-6">
+      {/* ═══════════ DEVELOPER ACCESS CONTROL ═══════════ */}
+      <Card
+        className={`border ${
+          developerAccessEnabled
+            ? 'border-emerald-500/20 bg-emerald-500/[0.02]'
+            : 'border-amber-500/20 bg-amber-500/[0.02]'
+        }`}
+      >
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div
+                className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  developerAccessEnabled
+                    ? 'bg-emerald-500/10 text-emerald-600'
+                    : 'bg-amber-500/10 text-amber-600'
+                }`}
+              >
+                {developerAccessEnabled ? (
+                  <ShieldCheck className="h-5 w-5" />
+                ) : (
+                  <Lock className="h-5 w-5" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm font-semibold">Developer Access</h4>
+                  {developerAccessEnabled ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                      Enabled
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Developer Access Required
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  Control external API and developer integrations for this account.
+                  {!developerAccessEnabled && (
+                    <>
+                      {' '}
+                      Creating or managing API keys is locked until Developer Access is
+                      enabled. Existing API keys are preserved.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 sm:pl-4">
+              <Label
+                htmlFor="developer-access-switch"
+                className="text-xs text-muted-foreground hidden sm:block"
+              >
+                {developerAccessEnabled ? 'ON' : 'OFF'}
+              </Label>
+              <Switch
+                id="developer-access-switch"
+                checked={developerAccessEnabled}
+                disabled={developerAccessLoading}
+                onCheckedChange={(checked) => toggleDeveloperAccess(checked)}
+                aria-label="Toggle Developer Access"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -537,9 +671,19 @@ export default function ApiKeysPanel() {
           </Button>
           <Button
             className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={() => setCreateOpen(true)}
+            onClick={handleCreateClick}
+            disabled={!developerAccessEnabled}
+            title={
+              developerAccessEnabled
+                ? 'Create a new API key'
+                : 'Developer Access is OFF — enable it to create API keys'
+            }
           >
-            <Plus className="h-4 w-4 mr-1.5" />
+            {developerAccessEnabled ? (
+              <Plus className="h-4 w-4 mr-1.5" />
+            ) : (
+              <Lock className="h-4 w-4 mr-1.5" />
+            )}
             Create API Key
           </Button>
         </div>
@@ -604,9 +748,19 @@ export default function ApiKeysPanel() {
                 </p>
                 <Button
                   className="bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => setCreateOpen(true)}
+                  onClick={handleCreateClick}
+                  disabled={!developerAccessEnabled}
+                  title={
+                    developerAccessEnabled
+                      ? 'Create a new API key'
+                      : 'Developer Access is OFF — enable it to create API keys'
+                  }
                 >
-                  <Plus className="h-4 w-4 mr-1.5" />
+                  {developerAccessEnabled ? (
+                    <Plus className="h-4 w-4 mr-1.5" />
+                  ) : (
+                    <Lock className="h-4 w-4 mr-1.5" />
+                  )}
                   Create API Key
                 </Button>
               </CardContent>
@@ -1759,6 +1913,59 @@ export default function ApiKeysPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ═══════════ DEVELOPER ACCESS REQUIRED MODAL ═══════════ */}
+      <Dialog open={showDevAccessModal} onOpenChange={setShowDevAccessModal}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-500" />
+              Developer Access Required
+            </DialogTitle>
+            <DialogDescription>
+              Enable Developer Access in Settings → API before creating or managing API keys.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                API key creation is locked
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Developer Access is currently OFF for this account. Existing API keys
+                remain preserved and unaffected. Enable Developer Access to create or
+                rotate API keys.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDevAccessModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={async () => {
+                const ok = await toggleDeveloperAccess(true);
+                if (ok) {
+                  setShowDevAccessModal(false);
+                  setCreateOpen(true);
+                }
+              }}
+              disabled={developerAccessLoading}
+            >
+              {developerAccessLoading ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 mr-1.5" />
+              )}
+              Enable Developer Access
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

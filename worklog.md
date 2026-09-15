@@ -6796,3 +6796,89 @@ Platform "Download" button limitation (NOT fixable without breaking running app)
 
 Unresolved:
 - Platform native "Download" button cannot be made to work while keeping the server running (needs node_modules+.next on disk). User should use the "Source" button in the app footer or the standalone script instead.
+
+---
+Task ID: DEV-ACCESS-REIMPLEMENT
+Agent: full-stack-developer
+Task: Re-implement Developer Access gate on AQ-OS baseline (workspace was reset to cron lineage, restored from AQ-OS, re-applying Developer Access).
+
+Work Log:
+- STEP 1 (read context): Tailed worklog.md last 300 lines to load prior DEV-ACCESS history. Confirmed AQ-OS baseline HEAD = 5a02aa52, single initial commit.
+- STEP 2 (read targets): Read prisma/schema.prisma (User model lines 90-197), src/app/api/settings/api-keys/route.ts (POST handler), src/lib/auth.ts (getAuthUser + requireAuth), src/lib/db.ts (Prisma client), src/components/dashboard/api-keys-panel.tsx (1881 lines, full UI structure), src/app/api-docs/page.tsx (725 lines, mentions API key creation in Authentication section).
+- STEP 3 (schema additive): Added `developerAccessEnabled Boolean @default(false)` to model User in prisma/schema.prisma, immediately after `deletedAt DateTime?`. ONE field added, no other models/fields touched.
+- STEP 4 (db:push additive): Ran `bun run db:push`. Output: "Your database is now in sync with your Prisma schema. Done in 61ms". Verified column exists via Prisma query (`developerAccessEnabled: false` for existing user). Additive — no data loss, no existing column changes. Existing API key still present (count = 1).
+- STEP 5 (backend gate): Edited src/app/api/settings/api-keys/route.ts POST handler. Added `import { db } from '@/lib/db'`. AFTER existing auth check, BEFORE `request.json()`: loads user via `db.user.findUnique({ where: { id: authUser.id }, select: { developerAccessEnabled: true } })`. If `false` (or user missing): returns HTTP 403 with `{ code: 'DEVELOPER_ACCESS_REQUIRED', message: 'Enable Developer Access before creating API keys.' }`. If `true`: continues with EXISTING flow unchanged. Existing plan/scope validation preserved below the gate.
+- STEP 6 (new endpoint): Created src/app/api/settings/developer-access/route.ts. GET returns `{ developerAccessEnabled: boolean }` for authenticated user (404 if user missing). PATCH accepts `{ enabled: boolean }`, updates user via `db.user.update`, returns new state. Both use `getAuthUser` from '@/lib/auth' and `db` from '@/lib/db' (same pattern as api-keys route). 401 when unauthenticated.
+- STEP 7 (frontend): Edited src/components/dashboard/api-keys-panel.tsx. Added imports (useEffect, Lock icon). Added 3 state vars: `developerAccessEnabled` (default false), `developerAccessLoading`, `showDevAccessModal`. Added useEffect to fetch `/api/settings/developer-access` on mount and sync state. Added `toggleDeveloperAccess(enable)` callback that PATCHes the endpoint and updates state with toast feedback. Added `handleCreateClick()` that shows the modal when OFF or opens the create dialog when ON. Inserted a new "Developer Access" Card at the top of the panel (before the existing header) with: shield/lock icon, "Developer Access" label, ON/OFF Switch toggle, badge that flips between "Enabled" (emerald) and "🔒 Developer Access Required" (amber). Modified BOTH "Create API Key" buttons (header + empty state) to use `handleCreateClick`, `disabled={!developerAccessEnabled}`, swap Plus→Lock icon when locked, and show tooltip explaining why. Added new Dialog modal at end of JSX: "Developer Access Required" title, body "Enable Developer Access in Settings → API before creating or managing API keys.", actions [Enable Developer Access] (calls toggleDeveloperAccess(true) then closes modal + opens create dialog) and [Cancel]. The "View API Docs" button was NOT touched — remains fully enabled with target="_blank" as before.
+- STEP 8 (api-docs note): Added a brief amber-bordered note in src/app/api-docs/page.tsx Authentication section: "Developer Access must be enabled in Settings → API before creating API keys. When Developer Access is OFF, API key creation is locked (existing API keys are preserved). API documentation remains available regardless of this setting."
+- STEP 9 (lint): Ran `bun run lint`. Pre-existing 75 errors / 12 warnings across baseline files (team-workload-planner.tsx, weekly-digest-report.tsx, crypto.ts, db-pool.ts, etc.) — NONE in my modified files. Explicit `bunx eslint` on my 4 modified files returned 0 errors 0 warnings.
+- STEP 10 (server restart): Server was not running on port 3000 (only watchdog mini-service on 3001). Started via double-fork: `( setsid bash -c 'cd /home/z/my-project && bun run dev > /home/z/my-project/dev.log 2>&1' </dev/null & )`, waited 30s. Confirmed HTTP 200 on `GET /`. (Edge-runtime warnings about fs/path in instrumentation.ts are pre-existing baseline warnings, unrelated to this feature.)
+- STEP 11 (curl tests):
+    * GET /api/settings/developer-access (no auth) → 401 Unauthorized ✓ (route exists, requires auth)
+    * POST /api/settings/api-keys (no auth, JSON body) → 401 Unauthorized ✓ (route exists; auth check runs before Developer Access check, which is correct)
+    * GET /api-docs → 200 ✓ (documentation remains fully enabled)
+    * GET / → 200 ✓ (server healthy)
+- STEP 12 (preserve data): Verified via Prisma `apiKey.count()` = 1. Existing API key NOT deleted. The Developer Access gate only blocks CREATION, not existing keys.
+- STEP 13 (gitignore + untrack): Created .gitignore with standard Next.js ignores (node_modules, .next, .env*, *.log, dev.log, upload/, tool-results/, agent-ctx/, db/*.db, *.pid, *.done, *.bak). Baseline already had no secrets tracked (verified `git ls-files | grep -E "^\.env$|^node_modules/|^\.next/"` = empty). Only 3 tracked files matched new ignores: `dev.log`, `server.pid`, `db/custom.db`. Ran `git rm --cached` on each — files KEPT on disk (server still uses them), only removed from git index.
+- STEP 14 (forward commit): Staged ONLY the feature files explicitly (`git add .gitignore prisma/schema.prisma src/app/api/settings/api-keys/route.ts src/app/api/settings/developer-access/route.ts src/components/dashboard/api-keys-panel.tsx src/app/api-docs/page.tsx`). Did NOT use `git add -A`. ensure-env.sh had unrelated working-tree modifications and was correctly left out of the commit. Committed as e2ce7d9 — forward only, no reset/revert/checkout-old/rebase/force-push.
+
+Stage Summary:
+- AQ-OS baseline SHA: 5a02aa52
+- Final HEAD: e2ce7d9b2f5c63a01a23e61864df851c023c0248
+- Files changed (9 in commit):
+    1. .gitignore (new — 88 lines)
+    2. prisma/schema.prisma (+1 line: developerAccessEnabled field)
+    3. src/app/api/settings/api-keys/route.ts (+17 lines: Developer Access gate in POST)
+    4. src/app/api/settings/developer-access/route.ts (new — 72 lines: GET + PATCH)
+    5. src/components/dashboard/api-keys-panel.tsx (+217 lines: toggle Card + locked buttons + modal)
+    6. src/app/api-docs/page.tsx (+8 lines: brief note in Authentication section)
+    7. db/custom.db (untracked from git, kept on disk)
+    8. dev.log (untracked from git, kept on disk)
+    9. server.pid (untracked from git, kept on disk)
+- Schema change: developerAccessEnabled Boolean @default(false) on User model (additive, no data loss)
+- Backend: 403 DEVELOPER_ACCESS_REQUIRED when OFF (POST /api/settings/api-keys); GET/PATCH /api/settings/developer-access for read+toggle
+- Frontend: Developer Access Card with Switch toggle at top of API Keys panel; both "Create API Key" buttons disabled+locked with Lock icon when OFF; clicking them opens "Developer Access Required" modal with [Enable Developer Access] and [Cancel] actions
+- API documentation: View API Docs button untouched, opens /api-docs in new tab as before; brief note added to /api-docs page about Developer Access requirement
+- Lint: 0 errors / 0 warnings in modified files (pre-existing 75 errors in baseline files untouched)
+- Server: HTTP 200 on /, /api-docs; 401 on /api/settings/developer-access and /api/settings/api-keys (routes exist, require auth)
+- Existing API keys preserved: count = 1 before AND after the change
+- .gitignore restored: dev.log, server.pid, db/custom.db untracked (kept on disk); .env, .env.backup, node_modules/, .next/, upload/, tool-results/, agent-ctx/ already untracked and now ignored going forward
+- No forbidden git operations: only `git add` + `git commit`. No reset, revert, checkout-old, restore, clean, rebase, push --force, or branch switch.
+
+---
+Task ID: AQ-OS-RESTORE-2 + DEV-ACCESS-REIMPLEMENT + DOWNLOAD-VERIFY
+Agent: main-assistant + full-stack-developer (subagent for Developer Access re-implementation)
+Task: Restore workspace from AQ-OS (was reset to bad cron lineage 36f8951) + re-implement Developer Access + verify source download.
+
+Work Log:
+- Phase 1 (Record bad state): HEAD was 5681b48f (cron lineage) — missing ALL features (Developer Access=0, disabledBySubscription=0, documentation page=MISSING, download-source=MISSING). Cloned AQ-OS to /tmp/aqos-restore-2. Verified AQ-OS contains all workflow features (disabledBySubscription=1, documentation=present, download-source=present, subscription-service=9 refs, workflow-service=4 refs, execute route SUBSCRIPTION_PAUSED=1, draft execution line 72, Source button=1, API keys panel=present, API keys route=present) but NOT Developer Access (as expected).
+- Phase 2 (Restore from AQ-OS): Killed server. Preserved .env + ensure-env.sh. Removed bad source + bad .git. Copied AQ-OS content into workspace. Restored .env + ensure-env.sh. Ran ensure-env.sh (all 9 credentials restored). Ran bun install (158 packages). Ran db:push (additive sync). HEAD = 5a02aa52 (AQ-OS main).
+- Phase 3 (Developer Access re-implementation — delegated to full-stack-developer subagent):
+    * prisma/schema.prisma: +developerAccessEnabled Boolean @default(false) on User model (additive)
+    * src/app/api/settings/api-keys/route.ts: +17 lines — Developer Access 403 gate in POST (DEVELOPER_ACCESS_REQUIRED)
+    * src/app/api/settings/developer-access/route.ts: NEW (72 lines) — GET (read) + PATCH (toggle)
+    * src/components/dashboard/api-keys-panel.tsx: +217 lines — Developer Access Card (Switch + badge), locked Create API Key when OFF, "Developer Access Required" Dialog
+    * src/app/api-docs/page.tsx: +8 lines — note about Developer Access requirement
+    * .gitignore: NEW (88 lines) — standard Next.js ignores (node_modules, .next, .env*, *.log, dev.log, upload/, tool-results/, agent-ctx/)
+    * db/custom.db, dev.log, server.pid: untracked from git (files KEPT on disk)
+    * db:push ran (additive column, no data loss). Existing API keys preserved (1 key).
+    * Lint: 0 errors in modified files.
+    * Committed as forward commit e2ce7d9 (parent 5a02aa5).
+- Phase 5 (Verify): Server HTTP 200. GET /api/settings/developer-access → 401 (route exists). POST /api/settings/api-keys → 401 (route exists). All key routes: / → 200, /business-ai/workflows → 200, /workflows/documentation → 200, /api/auth/config → 200, /api-docs → 200. auth/config: {googleAvailable:true, emailConfigured:true}. Developer Access: schema=1, route=1, toggle endpoint=PRESENT, UI=46 refs. AQ-OS baseline: disabledBySubscription=1, documentation=present, download-source=present, subscription-service=9, workflow-service=4, execute=1, Source button=1.
+- Phase 6 (Source download): HTTP 200, 91MB, valid gzip, 3780 files. Archive contains: Developer Access (developerAccessEnabled=1, DEVELOPER_ACCESS_REQUIRED=1, toggle endpoint=PRESENT, UI=46 refs) + workflow features (disabledBySubscription=1, documentation=present, download-source=present, subscription-service=9). Secrets excluded: .env=0, node_modules=EXCLUDED, .next=EXCLUDED, .git=EXCLUDED. Filename: acquisitionos-source-e2ce7d9-20260915.tar.gz (confirms current commit).
+
+Stage Summary:
+- AQ-OS baseline SHA: 5a02aa52
+- Final HEAD: e2ce7d9 (Developer Access + .gitignore commit, parent 5a02aa5)
+- Branch: main
+- Files changed in commit: 9 (.gitignore NEW, schema +1, api-keys route +17, developer-access route NEW, api-keys-panel +217, api-docs +8, db/custom.db untracked, dev.log untracked, server.pid untracked)
+- Schema change: developerAccessEnabled Boolean @default(false) on User model (additive)
+- Backend: 403 DEVELOPER_ACCESS_REQUIRED when Developer Access is OFF
+- Frontend: Developer Access toggle + locked Create API Key + modal prompt
+- Documentation: remains fully enabled when Developer Access is OFF
+- Existing API keys: preserved (1 key)
+- Source download: HTTP 200, 91MB, includes Developer Access + all workflow features, no secrets
+- Server: HTTP 200
+- No rollback, no reset, no revert, no branch switch. Forward commit only.
+
+Final state: AQ-OS verified codebase + Developer Access feature + all existing functionality preserved. Source download works and represents the FINAL current workspace.

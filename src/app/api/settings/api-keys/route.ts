@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { db } from '@/lib/db';
 import { createApiKey, listApiKeys, API_KEY_SCOPES, type ApiKeyScope } from '@/lib/api-key-service';
 import { hasFeatureAccess, getFeatureLimit, type PlanType } from '@/lib/entitlement-service';
 
@@ -59,6 +60,22 @@ export async function POST(request: NextRequest) {
     const authUser = await getAuthUser(request);
     if (!authUser) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    // Developer Access gate — must be enabled before API keys can be created.
+    // Existing API keys are preserved regardless of this setting.
+    const userRecord = await db.user.findUnique({
+      where: { id: authUser.id },
+      select: { developerAccessEnabled: true },
+    });
+    if (!userRecord || !userRecord.developerAccessEnabled) {
+      return NextResponse.json(
+        {
+          code: 'DEVELOPER_ACCESS_REQUIRED',
+          message: 'Enable Developer Access before creating API keys.',
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
