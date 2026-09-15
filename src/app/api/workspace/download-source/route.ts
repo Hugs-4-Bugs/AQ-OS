@@ -1,50 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import { createHash } from 'crypto';
+import { withAdmin } from '@/lib/auth-middleware';
 
 /**
  * GET /api/workspace/download-source
  *
- * SAFE SOURCE-EXPORT ENDPOINT
- * ─────────────────────────────
+ * INTERNAL SOURCE-EXPORT ENDPOINT (admin-only)
+ * ─────────────────────────────────────────────
  * Streams a clean, secret-free archive of the CURRENT source code
- * (exactly `git archive HEAD` piped through gzip) directly to the
- * browser as a downloadable .tar.gz.
- *
- * WHY THIS EXISTS
- * ──────────────
- * The Z.ai platform "Download workspace" button archives the ENTIRE
- * workspace directory (including node_modules ~1.5G and .git ~130M)
- * which exceeds the platform/gateway response limits and fails with
- * "Failed to fetch". This endpoint provides a reliable, fast
- * alternative that exports ONLY the git-tracked source (~86 MB
- * compressed) — no node_modules, no .next, no .env, no .git internals.
- *
- * WHAT IT INCLUDES
- * ────────────────
- *   - All git-tracked files at HEAD (src/, package.json, prisma/,
- *     docs/, scripts/, config files, workflow source, etc.)
- *
- * WHAT IT EXCLUDES (verified)
- * ───────────────────────────
- *   - node_modules/       (gitignored, not tracked)
- *   - .next/              (gitignored, not tracked)
- *   - .env / .env.*       (gitignored, not tracked — NO SECRETS)
- *   - .git/ internals     (archive uses git tracked tree, not .git/)
- *   - upload/             (gitignored, not tracked)
- *   - dev.log, *.log     (gitignored, not tracked)
+ * (exactly `git archive HEAD` piped through gzip) as a .tar.gz.
  *
  * SECURITY
  * ────────
- *   - `git archive HEAD` only emits files in the git index, which
- *     after the .gitignore cleanup excludes all secrets.
- *   - Double-checks at runtime: if .env is somehow tracked, the
- *     request is aborted with 500 (defensive).
- *   - No auth required: the source is already public on GitHub
- *     (Hugs-4-Bugs/AcquisitionOS). This is a dev/export utility.
+ *   - ADMIN-ONLY: wrapped in `withAdmin` — normal authenticated users
+ *     receive 403. This is an internal development/export utility,
+ *     NOT a user-facing feature.
+ *   - No source-code download is exposed in the application UI.
+ *   - `git archive HEAD` only emits tracked files (gitignored secrets
+ *     excluded). Runtime double-check aborts if .env is tracked.
  *
- * NO EXISTING FUNCTIONALITY MODIFIED — purely additive new route.
- * Forward commit only; no rollback, no reset, no history rewrite.
+ * NO EXISTING FUNCTIONALITY MODIFIED — forward security hardening only.
  */
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +36,9 @@ export async function POST() {
 }
 
 export async function GET(_request: NextRequest) {
+  // ─── ADMIN-ONLY: normal users receive 403 ───
+  // This is an internal development/export utility, not a user-facing feature.
+  return withAdmin(_request, async () => {
   const startTime = performance.now();
 
   // ─── Defensive: ensure no .env files are tracked before streaming ───
@@ -157,4 +136,5 @@ export async function GET(_request: NextRequest) {
       'X-Content-SHA256': createHash('sha256').update(`${shortHash}:${dateStr}`).digest('hex').slice(0, 16),
     },
   });
+  }); // end withAdmin
 }

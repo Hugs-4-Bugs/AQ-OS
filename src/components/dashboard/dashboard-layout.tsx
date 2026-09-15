@@ -29,7 +29,6 @@ import {
   CreditCard,
   LogOut,
   ChevronDown,
-  Download,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuShortcut } from '@/components/ui/dropdown-menu';
@@ -803,13 +802,13 @@ export default function DashboardLayout({
       </div>
 
       {/* ===== Desktop Footer - Sticky at Bottom (Part 8: Crafted with heart + LinkedIn link) ===== */}
-      <footer role="contentinfo" className="border-t bg-background py-2.5 px-6 text-xs text-muted-foreground hidden lg:flex items-center justify-between relative overflow-hidden shrink-0 mt-auto">
+      <footer role="contentinfo" className="border-t bg-background py-2.5 px-4 sm:px-6 text-xs text-muted-foreground hidden lg:flex items-center justify-between gap-4 relative overflow-hidden shrink-0 mt-auto">
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-        <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5">v3.0.0</Badge>
-        <span className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+        <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 shrink-0">v3.0.0</Badge>
+        <span className="flex-1 text-center truncate px-2">
           AcquisitionOS &mdash; AI-Powered Client Acquisition System
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={() => useLegalStore.getState().openLegal('privacy')}
@@ -825,15 +824,6 @@ export default function DashboardLayout({
           >
             Terms
           </button>
-          <span className="text-muted-foreground/30">·</span>
-          <a
-            href="/api/workspace/download-source"
-            className="flex items-center gap-1 hover:text-foreground transition-colors"
-            title="Download the latest clean source code as a .tar.gz archive (no secrets, no node_modules)"
-          >
-            <Download className="h-3 w-3" />
-            Source
-          </a>
           <span className="text-muted-foreground/30">·</span>
           <LiveClock />
           <span className="flex items-center gap-1 text-foreground">

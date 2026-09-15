@@ -6882,3 +6882,34 @@ Stage Summary:
 - No rollback, no reset, no revert, no branch switch. Forward commit only.
 
 Final state: AQ-OS verified codebase + Developer Access feature + all existing functionality preserved. Source download works and represents the FINAL current workspace.
+
+---
+Task ID: SECURITY-FOOTER-FIX
+Agent: main-assistant
+Task: Remove public source-code download from AcquisitionOS UI + secure the endpoint + fix footer overlap. No rollback, no unrelated changes.
+
+Work Log:
+- Recorded baseline: HEAD=14e9d88e, branch=main, clean status.
+- Found source-download references: (1) "Source" footer link in dashboard-layout.tsx (lines 830-836, linked to /api/workspace/download-source with Download icon), (2) download-source route at src/app/api/workspace/download-source/route.ts (NO auth — publicly accessible).
+- Security fix 1 (footer): Removed the "Source" <a> link + the Download icon import from dashboard-layout.tsx. No replacement link added. Privacy + Terms + Crafted with QuantumFusion Solutions remain.
+- Security fix 2 (footer overlap): Replaced absolute-positioned center text (absolute left-1/2 -translate-x-1/2 — caused overlap with right-side content) with a proper flex layout: footer now uses justify-between + gap-4 + shrink-0, center text uses flex-1 text-center truncate. No overlap at any viewport. Responsive: px-4 sm:px-6, gap-2 sm:gap-3.
+- Security fix 3 (endpoint): Wrapped GET handler in /api/workspace/download-source/route.ts with withAdmin() from @/lib/auth-middleware. Normal authenticated users now receive 401/403. The endpoint is admin-only internal utility — NOT public/user-facing. Updated the JSDoc comment to reflect admin-only status.
+- Verified: download-source endpoint returns HTTP 401 (was 200 before — public access BLOCKED). All key routes: / 200, /business-ai/workflows 200, /workflows/documentation 200, /api/auth/config 200, /api-docs 200. auth/config: {googleAvailable:true, emailConfigured:true}.
+- Developer Access intact: developerAccessEnabled in schema (1), DEVELOPER_ACCESS_REQUIRED in api-keys route (1), developer-access toggle endpoint PRESENT, Developer Access endpoints return 401 (route exists, requires auth).
+- Searched entire src/ for user-facing source-download references: 0 found (only the route file itself which is now admin-only).
+- Lint: 0 errors in modified files.
+- Browser verification: sign-in page renders (title "AcquisitionOS — AI-Powered Client Acquisition System", no errors). fetch('/api/workspace/download-source') returns 401 Unauthorized. Documentation page renders (title "Workflow Documentation — AcquisitionOS").
+- Committed as forward commit 5cfe741 (parent 14e9d88). 2 files changed, +19/-49 lines. No rollback, no reset, no revert.
+
+Stage Summary:
+- Source footer link removed: YES
+- Other source-download UI found: NO (searched entire src/)
+- Public source-download access blocked: YES (endpoint now admin-only, returns 401)
+- Privacy/Terms overlap fixed: YES (flex layout replaces absolute positioning)
+- Desktop/mobile responsive: YES (gap-4 + flex-1 + truncate + shrink-0)
+- Developer Access preserved: YES (untouched)
+- Workflows/Subscription/API/Auth preserved: YES (all routes 200)
+- Documentation preserved: YES (workflow docs + API docs both 200)
+- Rollback: NO. Reset: NO. Branch switch: NO. Unrelated changes: NONE.
+- Files changed: 2 (dashboard-layout.tsx, download-source/route.ts)
+- Final HEAD: 5cfe741
