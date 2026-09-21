@@ -1,11 +1,231 @@
-⨯ Failed to start server
-Error: listen EADDRINUSE: address already in use :::3000
-    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
-    at new Promise (<anonymous>) {
-  code: 'EADDRINUSE',
-  errno: -98,
-  syscall: 'listen',
-  address: '::',
-  port: 3000
-}
-[?25h
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://21.0.19.40:3000
+- Environments: .env
+- Experiments (use with caution):
+  · optimizePackageImports
+
+✓ Starting...
+[instrumentation] No new env vars loaded from .env files (all already set in process.env)
+─────────────────────────────────────────────────
+[env-safeguard] Environment Variable Health Report
+  Status: DEGRADED
+  DEGRADED — Missing/degraded: SMTP Pass (alias), Gmail App Password (alias), Gmail Password (alias), SMTP From, Resend API Key
+  Auth Summary:
+    Dev Mode: DISABLED ✓
+    Email (SMTP): CONFIGURED ✓
+    Google OAuth: CONFIGURED ✓
+─────────────────────────────────────────────────
+[env-safeguard] .env.backup created/updated
+
+═══════════════════════════════════════════════════════
+  AcquisitionOS — Auth Provider Startup Check
+═══════════════════════════════════════════════════════
+  STARTUP OK: GOOGLE_CLIENT_ID is configured
+  STARTUP OK: GOOGLE_CLIENT_SECRET is configured
+  STARTUP ERROR: AUTH_SECRET is NOT SET in environment
+  STARTUP OK: NEXTAUTH_SECRET is configured
+  STARTUP OK: DATABASE_URL is configured
+  STARTUP OK: JWT_SECRET is configured
+  SMTP OK: SMTP_HOST is configured
+  SMTP OK: SMTP_PORT is configured
+  SMTP OK: SMTP_USER is configured
+  SMTP OK: SMTP_PASSWORD is configured
+  Google OAuth : AVAILABLE
+  App URL      : https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+  Database     : CONFIGURED
+═══════════════════════════════════════════════════════
+
+[SMTP-Env-Diag] user    : SMTP_USER=SET, SMTP_USERNAME=MISSING, GMAIL_USER=SET, EMAIL_USER=MISSING, EMAIL_USERNAME=MISSING, MAIL_USER=MISSING, MAIL_USERNAME=MISSING
+[SMTP-Env-Diag] pass    : SMTP_PASSWORD=SET, SMTP_PASS=MISSING, SMTP_AUTH_PASSWORD=MISSING, GMAIL_APP_PASSWORD=MISSING, GMAIL_PASSWORD=MISSING, EMAIL_PASSWORD=MISSING, EMAIL_PASS=MISSING, MAIL_PASSWORD=MISSING, MAIL_PASS=MISSING
+[SMTP-Env-Diag] host    : SMTP_HOST=SET, MAIL_HOST=MISSING, EMAIL_HOST=MISSING
+[SMTP-Env-Diag] port    : SMTP_PORT=SET, MAIL_PORT=MISSING, EMAIL_PORT=MISSING
+[SMTP-Env-Diag] from    : SMTP_FROM=MISSING, EMAIL_FROM=SET, MAIL_FROM=MISSING, MAIL_FROM_ADDRESS=MISSING
+[SMTP-Env-Diag] resend  : RESEND_API_KEY=MISSING
+[SMTP-Env-Diag] resolved: user=SET, pass=SET, configured=YES
+[Sentry] No NEXT_PUBLIC_SENTRY_DSN configured — Sentry is in no-op mode
+[2m2026-09-21T04:44:57.115Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v24.21.0","environment":"development"}[0m
+✓ Ready in 5.6s
+[2m2026-09-21T04:47:10.144Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 400 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":400,"durationMs":29}[0m
+ POST /api/prospecting/pipeline/run 400 in 1203ms (compile: 994ms, proxy.ts: 163ms, render: 45ms)
+[LeadResolution] LEAD_NOT_FOUND: no lead with id=nonexistent-id-123 (requested by user=cmqrtgnjx0000qfgnsbhzyzxq)
+[2m2026-09-21T04:47:10.194Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 404 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":404,"durationMs":12}[0m
+ POST /api/prospecting/pipeline/run 404 in 35ms (compile: 15ms, proxy.ts: 4ms, render: 16ms)
+[2m2026-09-21T04:47:10.317Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"613a1b7110084754b13a5b66d059e3ec","method":"GET","path":"/api/leads","statusCode":200,"durationMs":10.531243000004906}[0m
+ GET /api/leads?search=cult 200 in 114ms (compile: 95ms, proxy.ts: 3ms, render: 16ms)
+ GET /api/leads/cmtsqzsxo0053nptrkk8xjjlp 403 in 647ms (compile: 611ms, proxy.ts: 7ms, render: 30ms)
+[LeadResolution] LEAD_ACCESS_DENIED: lead=cmtsqzsxo0053nptrkk8xjjlp belongs to user=cmqltkkuv000xrc2jn99wodqj, requester=cmqrtgnjx0000qfgnsbhzyzxq
+[2m2026-09-21T04:47:11.010Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 404 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":404,"durationMs":7}[0m
+ POST /api/prospecting/pipeline/run 404 in 26ms (compile: 11ms, proxy.ts: 4ms, render: 11ms)
+[2m2026-09-21T04:47:28.503Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"a7acd52dbb7c4ceba49aea3baea4f203","method":"GET","path":"/api/leads","statusCode":200,"durationMs":6.568357000011019}[0m
+ GET /api/leads 200 in 27ms (compile: 13ms, proxy.ts: 4ms, render: 11ms)
+[2m2026-09-21T04:47:39.200Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 200 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":200,"durationMs":25}[0m
+ POST /api/prospecting/pipeline/run 200 in 43ms (compile: 9ms, proxy.ts: 6ms, render: 28ms)
+[notification-service] Unknown notification type "ai_analysis_complete". Valid types: deal_won, lead_reply, analysis, stage_advanced, payment_success, payment_failure, refund_processed, chargeback_received, subscription_renewed, subscription_cancelling, subscription_expired, credit_assigned, credit_low, payment, team_invite, system. Creating anyway.
+[2m2026-09-21T04:48:07.678Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":7}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc65f000jnpmcwjsum91n 200 in 123ms (compile: 105ms, proxy.ts: 5ms, render: 13ms)
+○ Compiling / ...
+ GET / 200 in 9.6s (compile: 9.2s, proxy.ts: 5ms, render: 350ms)
+ GET /api/subscriptions/current 200 in 189ms (compile: 92ms, proxy.ts: 4ms, render: 93ms)
+ POST /api/auth/refresh 200 in 194ms (compile: 127ms, proxy.ts: 6ms, render: 60ms)
+ GET /api/reminders? 200 in 183ms (compile: 126ms, proxy.ts: 16ms, render: 41ms)
+ GET /api/reminders?overdue=true 200 in 182ms (compile: 131ms, proxy.ts: 18ms, render: 33ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 231ms (compile: 185ms, proxy.ts: 36ms, render: 11ms)
+ GET /api/subscriptions/entitlements 200 in 67ms (compile: 57ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/reminders?overdue=true 200 in 21ms (compile: 9ms, proxy.ts: 4ms, render: 8ms)
+[MeetingReminders] Getting upcoming reminders for user cmqrtgnjx0000qfgnsbhzyzxq
+[2m2026-09-21T04:50:13.622Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":5}[0m
+ GET /api/meetings/reminders?limit=10 200 in 137ms (compile: 124ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /business-ai/leads 200 in 53ms (compile: 6ms, proxy.ts: 5ms, render: 42ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 8ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ Blocked cross-origin request from preview-chat-9232d24b-5032-48c7-b56f-c132c2f15528.space-z.ai to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /api/auth/me 200 in 91ms (compile: 77ms, proxy.ts: 4ms, render: 10ms)
+ GET /api/auth/me 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/auth/me 200 in 17ms (compile: 7ms, proxy.ts: 4ms, render: 6ms)
+ GET /api/notifications?limit=20 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/reminders? 200 in 20ms (compile: 7ms, proxy.ts: 3ms, render: 10ms)
+[MeetingReminders] Getting upcoming reminders for user cmqrtgnjx0000qfgnsbhzyzxq
+[2m2026-09-21T04:50:21.636Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":11}[0m
+ GET /api/meetings/reminders?limit=10 200 in 28ms (compile: 10ms, proxy.ts: 4ms, render: 15ms)
+ GET /api/reminders?overdue=true 200 in 43ms (compile: 13ms, proxy.ts: 10ms, render: 20ms)
+ GET /api/subscriptions/current 200 in 50ms (compile: 24ms, proxy.ts: 10ms, render: 16ms)
+ GET /api/notifications?limit=20 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=20 200 in 18ms (compile: 6ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/subscriptions/entitlements 200 in 13ms (compile: 5ms, proxy.ts: 3ms, render: 5ms)
+ GET /api/reminders?overdue=true 200 in 14ms (compile: 6ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/reminders?overdue=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[2m2026-09-21T04:50:27.112Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"0ada09b022f642378f6fe53e029bf2b8","method":"GET","path":"/api/leads","statusCode":200,"durationMs":5.951511000050232}[0m
+ GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 20ms (compile: 6ms, proxy.ts: 3ms, render: 10ms)
+[2m2026-09-21T04:50:35.461Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":5}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 26ms (compile: 13ms, proxy.ts: 4ms, render: 9ms)
+[2m2026-09-21T04:50:35.786Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 22ms (compile: 11ms, proxy.ts: 4ms, render: 8ms)
+[2m2026-09-21T04:50:37.168Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 200 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":200,"durationMs":19}[0m
+ POST /api/prospecting/pipeline/run 200 in 38ms (compile: 11ms, proxy.ts: 4ms, render: 23ms)
+[2m2026-09-21T04:50:37.510Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+[2m2026-09-21T04:50:41.329Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+[2m2026-09-21T04:50:45.156Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 19ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+[2m2026-09-21T04:50:50.199Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":6}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 18ms (compile: 6ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 27ms (compile: 14ms, proxy.ts: 4ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 27ms (compile: 6ms, proxy.ts: 3ms, render: 18ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+[notification-service] Unknown notification type "ai_analysis_complete". Valid types: deal_won, lead_reply, analysis, stage_advanced, payment_success, payment_failure, refund_processed, chargeback_received, subscription_renewed, subscription_cancelling, subscription_expired, credit_assigned, credit_low, payment, team_invite, system. Creating anyway.
+[2m2026-09-21T04:50:54.117Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":7}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 21ms (compile: 7ms, proxy.ts: 3ms, render: 11ms)
+[2m2026-09-21T04:50:54.545Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"5c1bfa65387d405fbf8bb9e83be9a221","method":"GET","path":"/api/leads","statusCode":200,"durationMs":7.22227499994915}[0m
+ GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 21ms (compile: 7ms, proxy.ts: 3ms, render: 11ms)
+ GET /api/reminders?overdue=true 200 in 30ms (compile: 17ms, proxy.ts: 6ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 34ms (compile: 9ms, proxy.ts: 6ms, render: 19ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 24ms (compile: 8ms, proxy.ts: 3ms, render: 12ms)
+ GET /api/reminders? 200 in 31ms (compile: 9ms, proxy.ts: 16ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 10ms, proxy.ts: 3ms, render: 8ms)
+[MeetingReminders] Getting upcoming reminders for user cmqrtgnjx0000qfgnsbhzyzxq
+[2m2026-09-21T04:51:22.458Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":6}[0m
+ GET /api/meetings/reminders?limit=10 200 in 22ms (compile: 8ms, proxy.ts: 4ms, render: 10ms)
+ GET /api/reminders?overdue=true 200 in 21ms (compile: 8ms, proxy.ts: 5ms, render: 8ms)
+[2m2026-09-21T04:51:48.393Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":5}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 22ms (compile: 9ms, proxy.ts: 4ms, render: 9ms)
+[2m2026-09-21T04:51:48.738Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc67c001jnpmcntnoz4wx 200 in 19ms (compile: 9ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 10ms, proxy.ts: 3ms, render: 8ms)
+[2m2026-09-21T04:51:51.286Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"cf504bcf0e8e4b82b1fbbab8b7db00b9","method":"GET","path":"/api/leads","statusCode":200,"durationMs":5.228426999994554}[0m
+ GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 8ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 29ms (compile: 7ms, proxy.ts: 3ms, render: 18ms)
+ POST /api/auth/refresh 200 in 29ms (compile: 10ms, proxy.ts: 4ms, render: 15ms)
+ GET /api/subscriptions/current 200 in 24ms (compile: 10ms, proxy.ts: 3ms, render: 11ms)
+ GET /api/subscriptions/entitlements 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 9ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/reminders?overdue=true 200 in 22ms (compile: 9ms, proxy.ts: 4ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 8ms, proxy.ts: 5ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 4ms, render: 8ms)

@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { sendEmail } from '@/lib/email';
 import { moveLeadToStage } from '@/lib/pipeline-service';
 
@@ -253,14 +254,13 @@ async function executeAiAnalysis(
   try {
     const chat = await createZaiChat();
 
-    const lead = await db.lead.findUnique({
-      where: { id: context.leadId },
+    const resolution = await resolveLeadForExecution(context.userId, context.leadId, {
       include: { leadAnalysis: true },
     });
-
-    if (!lead) {
+    if (!resolution.ok) {
       return { success: false, error: 'Lead not found for AI analysis' };
     }
+    const lead = resolution.lead;
 
     const analysisPrompt = prompt
       ? resolveTemplate(String(prompt), context)
@@ -301,13 +301,11 @@ async function executeAiOutreach(
   try {
     const chat = await createZaiChat();
 
-    const lead = await db.lead.findUnique({
-      where: { id: context.leadId },
-    });
-
-    if (!lead) {
+    const resolution = await resolveLeadForExecution(context.userId, context.leadId);
+    if (!resolution.ok) {
       return { success: false, error: 'Lead not found for AI outreach' };
     }
+    const lead = resolution.lead;
 
     const outreachChannel = String(channel || 'email');
     const outreachStyle = style || 'professional';
@@ -402,14 +400,14 @@ async function executeUpdateTags(
     return { success: false, error: 'Tags array is required' };
   }
 
-  const lead = await db.lead.findUnique({
-    where: { id: context.leadId },
+  const tagsResolution = await resolveLeadForExecution(context.userId, context.leadId, {
     select: { tags: true },
   });
 
-  if (!lead) {
+  if (!tagsResolution.ok) {
     return { success: false, error: 'Lead not found' };
   }
+  const lead = tagsResolution.lead;
 
   let currentTags: string[] = [];
   try {
@@ -658,13 +656,11 @@ async function executeScoreLead(
   try {
     const chat = await createZaiChat();
 
-    const lead = await db.lead.findUnique({
-      where: { id: context.leadId },
-    });
-
-    if (!lead) {
+    const resolution = await resolveLeadForExecution(context.userId, context.leadId);
+    if (!resolution.ok) {
       return { success: false, error: 'Lead not found' };
     }
+    const lead = resolution.lead;
 
     const prompt = `Score this lead on a scale of 0-100 for sales conversion potential:
       Business: ${lead.businessName}

@@ -12,6 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { executeAICompletion, type AICompletionRequest, AI_CONFIG } from './ai-provider';
 import { getPrompt, sanitizePromptInput } from './prompt-manager';
 import { logScoreGenerated } from './ai-audit';
@@ -109,14 +110,12 @@ export async function scoreLead(input: ScoreLeadInput): Promise<ScoreLeadResult>
       }
     }
 
-    // 2. Get lead data
-    const lead = await db.lead.findUnique({
-      where: { id: leadId, isActive: true },
-    });
-
-    if (!lead) {
-      return { success: false, error: 'Lead not found' };
+    // 2. Get lead data — single reliable owner-scoped resolution path
+    const resolution = await resolveLeadForExecution(userId, leadId);
+    if (!resolution.ok) {
+      return { success: false, error: resolution.userMessage };
     }
+    const lead = resolution.lead;
 
     // 3. Check credits
     const sufficiency = await checkCreditSufficiency(userId, SCORING_CREDIT_COST);

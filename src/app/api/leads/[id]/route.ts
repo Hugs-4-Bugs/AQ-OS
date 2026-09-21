@@ -42,8 +42,15 @@ export async function GET(
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
       }
 
-      // Check authorization
-      if (lead.userId && lead.userId !== user.id && lead.orgId !== user.orgId) {
+      // Check authorization — owner, or member of the same org.
+      // Org sharing requires BOTH sides to have a real (non-null) orgId
+      // that matches. The previous `lead.orgId !== user.orgId` check
+      // failed OPEN when both were null, letting any user access any
+      // lead that had no org — a cross-tenant leak.
+      const canAccessLead =
+        lead.userId === user.id ||
+        (!!user.orgId && !!lead.orgId && lead.orgId === user.orgId);
+      if (!canAccessLead) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 
@@ -69,8 +76,12 @@ export async function PUT(
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
       }
 
-      // Check authorization
-      if (existing.userId && existing.userId !== user.id && existing.orgId !== user.orgId) {
+      // Check authorization — owner, or member of the same org
+      // (both orgIds must be non-null and equal; never fail open).
+      const canUpdateLead =
+        existing.userId === user.id ||
+        (!!user.orgId && !!existing.orgId && existing.orgId === user.orgId);
+      if (!canUpdateLead) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 
@@ -165,8 +176,12 @@ export async function DELETE(
         );
       }
 
-      // Check authorization — allow the owner or any member of the same org.
-      if (lead.userId && lead.userId !== user.id && lead.orgId !== user.orgId) {
+      // Check authorization — owner, or member of the same org
+      // (both orgIds must be non-null and equal; never fail open).
+      const canDeleteLead =
+        lead.userId === user.id ||
+        (!!user.orgId && !!lead.orgId && lead.orgId === user.orgId);
+      if (!canDeleteLead) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 

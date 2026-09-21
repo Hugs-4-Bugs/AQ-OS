@@ -7655,3 +7655,23 @@ Work Log:
 
 Stage Summary:
 - 5-step prospecting pipeline fully implemented and verified end-to-end: real website fetch + web search → evidence-based gap detection → user offer profile matching ("Company X has gap Y → User offers Z") → personalized pitch (Cavalier-Hospital style) → smart email draft with Gmail/system send paths. Credits: 7/run (5 analysis + 2 email) with idempotent deduction + honest refunds. New Settings → My Offer section feeds STEP 3. All results persisted in ProspectPipeline + OutreachMessage drafts + LeadActivity. Real sends require Gmail connection or SMTP/Resend env (fail-closed verified). Send fails honestly without transport config.
+
+---
+Task ID: fix-lead-not-found-pipeline-1
+Agent: main (Super Z)
+Task: Fix "Lead not found" when running the AI prospect pipeline on an existing, visible lead
+
+Work Log:
+- Pre-task HEAD: 9f3aab7 (recorded at previous task end); at task start HEAD was 8d7bb12 (platform auto-snapshot commit between sessions — before/after SHAs reported per protection rule)
+- Reproduced with real session (mailtoprabhat72@gmail.com via OTP login): list leaked another user's lead; pipeline run on it -> 404 "Lead not found"; detail route returned 200 for a non-owner
+- ROOT CAUSE: pipeline lookup was always correctly owner-scoped; the DISPLAY layer leaked cross-tenant leads — GET /api/leads had NO user filter for session auth (returned every user's leads), and GET/PUT/DELETE /api/leads/[id] access check failed OPEN when both orgIds were null (null !== null === false)
+- Implemented src/lib/lead-resolution.ts — single reliable resolveLeadForExecution(userId, leadId, {include/select}) — owner-scoped, active, not-deleted; typed failures LEAD_ID_MISSING/LEAD_NOT_FOUND/LEAD_ACCESS_DENIED/LEAD_LOOKUP_ERROR logged server-side only; user message stays generic "Lead not found"
+- Consolidated onto it: prospecting/pipeline.ts (reported path), workflow-actions.ts (ai_analysis, ai_outreach, update_tags, score_lead entries), ai/lead-analysis-engine.ts, ai/scoring-engine.ts, ai/outreach-generator.ts (exact user-facing messages preserved; conditional-branch read-only field peeks left as-is)
+- Fixed GET /api/leads scoping (session/personal-key -> userId; org key -> orgId) and /api/leads/[id] GET/PUT/DELETE checks (owner OR both-orgIds-non-null-and-equal)
+- Tests (real lead, real session): missing id -> 400; invalid id -> 404 LEAD_NOT_FOUND; other user's lead -> hidden from list, 403 detail, 404 pipeline + server log LEAD_ACCESS_DENIED; own lead "The Bangalore Hospital" (cmtsrc65f000jnpmcwjsum91n) -> pipeline start 200, 7 credits deducted (balance 1993), status completed 5/5 steps (step 3 offer-match skipped by design — no "My Offer" services configured)
+- No workflow exists for this user, so workflow E2E ran through the shared resolver mechanism (code-level) rather than a configured workflow; batch is N/A by design (one live run per lead)
+- Final: HEAD 8d7bb12 unchanged during operation, branch main; modified 7 files + new lead-resolution.ts; DataExport tsc error in workflow-actions.ts verified pre-existing at HEAD
+
+Stage Summary:
+- "Lead not found" was correct behavior meeting a leaky UI: list/detail leaked other users' leads, pipeline correctly refused them. Fixed the leaks; all execution paths now resolve leads through one owner-scoped mechanism
+- E2E demonstrated: Existing Lead -> AI Pipeline -> Lead Resolution -> AI Processing -> completed 5/5

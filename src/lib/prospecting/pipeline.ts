@@ -13,6 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import {
   checkCreditSufficiency,
   deductCredits,
@@ -95,13 +96,14 @@ export async function startProspectPipeline(
   userId: string,
   leadId: string
 ): Promise<StartPipelineResult> {
-  const lead = await db.lead.findFirst({
-    where: { id: leadId, userId, isActive: true, deletedAt: null },
-    select: { id: true, businessName: true },
-  });
-  if (!lead) {
-    return { success: false, error: 'Lead not found', errorCode: 'LEAD_NOT_FOUND' };
+  // Single reliable lead resolution path — owner-scoped, with
+  // server-side LEAD_NOT_FOUND vs LEAD_ACCESS_DENIED diagnostics.
+  // User-facing message stays generic ("Lead not found").
+  const resolution = await resolveLeadForExecution(userId, leadId);
+  if (!resolution.ok) {
+    return { success: false, error: resolution.userMessage, errorCode: 'LEAD_NOT_FOUND' };
   }
+  const lead = resolution.lead;
 
   // Guard: one live run per lead (stale runs older than 10 min are failed first)
   const running = await db.prospectPipeline.findFirst({

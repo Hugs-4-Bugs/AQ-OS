@@ -58,7 +58,6 @@ import { useTheme } from 'next-themes';
 import { useSettingsStore } from '@/lib/settings-store';
 import { toast } from 'sonner';
 import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
-import DiscoverySourcesSettings from '@/components/dashboard/discovery-sources-settings';
 import OfferProfileSettings from '@/components/dashboard/offer-profile-settings';
 import { useLegalStore } from '@/lib/legal-store';
 import ObservabilityDashboard from '@/components/dashboard/observability-dashboard';
@@ -1667,20 +1666,6 @@ useEffect(() => {
                 <h3 className="text-lg font-semibold">Integrations</h3>
                 <p className="text-sm text-muted-foreground">Connect your tools and services</p>
               </div>
-
-              {/* ─── Discovery Sources ─── */}
-              <div className="space-y-3">
-                <div>
-                  <h4 className="text-sm font-semibold">Discovery Sources</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Lead discovery runs on real data only — sources without credentials return
-                    a configuration message instead of results.
-                  </p>
-                </div>
-                <DiscoverySourcesSettings />
-              </div>
-
-              <Separator />
 
               {/* Gmail Integration */}
               <Card>

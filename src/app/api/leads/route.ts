@@ -23,7 +23,15 @@ export const GET = withMonitoring(async (request: NextRequest) => {
 
       const where: Record<string, unknown> = {};
       if (apiKeyInfo?.orgId) {
+        // Org-scoped API key → all leads in the organization
         where.orgId = apiKeyInfo.orgId;
+      } else {
+        // Session auth or personal API key → ONLY the user's own leads.
+        // Multi-tenant isolation: a user must never see another
+        // account's leads (execution paths like the AI pipeline are
+        // owner-scoped, so the list must match or leads appear
+        // "visible but not found").
+        where.userId = user.id;
       }
       if (stage) where.stage = stage;
       if (niche) where.niche = { contains: niche };

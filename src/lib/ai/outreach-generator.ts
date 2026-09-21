@@ -21,6 +21,8 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { resolveLeadForExecution } from '@/lib/lead-resolution';
+import type { Lead, OutreachMessage } from '@prisma/client';
 import { executeAICompletion, type AICompletionRequest, AI_CONFIG } from './ai-provider';
 import { getPrompt, sanitizePromptInput } from './prompt-manager';
 import { logOutreachGenerated } from './ai-audit';
@@ -89,9 +91,8 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
   const { leadId, userId, channel, tone = 'professional', language = 'English', customInstructions, previousMessageId } = input;
 
   try {
-    // 1. Get lead data
-    const lead = await db.lead.findUnique({
-      where: { id: leadId, isActive: true },
+    // 1. Get lead data — single reliable owner-scoped resolution path
+    const resolution = await resolveLeadForExecution<Lead & { outreachMessages: OutreachMessage[] }>(userId, leadId, {
       include: {
         outreachMessages: {
           where: { channel },
@@ -101,9 +102,10 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
       },
     });
 
-    if (!lead) {
-      return { success: false, error: 'Lead not found' };
+    if (!resolution.ok) {
+      return { success: false, error: resolution.userMessage };
     }
+    const lead = resolution.lead;
 
     // 2. Check credits
     const sufficiency = await checkCreditSufficiency(userId, OUTREACH_CREDIT_COST);
