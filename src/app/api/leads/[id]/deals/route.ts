@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // GET /api/leads/[id]/deals - Get deals for a lead
@@ -7,16 +9,22 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return withAuth(_request, async (user) => {
   try {
     const { id } = await params;
 
+    // ACCOUNT ISOLATION: deals expose values and the lead's contact info —
+    // owner / same non-null org only.
     const lead = await db.lead.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, userId: true, orgId: true },
     });
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+    if (!canUserAccessLead(lead, user)) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     const deals = await db.deal.findMany({
@@ -46,6 +54,7 @@ export async function GET(
       { status: 500 }
     );
   }
+  });
 }
 
 // POST /api/leads/[id]/deals - Create a deal/proposal
@@ -53,6 +62,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return withAuth(request, async (user) => {
   try {
     const { id } = await params;
     const body = await request.json();
@@ -66,6 +76,12 @@ export async function POST(
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    // ACCOUNT ISOLATION: proposal generation embeds the lead's profile,
+    // notes and communications; deal creation mutates the lead's stage.
+    if (!canUserAccessLead(lead, user)) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Use LLM to generate professional proposal content
@@ -152,4 +168,5 @@ ${leadContext}`,
       { status: 500 }
     );
   }
+  });
 }

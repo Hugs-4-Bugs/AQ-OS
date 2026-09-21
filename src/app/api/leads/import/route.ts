@@ -14,13 +14,15 @@ export async function POST(request: NextRequest) {
 
       let csvData: string;
       let preview = false;
-      let orgId: string | undefined;
 
+      // ACCOUNT ISOLATION: the target org used to be accepted from the
+      // request body/form, letting a caller stamp imported rows into an
+      // org they do not belong to. The org is now derived ONLY from the
+      // authenticated identity.
       if (contentType.includes('multipart/form-data')) {
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
         preview = formData.get('preview') === 'true';
-        orgId = (formData.get('orgId') as string) || undefined;
 
         if (!file) {
           return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -31,7 +33,6 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         csvData = body.csvData;
         preview = body.preview || false;
-        orgId = body.orgId;
       }
 
       if (!csvData || typeof csvData !== 'string' || csvData.trim().length === 0) {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await importCSV(user.id, csvData, {
-        orgId: (orgId || user.orgId) ?? undefined,
+        orgId: user.orgId ?? undefined,
         preview,
       });
 

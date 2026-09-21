@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // POST /api/leads/[id]/outreach - Generate personalized outreach messages
@@ -7,6 +9,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return withAuth(request, async (user) => {
   try {
     const { id } = await params;
     const body = await request.json();
@@ -29,6 +32,12 @@ export async function POST(
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    // ACCOUNT ISOLATION: generated messages embed the lead's profile and
+    // prior communication content — owner / same non-null org only.
+    if (!canUserAccessLead(lead, user)) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     const zai = await ZAI.create();
@@ -150,4 +159,5 @@ Return ONLY valid JSON.`,
       { status: 500 }
     );
   }
+  });
 }

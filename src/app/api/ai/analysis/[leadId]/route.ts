@@ -5,6 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { getLeadAnalysis } from '@/lib/ai/lead-analysis-engine';
 
 export async function GET(
@@ -22,6 +24,25 @@ export async function GET(
         );
       }
 
+      // ACCOUNT ISOLATION: analysis output contains the lead's scores and
+      // outreach strategy — owner / same non-null org only.
+      const lead = await db.lead.findUnique({
+        where: { id: leadId },
+        select: { id: true, userId: true, orgId: true },
+      });
+      if (!lead) {
+        return NextResponse.json(
+          { error: 'No analysis found for this lead', hasAnalysis: false },
+          { status: 404 }
+        );
+      }
+      if (!canUserAccessLead(lead, user)) {
+        return NextResponse.json(
+          { error: 'No analysis found for this lead', hasAnalysis: false },
+          { status: 404 }
+        );
+      }
+
       const analysis = await getLeadAnalysis(leadId);
 
       if (!analysis) {
@@ -32,7 +53,6 @@ export async function GET(
       }
 
       // Also get the lead scores
-      const { db } = await import('@/lib/db');
       const scores = await db.leadScore.findMany({
         where: { leadId },
         orderBy: { scoredAt: 'desc' },

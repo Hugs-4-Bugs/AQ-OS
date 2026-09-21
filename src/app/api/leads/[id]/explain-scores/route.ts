@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // POST /api/leads/[id]/explain-scores - Use AI to explain lead scores
@@ -7,6 +9,7 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return withAuth(_request, async (user) => {
   try {
     const { id } = await params;
 
@@ -21,6 +24,12 @@ export async function POST(
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    // ACCOUNT ISOLATION: the explanation echoes the lead's engagement
+    // history; the activity write below is also lead-scoped.
+    if (!canUserAccessLead(lead, user)) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     const zai = await ZAI.create();
@@ -99,4 +108,5 @@ Please provide:
       { status: 500 }
     );
   }
+  });
 }

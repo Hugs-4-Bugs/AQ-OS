@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withPermission } from '@/lib/auth-middleware';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { detectMeetingIntent } from '@/lib/meeting-orchestration-service';
 
 // ─── System Prompt Builders ──────────────────────────────────
@@ -133,6 +134,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Get deal with lead info
+      // ACCOUNT ISOLATION: the deal's lead must belong to the caller —
+      // proposal output embeds the lead's correspondence.
       const deal = await db.deal.findUnique({
         where: { id: dealId },
         include: {
@@ -145,6 +148,15 @@ export async function POST(request: NextRequest) {
       });
 
       if (!deal) {
+        return NextResponse.json(
+          { error: 'Deal not found' },
+          { status: 404 }
+        );
+      }
+
+      // ACCOUNT ISOLATION: deal's lead must be owned by the caller or in
+      // the caller's real org.
+      if (!canUserAccessLead(deal.lead, user)) {
         return NextResponse.json(
           { error: 'Deal not found' },
           { status: 404 }
@@ -280,6 +292,15 @@ Generate a complete, compelling proposal that this prospect can't ignore.`,
           deals: { orderBy: { createdAt: 'desc' }, take: 1 },
         },
       });
+
+      // ACCOUNT ISOLATION: the assistant echoes the lead's scores, notes
+      // and recent communications — foreign leads must be invisible.
+      if (lead && !canUserAccessLead(lead, user)) {
+        return NextResponse.json(
+          { error: 'Lead not found' },
+          { status: 404 }
+        );
+      }
 
       if (lead) {
         leadContext = `

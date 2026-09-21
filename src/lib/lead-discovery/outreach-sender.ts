@@ -92,12 +92,14 @@ export async function generateAndSendOutreach(
   // ── STEP 1: Load data ────────────────────────────────────────────
 
   // 1a. Fetch the Lead
+  // ACCOUNT ISOLATION: owner-scoped — previously any lead id could be
+  // targeted, sending real outreach email to another tenant's lead.
   const lead = await db.lead.findUnique({
-    where: { id: leadId, isActive: true },
+    where: { id: leadId, isActive: true, userId },
   });
 
   if (!lead) {
-    console.warn(`[OutreachSender] Lead not found: ${leadId}`);
+    console.warn(`[OutreachSender] Lead not found (or not owned by user): ${leadId}`);
     return { success: false, error: 'Lead not found' };
   }
 

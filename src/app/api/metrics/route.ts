@@ -4,7 +4,8 @@
 // GET /api/metrics — Returns Prometheus-format metrics
 // ═══════════════════════════════════════════════════════════════════
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { withAdmin } from '@/lib/auth-middleware';
 import { metricsCollector } from '@/lib/observability/metrics-collector';
 import { db } from '@/lib/db';
 
@@ -67,7 +68,8 @@ async function collectDatabaseMetrics(): Promise<void> {
   }
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  return withAdmin(request, async () => {
   try {
     // Collect real data from the database
     await collectDatabaseMetrics();
@@ -89,4 +91,5 @@ export async function GET(): Promise<NextResponse> {
       headers: { 'Content-Type': 'text/plain' },
     });
   }
+  });
 }

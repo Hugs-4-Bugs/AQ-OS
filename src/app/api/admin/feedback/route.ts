@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 
 // ─── GET /api/admin/feedback — list with filters ──────────────────
 
 export async function GET(request: NextRequest) {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const url = request.nextUrl;
       const status = url.searchParams.get('status');

@@ -89,6 +89,26 @@ export async function withAdmin(
   });
 }
 
+/**
+ * Require the PLATFORM super_admin role.
+ * ACCOUNT ISOLATION: org-level `owner`/`admin` roles are tenant-scoped —
+ * they must never reach platform-wide endpoints (DB backup/restore,
+ * global audit dumps, cross-tenant refunds, retention deletion, source
+ * download, platform billing analytics). Use this instead of withAdmin
+ * for any endpoint that operates across ALL tenants.
+ */
+export async function withSuperAdmin(
+  request: NextRequest,
+  handler: (user: AuthUser) => Promise<NextResponse>
+): Promise<NextResponse> {
+  return withAuth(request, async (user) => {
+    if (user.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Super admin access required' }, { status: 403 });
+    }
+    return handler(user);
+  });
+}
+
 /** Require ALL specified permissions */
 export async function withAllPermissions(
   request: NextRequest,

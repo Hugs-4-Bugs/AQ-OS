@@ -1,55 +1,69 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 // GET /api/leads/stats - Dashboard statistics
-export async function GET() {
-  try {
-    // Get all leads for computation
-    const [
-      totalLeads,
-      hotLeads,
-      contactedLeads,
-      repliedLeads,
-      wonLeads,
-      lostLeads,
-      allLeads,
-      allCommunications,
-      allDeals,
-    ] = await Promise.all([
-      db.lead.count(),
-      db.lead.count({ where: { replyScore: { gt: 70 } } }),
-      db.lead.count({ where: { stage: { in: ['contacted', 'replied', 'interested', 'discussion', 'proposal', 'negotiation'] } } }),
-      db.lead.count({ where: { stage: { in: ['replied', 'interested', 'discussion', 'proposal', 'negotiation', 'won'] } } }),
-      db.lead.count({ where: { stage: 'won' } }),
-      db.lead.count({ where: { stage: 'lost' } }),
-      db.lead.findMany({
-        select: {
-          stage: true,
-          niche: true,
-          country: true,
-          replyScore: true,
-          conversionScore: true,
-          urgencyScore: true,
-          revenuePotentialScore: true,
-        },
-      }),
-      db.communication.findMany({
-        select: {
-          channel: true,
-          direction: true,
-          intent: true,
-          leadId: true,
-        },
-      }),
-      db.deal.findMany({
-        select: {
-          proposedPrice: true,
-          finalPrice: true,
-          currency: true,
-          status: true,
-        },
-      }),
-    ]);
+// ACCOUNT ISOLATION: every metric is computed over the AUTHENTICATED
+// USER'S OWN leads only (and the communications/deals attached to them).
+// This endpoint previously required no auth and aggregated the entire
+// database — leaking global pipeline counts, niches, countries, reply
+// rates and deal values across all tenants.
+export async function GET(request: NextRequest) {
+  return withAuth(request, async (user) => {
+    try {
+      // Ownership scope applied to the lead table; communications and
+      // deals are scoped through their lead relation.
+      const leadScope = { userId: user.id };
+
+      // Get all leads for computation
+      const [
+        totalLeads,
+        hotLeads,
+        contactedLeads,
+        repliedLeads,
+        wonLeads,
+        lostLeads,
+        allLeads,
+        allCommunications,
+        allDeals,
+      ] = await Promise.all([
+        db.lead.count({ where: leadScope }),
+        db.lead.count({ where: { ...leadScope, replyScore: { gt: 70 } } }),
+        db.lead.count({ where: { ...leadScope, stage: { in: ['contacted', 'replied', 'interested', 'discussion', 'proposal', 'negotiation'] } } }),
+        db.lead.count({ where: { ...leadScope, stage: { in: ['replied', 'interested', 'discussion', 'proposal', 'negotiation', 'won'] } } }),
+        db.lead.count({ where: { ...leadScope, stage: 'won' } }),
+        db.lead.count({ where: { ...leadScope, stage: 'lost' } }),
+        db.lead.findMany({
+          where: leadScope,
+          select: {
+            stage: true,
+            niche: true,
+            country: true,
+            replyScore: true,
+            conversionScore: true,
+            urgencyScore: true,
+            revenuePotentialScore: true,
+          },
+        }),
+        db.communication.findMany({
+          where: { lead: leadScope },
+          select: {
+            channel: true,
+            direction: true,
+            intent: true,
+            leadId: true,
+          },
+        }),
+        db.deal.findMany({
+          where: { lead: leadScope },
+          select: {
+            proposedPrice: true,
+            finalPrice: true,
+            currency: true,
+            status: true,
+          },
+        }),
+      ]);
 
     // Pipeline breakdown by stage
     const stageBreakdown: Record<string, number> = {};
@@ -162,11 +176,12 @@ export async function GET() {
       avgDealValue,
       totalDeals: allDeals.length,
     });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch stats' },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch stats' },
+        { status: 500 }
+      );
+    }
+  });
 }

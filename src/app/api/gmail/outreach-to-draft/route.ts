@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
       }
 
       // ── Validate lead exists and has email ───────────────────
+      // ACCOUNT ISOLATION: owner-scoped — the lead's email address would
+      // otherwise be exfiltrated into the caller's draft for any lead id.
       const lead = await db.lead.findUnique({
         where: { id: leadId },
         select: {
@@ -69,10 +71,17 @@ export async function POST(request: NextRequest) {
           email: true,
           ownerName: true,
           isActive: true,
+          userId: true,
         },
       });
 
       if (!lead) {
+        return NextResponse.json(
+          { error: 'Lead not found' },
+          { status: 404 }
+        );
+      }
+      if (lead.userId !== user.id) {
         return NextResponse.json(
           { error: 'Lead not found' },
           { status: 404 }

@@ -5,13 +5,13 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 
 // ── GET: Export Audit Logs ─────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  return withAdmin(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const { searchParams } = new URL(request.url);
 

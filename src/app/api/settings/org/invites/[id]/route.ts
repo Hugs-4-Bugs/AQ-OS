@@ -118,9 +118,27 @@ export async function POST(
 
       case 'resend': {
         // Admin/owner resending the invitation email
+        // ACCOUNT ISOLATION: the caller must be an owner/admin of the
+        // invitation's org, and the magic-link token (a bearer credential
+        // to join the org) is NEVER returned to the client — it is
+        // delivered to the invitee's email address only.
         try {
+          const invitation = await db.orgInvitation.findUnique({
+            where: { id },
+            select: { orgId: true },
+          });
+          if (!invitation) {
+            return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
+          }
+          const callerMembership = await db.orgMember.findFirst({
+            where: { orgId: invitation.orgId, userId: authUser.id, role: { in: ['owner', 'admin'] } },
+            select: { id: true },
+          });
+          if (!callerMembership) {
+            return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+          }
           const result = await sendInviteEmail(id);
-          return NextResponse.json({ message: 'Invitation resent successfully', magicLink: result.magicLink });
+          return NextResponse.json({ message: 'Invitation resent successfully', sent: result.sent });
         } catch (e) {
           return NextResponse.json(
             { error: e instanceof Error ? e.message : 'Failed to resend invitation' },

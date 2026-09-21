@@ -143,7 +143,10 @@ async function validateLeadAccess(leadId: string, userId: string): Promise<boole
 
   if (!lead) return false;
 
-  if (!lead.userId || lead.userId === userId) return true;
+  // ACCOUNT ISOLATION: canonical fail-closed rule — owner, or same org
+  // where BOTH orgIds are non-null. Previously `!lead.userId` failed
+  // OPEN for ownerless leads.
+  if (lead.userId === userId) return true;
 
   // Check org membership
   const user = await db.user.findUnique({

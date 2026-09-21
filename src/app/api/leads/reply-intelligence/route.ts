@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import type { AuthUser } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { classifyReply, getReplyAnalytics, getBuyingSignalsSummary } from '@/lib/reply-intelligence-service';
 
 // POST /api/leads/reply-intelligence
@@ -28,6 +30,22 @@ export async function POST(request: NextRequest) {
           { error: 'replyFrom is required and must be a string' },
           { status: 400 }
         );
+      }
+
+      // ACCOUNT ISOLATION: the service writes notes/conversations onto the
+      // supplied leadId without checking ownership — enforce the
+      // owner / same non-null org rule here.
+      if (leadId) {
+        const lead = await db.lead.findUnique({
+          where: { id: leadId },
+          select: { id: true, userId: true, orgId: true },
+        });
+        if (!lead) {
+          return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+        }
+        if (!canUserAccessLead(lead, user)) {
+          return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+        }
       }
 
       const result = await classifyReply({

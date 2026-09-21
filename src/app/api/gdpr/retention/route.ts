@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, withAdmin } from '@/lib/auth-middleware';
+import { withAuth, withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { enforceRetention, RETENTION_POLICIES } from '@/lib/compliance/retention';
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
 // ── POST: Enforce retention (admin only) ───────────────────────────
 export async function POST(request: NextRequest) {
-  return withAdmin(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const body = await request.json().catch(() => ({}));
       const dryRun = body.dryRun !== false; // Default to dry run for safety

@@ -10,6 +10,7 @@
 import { db } from '@/lib/db';
 import { deductCredits, CREDIT_COSTS } from '@/lib/credit-service';
 import { logAuditEvent } from '@/lib/lead-audit';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // ===== TYPES =====
@@ -76,10 +77,14 @@ export async function enrichLead(leadId: string, userId: string): Promise<Enrich
       return { success: false, leadId, fieldsUpdated: [], error: 'Lead not found' };
     }
 
-    // Check user ownership or org membership
-    if (lead.userId && lead.userId !== userId) {
+    // Check user ownership or org membership.
+    // ACCOUNT ISOLATION: use the canonical fail-closed rule — owner, or
+    // same organization where BOTH orgIds are real (non-null). The old
+    // `lead.userId && …` guard failed open for ownerless leads and for
+    // null === null org comparisons.
+    {
       const user = await db.user.findUnique({ where: { id: userId }, select: { orgId: true } });
-      if (user?.orgId !== lead.orgId) {
+      if (!user || !canUserAccessLead(lead, { id: userId, orgId: user.orgId })) {
         return { success: false, leadId, fieldsUpdated: [], error: 'Not authorized to enrich this lead' };
       }
     }

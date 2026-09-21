@@ -1,19 +1,25 @@
 // POST /api/ai/rag/context — Upload file context
 // GET /api/ai/rag/context — Get file contexts for a lead
+//
+// ACCOUNT ISOLATION: the tenant is ALWAYS the authenticated user.
+// Previously both handlers accepted `userId` from the body/query,
+// letting any account read another account's RAG file contexts and
+// ingest content into another account's knowledge base.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { ingestFile, getFileContext, associateFileWithContext } from '@/lib/file-context-service';
 
 export async function POST(request: NextRequest) {
-  return withPermission(request, 'assistant:read', async () => {
+  return withPermission(request, 'assistant:read', async (user) => {
     try {
       const body = await request.json();
-      const { userId, fileName, fileContent, mimeType, leadId, metadata } = body;
+      const { fileName, fileContent, mimeType, leadId, metadata } = body;
+      const userId = user.id; // trusted identity — never client-supplied
 
-      if (!userId || !fileName || !fileContent) {
+      if (!fileName || !fileContent) {
         return NextResponse.json(
-          { error: 'userId, fileName, and fileContent are required' },
+          { error: 'fileName, and fileContent are required' },
           { status: 400 }
         );
       }
@@ -55,15 +61,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return withPermission(request, 'assistant:read', async () => {
+  return withPermission(request, 'assistant:read', async (user) => {
     try {
       const { searchParams } = new URL(request.url);
       const leadId = searchParams.get('leadId');
-      const userId = searchParams.get('userId');
+      const userId = user.id; // trusted identity — never client-supplied
 
-      if (!leadId || !userId) {
+      if (!leadId) {
         return NextResponse.json(
-          { error: 'leadId and userId are required query parameters' },
+          { error: 'leadId is a required query parameter' },
           { status: 400 }
         );
       }

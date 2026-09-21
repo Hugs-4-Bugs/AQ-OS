@@ -52,6 +52,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthStore } from '@/lib/auth-store';
+import { useAppStore } from '@/lib/store';
 import { useSubscriptionStore } from '@/lib/subscription-store';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from 'next-themes';
@@ -103,6 +104,27 @@ interface BillingData {
 
 export default function SettingsShell() {
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
+
+  // ── Deep-link handshake ─────────────────────────────────────
+  // Other surfaces (notification panel → "Notification preferences →")
+  // request a specific section via the app store one-shot. Apply it once
+  // on mount and clear it so a later plain "Settings" click still lands
+  // on Profile.
+  const pendingSection = useAppStore((s) => s.pendingSettingsSection);
+  const clearPendingSettingsSection = useAppStore((s) => s.clearPendingSettingsSection);
+  const VALID_SECTIONS: SettingsSection[] = [
+    'profile', 'offer', 'notifications', 'billing', 'security',
+    'appearance', 'integrations', 'api', 'data', 'legal', 'monitoring',
+  ];
+  useEffect(() => {
+    if (pendingSection) {
+      if (VALID_SECTIONS.includes(pendingSection as SettingsSection)) {
+        setActiveSection(pendingSection as SettingsSection);
+      }
+      clearPendingSettingsSection();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSection]);
 
   // ── Real user data from auth store ───────────────────────────
   const authUser = useAuthStore((s) => s.user);
@@ -391,6 +413,53 @@ export default function SettingsShell() {
     } finally {
       setTwoFactorStatusLoading(false);
     }
+  }, []);
+
+  // ── Appearance preferences: DB as source of truth ───────────
+  // The zustand settings store persists to localStorage only — device-bound
+  // and invisible to the backend. The existing /api/settings/appearance API
+  // (UserSettings.theme/compactMode/defaultNiche/defaultCountry) is the
+  // server-side source of truth: hydrate the local store from it on mount
+  // and push every appearance change back so the preferences survive
+  // logout → login, other browsers and cache clears.
+  const persistAppearance = useCallback(
+    (patch: { theme?: string; compactMode?: boolean; defaultNiche?: string; defaultCountry?: string }) => {
+      fetch('/api/settings/appearance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(patch),
+      }).catch(() => {
+        // Network/API failures must not break the local toggle — the
+        // change stays client-side and will be re-pushed on next edit.
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings/appearance', { credentials: 'include' });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data?.appearance) {
+          const { compactMode, defaultNiche, defaultCountry } = data.appearance;
+          // Local choices made on this device win for this session; the DB
+          // is the cross-device fallback for untouched fields.
+          if (compactMode !== undefined && settingsStore.compactView === false) {
+            settingsStore.updateSetting('compactView', !!compactMode);
+          }
+          if (defaultNiche && !settingsStore.defaultNiche) settingsStore.updateSetting('defaultNiche', defaultNiche);
+          if (defaultCountry && !settingsStore.defaultCountry) settingsStore.updateSetting('defaultCountry', defaultCountry);
+        }
+      } catch {
+        // Hydration is best-effort — the local store remains usable.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 useEffect(() => {
@@ -1590,6 +1659,7 @@ useEffect(() => {
                       checked={settingsStore.compactView}
                       onCheckedChange={(checked) => {
                         settingsStore.updateSetting('compactView', checked);
+                        persistAppearance({ compactMode: checked });
                         if (checked) {
                           document.documentElement.classList.add('compact');
                         } else {
@@ -1613,6 +1683,7 @@ useEffect(() => {
                       value={settingsStore.defaultCountry || ''}
                       onValueChange={(value) => {
                         settingsStore.updateSetting('defaultCountry', value);
+                        persistAppearance({ defaultCountry: value });
                         toast.success('Default country updated');
                       }}
                     >
@@ -1636,6 +1707,7 @@ useEffect(() => {
                       value={settingsStore.defaultNiche || ''}
                       onValueChange={(value) => {
                         settingsStore.updateSetting('defaultNiche', value);
+                        persistAppearance({ defaultNiche: value });
                         toast.success('Default niche updated');
                       }}
                     >

@@ -6,12 +6,15 @@ import { db } from '@/lib/db';
 // is a different model used for AI chat). Return empty/501 until implemented.
 
 // GET /api/chat-sessions — List chat sessions
+// ACCOUNT ISOLATION: only the authenticated user's sessions (previously
+// every tenant's AI chat sessions were listed).
 export async function GET(request: NextRequest) {
-  return withPermission(request, 'assistant:read', async () => {
+  return withPermission(request, 'assistant:read', async (user) => {
     try {
       // Attempt to query using AiChatSession if available
       // Note: AiChatSession is the closest model; ChatSession is not yet in the schema
       const sessions = await db.aiChatSession.findMany({
+        where: { userId: user.id },
         orderBy: { updatedAt: 'desc' },
       });
 

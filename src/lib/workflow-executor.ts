@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
 import { createNotificationOnce } from '@/lib/notification-service';
 import {
@@ -16,6 +17,18 @@ import {
   syncSteps,
   getWorkflow,
 } from '@/lib/workflow-utils';
+
+/**
+ * Single reliable lead resolution for executor steps: every lead access is
+ * OWNER-SCOPED (same rule as the main engine + AI pipeline). A workflow step
+ * may only operate on a lead that belongs to the user who started the run.
+ */
+async function requireOwnedLead(userId: string | undefined, leadId: string) {
+  if (!userId) throw new Error('Lead not found');
+  const resolution = await resolveLeadForExecution(userId, leadId);
+  if (!resolution.ok) throw new Error('Lead not found');
+  return resolution.lead;
+}
 
 // ── Execution Engine ──────────────────────────────────────────────
 
@@ -363,8 +376,7 @@ async function executeStepAction(
   switch (effectiveType) {
     case 'send_email': {
       if (!leadId) throw new Error('No lead ID for send_email step');
-      const lead = await db.lead.findUnique({ where: { id: leadId } });
-      if (!lead) throw new Error(`Lead ${leadId} not found`);
+      const lead = await requireOwnedLead(userId, leadId);
 
       const message = await db.outreachMessage.create({
         data: {
@@ -431,8 +443,7 @@ async function executeStepAction(
 
     case 'send_gmail_reply': {
       if (!leadId) throw new Error('No lead ID for send_gmail_reply step');
-      const lead = await db.lead.findUnique({ where: { id: leadId } });
-      if (!lead) throw new Error(`Lead ${leadId} not found`);
+      const lead = await requireOwnedLead(userId, leadId);
 
       // Find the most recent email thread for this lead
       const lastEmail = await db.outreachMessage.findFirst({
@@ -466,8 +477,7 @@ async function executeStepAction(
       const targetStage = (config.targetStage as string) || (config.stage as string);
       if (!targetStage) throw new Error('No target stage specified');
 
-      const lead = await db.lead.findUnique({ where: { id: leadId } });
-      if (!lead) throw new Error(`Lead ${leadId} not found`);
+      const lead = await requireOwnedLead(userId, leadId);
 
       await db.lead.update({
         where: { id: leadId },
@@ -490,6 +500,10 @@ async function executeStepAction(
       if (!leadId) throw new Error('No lead ID for add_note step');
       const content = (config.content as string) || 'Note added by workflow';
 
+      // ACCOUNT ISOLATION: notes are written onto the lead — it must be
+      // owned by the workflow owner (previously unscoped).
+      await requireOwnedLead(userId, leadId);
+
       const note = await db.leadNote.create({
         data: {
           leadId,
@@ -506,10 +520,9 @@ async function executeStepAction(
       const tagsToAdd = (config.tags as string[]) || [];
       if (tagsToAdd.length === 0) throw new Error('No tags specified');
 
-      const lead = await db.lead.findUnique({ where: { id: leadId } });
-      if (!lead) throw new Error(`Lead ${leadId} not found`);
+      const lead = await requireOwnedLead(userId, leadId);
 
-      const existingTags: string[] = JSON.parse(lead.tags);
+      const existingTags: string[] = JSON.parse(lead.tags || '[]');
       const merged = Array.from(new Set([...existingTags, ...tagsToAdd]));
 
       await db.lead.update({
@@ -557,7 +570,9 @@ async function executeStepAction(
       // Get the actual value from trigger data or lead
       let actualValue: unknown = triggerData[field];
       if (leadId && actualValue === undefined) {
-        const lead = await db.lead.findUnique({ where: { id: leadId } });
+        // ACCOUNT ISOLATION: read the field from the caller's OWN lead
+        // only (requireOwnedLead keeps condition evaluation owner-scoped).
+        const lead = await requireOwnedLead(userId, leadId);
         if (lead) {
           actualValue = (lead as Record<string, unknown>)[field];
         }
@@ -628,8 +643,9 @@ async function executeStepAction(
 
     case 'send_gmail_draft': {
       if (!leadId) throw new Error('No lead ID for send_gmail_draft step');
-      const lead = await db.lead.findUnique({ where: { id: leadId } });
-      if (!lead) throw new Error(`Lead ${leadId} not found`);
+      // ACCOUNT ISOLATION: the draft references the lead and stores its
+      // business name — it must be owned by the workflow owner.
+      const lead = await requireOwnedLead(userId, leadId);
 
       const message = await db.outreachMessage.create({
         data: {
@@ -651,8 +667,8 @@ async function executeStepAction(
     case 'ai_analyze': {
       if (!leadId) throw new Error('No lead ID for ai_analyze step');
 
-      const lead = await db.lead.findUnique({ where: { id: leadId } });
-      if (!lead) throw new Error(`Lead ${leadId} not found`);
+      // ACCOUNT ISOLATION: analysis is written onto the lead — owner only.
+      const lead = await requireOwnedLead(userId, leadId);
 
       try {
         const ZAI = (await import('z-ai-web-dev-sdk')).default;
@@ -779,13 +795,32 @@ async function updateWorkflowStats(
 
 // ── Execution Control ──────────────────────────────────────────────
 
-/** Pause a running execution */
-export async function pauseExecution(executionId: string, userId: string) {
+/** Ownership check shared by all execution-control operations.
+ *  ACCOUNT ISOLATION: an execution must belong to the caller via its
+ *  workflow's userId (WorkflowExecution.userId is untrustworthy for
+ *  legacy rows; workflow.userId is the authoritative owner). */
+async function assertExecutionOwnership(executionId: string, userId: string) {
   const execution = await db.workflowExecution.findUnique({
     where: { id: executionId },
+    select: {
+      id: true,
+      status: true,
+      workflowId: true,
+      retryCount: true,
+      workflow: { select: { userId: true } },
+    },
   });
-
   if (!execution) throw new Error('Execution not found');
+  if (execution.workflow.userId !== userId) {
+    // Same generic error as "not found" — never reveal existence.
+    throw new Error('Execution not found');
+  }
+  return execution;
+}
+
+/** Pause a running execution */
+export async function pauseExecution(executionId: string, userId: string) {
+  const execution = await assertExecutionOwnership(executionId, userId);
   if (execution.status !== 'running') throw new Error('Execution is not running');
 
   await db.workflowExecution.update({
@@ -800,11 +835,7 @@ export async function pauseExecution(executionId: string, userId: string) {
 
 /** Resume a paused execution */
 export async function resumeExecution(executionId: string, userId: string) {
-  const execution = await db.workflowExecution.findUnique({
-    where: { id: executionId },
-  });
-
-  if (!execution) throw new Error('Execution not found');
+  const execution = await assertExecutionOwnership(executionId, userId);
   if (execution.status !== 'paused') throw new Error('Execution is not paused');
 
   await db.workflowExecution.update({
@@ -824,11 +855,7 @@ export async function resumeExecution(executionId: string, userId: string) {
 
 /** Cancel an execution */
 export async function cancelExecution(executionId: string, userId: string) {
-  const execution = await db.workflowExecution.findUnique({
-    where: { id: executionId },
-  });
-
-  if (!execution) throw new Error('Execution not found');
+  const execution = await assertExecutionOwnership(executionId, userId);
   if (!['queued', 'running', 'paused'].includes(execution.status)) {
     throw new Error('Execution cannot be cancelled in current state');
   }
@@ -865,11 +892,7 @@ export async function handleWebhookTrigger(
 
 /** Retry a failed execution */
 export async function retryExecution(executionId: string, userId: string) {
-  const execution = await db.workflowExecution.findUnique({
-    where: { id: executionId },
-  });
-
-  if (!execution) throw new Error('Execution not found');
+  const execution = await assertExecutionOwnership(executionId, userId);
   if (!['failed', 'dead_letter'].includes(execution.status)) {
     throw new Error('Execution is not in a retryable state');
   }

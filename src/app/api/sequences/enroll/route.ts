@@ -45,6 +45,26 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // ACCOUNT ISOLATION: every lead to enroll MUST belong to the caller.
+      // The sequence engine does not verify ownership itself — without
+      // this check a user could enroll ANOTHER tenant's lead into their
+      // sequence (spam + data leak).
+      const ownedLeads = await db.lead.findMany({
+        where: { id: { in: targetLeadIds }, userId: user.id },
+        select: { id: true },
+      });
+      const ownedIds = new Set(ownedLeads.map((l) => l.id));
+      const unauthorized = targetLeadIds.filter((lid) => !ownedIds.has(lid));
+      if (unauthorized.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'One or more leads not found in your account',
+          },
+          { status: 403 }
+        );
+      }
+
       // Enroll leads
       const results: Array<{
         leadId: string;

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { db } from '@/lib/db';
 
 export async function GET(
@@ -25,7 +26,10 @@ export async function GET(
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
       }
 
-      if (lead.userId && lead.userId !== user.id && lead.orgId !== user.orgId) {
+      // ACCOUNT ISOLATION: owner, or member of the same org where BOTH
+      // orgIds are non-null. The previous `lead.userId && …` guard failed
+      // open for ownerless leads and for null == null org comparisons.
+      if (!canUserAccessLead(lead, user)) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 
@@ -73,7 +77,10 @@ export async function POST(
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
       }
 
-      if (lead.userId && lead.userId !== user.id && lead.orgId !== user.orgId) {
+      // ACCOUNT ISOLATION: owner, or member of the same org where BOTH
+      // orgIds are non-null. The previous `lead.userId && …` guard failed
+      // open for ownerless leads and for null == null org comparisons.
+      if (!canUserAccessLead(lead, user)) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 

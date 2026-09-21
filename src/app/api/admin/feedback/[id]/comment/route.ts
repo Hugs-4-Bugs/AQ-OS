@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { createNotification } from '@/lib/notification-service';
 import { sendEmail } from '@/lib/email';
 import { logAuditEvent } from '@/lib/lead-audit';
@@ -14,7 +14,7 @@ function truncate(s: unknown, max: number): string {
 // ─── POST /api/admin/feedback/[id]/comment ─────────────────────────
 
 export async function POST(request: NextRequest) {
-  return withAdmin(request, async (adminUser) => {
+  return withSuperAdmin(request, async (adminUser) => {
     try {
       const parts = request.nextUrl.pathname.split('/');
       const id = parts[parts.length - 2];

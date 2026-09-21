@@ -12,6 +12,23 @@ export async function GET(request: NextRequest) {
 
       // If conversationId is provided, return messages for that conversation
       if (conversationId) {
+        // ACCOUNT ISOLATION: verify the conversation belongs to the caller
+        // (via its lead's ownership) before returning its message history —
+        // previously any conversation id could be read by ID.
+        const conversation = await db.conversation.findUnique({
+          where: { id: conversationId },
+          select: { id: true, lead: { select: { userId: true, orgId: true } } },
+        });
+        if (!conversation) {
+          return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+        }
+        const canAccess =
+          conversation.lead.userId === user.id ||
+          (!!user.orgId && !!conversation.lead.orgId && conversation.lead.orgId === user.orgId);
+        if (!canAccess) {
+          return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+        }
+
         const messages = await db.conversationMessage.findMany({
           where: { conversationId },
           orderBy: { createdAt: 'asc' },
@@ -91,8 +108,15 @@ export async function GET(request: NextRequest) {
       }
 
       // Fetch conversations with latest message info
+      // ACCOUNT ISOLATION: scope to conversations on the caller's own leads
+      // (org members see conversations on org-shared leads). Previously
+      // every tenant's conversations were listed with message content.
+      const conversationLeadScope = user.orgId
+        ? { OR: [{ userId: user.id }, { orgId: user.orgId }] }
+        : { userId: user.id };
       const conversations = await db.conversation.findMany({
         where: {
+          lead: conversationLeadScope,
           channel: channel && channel !== 'all' ? channel : undefined,
           status: { not: 'archived' },
         },

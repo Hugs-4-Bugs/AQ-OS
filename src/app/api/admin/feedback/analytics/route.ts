@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { Prisma } from '@prisma/client';
 
 // ─── GET /api/admin/feedback/analytics ─────────────────────────────
 
 export async function GET(request: NextRequest) {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

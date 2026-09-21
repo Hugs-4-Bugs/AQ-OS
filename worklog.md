@@ -7675,3 +7675,57 @@ Work Log:
 Stage Summary:
 - "Lead not found" was correct behavior meeting a leaky UI: list/detail leaked other users' leads, pipeline correctly refused them. Fixed the leaks; all execution paths now resolve leads through one owner-scoped mechanism
 - E2E demonstrated: Existing Lead -> AI Pipeline -> Lead Resolution -> AI Processing -> completed 5/5
+
+---
+Task ID: fix-lead-not-found-restore-1
+Agent: main (Super Z)
+Task: Fix "Lead not found" when running AI Pipeline / Workflow on an existing, visible lead (post-restore workspace)
+
+Work Log:
+- Before-state recorded: HEAD 15cc4a8f6c9c373b5178670c1d68e754edcaa469, branch main, only db/custom.db modified (runtime); verified unchanged after all fixes (pre-commit)
+- Reproduced with REAL lead cmu9mmil8006spulsw94mkydy (Modern Palace Cafeteria & Restaurant) owned by authenticated user cmu6j3fde0000oqummqmm7mqm (OTP session): detail GET 200, lead visible in list of 25 — but POST /api/prospecting/pipeline/run → 500 and workflow execute → failed "AI outreach requires a lead context"
+- ROOT CAUSE A (AI Pipeline): schema drift from the restore — prisma/schema.prisma declares ProspectPipeline + UserSettings.servicesOffered, but db/custom.db lacked both; every pipeline start/status/offer query threw → 500. Lead lookup itself succeeded (resolver fine); execution infra was broken
+- ROOT CAUSE B (Workflow): manual Run buttons POST {} with no lead context; engine derives context.leadId ONLY from triggerData.leadId → lead-scoped actions unresolvable; with stale/wrong ids resolver returns exactly "Lead not found". Engine also never persisted execution.userId
+- Verified healthy (not touched): /api/leads owner scoping, /api/leads/[id] access check, lead-resolution.ts + 5 wired call sites, deep research, lead scoring, trigger path (passes leadId), plan gates
+- FIX 1 (additive-only migration, backup taken scripts/custom.db.backup-20260921-113257): CREATE ProspectPipeline (21 cols + 3 idx) + ALTER UserSettings ADD servicesOffered; row counts unchanged (Lead 88, UserSettings 23); orphaned legacy columns (Lead.websiteStatus*, LeadAnalysis.isStale/staleReason) explicitly PRESERVED — prisma db push deliberately avoided because it would DROP them
+- Prisma client regenerated (stale generated client also came from restore — tsc had 22 prospectPipeline/servicesOffered errors, now 0)
+- FIX 2: workflow-engine.ts persists userId on WorkflowExecution create
+- FIX 3 (UI): workflows-tab.tsx — LeadPickerDialog + workflowNeedsLead(); Run buttons (list card, detail, executions re-run) open a picker of the user's OWN leads for lead-scoped workflows and send triggerData.leadId; non-lead workflows run unchanged
+- FIX 4: workflow-executor.ts (validate path) lead lookups owner-scoped via resolveLeadForExecution (requireOwnedLead helper; add_tag JSON.parse hardened)
+- FIX 5: executeMoveLeadStage accepts config.stage (AI generator shape) alongside config.targetStage (builder shape) — matches legacy executor
+- Tests with real session: TEST1 pipeline run on own lead → 200 + completed 5/5 (step3 skipped by design; real AI research/gaps/pitch/email; OutreachMessage draft cmub6i7no000tmdtiinip6o51 created); TEST2 workflow run with lead context → completed 3/3 steps (userId persisted, stage moved discovered→replied, AI draft created); TEST3 cross-tenant lead → 404 pipeline (LEAD_ACCESS_DENIED server-side) + 403 detail — no leak; TEST4 invalid id → 404 LEAD_NOT_FOUND; TEST5 missing id → 400; TEST6 batch → N/A by design (409 guard, one live run per lead)
+- Browser E2E (agent-browser): AI Pipeline tab renders full completed run (Company Research/Detected Gaps/Personalized Pitch/Smart Email/Offer Match) — screenshot download/ai-pipeline-completed.png; Workflows Run on lead-scoped workflow opens "Run against a lead" picker listing exactly the user's own leads (verified with elite account + temp workflow, both cleaned up: temp workflow deleted, stage restored); free-plan user sees existing Pro gate (not bypassed)
+- Test cleanup: lead stages restored to pre-test values via direct SQL (disclosed); pipeline artifacts kept as genuine work products
+
+Stage Summary:
+- "Lead not found" eliminated for existing leads across BOTH execution surfaces: AI Pipeline (5-step prospect pipeline) and workflow engine. Failures now distinguish LEAD_ID_MISSING/LEAD_NOT_FOUND/LEAD_ACCESS_DENIED/LEAD_LOOKUP_ERROR server-side while user message stays generic. Single owner-scoped resolution path (lead-resolution.ts) now backs every path: pipeline, engine actions, legacy executor, AI engines. Schema drift repaired additively with zero data loss.
+- Files modified: src/lib/prospecting (schema/client), src/lib/workflow-engine.ts, src/lib/workflow-executor.ts, src/lib/workflow-actions.ts, src/components/dashboard/workflows-tab.tsx, db/custom.db (additive migration), prisma client regenerated. Scripts under scripts/ (migration SQL, safe apply, repro/E2E, schema drift diff).
+
+---
+Task ID: fix-notif-prefs-profile-persistence-account-isolation-1
+Agent: main (Super Z)
+Task: Fix notification preferences dead button + user data persistence + complete account isolation audit (forward-only, no rollback)
+
+Work Log:
+- Before-state: HEAD 70fc066 (platform snapshot on top of 89b4b8f), branch main, tree clean. Prior session ended at HEAD 885a430; between-session platform snapshot changed HEAD (documented per protection rule; no git reset/revert/checkout used)
+- ISSUE 1 (dead button): "Notification preferences →" in notification panel had NO onClick. Fixed via store deep-link handshake: store.requestSettingsSection('notifications') sets pendingSettingsSection + switches SPA tab; SettingsShell consumes pending section on mount; notification-navigation.openNotificationPreferences() added; button wired with panel-close callback (works desktop popover + mobile sheet). No duplicate preferences UI created — navigates to existing Settings → Notifications section
+- ISSUE 2 (persistence): LIVE-REPRODUCED with real account A — PUT /api/settings/profile returned 200 and stored company in User.company, but GET read settings.companyName ?? orgName → company vanished on every read. Fixed: PUT upserts UserSettings.companyName (canonical) + keeps User.company in sync; GET falls back to user.company. Also: appearance prefs (defaultNiche/defaultCountry/compactView) were localStorage-only while /api/settings/appearance existed unused — SettingsShell now hydrates from API on mount and pushes changes back. Verified: login flows (OTP/signin/google) never overwrite profile fields; getAuthUser reads fresh from DB
+- ISSUE 3 (isolation audit): 3 parallel audits over ALL 502 API route files + manual verification of every critical finding. Fixed 50+ files:
+  * Unauthenticated lead sub-routes now withAuth + canUserAccessLead: activities, analyze-website, communications GET/POST, deals GET/POST, explain-scores, outreach, reminders GET/POST/PATCH, stats (also scoped to own leads)
+  * Fail-open guards replaced: notes (null==null org), enrichment service, gap-analysis validateLeadAccess, autonomous-outreach-service eligibility, reply-handler (body userId impersonation → session user)
+  * Body-identity removed: ai/vector-search, ai/rag/context (body/query userId), analytics/benchmarks (org membership verified), leads/import (client orgId)
+  * Global findMany scoped: deals GET, chat-sessions GET, reminders GET, dashboard/messaging (both branches + conversationId IDOR), insights ({} fail-open → userId/org fail-closed)
+  * leadId ownership: reply-intelligence classify + leads/reply-intelligence POST, sequences enroll (route + engine + service), outreach/send (owner-scoped fetch), email/bounces (updateMany scoped), gmail/outreach-to-draft, sales-assistant (deal + lead paths), autonomous/pipeline/move + research (libs now enforce userId), autonomous-outreach dispatch/generate, ai/analysis/[leadId] GET
+  * Gmail: draft + reply routes verify emailAccount.userId === caller (prevents sending AS another user's Gmail)
+  * Workflow: executor pause/resume/cancel/retry + dlq retryDeadLetter ownership via workflow.userId; step handlers add_note/send_gmail_draft/ai_analyze/condition now route through requireOwnedLead; POST /api/leads now stamps userId (ownerless-lead fix)
+  * Platform gating: new withSuperAdmin middleware; applied to admin/backup(+id), admin/refund, admin/billing*, admin/feedback*, audit(+export), workspace/download-source, gdpr/retention; billing/analytics super_admin-only (was org owner/admin); settings/clear-data deleteMany now scoped to caller's leads (was wiping ALL tenants); realtime/recover requires auth + session identity; metrics + metrics/dashboard admin-gated
+  * Org trust chain: settings/org ignores body ownerId (creator is always owner); invites resend requires org owner/admin + NO LONGER returns magic-link token; team/invite/[token] enforces invitee email match
+  * competitor/[id] legacy route: was fully unauthenticated GET/DELETE → withAuth + userId scoping; 5 competitors sub-routes (pricing/reviews/seo/social/website) ownership-guarded
+- Shared helper: canUserAccessLead() added to src/lib/lead-resolution.ts (owner OR both-orgIds-non-null-and-equal) — canonical fail-closed rule reused everywhere; previous lead fixes (lead-resolution resolver, pipeline, /api/leads list+detail) verified intact
+- Tests (real accounts A=kattyboy785 B=mailtoprabhat72, dev OTP): 33 API checks PASS — profile save→reload→new-session round-trip incl. company; A/B lead lists isolated; detail/PUT/DELETE/sub-resources (activities/communications/notes/reminders) cross-account → 403; unauth → 401; pipeline own lead 200 + completed 5/5, foreign lead 404; credits isolated (458 vs 1957); notifications scoped; platform billing analytics 403 for org user; realtime/recover 401
+- Browser E2E (agent-browser): Test A desktop — bell → panel → gear → "Notification preferences →" lands on Settings→Notifications section (screenshot download/test-a-step2-notifications-section.png); mobile 390px — same flow via sheet works, no overflow (download/test-a-mobile-notifications.png); profile form hydrates persisted company/name after fresh login; onboarding + cookie banner dismissed during test (not code changes)
+- Typecheck: 0 errors in all 82 modified files (246 pre-existing repo errors untouched — verified each flagged line is in untouched code); HEAD unchanged 70fc066 during operation; no rollback/reset/revert; no destructive DB operations (only additive test data on real accounts via their APIs)
+
+Stage Summary:
+- Dead preferences button now navigates to the existing Settings → Notifications on all breakpoints; profile company + appearance preferences persist across logout/login at the API and DB level; 36+ cross-tenant leaks closed across leads, outreach, gmail, workflows, AI, analytics, admin surfaces with a single fail-closed access rule; platform-wide endpoints locked to super_admin; all six acceptance tests (A-F) demonstrated with real accounts
+- Files: 80 source files modified + new scripts (repro-profile-persistence.sh, verify-final.sh, verify-b.sh); 3 test screenshots in download/; db/custom.db changed only by test data written through public APIs

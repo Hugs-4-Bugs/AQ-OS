@@ -32,12 +32,22 @@ const FUNNEL_STAGES = ['discovered', 'analyzed', 'contacted', 'replied', 'discus
 export async function GET(request: NextRequest) {
   return withDualAuthPermission(request, 'insights:read', async (user, apiKeyInfo) => {
   try {
-    // Build org-scoped filter for queries when using API key auth
-    // Lead has orgId directly; Communication and Deal are linked through Lead
-    const leadOrgFilter = apiKeyInfo?.orgId ? { orgId: apiKeyInfo.orgId } : {};
+    // ACCOUNT ISOLATION: build a fail-closed scope. Org API keys see leads
+    // stamped with the key's real (non-null) orgId; session and
+    // personal-key callers see ONLY their own leads. The previous fallback
+    // `{}` when `apiKeyInfo?.orgId` was falsy returned the ENTIRE database
+    // to every session user — the classic null-org fail-open leak.
+    const orgId = apiKeyInfo?.orgId;
+    const leadOrgFilter = orgId
+      ? { orgId }
+      : { userId: user.id };
     // For Communication and Deal, filter via their Lead relation
-    const commOrgFilter = apiKeyInfo?.orgId ? { lead: { orgId: apiKeyInfo.orgId } } : {};
-    const dealOrgFilter = apiKeyInfo?.orgId ? { lead: { orgId: apiKeyInfo.orgId } } : {};
+    const commOrgFilter = orgId
+      ? { lead: { orgId } }
+      : { lead: { userId: user.id } };
+    const dealOrgFilter = orgId
+      ? { lead: { orgId } }
+      : { lead: { userId: user.id } };
 
     const [
       leads,

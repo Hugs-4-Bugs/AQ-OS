@@ -134,6 +134,11 @@ export async function executeWorkflow(
     const execution = await db.workflowExecution.create({
       data: {
         workflowId,
+        // Persist the execution owner. The trusted execution context (userId +
+        // leadId) must survive on the execution record so that retries,
+        // resumes, and audit trails all resolve leads against the SAME user
+        // who started the run — never against a null/system owner.
+        userId,
         status: 'running',
         triggerData: triggerData ? JSON.stringify(triggerData) : null,
         triggerEvent: triggerData ? JSON.stringify(triggerData) : null,

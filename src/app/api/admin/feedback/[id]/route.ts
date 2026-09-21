@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { createNotification } from '@/lib/notification-service';
 import { sendEmail } from '@/lib/email';
 import { logAuditEvent } from '@/lib/lead-audit';
@@ -83,7 +83,7 @@ const STATUS_EMAIL_TEMPLATES: Record<string, {
 // ─── PATCH /api/admin/feedback/[id] ────────────────────────────────
 
 export async function PATCH(request: NextRequest) {
-  return withAdmin(request, async (adminUser) => {
+  return withSuperAdmin(request, async (adminUser) => {
     try {
       const id = request.nextUrl.pathname.split('/').pop() as string;
 
@@ -185,7 +185,7 @@ export async function PATCH(request: NextRequest) {
 // ─── GET /api/admin/feedback/[id] — admin detail view ─────────────
 
 export async function GET(request: NextRequest) {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const id = request.nextUrl.pathname.split('/').pop();
 

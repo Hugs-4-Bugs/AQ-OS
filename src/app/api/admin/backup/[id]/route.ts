@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -17,7 +17,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const { id } = await params;
 
@@ -71,7 +71,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAdmin(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const { id } = await params;
       const body = await request.json().catch(() => ({}));
@@ -134,7 +134,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAdmin(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const { id } = await params;
 

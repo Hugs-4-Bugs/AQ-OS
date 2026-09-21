@@ -362,6 +362,133 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// ===== LEAD-AWARE EXECUTION =====
+// Workflows whose steps operate on a lead need a lead execution context
+// (triggerData.leadId) supplied by the trusted client action — the engine
+// never guesses a lead. Manual "Run" on such a workflow asks the user to
+// pick one of their OWN leads; the server re-verifies ownership via
+// resolveLeadForExecution before any step touches it.
+
+const LEAD_REQUIRED_ACTION_TYPES = new Set([
+  'ai_analysis',
+  'ai_outreach',
+  'move_lead_stage',
+  'update_tags',
+  'add_tag',
+  'score_lead',
+  'add_note',
+  'send_gmail_reply',
+]);
+
+function workflowNeedsLead(wf: Pick<Workflow, 'nodes' | 'workflowSteps'>): boolean {
+  const fromSteps = (wf.workflowSteps || []).map(s => String(s.config?.actionType || s.type));
+  const fromNodes = (wf.nodes || [])
+    .filter(n => n.type !== 'trigger')
+    .map(n => String(n.config?.actionType || n.type));
+  return [...fromSteps, ...fromNodes].some(t => LEAD_REQUIRED_ACTION_TYPES.has(t));
+}
+
+interface ExecutionLead {
+  id: string;
+  businessName: string;
+  city?: string | null;
+  stage?: string | null;
+}
+
+function LeadPickerDialog({
+  workflowName,
+  onClose,
+  onSelect,
+}: {
+  workflowName: string;
+  onClose: () => void;
+  onSelect: (lead: ExecutionLead) => void;
+}) {
+  const { toast } = useToast();
+  const [leads, setLeads] = useState<ExecutionLead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch<{ leads: ExecutionLead[] }>('/api/leads?limit=100&sortBy=updatedAt&sortOrder=desc');
+        if (!cancelled) setLeads(data.leads || []);
+      } catch (err) {
+        if (!cancelled) {
+          toast({
+            title: 'Error',
+            description: err instanceof Error ? err.message : 'Failed to load leads',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filtered = leads.filter(l =>
+    !search ||
+    l.businessName?.toLowerCase().includes(search.toLowerCase()) ||
+    l.city?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Run against a lead</DialogTitle>
+          <DialogDescription>
+            &quot;{workflowName}&quot; operates on a lead. Choose which of your leads this run should use — the
+            workflow can only access leads that belong to you.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search your leads..."
+            className="pl-9"
+          />
+        </div>
+        <ScrollArea className="h-64 -mx-2 px-2">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading leads...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No leads found. Discover or create a lead first.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {filtered.map(lead => (
+                <button
+                  key={lead.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 rounded-md hover:bg-accent transition-colors"
+                  onClick={() => onSelect(lead)}
+                >
+                  <div className="text-sm font-medium truncate">{lead.businessName}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {[lead.city, lead.stage].filter(Boolean).join(' · ') || lead.id}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ===== SKELETONS =====
 
 function WorkflowCardSkeleton() {
@@ -1153,6 +1280,7 @@ function WorkflowList({
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
+  const [leadPickWorkflow, setLeadPickWorkflow] = useState<Workflow | null>(null);
 
   const fetchWorkflows = useCallback(async () => {
     try {
@@ -1225,17 +1353,20 @@ function WorkflowList({
     }
   };
 
-  const handleExecute = async (wf: Workflow) => {
+  const executeRun = async (wf: Workflow, lead?: ExecutionLead) => {
     if (executingId) return;
     setExecutingId(wf.id);
     try {
+      // Lead-scoped runs carry the trusted execution context (leadId) picked
+      // by the user; the server re-verifies ownership before every step.
+      const body = lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {};
       const result = await apiFetch<{ executionId: string; status: string }>(
         `/api/workflows/${wf.id}/execute`,
-        { method: 'POST', body: JSON.stringify({}) }
+        { method: 'POST', body: JSON.stringify(body) }
       );
       toast({
         title: 'Workflow executing...',
-        description: `${wf.name} started — execution ${result.executionId}`,
+        description: `${wf.name} started${lead ? ` for ${lead.businessName}` : ''} — execution ${result.executionId}`,
       });
       // Refresh the workflow card after 2 seconds to show the updated run count
       setTimeout(() => {
@@ -1252,8 +1383,29 @@ function WorkflowList({
     }
   };
 
+  const handleExecute = async (wf: Workflow) => {
+    // Workflows with lead-scoped actions need an explicit lead context —
+    // ask the user which of their own leads to run against.
+    if (workflowNeedsLead(wf)) {
+      setLeadPickWorkflow(wf);
+      return;
+    }
+    await executeRun(wf);
+  };
+
   return (
     <div className="space-y-4">
+      {leadPickWorkflow && (
+        <LeadPickerDialog
+          workflowName={leadPickWorkflow.name}
+          onClose={() => setLeadPickWorkflow(null)}
+          onSelect={lead => {
+            const wf = leadPickWorkflow;
+            setLeadPickWorkflow(null);
+            void executeRun(wf, lead);
+          }}
+        />
+      )}
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
@@ -1694,20 +1846,24 @@ function WorkflowDetail({
 }) {
   const { toast } = useToast();
   const [executing, setExecuting] = useState(false);
+  const [leadPickOpen, setLeadPickOpen] = useState(false);
 
   const statusBadge = getStatusBadge(workflow.status);
   const stepCount = workflow.nodes?.filter(n => n.type !== 'trigger').length || workflow.workflowSteps?.length || 0;
 
-  const handleExecute = async () => {
+  const executeRun = async (lead?: ExecutionLead) => {
     setExecuting(true);
     try {
+      // Lead-scoped runs carry the trusted execution context (leadId);
+      // the server re-verifies ownership before every step.
+      const body = lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {};
       const result = await apiFetch<{ executionId: string; status: string }>(
         `/api/workflows/${workflow.id}/execute`,
-        { method: 'POST', body: JSON.stringify({}) }
+        { method: 'POST', body: JSON.stringify(body) }
       );
       toast({
         title: 'Workflow executed',
-        description: `Execution ${result.executionId} started`,
+        description: `${lead ? `Running for ${lead.businessName} — ` : ''}Execution ${result.executionId} started`,
       });
     } catch (err) {
       toast({
@@ -1720,8 +1876,27 @@ function WorkflowDetail({
     }
   };
 
+  const handleExecute = async () => {
+    // Lead-scoped workflows need an explicit lead context — ask which lead.
+    if (workflowNeedsLead(workflow)) {
+      setLeadPickOpen(true);
+      return;
+    }
+    await executeRun();
+  };
+
   return (
     <div className="space-y-4">
+      {leadPickOpen && (
+        <LeadPickerDialog
+          workflowName={workflow.name}
+          onClose={() => setLeadPickOpen(false)}
+          onSelect={lead => {
+            setLeadPickOpen(false);
+            void executeRun(lead);
+          }}
+        />
+      )}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ChevronRight className="h-4 w-4 rotate-180 mr-1" /> Back
@@ -1842,6 +2017,7 @@ function ExecutionsTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [executionDetail, setExecutionDetail] = useState<ExecutionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [rerunPick, setRerunPick] = useState<{ workflowId: string; workflowName: string } | null>(null);
 
   const fetchExecutions = useCallback(async () => {
     try {
@@ -1924,6 +2100,13 @@ function ExecutionsTab() {
 
   const handleRerun = async (workflowId: string) => {
     try {
+      // Re-run must respect lead context the same way as a fresh Run:
+      // fetch the definition and ask for a lead when its steps need one.
+      const wf = await apiFetch<Workflow>(`/api/workflows/${workflowId}`);
+      if (workflowNeedsLead(wf)) {
+        setRerunPick({ workflowId, workflowName: wf.name });
+        return;
+      }
       await apiFetch(`/api/workflows/${workflowId}/execute`, { method: 'POST', body: JSON.stringify({}) });
       toast({ title: 'Workflow re-executed', description: 'A new execution has been started.' });
       fetchExecutions();
@@ -1936,8 +2119,35 @@ function ExecutionsTab() {
     }
   };
 
+  const rerunWithLead = async (lead: ExecutionLead) => {
+    if (!rerunPick) return;
+    const { workflowId } = rerunPick;
+    setRerunPick(null);
+    try {
+      await apiFetch(`/api/workflows/${workflowId}/execute`, {
+        method: 'POST',
+        body: JSON.stringify({ triggerData: { leadId: lead.id, leadName: lead.businessName } }),
+      });
+      toast({ title: 'Workflow re-executed', description: `Running for ${lead.businessName}.` });
+      fetchExecutions();
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to rerun',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {rerunPick && (
+        <LeadPickerDialog
+          workflowName={rerunPick.workflowName}
+          onClose={() => setRerunPick(null)}
+          onSelect={lead => void rerunWithLead(lead)}
+        />
+      )}
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <Select value={statusFilter} onValueChange={setStatusFilter}>

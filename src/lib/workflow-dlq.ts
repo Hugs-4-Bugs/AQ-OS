@@ -50,11 +50,23 @@ export async function listDeadLetter(
 
 /** Retry a dead letter execution */
 export async function retryDeadLetter(executionId: string, userId: string) {
+  // ACCOUNT ISOLATION: verify ownership via the execution's workflow —
+  // previously any execution id could be re-run cross-tenant.
   const execution = await db.workflowExecution.findUnique({
     where: { id: executionId },
+    select: {
+      id: true,
+      status: true,
+      isDeadLetter: true,
+      retryCount: true,
+      workflowId: true,
+      workflow: { select: { userId: true } },
+    },
   });
 
-  if (!execution) throw new Error('Execution not found');
+  if (!execution || execution.workflow.userId !== userId) {
+    throw new Error('Execution not found');
+  }
   if (!execution.isDeadLetter) throw new Error('Execution is not in dead letter queue');
 
   await db.workflowExecution.update({

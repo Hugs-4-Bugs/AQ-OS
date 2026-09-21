@@ -241,7 +241,10 @@ Return ONLY valid JSON. No markdown, no explanations.`;
         select: { userId: true, email: true },
       });
 
-      if (!lead) {
+      // ACCOUNT ISOLATION: the lead MUST belong to the caller. The
+      // previous code read lead.userId and never compared it, letting any
+      // user dispatch messages to another tenant's lead.
+      if (!lead || !userId || lead.userId !== userId) {
         throw new Error('Lead not found');
       }
 

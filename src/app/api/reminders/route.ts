@@ -3,15 +3,18 @@ import { db } from '@/lib/db';
 import { withPermission } from '@/lib/auth-middleware';
 
 export async function GET(request: NextRequest) {
-  return withPermission(request, 'leads:read', async () => {
+  return withPermission(request, 'leads:read', async (user) => {
   try {
     const { searchParams } = new URL(request.url);
     const overdue = searchParams.get('overdue') === 'true';
 
     const now = new Date();
 
+    // ACCOUNT ISOLATION: only reminders attached to the authenticated
+    // user's own leads (previously ALL tenants' reminders were listed).
     const where = {
       completed: false,
+      lead: { userId: user.id },
       ...(overdue ? { dueAt: { lt: now } } : {}),
     };
 

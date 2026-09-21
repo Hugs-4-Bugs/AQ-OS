@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 
 // ── GET: List Backups ──────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const { searchParams } = new URL(request.url);
       const type = searchParams.get('type') || 'all';
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
 // ── POST: Trigger Manual Backup ────────────────────────────────────
 export async function POST(request: NextRequest) {
-  return withAdmin(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const body = await request.json().catch(() => ({}));
       const backupType = body.type || 'full'; // full, sqlite, postgres

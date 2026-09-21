@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import ZAI from 'z-ai-web-dev-sdk';
 import { withAuth } from '@/lib/auth-middleware';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // POST /api/leads/[id]/analyze - Deep AI analysis of a lead
@@ -27,6 +28,12 @@ export async function POST(
 
       if (!lead) {
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      }
+
+      // ACCOUNT ISOLATION: deep analysis reads the lead's full history and
+      // writes scores back — owner / same non-null org only.
+      if (!canUserAccessLead(lead, user)) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 
       const zai = await ZAI.create();

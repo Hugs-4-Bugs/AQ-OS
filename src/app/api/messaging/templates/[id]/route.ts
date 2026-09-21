@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
 import {
   getTemplate,
   submitForApproval,
@@ -60,6 +61,27 @@ export async function POST(
       const { id } = await params;
       const body = await request.json();
       const action = body.action; // 'submit' | 'resubmit' | 'approve' | 'reject'
+
+      // ACCOUNT ISOLATION: handleApprovalStatus is an internal/admin helper
+      // that updates by raw id. For caller-initiated approve/reject the
+      // template must first be proven to belong to the caller.
+      if (action === 'approve' || action === 'reject') {
+        const ownedTemplate = await db.messageTemplateApproval.findFirst({
+          where: { id, userId: user.id },
+          select: { id: true },
+        }).catch(() => null);
+        if (!ownedTemplate) {
+          // Fall back to the template's userId column on the base table if
+          // the approval row is not user-keyed.
+          const baseTemplate = await db.messageTemplate.findFirst({
+            where: { id, userId: user.id },
+            select: { id: true },
+          }).catch(() => null);
+          if (!baseTemplate) {
+            return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+          }
+        }
+      }
 
       switch (action) {
         case 'submit': {

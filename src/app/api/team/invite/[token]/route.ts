@@ -110,6 +110,19 @@ export async function POST(
         );
       }
 
+      // ACCOUNT ISOLATION: the accepting user's email must MATCH the
+      // invited email. Without this check, any authenticated user holding
+      // the token (leaked, brute-forced or resent by a compromised route)
+      // could join an organization they were never invited to.
+      const normalizedUserEmail = user.email.toLowerCase().trim();
+      const normalizedInviteEmail = invitation.email.toLowerCase().trim();
+      if (normalizedUserEmail !== normalizedInviteEmail) {
+        return NextResponse.json(
+          { error: 'This invitation was issued to a different email address' },
+          { status: 403 }
+        );
+      }
+
       // Check if user is already a member
       const existingMember = await db.orgMember.findFirst({
         where: { orgId: invitation.orgId, userId: user.id },

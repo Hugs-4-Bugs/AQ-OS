@@ -5,6 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { moveLeadToStage } from '@/lib/pipeline-service';
 
 export async function POST(
@@ -20,6 +22,20 @@ export async function POST(
 
       if (!stage || typeof stage !== 'string') {
         return NextResponse.json({ error: 'stage is required' }, { status: 400 });
+      }
+
+      // ACCOUNT ISOLATION: pipeline-service's moveLeadToStage does not
+      // verify ownership itself — enforce the owner / same non-null org
+      // rule here before mutating another tenant's pipeline state.
+      const lead = await db.lead.findUnique({
+        where: { id },
+        select: { id: true, userId: true, orgId: true },
+      });
+      if (!lead) {
+        return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      }
+      if (!canUserAccessLead(lead, user)) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 
       const result = await moveLeadToStage(id, stage.trim(), user.id);

@@ -358,7 +358,10 @@ async function executeMoveLeadStage(
   config: Record<string, unknown>,
   context: ActionContext
 ): Promise<ActionResult> {
-  const { targetStage } = config;
+  // Accept both config shapes that legitimately exist in the system:
+  // the workflow builder stores targetStage, the AI workflow generator
+  // (and legacy steps) store stage. Same fallback the legacy executor uses.
+  const targetStage = config.targetStage || config.stage;
 
   if (!context.leadId) {
     return { success: false, error: 'Move lead stage requires a lead context' };

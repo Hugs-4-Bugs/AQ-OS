@@ -3,10 +3,14 @@ import { db } from '@/lib/db';
 import { withPermission } from '@/lib/auth-middleware';
 
 // GET /api/deals - Get all deals with lead information
+// ACCOUNT ISOLATION: only the authenticated user's own deals (via the
+// lead's ownership). Previously this listed EVERY tenant's deals with
+// lead emails and phone numbers.
 export async function GET(request: NextRequest) {
-  return withPermission(request, 'deals:read', async () => {
+  return withPermission(request, 'deals:read', async (user) => {
   try {
     const deals = await db.deal.findMany({
+      where: { lead: { userId: user.id } },
       orderBy: { createdAt: 'desc' },
       include: {
         lead: {

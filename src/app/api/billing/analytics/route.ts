@@ -10,10 +10,13 @@ import { getCompleteAnalytics } from '@/lib/billing-analytics-service';
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
-      // Only allow admin/owner access to billing analytics
-      if (!['owner', 'admin', 'super_admin'].includes(user.role)) {
+      // ACCOUNT ISOLATION: this endpoint returns PLATFORM-WIDE billing
+      // analytics (all tenants' MRR/ARR/churn/revenue). Only the platform
+      // super_admin may see it — org-level owner/admin roles are
+      // tenant-scoped and were previously able to read global revenue.
+      if (user.role !== 'super_admin') {
         return NextResponse.json(
-          { error: 'Admin access required to view billing analytics' },
+          { error: 'Super admin access required to view billing analytics' },
           { status: 403 }
         );
       }

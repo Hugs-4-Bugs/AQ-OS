@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 import { researchCompany, type LeadInput, type UserProfile } from '@/lib/lead-discovery/company-researcher';
 import { analyzeWebsite, type WebsiteScore } from '@/lib/lead-discovery/website-scorer';
 import { db } from '@/lib/db';
@@ -24,6 +25,7 @@ import { db } from '@/lib/db';
  * }
  */
 export async function POST(request: NextRequest) {
+  return withAuth(request, async (user) => {
   try {
     const body = await request.json();
 
@@ -50,8 +52,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the lead from DB
+    // ACCOUNT ISOLATION: owner-scoped — research output returns the
+    // lead's PII (email, phone) to the caller.
     const lead = await db.lead.findFirst({
-      where: { id: leadId, isActive: true },
+      where: { id: leadId, isActive: true, userId: user.id },
     });
 
     if (!lead) {
@@ -96,4 +100,5 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
+  });
 }

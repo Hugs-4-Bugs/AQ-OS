@@ -115,6 +115,17 @@ export class EmailSequenceEngine {
       throw new Error(`Sequence is not active (status: ${sequence.status})`);
     }
 
+    // ACCOUNT ISOLATION: the lead MUST belong to the sequence's owner.
+    // Callers that cannot supply an owner context must use the service
+    // wrapper which enforces the same rule against the session user.
+    const leadForOwnership = await db.lead.findUnique({
+      where: { id: leadId },
+      select: { userId: true },
+    });
+    if (!leadForOwnership || leadForOwnership.userId !== sequence.userId) {
+      throw new Error('Lead not found');
+    }
+
     // Check if lead is already enrolled in this sequence
     const existingEnrollment = await db.sequenceEnrollment.findFirst({
       where: {

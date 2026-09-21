@@ -66,6 +66,7 @@ import {
 import {
   navigateNotificationTarget,
   openNotificationsPage,
+  openNotificationPreferences,
 } from '@/lib/notification-navigation';
 import {
   acquireNotificationRealtime,
@@ -479,7 +480,7 @@ function NotificationListContent({
 
 // ===== Notification Preferences Popover =====
 
-function NotificationPreferences() {
+function NotificationPreferences({ onNavigate }: { onNavigate?: () => void }) {
   const { preferences, setSoundEnabled, setMutedUntil, isMuted } = useNotificationStore();
 
   const handleMute1Hour = useCallback(() => {
@@ -578,8 +579,15 @@ function NotificationPreferences() {
           )}
 
           <Separator />
+          {/* Deep-link into the existing Settings → Notifications section.
+              Closes the enclosing panel (desktop popover / mobile sheet)
+              first so the settings page is fully visible on all breakpoints. */}
           <button
             type="button"
+            onClick={() => {
+              onNavigate?.();
+              openNotificationPreferences();
+            }}
             className="flex items-center gap-2.5 w-full px-2 py-2 rounded-md text-xs hover:bg-accent transition-colors text-primary"
           >
             <Settings className="h-3.5 w-3.5" />
@@ -636,6 +644,12 @@ export default function NotificationCenter() {
   const initialized = useRef(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Close whichever notification surface is open (desktop popover / mobile
+  // sheet). Safe to call both setters — only one surface is ever mounted.
+  const closeNotificationPanels = useCallback(() => {
+    setDesktopOpen(false);
+    setMobileOpen(false);
+  }, []);
   // Timestamp of the last "mark all as read" — poll/SSE items created BEFORE
   // this moment must not re-enter the store as unread (prevents the classic
   // race where an in-flight poll resurrects just-read notifications).
@@ -962,7 +976,7 @@ export default function NotificationCenter() {
         )}
       </div>
       <div className="flex items-center gap-1">
-        <NotificationPreferences />
+        <NotificationPreferences onNavigate={closeNotificationPanels} />
         {unreadCount > 0 && (
           <Button
             variant="ghost"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import { createHash } from 'crypto';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 
 /**
  * GET /api/workspace/download-source
@@ -38,7 +38,7 @@ export async function POST() {
 export async function GET(_request: NextRequest) {
   // ─── ADMIN-ONLY: normal users receive 403 ───
   // This is an internal development/export utility, not a user-facing feature.
-  return withAdmin(_request, async () => {
+  return withSuperAdmin(_request, async () => {
   const startTime = performance.now();
 
   // ─── Defensive: ensure no .env files are tracked before streaming ───

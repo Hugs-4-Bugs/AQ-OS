@@ -4,14 +4,16 @@
 // GET /api/metrics/dashboard — Returns comprehensive observability data
 // ═══════════════════════════════════════════════════════════════════
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { withAdmin } from '@/lib/auth-middleware';
 import { db, dbMonitor, getConnectionPoolStats } from '@/lib/db';
 import { apiMonitor } from '@/lib/observability/api-monitor';
 import { alertEngine } from '@/lib/observability/alerts';
 import { logger } from '@/lib/observability/logger';
 import { getRecentTraces } from '@/lib/observability/tracer';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  return withAdmin(request, async () => {
   try {
     // ── System Health Metrics ────────────────────────────────────
     const mem = process.memoryUsage();
@@ -183,6 +185,7 @@ export async function GET() {
       { status: 500 }
     );
   }
+  });
 }
 
 function formatUptime(seconds: number): string {

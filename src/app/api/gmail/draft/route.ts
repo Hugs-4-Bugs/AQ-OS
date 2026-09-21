@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
 import { createDraft, sendDraft, deleteDraft } from '@/lib/gmail-delivery-service';
 import { logGmailEvent } from '@/lib/gmail-audit-service';
 
@@ -26,6 +27,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'action must be one of: create, send, delete' },
           { status: 400 }
+        );
+      }
+
+      // ACCOUNT ISOLATION: the Gmail account must belong to the
+      // authenticated user. The delivery service does not verify this —
+      // without the check any user could send/delete from ANOTHER user's
+      // connected Gmail account.
+      const gmailAccount = await db.emailAccount.findFirst({
+        where: { id: emailAccountId, userId: user.id },
+        select: { id: true },
+      });
+      if (!gmailAccount) {
+        return NextResponse.json(
+          { error: 'Gmail account not found' },
+          { status: 404 }
         );
       }
 

@@ -1,8 +1,14 @@
 /**
  * Recover missed events after offline period
  * POST /api/realtime/recover
+ *
+ * ACCOUNT ISOLATION: the recovered identity is ALWAYS the authenticated
+ * session user. The previous unauthenticated version took userId from the
+ * request body and replayed ANY user's missed events (leads, payments,
+ * notifications, messages, workflows, AI) to the caller.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 import { recoverMissedEvents, trackUserActivity } from '@/lib/offline-recovery';
 import { type EventChannel } from '@/lib/realtime-event-bus';
 
@@ -18,21 +24,17 @@ const VALID_CHANNELS: EventChannel[] = [
 ];
 
 export async function POST(request: NextRequest) {
+  return withAuth(request, async (authUser) => {
   try {
     const body = await request.json();
-    const { userId, orgId, sinceTimestamp, channels } = body as {
-      userId?: string;
-      orgId?: string;
+    const { sinceTimestamp, channels } = body as {
       sinceTimestamp?: number;
       channels?: string[];
     };
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 400 },
-      );
-    }
+    // Trusted identity only — body userId/orgId are ignored.
+    const userId = authUser.id;
+    const orgId = authUser.orgId ?? undefined;
 
     // Validate channels if provided
     let validatedChannels: EventChannel[] | undefined;
@@ -70,4 +72,5 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+  });
 }

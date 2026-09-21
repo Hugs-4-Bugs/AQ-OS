@@ -72,11 +72,20 @@ interface AppState {
   selectedLeadId: string | null;
   sidebarOpen: boolean; // mobile sheet open/close
   sidebarCollapsed: boolean; // desktop sidebar collapsed state
+  /**
+   * One-shot request to open the Settings tab on a specific section
+   * (e.g. 'notifications'). Consumed by SettingsShell on mount — lets
+   * any surface (notification panel, command palette) deep-link into a
+   * Settings subsection without duplicating the settings UI.
+   */
+  pendingSettingsSection: string | null;
 
   setActiveTab: (tab: TabId) => void;
   setSelectedLeadId: (id: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  requestSettingsSection: (section: string) => void;
+  clearPendingSettingsSection: () => void;
 }
 
 // localStorage key for the desktop sidebar collapsed preference (client-only
@@ -88,6 +97,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedLeadId: null,
   sidebarOpen: false,
   sidebarCollapsed: false,
+  pendingSettingsSection: null,
 
   setActiveTab: (tab) => {
     set({ activeTab: tab });
@@ -102,6 +112,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setSelectedLeadId: (id) => set({ selectedLeadId: id }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  // Deep-link into a Settings subsection: remember the requested section and
+  // switch to the settings tab (URL sync included). SettingsShell consumes
+  // and clears the pending section once it has applied it.
+  requestSettingsSection: (section) => {
+    set({ pendingSettingsSection: section });
+    get().setActiveTab('settings');
+  },
+  clearPendingSettingsSection: () => set({ pendingSettingsSection: null }),
   // Persist the collapsed preference so a refresh restores the user's choice.
   // Initial render always uses the expanded default (SSR-safe); the persisted
   // value is re-applied after mount by the layout's hydration effect.

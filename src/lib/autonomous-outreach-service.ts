@@ -611,8 +611,11 @@ async function validateLeadEligibility(
     return { eligible: false, reason: 'Lead is inactive' };
   }
 
-  // Check ownership (or org-level access)
-  if (lead.userId && lead.userId !== userId) {
+  // Check ownership (or org-level access).
+  // ACCOUNT ISOLATION: fail closed — a lead with a null owner belongs to
+  // NOBODY. The previous `lead.userId && …` guard let any user run
+  // autonomous outreach against ownerless leads.
+  if (lead.userId !== userId) {
     return { eligible: false, reason: 'Lead does not belong to this user' };
   }
 

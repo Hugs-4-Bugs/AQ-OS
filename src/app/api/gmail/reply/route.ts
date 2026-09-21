@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
 import { replyToEmail } from '@/lib/gmail-delivery-service';
 import { logGmailEvent } from '@/lib/gmail-audit-service';
 
@@ -31,6 +32,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'body is required' },
           { status: 400 }
+        );
+      }
+
+      // ACCOUNT ISOLATION: the Gmail account must belong to the caller —
+      // previously any user could send a reply AS another user's account.
+      const gmailAccount = await db.emailAccount.findFirst({
+        where: { id: emailAccountId, userId: user.id },
+        select: { id: true },
+      });
+      if (!gmailAccount) {
+        return NextResponse.json(
+          { error: 'Gmail account not found' },
+          { status: 404 }
         );
       }
 

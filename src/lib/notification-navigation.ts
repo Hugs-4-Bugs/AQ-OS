@@ -40,6 +40,17 @@ export function openNotificationsPage(): void {
   useAppStore.getState().setActiveTab('notifications');
 }
 
+/**
+ * Navigate to the existing Notification Preferences UI — the Notifications
+ * section inside the Settings shell (Settings → Notifications). Requests the
+ * section via the app store's one-shot deep-link so the Settings shell opens
+ * directly on it. No duplicate preferences page is created: the click-through
+ * lands on the single source of truth for notification settings.
+ */
+export function openNotificationPreferences(): void {
+  useAppStore.getState().requestSettingsSection('notifications');
+}
+
 export function navigateNotificationTarget(actionUrl: string | null | undefined): boolean {
   if (!actionUrl) return false;
   const store = useAppStore.getState();

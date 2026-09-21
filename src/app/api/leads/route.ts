@@ -142,9 +142,17 @@ export const POST = withMonitoring(async (request: NextRequest) => {
         revenuePotentialScore: body.revenuePotentialScore ?? 0,
       };
 
-      // Org isolation: assign orgId when authenticated via API key
+      // ACCOUNT ISOLATION: every lead MUST have an owner. Session and
+      // personal-API-key creates are owned by the authenticated user;
+      // org-API-key creates are stamped with the key's org (org-shared)
+      // AND the key owner as the owning user. Previously session creates
+      // produced ownerless leads that no list could show and that the
+      // fail-open org checks treated as accessible to everyone.
       if (apiKeyInfo?.orgId) {
         leadData.orgId = apiKeyInfo.orgId;
+      }
+      if (user?.id) {
+        leadData.userId = user.id;
       }
 
       const lead = await db.lead.create({ data: leadData as never });

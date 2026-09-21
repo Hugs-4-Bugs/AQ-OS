@@ -39,6 +39,29 @@ export function userMessageForLeadFailure(reason: LeadResolutionFailure): string
   return 'Lead not found';
 }
 
+/**
+ * View-level access rule for a lead, shared by every API route that reads
+ * or mutates a lead fetched by ID. Mirrors the canonical checks in
+ * GET/PUT/DELETE /api/leads/[id]:
+ *
+ *   allowed = caller is the lead's owner
+ *          OR caller and lead belong to the SAME organization where BOTH
+ *             orgIds are real (non-null) values.
+ *
+ * The org branch deliberately requires `!!lead.orgId && !!user.orgId`:
+ * `null === null` must never be treated as "same org" (the historical
+ * fail-open that leaked cross-tenant leads).
+ */
+export function canUserAccessLead(
+  lead: { userId: string | null; orgId: string | null },
+  user: { id: string; orgId: string | null }
+): boolean {
+  return (
+    lead.userId === user.id ||
+    (!!user.orgId && !!lead.orgId && lead.orgId === user.orgId)
+  );
+}
+
 function isValidLeadId(leadId: unknown): leadId is string {
   return typeof leadId === 'string' && leadId.trim().length > 0 && leadId.length <= 64;
 }

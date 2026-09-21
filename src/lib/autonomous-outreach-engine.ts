@@ -543,12 +543,14 @@ export async function researchCompany(
 ): Promise<ResearchResult | null> {
   try {
     // Fetch lead data
+    // ACCOUNT ISOLATION: owner-scoped — research output embeds the lead's
+    // full profile.
     const lead = await db.lead.findUnique({
       where: { id: leadId, isActive: true },
     });
 
-    if (!lead) {
-      console.error(`[AutonomousOutreach] Lead ${leadId} not found for research`);
+    if (!lead || lead.userId !== userId) {
+      console.error(`[AutonomousOutreach] Lead ${leadId} not found (or not owned by user) for research`);
       return null;
     }
 
@@ -1083,11 +1085,13 @@ export async function autoMovePipelineStage(
 ): Promise<{ moved: boolean; fromStage?: string; toStage?: string; reason?: string }> {
   try {
     // Fetch lead
+    // ACCOUNT ISOLATION: owner-scoped — the userId parameter is now
+    // actually enforced instead of being accepted and ignored.
     const lead = await db.lead.findUnique({
       where: { id: leadId, isActive: true },
     });
 
-    if (!lead) {
+    if (!lead || lead.userId !== userId) {
       return { moved: false, reason: 'Lead not found or inactive' };
     }
 

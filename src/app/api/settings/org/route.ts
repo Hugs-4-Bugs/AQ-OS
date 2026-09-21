@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, logo, ownerId } = body;
+    const { name, logo } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -80,7 +80,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const effectiveOwnerId = ownerId ?? authUser.id;
+    // ACCOUNT ISOLATION: the creator is ALWAYS the owner. A body-supplied
+    // `ownerId` previously mutated ANOTHER user's account (orgId write)
+    // without their consent. Any other members must join via invitations.
+    const effectiveOwnerId = authUser.id;
 
     // Check if user already belongs to an org
     if (authUser.orgId) {

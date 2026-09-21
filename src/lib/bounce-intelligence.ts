@@ -440,6 +440,8 @@ export async function handleBounceEvent(params: {
     }
 
     // 5. Update lead email status if leadId is available
+    // ACCOUNT ISOLATION: only update the lead when it belongs to the
+    // authenticated caller; same for the outreach message below.
     if (leadId) {
       try {
         const status = classification.classification === 'hard_bounce'
@@ -448,8 +450,8 @@ export async function handleBounceEvent(params: {
             ? 'unsubscribed'
             : 'bounced'; // soft bounce also marks as bounced
 
-        await db.lead.update({
-          where: { id: leadId },
+        await db.lead.updateMany({
+          where: { id: leadId, userId: params.userId },
           data: { emailStatus: status },
         });
       } catch {
@@ -461,7 +463,7 @@ export async function handleBounceEvent(params: {
     if (messageId) {
       try {
         await db.outreachMessage.updateMany({
-          where: { id: messageId },
+          where: { id: messageId, userId: params.userId },
           data: {
             status: 'bounced',
             bouncedAt: new Date(),

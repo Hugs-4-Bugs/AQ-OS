@@ -337,11 +337,14 @@ export async function enrollLead(
     }
 
     // Verify lead
+    // ACCOUNT ISOLATION: the lead MUST belong to the sequence owner —
+    // previously any lead id in the system could be enrolled (and emailed)
+    // by any user.
     const lead = await db.lead.findUnique({
       where: { id: leadId },
     });
 
-    if (!lead || !lead.isActive) {
+    if (!lead || !lead.isActive || lead.userId !== userId) {
       return { success: false, error: 'Lead not found or inactive' };
     }
 

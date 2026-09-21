@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
 import {
   getBenchmarks,
   generateAllBenchmarks,
@@ -46,7 +47,27 @@ export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
       const body = await request.json().catch(() => ({}));
-      const { type, orgId } = body as { type?: string; orgId?: string };
+      const { type, orgId: rawOrgId } = body as { type?: string; orgId?: string };
+
+      // ACCOUNT ISOLATION: an org scope supplied by the client is only
+      // honored when the caller is a REAL member of that org. Otherwise
+      // fall back to the caller's own org (or none) — previously any user
+      // could compute any org's member performance aggregates.
+      let orgId: string | undefined;
+      if (rawOrgId) {
+        const membership = await db.orgMember.findFirst({
+          where: { orgId: rawOrgId, userId: user.id },
+          select: { id: true },
+        });
+        if (membership) {
+          orgId = rawOrgId;
+        } else {
+          return NextResponse.json(
+            { error: 'Not a member of this organization' },
+            { status: 403 }
+          );
+        }
+      }
 
       let result;
 

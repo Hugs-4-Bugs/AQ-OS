@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth } from '@/lib/auth-middleware';
+import { canUserAccessLead } from '@/lib/lead-resolution';
 import { sendEmail, isEmailServiceConfigured } from '@/lib/email';
 
 // GET /api/leads/[id]/communications - Get communications for a lead
@@ -8,16 +9,22 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return withAuth(_request, async (user) => {
   try {
     const { id } = await params;
 
+    // ACCOUNT ISOLATION: communications contain full conversation bodies —
+    // restrict to the lead's owner / same non-null org.
     const lead = await db.lead.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, userId: true, orgId: true },
     });
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+    if (!canUserAccessLead(lead, user)) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     const communications = await db.communication.findMany({
@@ -33,6 +40,7 @@ export async function GET(
       { status: 500 }
     );
   }
+  });
 }
 
 // POST /api/leads/[id]/communications - Add communication record
@@ -59,11 +67,17 @@ export async function POST(
 
       const lead = await db.lead.findUnique({
         where: { id },
-        select: { id: true, stage: true, email: true, businessName: true, userId: true },
+        select: { id: true, stage: true, email: true, businessName: true, userId: true, orgId: true },
       });
 
       if (!lead) {
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      }
+
+      // ACCOUNT ISOLATION: this handler sends real outreach email to the
+      // lead and mutates the lead's stage/status — owner / same org only.
+      if (!canUserAccessLead(lead, authUser)) {
+        return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
 
       const channel = body.channel || 'email';

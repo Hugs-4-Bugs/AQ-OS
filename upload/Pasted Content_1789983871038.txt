@@ -1,0 +1,1539 @@
+# AcquisitionOS — Complete Admin Dashboard
+
+## Full Functional, Operational, Analytics & Security Requirements
+
+Build a **fully functional, production-ready Admin Dashboard for AcquisitionOS**.
+
+This is a complete product requirement. Do not create a mock dashboard, static dashboard, demo data dashboard, or UI-only dashboard.
+
+The Admin Dashboard must use the **real AcquisitionOS data, real application events, real payment records, real users, real subscriptions, real credits, real leads, real workflows, real system metrics, real errors, and real feedback data** available in the application.
+
+Before implementation, inspect the complete current codebase, existing database schema, authentication system, subscription system, payment integrations, credit system, workflows, lead system, AI usage, feedback system, API architecture, logging, cron/jobs, monitoring, and existing admin/security capabilities.
+
+Do not invent duplicate systems when an existing production capability already exists. Extend and integrate with the existing architecture wherever appropriate.
+
+---
+
+# 1. ADMIN ACCESS & SECURITY
+
+The Admin Dashboard must be a privileged application area and must be treated as highly sensitive.
+
+## Authentication
+
+Admin access must require authenticated identity.
+
+Admin access must never be granted merely because a user knows or visits the admin URL.
+
+Admin authentication must be strongly protected and must use the application's canonical authentication/session system.
+
+Admin sessions must be securely validated.
+
+Administrative access must be denied by default.
+
+Unauthenticated users must have zero access to:
+
+* Admin pages
+* Admin APIs
+* Admin analytics
+* User data
+* Payment data
+* System logs
+* Audit logs
+* Internal metrics
+* Sensitive configuration
+* Administrative actions
+
+## Role-Based Access Control
+
+Implement proper RBAC for administrative functionality.
+
+The system must support clearly defined administrative roles/permissions appropriate for the application.
+
+At minimum, the architecture must support separation between:
+
+* Super Admin
+* Admin
+* Support/Operations
+* Analytics/Read-only
+* Other restricted administrative roles if required by the existing application
+
+Do not give every administrative user unrestricted access.
+
+Permissions must be granular enough to control:
+
+* User viewing
+* User modification
+* User deletion
+* User banning
+* Impersonation
+* Credit adjustments
+* Plan changes
+* Payment visibility
+* Refund visibility
+* Revenue analytics
+* System health
+* Logs
+* Audit logs
+* Feedback management
+* Security configuration
+* Administrative settings
+
+Sensitive operations must require explicit authorization.
+
+## Server-Side Authorization
+
+Security must never depend only on hiding UI elements.
+
+Every Admin API and every privileged action must independently verify:
+
+* Authentication
+* Administrative role
+* Required permission
+* Target resource authorization
+* Requested operation authorization
+
+Client-side checks are not security boundaries.
+
+Authorization must be enforced server-side.
+
+Use deny-by-default behavior.
+
+Any unknown, missing, invalid, expired, or insufficient authorization state must result in access denial.
+
+Authorization failures must fail securely.
+
+## Tenant / Account Isolation
+
+This requirement is critical.
+
+Normal users must never be able to access another user's:
+
+* Profile
+* Leads
+* Contacts
+* Research
+* AI analysis
+* Workflows
+* Workflow executions
+* Messages
+* Outreach
+* Campaigns
+* Notifications
+* Credits
+* Subscription
+* Payments
+* API keys
+* Developer Access settings
+* Feedback
+* Usage
+* Activity
+* History
+* Files
+* Exports
+* Integrations
+* Any other account-owned data
+
+The Admin Dashboard is the intentional privileged exception.
+
+Admin access must not weaken normal user isolation.
+
+Cross-account data leakage must be impossible through:
+
+* URL manipulation
+* ID manipulation
+* API requests
+* Query parameters
+* Request body manipulation
+* Cached responses
+* Search
+* Pagination
+* Filters
+* Export endpoints
+* Background jobs
+* WebSocket/SSE events
+* Server actions
+* Internal APIs
+* Direct object references
+
+Every user-owned resource must resolve against the authenticated account/tenant context.
+
+Do not rely on the frontend to enforce isolation.
+
+## Admin Security
+
+Protect the Admin Dashboard against:
+
+* IDOR
+* BOLA
+* privilege escalation
+* horizontal privilege escalation
+* vertical privilege escalation
+* session abuse
+* unauthorized impersonation
+* unauthorized data export
+* unauthorized destructive operations
+* CSRF where applicable
+* XSS
+* injection
+* sensitive information disclosure
+* accidental exposure of secrets
+* insecure direct API access
+
+Sensitive administrative operations must require appropriate confirmation and authorization.
+
+Never expose:
+
+* passwords
+* password hashes
+* authentication secrets
+* API secret values
+* payment secrets
+* webhook secrets
+* database credentials
+* private encryption keys
+* environment variables
+* internal tokens
+
+in the Admin UI, API responses, logs, exports, or error messages.
+
+---
+
+# 2. ADMIN OVERVIEW DASHBOARD
+
+Create a comprehensive real-time/near-real-time administrative overview.
+
+The dashboard must show actual current application data.
+
+## User Metrics
+
+Show:
+
+* Total Users
+* Active Users Today
+* Active Users This Week
+* Active Users This Month
+* New Users Today
+* New Users This Week
+* New Users This Month
+* User Growth Rate
+* Free Users
+* Paid Users
+* Pro Users
+* Elite Users
+* Suspended/Banned Users
+* Recently Registered Users
+
+## Revenue Metrics
+
+Show:
+
+* MRR
+* ARR
+* Revenue Today
+* Revenue This Week
+* Revenue This Month
+* Revenue Growth Rate
+* Paying Customers
+* Free-to-Paid Conversion Rate
+* Churn Rate
+* Failed Payment Count
+* Refund Amount
+* Refund Count
+
+Revenue metrics must reflect the application's actual payment records and subscription state.
+
+## Product Usage Metrics
+
+Show:
+
+* Total Leads
+* Leads Discovered Today
+* Leads Discovered This Week
+* Leads Discovered This Month
+* Total AI Credits Consumed
+* Credits Consumed Today
+* Credits Consumed This Week
+* Credits Consumed This Month
+* Workflow Executions
+* Successful Workflow Executions
+* Failed Workflow Executions
+* AI Pipeline Runs
+* Most Used Features
+* Most Active Users
+
+## System Metrics
+
+Show:
+
+* Application status
+* Server/API availability
+* Server uptime
+* API error rate
+* Request volume where available
+* Failed jobs
+* Cron/job status
+* Email delivery status
+* AI provider status where measurable
+* Payment webhook health
+* Background processing health
+* Database health where measurable
+* Queue/job health where applicable
+
+## Dashboard Charts
+
+Include meaningful real data charts for:
+
+* User growth
+* Active users
+* New registrations
+* MRR
+* ARR
+* Revenue growth
+* Free vs paid users
+* Conversion rate
+* Churn
+* Leads discovered
+* AI credit consumption
+* Workflow executions
+* Feature usage
+* API errors
+* Failed jobs
+
+Charts must support useful time ranges where appropriate:
+
+* Today
+* 7 days
+* 30 days
+* 90 days
+* 12 months
+* Custom range where appropriate
+
+Charts must not display fabricated values.
+
+If historical data does not exist, clearly represent the limitation instead of generating fake history.
+
+---
+
+# 3. USERS MANAGEMENT
+
+Create a complete Users management area.
+
+## User List
+
+Show:
+
+* Name
+* Email
+* Account/Organization
+* Plan
+* Subscription status
+* Join date
+* Last active
+* Credits remaining
+* Credits consumed
+* Leads count
+* Workflow count
+* Usage summary
+* Account status
+
+Support:
+
+* Search by email
+* Search by name
+* Search by user/account ID where appropriate
+* Filtering
+* Sorting
+* Pagination
+* Plan filtering
+* Subscription filtering
+* Active/inactive filtering
+* Date filtering
+* Status filtering
+
+## User Details
+
+Each user must have a comprehensive profile view containing:
+
+### Account
+
+* Name
+* Email
+* Account ID
+* Organization
+* Created date
+* Last login
+* Last activity
+* Account status
+
+### Subscription
+
+* Current plan
+* Subscription status
+* Start date
+* Renewal date
+* Cancellation status
+* Trial information
+* Payment gateway
+* Subscription history
+
+### Credits
+
+* Current credits
+* Credits allocated
+* Credits consumed
+* Credit history
+* Credit usage by feature
+
+### Product Usage
+
+* Leads
+* Discovery activity
+* AI research
+* AI analysis
+* Workflow executions
+* Messages
+* Outreach activity
+* API usage
+* Developer Access
+* Other important feature usage
+
+### Payments
+
+* Payment history
+* Successful payments
+* Failed payments
+* Refunds
+* Gateway
+* Amount
+* Currency
+* Payment status
+
+### Activity
+
+* Login/activity history
+* Important account events
+* Security events
+* Subscription events
+* Usage events
+
+## User Actions
+
+Authorized administrative roles may have access to:
+
+* Add Credits
+* Adjust Credits
+* Change Plan
+* Suspend/Ban User
+* Restore User
+* Delete User
+* Impersonate User
+* View User Activity
+
+Every privileged action must be:
+
+* Permission-protected
+* Confirmed where appropriate
+* Audited
+* Attributable to the admin who performed it
+* Recorded with timestamp and target account
+
+### Delete User
+
+Deletion must be treated as a highly destructive operation.
+
+The system must clearly distinguish:
+
+* Soft deletion
+* Permanent deletion
+
+Permanent deletion must never happen accidentally.
+
+Existing billing, compliance, audit, and security requirements must be respected.
+
+### Impersonation
+
+Impersonation must be extremely restricted.
+
+It must:
+
+* Require explicit permission
+* Require strong confirmation
+* Clearly indicate that the session is impersonated
+* Never expose or reveal the user's credentials
+* Never allow the impersonated user to gain administrative privileges
+* Log who initiated impersonation
+* Log target user
+* Log start/end
+* Provide a clear way to exit impersonation
+* Preserve complete auditability
+
+---
+
+# 4. REVENUE & BILLING
+
+Create a complete Revenue section.
+
+AcquisitionOS supports both:
+
+* Stripe
+* Razorpay
+
+Both gateways must be represented correctly.
+
+## Payment List
+
+Show:
+
+* Payment ID
+* User
+* Plan
+* Gateway
+* Amount
+* Currency
+* Status
+* Date
+* Payment type
+* Subscription reference where applicable
+
+Support:
+
+* Search
+* Filtering
+* Date range
+* Gateway filtering
+* Status filtering
+* Plan filtering
+* Pagination
+
+## Payment States
+
+Track appropriate states including:
+
+* Successful
+* Failed
+* Pending
+* Cancelled
+* Refunded
+* Partially refunded where supported
+* Webhook failure
+* Verification failure
+* Other actual states supported by the existing payment architecture
+
+## Revenue Analytics
+
+Show:
+
+* Total revenue
+* MRR
+* ARR
+* Revenue growth
+* Revenue by plan
+* Revenue by gateway
+* Revenue by currency where applicable
+* Revenue by day
+* Revenue by week
+* Revenue by month
+
+## Revenue Charts
+
+Include:
+
+* Daily revenue
+* Weekly revenue
+* Monthly revenue
+* Revenue growth
+* Plan revenue breakdown
+* Gateway revenue breakdown
+
+## Failed Payments
+
+Show:
+
+* Failed payment count
+* Failed payment amount
+* Affected users
+* Failure reason where safely available
+* Gateway
+* Date
+* Recovery status where available
+
+## Refunds
+
+Show:
+
+* Refund count
+* Refund amount
+* User
+* Payment
+* Gateway
+* Reason where available
+* Date
+* Status
+
+Payment provider dashboards remain authoritative for provider-specific details, while AcquisitionOS should provide the unified application-level billing view.
+
+---
+
+# 5. SUBSCRIPTIONS
+
+Create a dedicated subscription management/analytics section or integrate it appropriately into Revenue.
+
+Track:
+
+* Free subscriptions
+* Pro subscriptions
+* Elite subscriptions
+* Active subscriptions
+* Trial subscriptions
+* Cancelled subscriptions
+* Expired subscriptions
+* Past-due subscriptions
+* Subscription renewals
+* Subscription upgrades
+* Subscription downgrades
+* Subscription churn
+* New paid subscriptions
+* Free-to-paid conversions
+
+Show:
+
+* Subscription growth
+* Conversion rate
+* Churn rate
+* Plan distribution
+* Monthly recurring revenue
+* Annual recurring revenue
+
+---
+
+# 6. LEADS & USAGE
+
+Create a comprehensive product usage section.
+
+## Leads
+
+Track across all users:
+
+* Total leads discovered
+* Leads discovered today
+* Leads discovered this week
+* Leads discovered this month
+* Leads analyzed
+* Leads qualified
+* Leads contacted
+* Leads replied
+* Lead pipeline distribution
+* Discovery source distribution where available
+
+Do not expose one user's private leads to another user.
+
+Admin-level aggregated analytics may use cross-user data only within the authorized administrative context.
+
+## AI Usage
+
+Track:
+
+* AI credits consumed
+* AI operations
+* AI analyses
+* AI research
+* AI pipeline runs
+* AI workflow generation
+* AI feature usage
+* Credit consumption by feature
+* Credit consumption by user
+* Credit consumption by plan
+* Credit consumption over time
+
+## Most Active Users
+
+Provide ranking/analytics based on measurable product activity.
+
+Show:
+
+* User
+* Plan
+* Activity
+* Leads
+* AI usage
+* Workflow usage
+* Credit consumption
+* Last active
+
+Do not expose sensitive information unnecessarily.
+
+## Feature Usage
+
+Track which product features are being used most.
+
+Examples include:
+
+* Lead Discovery
+* AI Chat Search
+* AI Analysis
+* Deep Research
+* Workflow Builder
+* Workflow Execution
+* Outreach
+* Messaging
+* Pipeline
+* Assistant
+* Insights
+* Deals
+* Competitors
+* API
+* Developer Access
+* Other existing product features
+
+Use actual application telemetry/events.
+
+Do not create fake feature usage statistics.
+
+---
+
+# 7. WORKFLOWS & BACKGROUND OPERATIONS
+
+Create administrative visibility into workflows and background operations.
+
+Track:
+
+* Total workflows
+* Active workflows
+* Disabled workflows
+* Paused workflows
+* Workflow executions
+* Successful executions
+* Failed executions
+* Currently running executions
+* Execution duration
+* Failure rate
+* Recent failures
+* Subscription-paused workflows
+* AI workflow creation usage
+
+Provide appropriate filtering and detailed execution visibility.
+
+Do not expose private workflow data to unauthorized users.
+
+---
+
+# 8. SYSTEM HEALTH
+
+Create a System Health section.
+
+Track actual application/system health wherever measurable.
+
+## Application
+
+* Server uptime
+* Application status
+* API availability
+* API error rate
+* Request volume
+* Response/error trends
+* Critical errors
+
+## Database
+
+Where supported by the architecture:
+
+* Database connectivity
+* Health
+* Errors
+* Query/performance indicators
+* Connection status
+* Resource indicators
+
+## Jobs / Cron
+
+Track:
+
+* Job status
+* Cron status
+* Last successful run
+* Last failure
+* Failure count
+* Current execution
+* Next expected execution where available
+* Repeated failures
+
+## Email
+
+Track:
+
+* Emails sent
+* Delivered
+* Failed
+* Bounced
+* Delivery rate
+* Recent failures
+
+## AI Providers
+
+Track health/status where the application has measurable integration state.
+
+Do not expose API secrets.
+
+## Payments
+
+Track:
+
+* Stripe integration health
+* Razorpay integration health
+* Webhook health
+* Recent webhook failures
+* Verification failures
+
+## External Integrations
+
+Show health/status for existing integrations where appropriate.
+
+---
+
+# 9. LOGS
+
+Create an administrative Logs area.
+
+Logs must be useful for production troubleshooting and security investigation.
+
+Include appropriate categories such as:
+
+* Application logs
+* API errors
+* Authentication events
+* Authorization failures
+* Admin actions
+* Payment events
+* Webhook events
+* Workflow failures
+* Background job failures
+* AI errors
+* Email errors
+* Security events
+* Integration failures
+
+Support:
+
+* Search
+* Filtering
+* Severity
+* Date/time
+* Category
+* User/account where appropriate
+* Request/event correlation where available
+* Pagination
+
+Logs must never expose secrets or sensitive credentials.
+
+Sensitive data must be redacted appropriately.
+
+---
+
+# 10. AUDIT LOGS
+
+Create a dedicated immutable/auditable administrative activity history.
+
+Track every security-sensitive administrative action.
+
+Examples:
+
+* Admin login
+* Failed admin login
+* Role change
+* Permission change
+* User viewed
+* User modified
+* Credits changed
+* Plan changed
+* User banned
+* User restored
+* User deleted
+* User impersonated
+* Impersonation ended
+* Payment-related admin action
+* Subscription modification
+* Security configuration changes
+* Developer Access changes
+* API key-related administrative actions
+* Export actions
+* Other privileged operations
+
+Each event should have appropriate information such as:
+
+* Actor
+* Actor role
+* Action
+* Target
+* Timestamp
+* Result
+* Relevant request/context metadata
+* Reason where required
+
+Audit logs must themselves be protected from unauthorized modification/deletion.
+
+---
+
+# 11. FEEDBACK & ISSUES
+
+Create a Feedback/Issues section.
+
+Integrate with the existing feedback system.
+
+Show:
+
+* Bug reports
+* Feature requests
+* User feedback
+* Unresolved issues count
+* Open issues
+* Resolved issues
+* Priority
+* Status
+* Reporter
+* Date
+* Related user/account where authorized
+* Relevant context
+
+Support:
+
+* Search
+* Filtering
+* Status changes
+* Priority changes
+* Resolution tracking
+* Assignment where appropriate
+
+Do not fabricate feedback records.
+
+---
+
+# 12. API & SWAGGER / DEVELOPER VISIBILITY
+
+Create an administrative Developer/API area.
+
+The admin system should provide visibility into the application's API surface and developer infrastructure.
+
+Include appropriate access to:
+
+* API documentation
+* Swagger/OpenAPI documentation if available
+* API endpoints overview
+* API usage
+* API errors
+* API request metrics
+* API key usage
+* Developer Access status
+* API authentication failures
+* Rate-limit events where available
+
+Swagger/API documentation must never expose:
+
+* Secrets
+* Private credentials
+* Production tokens
+* Database credentials
+* Internal authentication secrets
+
+If Swagger/OpenAPI already exists, integrate it rather than creating a duplicate API documentation system.
+
+---
+
+# 13. DEVELOPER ACCESS & API KEYS
+
+Provide administrative visibility into Developer Access.
+
+Track:
+
+* Users with Developer Access enabled
+* Users with Developer Access disabled
+* API key count
+* API key status
+* API usage
+* Recent API activity
+* API errors
+* Suspicious usage
+
+Never expose full API secret values to administrators or frontend clients.
+
+Use secure masked representations.
+
+---
+
+# 14. SECURITY EVENTS
+
+Create a Security/Authentication section.
+
+Track relevant events such as:
+
+* Successful logins
+* Failed logins
+* Session events
+* Password/security changes
+* Account suspension
+* Account restoration
+* Permission changes
+* Admin access attempts
+* Authorization failures
+* Suspicious access attempts
+* API authentication failures
+* Rate-limit violations
+* Impersonation
+* Other security-relevant events
+
+Provide appropriate search/filtering and auditability.
+
+---
+
+# 15. NOTIFICATIONS
+
+Provide administrative visibility into important system notifications.
+
+Track:
+
+* System alerts
+* Critical failures
+* Payment failures
+* Job failures
+* Security events
+* Integration failures
+* Operational warnings
+
+Notifications must be based on real events.
+
+No fake/static notifications.
+
+---
+
+# 16. REAL-TIME / LIVE DATA
+
+The Admin Dashboard must be capable of showing current application state without requiring unnecessary manual refreshes.
+
+Where appropriate, support real-time or near-real-time updates for:
+
+* Active users
+* New registrations
+* Payments
+* Failed payments
+* Workflow executions
+* Job failures
+* System health
+* API errors
+* Notifications
+* Critical system events
+* Usage counters
+
+Do not fake real-time behavior.
+
+Use the application's actual event/data architecture.
+
+The dashboard must remain reliable if real-time delivery is temporarily unavailable.
+
+---
+
+# 17. SEARCH, FILTERING & DATE RANGES
+
+Administrative data should be usable at production scale.
+
+Where relevant, support:
+
+* Search
+* Filtering
+* Sorting
+* Pagination
+* Date ranges
+* Status filters
+* Plan filters
+* Gateway filters
+* User filters
+* Severity filters
+* Feature filters
+* Error filters
+
+Do not load unlimited datasets into the browser.
+
+---
+
+# 18. DATA EXPORT
+
+Provide controlled administrative export capabilities where useful.
+
+Potential exports:
+
+* Users
+* Revenue
+* Payments
+* Subscriptions
+* Usage
+* Leads aggregate data
+* Feedback
+* Audit logs
+
+Exports must:
+
+* Require explicit authorization
+* Be audited
+* Respect role permissions
+* Protect sensitive information
+* Never expose secrets
+* Respect account/privacy boundaries
+* Be protected against unauthorized access
+
+---
+
+# 19. ADMIN SETTINGS
+
+Provide appropriate administrative settings for system-level configuration.
+
+Do not expose raw environment variables or secrets.
+
+Administrative configuration should support only settings that are genuinely required by the application.
+
+Sensitive configuration must have additional authorization controls.
+
+All security-sensitive configuration changes must be audited.
+
+---
+
+# 20. DATA ACCURACY
+
+This is a critical requirement.
+
+All dashboard metrics must come from real application data.
+
+Do not use:
+
+* Hardcoded numbers
+* Fake users
+* Fake revenue
+* Fake activity
+* Fake charts
+* Placeholder production metrics
+* Random generated statistics
+
+Every metric must have a clearly correct source in the existing application architecture.
+
+Metrics must remain internally consistent.
+
+Examples:
+
+Total users must reconcile with actual user records.
+
+Paid users must reconcile with actual subscription state.
+
+MRR must reconcile with active paid subscriptions and the application's billing rules.
+
+Credits consumed must reconcile with actual credit transactions/usage.
+
+Revenue must reconcile with actual payment records according to the application's revenue definition.
+
+---
+
+# 21. PERFORMANCE & SCALABILITY
+
+The Admin Dashboard must be designed for future growth.
+
+It must remain usable as AcquisitionOS grows from:
+
+* Hundreds of users
+* Thousands of users
+* Tens of thousands of users
+* Potentially much larger datasets
+
+Avoid unnecessarily expensive queries.
+
+Use appropriate aggregation, pagination, indexing, caching, and data-access strategies based on the actual architecture.
+
+Do not introduce performance problems into the production application.
+
+---
+
+# 22. ERROR HANDLING
+
+Admin pages must have professional error handling.
+
+Handle:
+
+* API failures
+* Database failures
+* Payment provider failures
+* Missing data
+* Permission failures
+* Expired sessions
+* Real-time connection failures
+* Partial data availability
+* External integration failures
+
+Never expose:
+
+* Stack traces
+* SQL errors
+* Secrets
+* Internal credentials
+* Sensitive implementation details
+
+to the browser/user.
+
+---
+
+# 23. RESPONSIVE UI
+
+The complete Admin Dashboard must be responsive.
+
+It must work correctly on:
+
+* Desktop
+* Laptop
+* Tablet
+* Mobile
+
+Tables, charts, cards, filters, dialogs, logs, and detail views must remain usable on smaller screens.
+
+The UI should be consistent with the existing AcquisitionOS design system and visual language.
+
+Do not create a visually disconnected admin application.
+
+---
+
+# 24. EMPTY STATES
+
+Every dashboard section must handle empty states properly.
+
+Examples:
+
+* No users yet
+* No payments yet
+* No revenue yet
+* No failed payments
+* No feedback
+* No errors
+* No workflows
+* No usage history
+* No audit events
+
+Do not display misleading zeros when the underlying data is unavailable.
+
+Clearly distinguish:
+
+* Actual zero
+* No data
+* Data unavailable
+* Integration unavailable
+
+---
+
+# 25. ACCESSIBILITY
+
+The Admin Dashboard must maintain appropriate accessibility.
+
+Include:
+
+* Keyboard navigation
+* Accessible controls
+* Clear focus states
+* Proper labels
+* Accessible tables
+* Accessible dialogs
+* Meaningful status indicators
+* Appropriate contrast
+* Screen-reader-friendly important controls
+
+---
+
+# 26. SECURITY TESTING
+
+Before considering the Admin Dashboard complete, test:
+
+### Authentication
+
+* Unauthenticated access denied
+* Expired session denied
+* Invalid session denied
+
+### Authorization
+
+* Normal user cannot access admin pages
+* Normal user cannot call admin APIs
+* Restricted admin cannot access unauthorized admin functions
+* Admin cannot perform actions beyond assigned permissions
+* Deny-by-default behavior works
+
+### Tenant Isolation
+
+Test that one normal account cannot access another account's:
+
+* Users
+* Leads
+* Workflows
+* Credits
+* Payments
+* Notifications
+* API keys
+* Usage
+* Feedback
+* History
+* Any other private data
+
+### IDOR/BOLA
+
+Attempt resource access by manipulating:
+
+* IDs
+* Query parameters
+* URLs
+* Request bodies
+* API calls
+
+All unauthorized access must fail.
+
+### Admin Actions
+
+Test:
+
+* Add credits
+* Plan change
+* Ban
+* Restore
+* Delete
+* Impersonation
+* Export
+* Permission changes
+
+Ensure every action is authorized and audited.
+
+### Security Regression
+
+Ensure the Admin Dashboard does not reintroduce or bypass existing account-isolation protections.
+
+---
+
+# 27. ADMIN AUDITABILITY
+
+Every important administrative operation must be traceable.
+
+It must always be possible to determine:
+
+* Who performed the action
+* What they did
+* Which resource/account was affected
+* When it happened
+* Whether it succeeded or failed
+
+Administrative actions must not disappear silently.
+
+---
+
+# 28. OBSERVABILITY
+
+The Admin Dashboard should provide high-level operational visibility while detailed infrastructure observability may remain in the appropriate cloud/monitoring platform.
+
+The Admin Dashboard must not attempt to replace cloud infrastructure monitoring where that platform is the authoritative source.
+
+Instead, AcquisitionOS should expose meaningful application-level health and operational information.
+
+---
+
+# 29. NO DATA FABRICATION
+
+If a metric cannot currently be calculated reliably because the application does not store the necessary historical data, do not fabricate it.
+
+Instead:
+
+* Identify the missing data requirement
+* Implement the required data tracking if it is necessary for the requested metric
+* Clearly distinguish newly tracked metrics from historical metrics
+* Preserve data accuracy
+
+Historical charts must not pretend to have data that was never recorded.
+
+---
+
+# 30. PRODUCT ANALYTICS FOUNDATION
+
+The Admin Dashboard must establish a reliable foundation for future analytics.
+
+Track meaningful product events required to understand:
+
+* User activation
+* User engagement
+* Feature adoption
+* Conversion
+* Subscription changes
+* Churn
+* Usage
+* Credit consumption
+* Lead generation
+* AI usage
+* Workflow adoption
+* API adoption
+
+Do not introduce unnecessary tracking of sensitive personal information.
+
+---
+
+# 31. ADMIN DASHBOARD NAVIGATION
+
+The Admin area should have a clear structure covering at minimum:
+
+* Overview
+* Users
+* Revenue
+* Subscriptions
+* Leads & Usage
+* Workflows
+* System Health
+* Logs
+* Audit Logs
+* Feedback / Issues
+* API / Swagger
+* Developer Access
+* Security
+* Notifications
+* Settings
+
+Organize these logically according to the existing application design.
+
+---
+
+# 32. PRODUCTION REQUIREMENT
+
+This must be a **real production Admin Dashboard**, not a prototype.
+
+Every visible number must connect to real application data.
+
+Every action must actually work.
+
+Every permission must actually be enforced.
+
+Every administrative mutation must be audited.
+
+Every security boundary must exist server-side.
+
+Every user/account must remain properly isolated.
+
+Every payment metric must use actual Stripe/Razorpay data available through the application's payment architecture.
+
+Every usage metric must use actual usage/credit/event data.
+
+Every system-health metric must use actual measurable application/infrastructure information.
+
+---
+
+# 33. PRESERVE EXISTING ACQUISITIONOS FUNCTIONALITY
+
+Do not break existing functionality.
+
+Preserve all existing:
+
+* Authentication
+* User accounts
+* Account isolation
+* Leads
+* Discovery
+* AI pipeline
+* Workflows
+* Workflow execution
+* Credits
+* Subscriptions
+* Stripe
+* Razorpay
+* Payments
+* Developer Access
+* API keys
+* Notifications
+* Feedback
+* Settings
+* Legal pages
+* Existing security controls
+* Existing source-code protection
+* Existing frontend functionality
+* Existing backend functionality
+
+The Admin Dashboard must integrate with the existing system rather than replacing working functionality unnecessarily.
+
+---
+
+# 34. DATA OWNERSHIP & PRIVACY
+
+The Admin Dashboard provides privileged access only to authorized internal administrators.
+
+Do not expose unnecessary personal data.
+
+Do not expose credentials or secrets.
+
+Use minimum necessary information for each administrative function.
+
+Administrative access must follow least-privilege principles.
+
+---
+
+# 35. FINAL ACCEPTANCE CRITERIA
+
+The feature is complete only when all of the following are true:
+
+* Admin Dashboard exists and is fully functional
+* Admin authentication works
+* RBAC works
+* Server-side authorization works
+* Normal users cannot access admin functionality
+* Tenant/account isolation remains intact
+* Users can be searched and managed
+* User activity is visible
+* Plans/subscriptions are visible
+* Stripe payments are visible
+* Razorpay payments are visible
+* Failed payments are visible
+* Refunds are visible
+* Revenue analytics work
+* MRR/ARR work according to defined billing rules
+* Conversion rate works
+* Churn rate works where sufficient data exists
+* Leads analytics work
+* AI credit analytics work
+* Feature usage works
+* Workflow analytics work
+* System health works
+* API health/error visibility works
+* Email delivery visibility works where data exists
+* Failed jobs/cron visibility works
+* Feedback/issues are visible
+* Logs are available
+* Audit logs are available
+* Security events are available
+* API/Swagger visibility is available where supported
+* Developer Access/API usage visibility works
+* Real-time/near-real-time updates work where applicable
+* Search/filter/pagination work
+* Responsive UI works
+* Empty/error states work
+* Sensitive data is protected
+* Admin actions are audited
+* Impersonation is secure and audited
+* Destructive actions are protected
+* No fake/static production metrics exist
+* No cross-account data leakage exists
+* Security tests pass
+* Existing application functionality remains intact
+
+---
+
+# 36. IMPLEMENTATION PRINCIPLE
+
+Do not interpret this as a request for a visual dashboard only.
+
+The requirement is for a complete **Administrative Control, Analytics, Security, Operations, Billing, Usage and Observability layer for AcquisitionOS**.
+
+Inspect the existing application and determine the correct implementation based on its actual architecture.
+
+Do not invent architecture unnecessarily.
+
+Do not create duplicate data sources unnecessarily.
+
+Do not hardcode metrics.
+
+Do not use mock production data.
+
+Do not bypass existing authentication, authorization, billing, subscription, credit, or tenant-isolation logic.
+
+The final result must be production-ready and secure.
+
+Security must follow strong authorization principles including deny-by-default, least privilege, server-side authorization, protected administrative interfaces, multi-tenant isolation, auditability, and security testing.
