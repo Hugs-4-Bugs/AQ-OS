@@ -9,6 +9,7 @@ import {
   OTP_EXPIRY_SECONDS,
 } from '@/lib/auth';
 import { sendOtpLoginEmail, isEmailServiceConfigured } from '@/lib/email';
+import { devOtpDelivery } from '@/lib/dev-auth';
 import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
@@ -92,10 +93,18 @@ export async function POST(request: NextRequest) {
 
     if (!emailConfigured) {
       console.error('[OTP Request] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY).');
+      // DEV-ONLY: when no real provider exists (e.g. sandbox/preview) hand the
+      // generated code back to the requesting client so the flow can continue.
+      // In production builds devOtpDelivery() returns undefined and the
+      // response is identical to the previous behavior.
+      const devDelivery = devOtpDelivery(otp, 'login code');
       return NextResponse.json({
         message: 'If an account exists with this email, an OTP has been sent.',
-        deliveryIssue: true,
-        deliveryMessage: 'Email delivery is not configured on the server. Please contact support.',
+        deliveryIssue: !devDelivery,
+        deliveryMessage: devDelivery
+          ? 'Email delivery is not configured on this server. Development mode: your login code is shown below so you can continue.'
+          : 'Email delivery is not configured on the server. Please contact support.',
+        ...(devDelivery ? { devDelivery } : {}),
       });
     }
 

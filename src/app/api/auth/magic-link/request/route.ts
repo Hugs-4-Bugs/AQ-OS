@@ -8,6 +8,7 @@ import {
   getUserAgent,
 } from '@/lib/auth';
 import { sendMagicLinkEmail, isEmailServiceConfigured } from '@/lib/email';
+import { devMagicLinkDelivery } from '@/lib/dev-auth';
 import { withRateLimit } from '@/lib/security/rate-limiter';
 import { getAppUrl } from '@/lib/app-url';
 
@@ -142,10 +143,18 @@ export async function POST(request: NextRequest) {
 
     if (!emailConfigured) {
       console.error('[Magic Link] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY).');
+      // DEV-ONLY: when no real provider exists (e.g. sandbox/preview) hand the
+      // generated link back to the requesting client so the flow can continue.
+      // In production builds devMagicLinkDelivery() returns undefined and the
+      // response is identical to the previous behavior.
+      const devDelivery = devMagicLinkDelivery(magicLinkUrl);
       return NextResponse.json({
         message: 'If an account exists with this email, a magic link has been sent.',
-        deliveryIssue: true,
-        deliveryMessage: 'Email delivery is not configured on the server. Please contact support.',
+        deliveryIssue: !devDelivery,
+        deliveryMessage: devDelivery
+          ? 'Email delivery is not configured on this server. Development mode: your sign-in link was generated locally and can be opened below.'
+          : 'Email delivery is not configured on the server. Please contact support.',
+        ...(devDelivery ? { devDelivery } : {}),
       });
     }
 

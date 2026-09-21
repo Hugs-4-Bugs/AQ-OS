@@ -35,8 +35,15 @@ function startServer(): void {
   restartCount++;
   console.log(`[watchdog] Starting Next.js dev server (attempt ${restartCount}/${MAX_RESTARTS})...`);
 
+  // Spawn the dev server under NODE, not bun.
+  // FIX 20260920 (runtime): `bun --bun next dev` breaks Turbopack's
+  // hashed-external resolution hook (e.g. @prisma/client-<hash>,
+  // nodemailer-<hash>) in the bun-spawned server process — every API route
+  // importing @prisma/client returns 500 and the UI shows "Network error".
+  // Starting the same CLI under node applies the alias hook correctly and
+  // matches how package.json's "dev" script runs since fe912e0.
   child = spawn({
-    cmd: ["bun", "--bun", "next", "dev", "-p", String(PORT)],
+    cmd: ["node", "node_modules/next/dist/bin/next", "dev", "-p", String(PORT)],
     cwd: PROJECT_DIR,
     stdout: "pipe",
     stderr: "pipe",
@@ -97,8 +104,31 @@ Bun.serve({
 console.log(`[watchdog] Watchdog HTTP server on :${WATCHDOG_PORT}`);
 console.log(`[watchdog] Health check: http://localhost:${WATCHDOG_PORT}/health`);
 
-// Start the Next.js server
-startServer();
+// ─── Adopt mode ────────────────────────────────────────────────────
+// If a healthy dev server is ALREADY listening on PORT (e.g. the one
+// started by .zscripts/dev.sh in this workspace), do NOT spawn a
+// competing `next dev`. A blind spawn would die with EADDRINUSE and
+// churn restarts, and two compilers writing .next can corrupt state.
+// We adopt the running server instead; the periodic health check
+// below still restarts the server if it genuinely goes down.
+async function adoptOrStart(): Promise<void> {
+  try {
+    const res = await fetch(`http://localhost:${PORT}/api/auth/config`, {
+      signal: AbortSignal.timeout(2500),
+    });
+    if (res.ok) {
+      console.log(
+        `[watchdog] Port ${PORT} already served by an external process — adopting it (no spawn).`
+      );
+      return;
+    }
+  } catch {
+    // Port 3000 not reachable yet — fall through and spawn normally.
+  }
+  startServer();
+}
+
+adoptOrStart();
 
 // Periodic health check — restart if the HTTP server is unresponsive
 setInterval(async () => {

@@ -106,8 +106,12 @@ export async function POST(request: NextRequest) {
           await createNotification({
             userId: admin.id,
             type: 'system',
-            title: `High crash frequency: ${truncate(message, 60)}`,
-            message: `Crash "${truncate(message, 80)}" has occurred ${recentCount} times in the last hour.`,
+            // SAFE USER-FACING MESSAGE (requirement: never expose raw
+            // exceptions in the notification UI). The raw crash text is
+            // available to admins in the Feedback/Reports console and in the
+            // notification metadata (which is never rendered in the UI).
+            title: 'System stability alert',
+            message: `An application issue was detected ${recentCount} times in the last hour. The details have been logged for the team — no action is required from you.`,
             actionUrl: '/admin/feedback',
             metadata: { crashId: crash.id, errorMessage: message, recentCount, urgent: true },
           });

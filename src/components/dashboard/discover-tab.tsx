@@ -24,6 +24,9 @@ import {
   RefreshCw,
   ChevronDown,
   ExternalLink,
+  Layers,
+  PencilLine,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +36,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -49,6 +62,7 @@ import { toast } from 'sonner';
 
 // ─── Discovery Source Config ─────────────────────────────
 const DISCOVERY_SOURCES = [
+  { value: 'all', label: 'All Sources', icon: Layers, color: 'text-primary' },
   { value: 'ai_search', label: 'AI Search', icon: Sparkles, color: 'text-violet-500' },
   { value: 'google_maps', label: 'Google Maps', icon: MapPin, color: 'text-red-500' },
   { value: 'google_business', label: 'Google Business', icon: Globe, color: 'text-blue-500' },
@@ -62,12 +76,30 @@ const DISCOVERY_SOURCES = [
   { value: 'facebook', label: 'Facebook', icon: Globe, color: 'text-blue-500' },
 ] as const;
 
+// Sources fanned out when "All Sources" is selected (must match server-side ALL_DISCOVERY_SOURCES)
+const ALL_SOURCES_COUNT = 7;
+
 function Star(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   );
+}
+
+// ─── Discovery Source Status (real-time from server env) ─────
+interface DiscoverySourceStatus {
+  id: string;
+  label: string;
+  type: 'ai' | 'api' | 'scrape';
+  description: string;
+  status: 'connected' | 'not_configured' | 'error';
+  configMessage: string;
+  requiredEnvVars: Array<{ name: string; label: string; required: boolean }>;
+  optionalEnvVars: Array<{ name: string; label: string; required: boolean }>;
+  signupUrl: string | null;
+  notes: string | null;
+  noSetupRequired: boolean;
 }
 
 // ─── Discovery Job Types ─────────────────────────────────
@@ -96,6 +128,26 @@ interface DiscoveryJob {
   createdAt: string;
   completedAt?: string;
   message?: string;
+  errorMessage?: string;
+}
+
+// ─── AI Chat Mode Types ─────────────────────────────────
+interface ParsedIntent {
+  niche: string;
+  location: string;
+  country: string;
+  city: string;
+  count: number;
+  requirements: string;
+}
+
+interface DiscoveryVars {
+  niche: string;
+  country: string;
+  city?: string;
+  source: string;
+  maxResults?: number;
+  requirements?: string;
 }
 
 // ─── Helper Functions ────────────────────────────────────
@@ -313,8 +365,10 @@ function DiscoveryJobProgress({
               {currentJob.leadsAdded} leads found
             </span>
           )}
-          {currentJob.status === 'failed' && currentJob.message && (
-            <span className="text-red-500 truncate max-w-[200px]">{currentJob.message}</span>
+          {currentJob.status === 'failed' && (currentJob.errorMessage || currentJob.message) && (
+            <span className="text-red-500 truncate max-w-[280px]" title={currentJob.errorMessage || currentJob.message}>
+              {currentJob.errorMessage || currentJob.message}
+            </span>
           )}
         </div>
       </CardContent>
@@ -438,11 +492,46 @@ export default function DiscoverTab() {
   const queryClient = useQueryClient();
   const { setSelectedLeadId, setActiveTab } = useAppStore();
 
+  // Fetch real-time source configuration status (drives dropdown hints + config banner)
+  const { data: sourceStatusData } = useQuery<DiscoverySourceStatus[]>({
+    queryKey: ['discovery-source-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/sources');
+      if (!res.ok) throw new Error('Failed to load source status');
+      const data = await res.json();
+      return data.sources as DiscoverySourceStatus[];
+    },
+    staleTime: 60_000,
+  });
+  const sourceStatuses = sourceStatusData ?? [];
+  const sourceStatusById = new Map(sourceStatuses.map((s) => [s.id, s]));
+
   // Form state
   const [source, setSource] = useState<string>('ai_search');
   const [niche, setNiche] = useState('');
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
+
+  // Search mode: classic filters or AI chat
+  const [searchMode, setSearchMode] = useState<'filters' | 'ai'>('filters');
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiParsing, setAiParsing] = useState(false);
+  const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
+
+  // "All Sources" credit-cost confirmation
+  const [allSourcesConfirmOpen, setAllSourcesConfirmOpen] = useState(false);
+  const [pendingStart, setPendingStart] = useState<DiscoveryVars | undefined>(undefined);
+
+  // The exact config message for the currently selected source (empty when usable).
+  // Unconfigured sources are shown in the dropdown but can NEVER run — no fake data.
+  const selectedSourceStatus =
+    source !== 'all' ? sourceStatusById.get(source) : undefined;
+  const selectedSourceBlocked =
+    !!selectedSourceStatus && selectedSourceStatus.status !== 'connected';
+  const selectedSourceConfigMessage = selectedSourceBlocked
+    ? selectedSourceStatus!.configMessage ||
+      `${selectedSourceStatus!.label} requires API configuration. Go to Settings → Integrations to connect this source.`
+    : '';
 
   // Jobs state
   const [activeJob, setActiveJob] = useState<DiscoveryJob | null>(null);
@@ -488,28 +577,37 @@ export default function DiscoverTab() {
       .slice(0, 8);
   })();
 
-  // Start discovery mutation
+  // Start discovery mutation — accepts explicit variables (AI Chat Mode) or falls back to filter state
   const discoverMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (vars?: DiscoveryVars) => {
+      const payload = {
+        niche: (vars?.niche ?? niche).trim(),
+        country: (vars?.country ?? country).trim(),
+        city: (vars?.city ?? city).trim() || undefined,
+        source: vars?.source ?? source,
+        maxResults: vars?.maxResults || undefined,
+        requirements: vars?.requirements || undefined,
+      };
       const res = await fetch('/api/leads/discover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, country, city: city || undefined, source }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to start discovery');
       }
-      return res.json();
+      const data = await res.json();
+      return { data, payload };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ data, payload }) => {
       const job: DiscoveryJob = {
         id: data.jobId,
         status: data.status || 'pending',
-        source,
-        niche,
-        country,
-        city: city || undefined,
+        source: payload.source,
+        niche: payload.niche,
+        country: payload.country,
+        city: payload.city,
         totalFound: 0,
         leadsAdded: 0,
         duplicatesSkipped: 0,
@@ -527,12 +625,63 @@ export default function DiscoverTab() {
         localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
       } catch {}
 
-      toast.success('Discovery job started!', { description: `Searching ${niche} in ${country}...` });
+      toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
     },
     onError: (error: Error) => {
       toast.error('Failed to start discovery', { description: error.message });
     },
   });
+
+  // Central start handler — "All Sources" requires a credit-cost confirmation first
+  const handleStartDiscovery = useCallback((vars?: DiscoveryVars) => {
+    if ((vars?.source ?? source) === 'all') {
+      setPendingStart(vars);
+      setAllSourcesConfirmOpen(true);
+      return;
+    }
+    discoverMutation.mutate(vars);
+  }, [source, discoverMutation]);
+
+  // ── AI Chat Mode handlers ────────────────────────────────
+  const handleAiParse = async () => {
+    const query = aiQuery.trim();
+    if (!query || aiParsing) return;
+    setAiParsing(true);
+    setParsedIntent(null);
+    try {
+      const res = await fetch('/api/discovery/parse-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to read your request');
+      setParsedIntent(data.parsed as ParsedIntent);
+    } catch (err) {
+      toast.error('Could not read your request', {
+        description: err instanceof Error ? err.message : 'Please try rephrasing your description.',
+      });
+    } finally {
+      setAiParsing(false);
+    }
+  };
+
+  const handleEditFilters = () => {
+    // Fill the existing filter fields with the parsed values and switch to Filter Mode
+    if (parsedIntent) {
+      setNiche(parsedIntent.niche);
+      setCountry(parsedIntent.country);
+      setCity(parsedIntent.city || '');
+    }
+    setSearchMode('filters');
+  };
+
+  // Credit-cost estimate shown in the "All Sources" confirmation
+  const allSourcesCreditsEstimate = (() => {
+    const explicitCount = searchMode === 'ai' && parsedIntent ? parsedIntent.count : 0;
+    const perSource = explicitCount > 0 ? Math.max(5, Math.ceil(explicitCount / ALL_SOURCES_COUNT)) : 10;
+    return ALL_SOURCES_COUNT * perSource;
+  })();
 
   // Handle job completion
   const handleJobComplete = useCallback((completedJob: DiscoveryJob) => {
@@ -598,8 +747,12 @@ export default function DiscoverTab() {
     setActiveTab('leads');
   }, [setSelectedLeadId, setActiveTab]);
 
-  const canDiscover = niche.trim() && country.trim() && source;
-
+  const canDiscover =
+    niche.trim() &&
+    country.trim() &&
+    source &&
+    // An unconfigured source is NEVER run — it cannot return real data
+    !selectedSourceBlocked;
   return (
     <div className="p-4 lg:p-6 space-y-6 pb-20 lg:pb-6">
       {/* Discovery Form */}
@@ -617,6 +770,50 @@ export default function DiscoverTab() {
         </div>
 
         <CardContent className="pt-5 space-y-4">
+          {/* Search mode toggle: Filter Mode | AI Chat Mode */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-muted/60 border border-border/50" role="tablist" aria-label="Search mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={searchMode === 'filters'}
+                onClick={() => setSearchMode('filters')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors active:scale-95',
+                  searchMode === 'filters'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filter Mode
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={searchMode === 'ai'}
+                onClick={() => setSearchMode('ai')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors active:scale-95',
+                  searchMode === 'ai'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                AI Chat Mode
+              </button>
+            </div>
+            {searchMode === 'ai' && (
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-primary" />
+                Available on all plans
+              </span>
+            )}
+          </div>
+
+          {searchMode === 'filters' ? (
+            <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Source Selection */}
             <div className="space-y-2">
@@ -631,17 +828,49 @@ export default function DiscoverTab() {
                 <SelectContent>
                   {DISCOVERY_SOURCES.map((s) => {
                     const Icon = s.icon;
+                    const st = s.value === 'all' ? undefined : sourceStatusById.get(s.value);
                     return (
                       <SelectItem key={s.value} value={s.value}>
                         <div className="flex items-center gap-2">
                           <Icon className={cn('h-3.5 w-3.5', s.color)} />
                           {s.label}
+                          {st && st.status !== 'connected' && (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0"
+                              title={`${st.label} requires API configuration`}
+                            />
+                          )}
+                          {st && st.noSetupRequired && (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"
+                              title="No setup required"
+                            />
+                          )}
                         </div>
                       </SelectItem>
                     );
                   })}
                 </SelectContent>
               </Select>
+
+              {/* Configuration notice — shown when the selected source has no API
+                  credentials. The source stays in the dropdown but discovery is
+                  blocked server-side too: it can never return fake data. */}
+              {selectedSourceBlocked && (
+                <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5 shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                      {selectedSourceConfigMessage}
+                    </p>
+                    {selectedSourceStatus!.requiredEnvVars.length > 0 && (
+                      <p className="text-[11px] text-yellow-600/80 dark:text-yellow-500/70">
+                        Required: {selectedSourceStatus!.requiredEnvVars.map((v) => v.name).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Niche Input */}
@@ -689,7 +918,7 @@ export default function DiscoverTab() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
-              onClick={() => discoverMutation.mutate()}
+              onClick={() => handleStartDiscovery()}
               disabled={!canDiscover || discoverMutation.isPending}
               className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 active:scale-95 transition-all"
               size="lg"
@@ -716,6 +945,116 @@ export default function DiscoverTab() {
               Import CSV
             </Button>
           </div>
+            </>
+          ) : (
+            /* ── AI Chat Mode ── */
+            <div className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAiParse();
+                }}
+                className="space-y-3"
+              >
+                <div className="relative">
+                  <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/60 pointer-events-none" />
+                  <Input
+                    value={aiQuery}
+                    onChange={(e) => setAiQuery(e.target.value)}
+                    placeholder="Describe what leads you're looking for... e.g. 'Find 20 restaurants in Dubai with no website and poor social media presence'"
+                    className="pl-9 pr-28 h-11"
+                    disabled={aiParsing || discoverMutation.isPending}
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 gap-1"
+                    disabled={!aiQuery.trim() || aiParsing || discoverMutation.isPending}
+                  >
+                    {aiParsing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Search className="h-3.5 w-3.5" />
+                    )}
+                    {aiParsing ? 'Reading…' : 'Read Request'}
+                  </Button>
+                </div>
+              </form>
+
+              <AnimatePresence>
+                {parsedIntent && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">Searching for:</span>
+                        <Badge variant="outline" className="bg-primary/10 border-primary/25 gap-1">
+                          <Search className="h-3 w-3" />
+                          {parsedIntent.count} {parsedIntent.niche} in {parsedIntent.location}
+                        </Badge>
+                        {parsedIntent.requirements && (
+                          <>
+                            <span className="text-xs font-medium text-muted-foreground">|</span>
+                            <span className="text-xs font-medium text-muted-foreground">Filter:</span>
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400 gap-1"
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              {parsedIntent.requirements}
+                            </Badge>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            handleStartDiscovery({
+                              niche: parsedIntent.niche,
+                              country: parsedIntent.country,
+                              city: parsedIntent.city || undefined,
+                              source,
+                              maxResults: parsedIntent.count,
+                              requirements: parsedIntent.requirements || undefined,
+                            })
+                          }
+                          disabled={discoverMutation.isPending}
+                          className="bg-primary hover:bg-primary/90 active:scale-95 transition-all"
+                        >
+                          {discoverMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                          ) : (
+                            <Zap className="h-3.5 w-3.5 mr-1.5" />
+                          )}
+                          {discoverMutation.isPending ? 'Starting Discovery...' : 'Start Discovery'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleEditFilters}
+                          disabled={discoverMutation.isPending}
+                          className="border-primary/20 hover:border-primary/40 hover:bg-primary/5 active:scale-95 transition-all"
+                        >
+                          <PencilLine className="h-3.5 w-3.5 mr-1.5" />
+                          Edit Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <p className="text-[11px] text-muted-foreground">
+                Describe your ideal leads in plain English — AI fills the filters and starts the
+                discovery for you. Uses your current source selection ({' '}
+                {DISCOVERY_SOURCES.find((s) => s.value === source)?.label ?? source}).
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -931,6 +1270,32 @@ export default function DiscoverTab() {
 
       {/* Import Dialog */}
       <LeadImportDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      {/* All Sources — credit cost confirmation (Enhancement: All Sources Integration) */}
+      <AlertDialog open={allSourcesConfirmOpen} onOpenChange={setAllSourcesConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Search all {ALL_SOURCES_COUNT} sources?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Searching all {ALL_SOURCES_COUNT} sources (AI Search, Google Maps, LinkedIn, JustDial,
+              IndiaMart, Yellow Pages and Sulekha) will use approximately{' '}
+              <span className="font-semibold text-foreground">{allSourcesCreditsEstimate} credits</span>.
+              Results are merged and deduplicated. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingStart(undefined)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                discoverMutation.mutate(pendingStart);
+                setPendingStart(undefined);
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

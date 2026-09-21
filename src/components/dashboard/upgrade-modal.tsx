@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   XCircle,
   Mail,
+  CreditCard,
+  Smartphone,
 } from 'lucide-react';
 import {
   Dialog,
@@ -29,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { applyModalSafeArea } from '@/lib/modal-safe-area';
 import { Input } from '@/components/ui/input';
 import {
   useSubscriptionStore,
@@ -171,8 +174,43 @@ const FEATURE_COMPARISON = [
 
 const PLAN_ORDER: PlanType[] = ['free', 'pro', 'elite'];
 
-// Payment state type
-type PaymentState = 'idle' | 'creating_order' | 'checkout' | 'verifying' | 'success' | 'failed';
+// Payment state type. 'select_gateway' is the intermediate step where the
+// user picks between the available payment gateways (Stripe / Razorpay).
+type PaymentState = 'idle' | 'select_gateway' | 'creating_order' | 'checkout' | 'verifying' | 'success' | 'failed';
+
+// ─── Payment gateway types ───────────────────────────────────────
+// NOTE: intentionally declared locally (NOT imported from '@/lib/payments')
+// so this client component never pulls the server-side provider registry
+// (Razorpay/Stripe SDKs) into the browser bundle.
+type PaymentGateway = 'stripe' | 'razorpay';
+
+// Public-safe availability snapshot from GET /api/payments/provider-status.
+interface ProviderStatus {
+  stripe: { available: boolean; mode: 'test' | 'live' | null; publishableKey: string | null };
+  razorpay: { available: boolean; mode: 'test' | 'live' | null; keyId: string | null };
+  anyAvailable: boolean;
+}
+
+// What the user is about to pay for while the gateway step is showing.
+interface PendingPurchase {
+  kind: 'subscription' | 'credits';
+  plan?: PlanType;
+  addon?: typeof CREDIT_ADDONS[number];
+}
+
+// Response payload for a Razorpay checkout order (server-computed amounts).
+interface RazorpayCheckoutPayload {
+  gateway: 'razorpay';
+  orderId: string;
+  razorpayOrderId?: string | null;
+  razorpaySubscriptionId?: string | null;
+  razorpayKeyId?: string;
+  razorpayAmount?: number;
+  razorpayCurrency?: string;
+  prefill?: { name?: string; email?: string; contact?: string };
+  recurring?: boolean;
+  mode?: 'test' | 'live';
+}
 
 // Coupon type
 interface CouponInfo {
@@ -445,6 +483,15 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
   const currentBillingCycle = useSubscriptionStore((s) => s.billingCycle);
   const syncFromBackend = useSubscriptionStore((s) => s.syncFromBackend);
 
+  // ─── Payment gateway selection state ─────────────────────────────
+  // Availability is fetched from the PUBLIC /api/payments/provider-status
+  // endpoint when the modal opens (reveals availability + mode only —
+  // never secrets). If only one gateway is configured, checkout starts
+  // with it directly; if both are configured the user chooses.
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
+  const [pendingPurchase, setPendingPurchase] = useState<PendingPurchase | null>(null);
+  const [activeGateway, setActiveGateway] = useState<PaymentGateway | null>(null);
+
   // Reset state when modal closes
   useEffect(() => {
     if (!open && !paymentInProgress) {
@@ -455,6 +502,8 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
       setCoupon(null);
       setCouponCode('');
       setCouponError('');
+      setPendingPurchase(null);
+      setActiveGateway(null);
     }
   }, [open, paymentInProgress]);
 
@@ -521,7 +570,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
       const res = await fetch('/api/payments/validate-coupon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode.trim(), plan: 'pro' }),
+        body: JSON.stringify({ code: couponCode.trim(), plan: pendingPurchase?.plan || 'pro' }),
       });
 
       if (res.ok) {
@@ -545,128 +594,280 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
     } finally {
       setCouponLoading(false);
     }
-  }, [couponCode]);
+  }, [couponCode, pendingPurchase?.plan]);
 
-  // Handle plan selection — the main payment flow.
-  // Routes to REAL Stripe checkout via POST /api/payments/create-checkout-session.
-  // No mock payment, no fake success, no dev-mode simulation. The server
-  // creates a real Stripe Checkout Session and returns { url } — the client
-  // just redirects. The Stripe webhook is the only path that activates the
-  // subscription and updates credits in the DB.
-  const handleSelectPlan = useCallback(async (plan: PlanType) => {
-    // "Contact Support" / "Current Plan" should never reach this handler
-    // (the UI prevents it). Guard anyway: if same plan + same billing cycle,
-    // it's a no-op.
-    if (plan === currentPlan) {
-      const currentIsYearly = currentBillingCycle === 'yearly';
-      if (isYearly === currentIsYearly) return;
-    }
-    setProcessingPlan(plan);
-    setPaymentState('creating_order');
-    setPaymentError('');
-    setPaymentInProgress(true);
-
-    try {
-      const res = await fetch('/api/payments/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          plan,
-          billingCycle: isYearly ? 'yearly' : 'monthly',
-          couponCode: coupon?.valid ? coupon.code : undefined,
-        }),
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch('/api/payments/provider-status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: ProviderStatus | null) => {
+        if (!cancelled && data) setProviderStatus(data);
+      })
+      .catch(() => {
+        /* provider status is advisory — checkout errors surface later */
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to create Stripe checkout session');
-      }
-
-      const data = await res.json();
-      setLastOrderId(data.orderId);
-
-      // Stripe: redirect to checkout page. The server returns a real
-      // Stripe Checkout URL — no mock fallback exists.
-      if (data.url) {
-        setPaymentState('checkout');
-        // paymentInProgress stays true during the browser navigation;
-        // the success/cancel callback after Stripe redirects back will
-        // reset it.
-        window.location.href = data.url;
+  // Load the Razorpay Checkout.js script once (idempotent).
+  const loadRazorpayScript = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') return resolve(false);
+      if ((window as unknown as { Razorpay?: unknown }).Razorpay) {
+        resolve(true);
         return;
       }
-
-      throw new Error('No Stripe checkout URL returned');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to process upgrade';
-      setPaymentState('failed');
-      setPaymentError(message);
-      toast.error(message);
-      setProcessingPlan(null);
-      setPaymentInProgress(false);
-    }
-  }, [currentPlan, currentBillingCycle, isYearly, coupon]);
-
-  // Handle credit add-on purchase — uses POST /api/payments/create-checkout-session
-  // with `type: 'credits'` and a one-time Stripe Price ID (mode='payment').
-  // The priceId is looked up server-side from STRIPE_PRICE_CREDITS_<amount>_ID
-  // — never trusted from the client. The Stripe webhook's
-  // `checkout.session.completed` handler routes the resulting event through
-  // `fulfillCreditAddon` which adds the credits atomically + sends an
-  // in-app notification + a confirmation email. See PART 4.
-  const handleBuyAddon = useCallback(async (addon: typeof CREDIT_ADDONS[number]) => {
-    setPaymentState('creating_order');
-    setPaymentError('');
-    setPaymentInProgress(true);
-
-    try {
-      const res = await fetch('/api/payments/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          type: 'credits',
-          creditAmount: addon.credits,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        // The user-facing error from the server is honest:
-        //   "Stripe is not configured. Set STRIPE_SECRET_KEY." (500) when
-        //   STRIPE_SECRET_KEY is missing.
-        //   "Stripe price ID for credit add-on (X credits) is not
-        //    configured. Set STRIPE_PRICE_CREDITS_X_ID." (500) when the
-        //   specific credit-price env var is missing.
-        // The previous generic "Failed to create add-on order" is gone.
-        throw new Error(data.error || 'Failed to create credit add-on checkout session');
-      }
-
-      const data = await res.json();
-
-      if (data.url) {
-        setPaymentState('checkout');
-        window.location.href = data.url;
-        return;
-      }
-
-      throw new Error('No Stripe checkout URL returned');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to purchase add-on';
-      setPaymentState('failed');
-      setPaymentError(message);
-      toast.error(message);
-      setPaymentInProgress(false);
-    }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
   }, []);
 
-  // Handle retry after failure
+  // ─── Step 1 entry points ─────────────────────────────────────────
+  // Selecting a plan (or add-on) now routes through the gateway step:
+  //   • 0 gateways configured  → honest error
+  //   • exactly 1 configured   → checkout starts immediately
+  //   • both configured        → 'select_gateway' step is shown
+  const beginPurchase = useCallback(
+    (purchase: PendingPurchase) => {
+      const stripeOk = providerStatus?.stripe.available ?? !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      const razorpayOk = providerStatus?.razorpay.available ?? false;
+
+      if (!stripeOk && !razorpayOk) {
+        toast.error(
+          'No payment method is available right now. The site administrator needs to configure a payment gateway (Stripe or Razorpay).'
+        );
+        return;
+      }
+      if (stripeOk && !razorpayOk) {
+        void startCheckout('stripe', purchase);
+        return;
+      }
+      if (!stripeOk && razorpayOk) {
+        void startCheckout('razorpay', purchase);
+        return;
+      }
+      setPendingPurchase(purchase);
+      setPaymentError('');
+      setPaymentState('select_gateway');
+    },
+    // startCheckout is declared below with useCallback — stable deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [providerStatus]
+  );
+
+  const handleSelectPlan = useCallback(
+    (plan: PlanType) => {
+      // "Contact Support" / "Current Plan" should never reach this handler
+      // (the UI prevents it). Guard anyway: if same plan + same billing
+      // cycle, it's a no-op.
+      if (plan === currentPlan) {
+        const currentIsYearly = currentBillingCycle === 'yearly';
+        if (isYearly === currentIsYearly) return;
+      }
+      setProcessingPlan(plan);
+      beginPurchase({ kind: 'subscription', plan });
+    },
+    [currentPlan, currentBillingCycle, isYearly, beginPurchase]
+  );
+
+  const handleBuyAddon = useCallback(
+    (addon: typeof CREDIT_ADDONS[number]) => {
+      beginPurchase({ kind: 'credits', addon });
+    },
+    [beginPurchase]
+  );
+
+  // ─── Step 2: the actual checkout, per gateway ────────────────────
+  const startCheckout = useCallback(
+    async (gateway: PaymentGateway, purchase: PendingPurchase) => {
+      setActiveGateway(gateway);
+      setPaymentState('creating_order');
+      setPaymentError('');
+      setPaymentInProgress(true);
+
+      const billingCycle = isYearly ? ('yearly' as const) : ('monthly' as const);
+      const appliedCoupon = coupon?.valid ? coupon.code : undefined;
+
+      try {
+        // ═══ STRIPE — hosted checkout redirect (existing canonical flow) ═══
+        if (gateway === 'stripe') {
+          const body =
+            purchase.kind === 'credits'
+              ? { type: 'credits', creditAmount: purchase.addon?.credits }
+              : { plan: purchase.plan, billingCycle, couponCode: appliedCoupon };
+
+          const res = await fetch('/api/payments/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to create Stripe checkout session');
+          }
+
+          const data = await res.json();
+          setLastOrderId(data.orderId);
+
+          if (data.url) {
+            setPaymentState('checkout');
+            // paymentInProgress stays true during navigation; the
+            // success/cancel callback after the redirect resets it.
+            window.location.href = data.url;
+            return;
+          }
+          throw new Error('No Stripe checkout URL returned');
+        }
+
+        // ═══ RAZORPAY — server-created order/subscription + Checkout.js ═══
+        const body =
+          purchase.kind === 'credits'
+            ? { gateway: 'razorpay', type: 'credits', creditAmount: purchase.addon?.credits }
+            : { gateway: 'razorpay', plan: purchase.plan, billingCycle, couponCode: appliedCoupon };
+
+        const res = await fetch('/api/payments/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to create Razorpay order');
+        }
+
+        const data = (await res.json()) as RazorpayCheckoutPayload;
+        setLastOrderId(data.orderId);
+
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+          throw new Error('Could not load Razorpay Checkout. Please check your connection and try again.');
+        }
+
+        setPaymentState('checkout');
+
+        const RazorpayCtor = (window as unknown as { Razorpay?: new (options: unknown) => { on: (event: string, cb: (response: unknown) => void) => void; open: () => void } }).Razorpay;
+        if (!RazorpayCtor) {
+          throw new Error('Razorpay Checkout is unavailable.');
+        }
+
+        // Amounts and identifiers come from the SERVER (the browser never
+        // tells the backend what was purchased or for how much).
+        const checkoutOptions: Record<string, unknown> = {
+          key: data.razorpayKeyId,
+          name: 'AcquisitionOS',
+          description:
+            purchase.kind === 'credits'
+              ? `${purchase.addon?.label ?? 'Credits'} add-on`
+              : `${purchase.plan === 'elite' ? 'Elite' : 'Pro'} Plan — ${billingCycle}`,
+          prefill: data.prefill ?? {},
+          theme: { color: '#6C63FF' },
+          modal: {
+            ondismiss: () => {
+              // User closed the Razorpay modal — the order stays pending
+              // server-side; nothing was activated. Safe to close/retry.
+              setPaymentInProgress(false);
+              setPaymentState('idle');
+              setProcessingPlan(null);
+              toast.info('Payment cancelled');
+            },
+          },
+          handler: async (response: {
+            razorpay_order_id?: string;
+            razorpay_payment_id?: string;
+            razorpay_signature?: string;
+            razorpay_subscription_id?: string;
+          }) => {
+            // Frontend success is NEVER trusted — the server verifies the
+            // signature + payment, then activates via the shared services.
+            setPaymentState('verifying');
+            try {
+              const verifyRes = await fetch('/api/payments/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  orderId: data.orderId,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  razorpay_subscription_id: response.razorpay_subscription_id,
+                }),
+              });
+
+              const verifyData = await verifyRes.json().catch(() => ({}));
+              if (!verifyRes.ok || !verifyData.success) {
+                throw new Error(verifyData.error || 'Payment verification failed.');
+              }
+
+              await verifyPaymentAndSync();
+            } catch (verifyError) {
+              const message =
+                verifyError instanceof Error ? verifyError.message : 'Payment verification failed.';
+              setPaymentState('failed');
+              setPaymentError(message);
+              setPaymentInProgress(false);
+              toast.error(message);
+            }
+          },
+        };
+
+        if (data.razorpaySubscriptionId) {
+          // Recurring subscription checkout — Razorpay derives the amount
+          // from the dashboard-configured plan.
+          checkoutOptions.subscription_id = data.razorpaySubscriptionId;
+        } else if (data.razorpayOrderId) {
+          // One-time order checkout — the server-computed amount/currency.
+          checkoutOptions.order_id = data.razorpayOrderId;
+          checkoutOptions.amount = data.razorpayAmount;
+          checkoutOptions.currency = data.razorpayCurrency;
+        } else {
+          throw new Error('Razorpay checkout is missing order identifiers.');
+        }
+
+        const rzp = new RazorpayCtor(checkoutOptions);
+        rzp.on('payment.failed', () => {
+          setPaymentState('failed');
+          setPaymentError('Your payment attempt failed. No amount was activated — you can try again.');
+          setPaymentInProgress(false);
+          toast.error('Payment failed. You can try again.');
+        });
+        rzp.open();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to process checkout';
+        setPaymentState('failed');
+        setPaymentError(message);
+        toast.error(message);
+        setProcessingPlan(null);
+        setPaymentInProgress(false);
+      }
+    },
+    // verifyPaymentAndSync is a stable useCallback declared above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isYearly, coupon, loadRazorpayScript]
+  );
+
+  // Handle retry after failure. If both gateways are configured, return to
+  // the gateway selection step for the pending purchase; otherwise idle.
   const handleRetry = useCallback(() => {
-    setPaymentState('idle');
+    const bothGateways = !!(providerStatus?.stripe.available && providerStatus?.razorpay.available);
+    if (pendingPurchase && bothGateways) {
+      setPaymentState('select_gateway');
+    } else {
+      setPaymentState('idle');
+    }
     setPaymentError('');
     setProcessingPlan(null);
-  }, []);
+  }, [providerStatus, pendingPurchase]);
 
   // Render payment success state — shows a plan-specific welcome message
   // per PART 5 ("Welcome to [Plan Name]! Your plan is now active.").
@@ -732,6 +933,143 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
     </div>
   );
 
+  // Render the gateway selection step: shown when BOTH gateways are
+  // configured and the user picked a plan/add-on. One configured gateway
+  // skips straight to checkout (beginPurchase handles that).
+  const renderGatewaySelection = () => {
+    const purchase = pendingPurchase;
+    const isCredits = purchase?.kind === 'credits';
+    const planName = purchase?.plan === 'elite' ? 'Elite' : purchase?.plan === 'pro' ? 'Pro' : '';
+    const cycleLabel = isYearly ? 'yearly' : 'monthly';
+
+    const stripeMode = providerStatus?.stripe.mode;
+    const razorpayMode = providerStatus?.razorpay.mode;
+    const modeBadge = (mode: 'test' | 'live' | null | undefined) =>
+      mode === 'test' ? (
+        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500">
+          TEST MODE
+        </Badge>
+      ) : null;
+
+    // Display amounts: Stripe charges in USD via the configured Price,
+    // Razorpay charges in INR (server-computed, GST added at checkout).
+    const usdPrice = isCredits
+      ? (purchase?.addon?.priceUSD ?? 0)
+      : isYearly
+        ? (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.yearlyUSD : PLAN_DETAILS.pro.yearlyUSD)
+        : (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.priceUSD : PLAN_DETAILS.pro.priceUSD);
+    const inrPrice = isCredits
+      ? (purchase?.addon?.priceINR ?? 0)
+      : isYearly
+        ? (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.yearlyINR : PLAN_DETAILS.pro.yearlyINR)
+        : (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.priceINR : PLAN_DETAILS.pro.priceINR);
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-1.5">
+          <h3 className="text-lg font-bold text-foreground">Choose Payment Method</h3>
+          <p className="text-sm text-muted-foreground">
+            {isCredits
+              ? `${purchase?.addon?.label ?? ''} add-on`
+              : `${planName} Plan (${cycleLabel})`}
+            {' '}— select how you&apos;d like to pay
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Stripe option */}
+          <button
+            type="button"
+            onClick={() => {
+              if (purchase) void startCheckout('stripe', purchase);
+            }}
+            disabled={paymentState === 'creating_order'}
+            className={cn(
+              'group flex flex-col items-start gap-3 rounded-xl border p-5 text-left transition-all duration-200',
+              'border-border bg-card hover:border-primary/50 hover:bg-primary/5',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          >
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#635BFF]/10">
+                  <CreditCard className="h-5 w-5 text-[#635BFF]" />
+                </div>
+                <span className="font-semibold text-foreground">Stripe</span>
+              </div>
+              {modeBadge(stripeMode)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              International cards. Billed in USD (${usdPrice}
+              {isCredits ? '' : `/${cycleLabel === 'yearly' ? 'year' : 'month'}`})
+              {coupon?.valid ? ' — coupon applied at checkout' : ''}.
+            </p>
+            <span className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+              Pay with Stripe
+              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </button>
+
+          {/* Razorpay option */}
+          <button
+            type="button"
+            onClick={() => {
+              if (purchase) void startCheckout('razorpay', purchase);
+            }}
+            disabled={paymentState === 'creating_order'}
+            className={cn(
+              'group flex flex-col items-start gap-3 rounded-xl border p-5 text-left transition-all duration-200',
+              'border-border bg-card hover:border-primary/50 hover:bg-primary/5',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          >
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0C2451]/10 dark:bg-[#3395FF]/10">
+                  <Smartphone className="h-5 w-5 text-[#0C2451] dark:text-[#3395FF]" />
+                </div>
+                <span className="font-semibold text-foreground">Razorpay</span>
+              </div>
+              {modeBadge(razorpayMode)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              UPI, cards, net banking &amp; wallets. Billed in INR (₹{inrPrice.toLocaleString('en-IN')}
+              {isCredits ? '' : `/${cycleLabel === 'yearly' ? 'year' : 'month'}`} + GST as applicable)
+              {coupon?.valid ? ' — coupon applied where supported' : ''}.
+            </p>
+            <span className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+              Pay with Razorpay
+              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </button>
+        </div>
+
+        {paymentState === 'creating_order' && (
+          <div className="flex items-center justify-center gap-2 text-sm text-primary py-1">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Preparing your checkout...
+          </div>
+        )}
+
+        <div className="text-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={paymentState === 'creating_order'}
+            onClick={() => {
+              setPaymentState('idle');
+              setPendingPurchase(null);
+              setProcessingPlan(null);
+            }}
+          >
+            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+            Back to plans
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog
       open={open}
@@ -744,7 +1082,27 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
         // PART 6 — modal background uses bg-card (NOT hardcoded
         // white/black) and border border-border so it adapts to the active
         // theme (light or dark) automatically.
-        className="max-w-5xl w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden bg-card border border-border"
+        // RESPONSIVE FIX: grid-rows bounds the ScrollArea to the space left
+        // by the header (minmax(0,1fr)) instead of the old hardcoded
+        // max-h calc that spilled past the dialog edge; the arbitrary
+        // variant forces Radix ScrollArea's viewport child (inline
+        // `display: table`) to display:block so body content is constrained
+        // to the dialog width — without it, plan cards expand to max-content
+        // and get horizontally clipped on mobile.
+        // NAVBAR-SAFE POSITIONING: the shared DialogContent vertically
+        // centers dialogs (top-50% + -translate-y-1/2), which made this
+        // dialog start BEHIND the sticky navbar (z-[100] above this z-50
+        // dialog) whenever it was taller than the viewport, clipping its
+        // top edge + close button. Instead of a hardcoded offset, the
+        // applyModalSafeArea ref (see src/lib/modal-safe-area.ts)
+        // measures the real chrome at open time - the header (pushed down
+        // by any banner above it) and the bottom nav / footer - and sets
+        // --aos-modal-top (header bottom + 12px gap) and
+        // --aos-modal-maxh (down to 12px above the bottom chrome), so the
+        // modal never overlaps the navbar and never extends past the
+        // viewport bottom. Header stays fixed; only the body scrolls.
+        ref={(node) => (node ? applyModalSafeArea(node) : undefined)}
+        className="max-w-5xl w-[95vw] top-[var(--aos-modal-top,60px)]! translate-y-0! max-h-[var(--aos-modal-maxh,calc(100dvh-145px))] p-0 gap-0 overflow-hidden bg-card border border-border grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] [&_[data-slot=scroll-area-viewport]>div]:block!"
         // PART 3 — X button stays VISIBLE but is DISABLED while a payment
         // is in flight ("Disable the X button too"), with the notice
         // "Complete or cancel payment to close" rendered below the header.
@@ -774,7 +1132,11 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
           )}
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-80px)]">
+        {/* RESPONSIVE FIX: min-h-0 lets this grid row shrink so the Radix
+            viewport (not the dialog edge) is the exact scroll boundary —
+            the old max-h-[calc(90vh-80px)] assumed a fixed 80px header and
+            spilled ~9px past the dialog bottom. */}
+        <ScrollArea className="min-h-0">
           <div className="p-6 space-y-8">
             {/* Payment state overlays */}
             <AnimatePresence mode="wait">
@@ -784,6 +1146,8 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                 renderFailedState()
               ) : paymentState === 'verifying' ? (
                 renderVerifyingState()
+              ) : paymentState === 'select_gateway' ? (
+                renderGatewaySelection()
               ) : (
                 <>
                   {/* Billing Toggle */}
@@ -1034,7 +1398,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                     </p>
                     <div className="flex items-center justify-center gap-1 text-xs text-primary">
                       <Shield className="h-3 w-3" />
-                      <span>Secure payments powered by Stripe</span>
+                      <span>Secure payments powered by Stripe &amp; Razorpay</span>
                     </div>
                   </div>
                 </>

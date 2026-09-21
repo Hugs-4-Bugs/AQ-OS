@@ -57,6 +57,9 @@ export function useAuth() {
           verificationResent: data.verificationResent || false,
           noPasswordSet: data.noPasswordSet || false,
           email: data.email,
+          // DEV-ONLY (sandbox): the fresh verification code the server just
+          // generated for the unverified account, when it cannot be emailed.
+          devDelivery: data.devDelivery || undefined,
         };
       }
 
@@ -109,6 +112,9 @@ export function useAuth() {
           requiresVerification: true,
           email: data.email,
           emailProvider: data.emailProvider,
+          // DEV-ONLY (sandbox): verification code surfaced in-place when the
+          // server has no email provider configured. Never set in production.
+          devDelivery: data.devDelivery || undefined,
         };
       }
 
@@ -187,6 +193,9 @@ export function useAuth() {
         success: true,
         message: data.message,
         emailProvider: data.emailProvider,
+        // DEV-ONLY (sandbox): reset code surfaced in-place when the server
+        // has no email provider configured. Never set in production.
+        devDelivery: data.devDelivery || undefined,
       };
     } catch {
       return { success: false, error: 'Network error. Please try again.' };

@@ -13,6 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { publishNotificationCreated } from './notification-service';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & CONSTANTS
@@ -927,6 +928,10 @@ export async function sendNotification(
       },
     });
 
+    // Real-time: push to SSE subscribers even on the rate-limited path
+    // (best-effort, fire-and-forget).
+    publishNotificationCreated(notification);
+
     return {
       notification: {
         id: notification.id,
@@ -961,6 +966,11 @@ export async function sendNotification(
       deliveredVia: 'in_app', // Will be updated after dispatch
     },
   });
+
+  // Real-time: push to SSE subscribers instantly (fire-and-forget,
+  // best-effort). Channel dispatch below covers email/telegram/whatsapp;
+  // this covers the in-app live bell.
+  publishNotificationCreated(notification);
 
   // 4. Dispatch to enabled channels (fire-and-forget)
   const channels = await dispatchToChannels(

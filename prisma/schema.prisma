@@ -408,6 +408,7 @@ model PaymentOrder {
   provider          String  @default("razorpay") // razorpay, stripe
   providerOrderId   String?
   providerPaymentId String?
+  providerSubscriptionId String? // Razorpay subscription id for recurring checkout (plan_*.subscriptions)
   amount            Float
   currency          String  @default("USD")
   plan              String
@@ -432,6 +433,7 @@ model PaymentOrder {
   @@index([userId])
   @@index([providerOrderId])
   @@index([providerPaymentId])
+  @@index([providerSubscriptionId])
   @@index([status])
   @@index([idempotencyKey])
 }
@@ -644,6 +646,7 @@ model Lead {
   meetings            Meeting[]
   conversations       Conversation[]
   broadcastTargets    BroadcastTarget[]
+  prospectPipelines   ProspectPipeline[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1763,6 +1766,10 @@ model UserSettings {
   defaultCountry      String?
   timezone            String?
   businessDescription String?
+  // What THIS user offers to prospects (used by the 5-step prospecting pipeline
+  // for Gap → Offer matching). JSON array of OfferService objects:
+  // [{ id, label, category, description }]
+  servicesOffered     String?  @default("[]")
 
   @@index([userId])
 }
@@ -2832,4 +2839,41 @@ model AnalyticsSnapshot {
 
   @@unique([userId, category, period, periodStart])
   @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROSPECTING PIPELINE (5-Step AI Prospect Intelligence)
+// STEP 1 Deep Research → STEP 2 Gap Detection → STEP 3 Offer Match
+// → STEP 4 Personalized Pitch → STEP 5 Smart Email
+// ═══════════════════════════════════════════════════════════════════
+
+model ProspectPipeline {
+  id          String   @id @default(cuid())
+  leadId      String
+  userId      String
+  status      String   @default("idle") // idle | running | completed | failed
+  currentStep Int      @default(0) // 0 = not started; 1..5 = step currently running
+  totalSteps  Int      @default(5)
+  stepStatus  String   @default("{}") // JSON: { "1": "pending|running|completed|failed|skipped" }
+  progress    Int      @default(0) // 0-100
+  step1ResearchJson String? // STEP 1: company deep research result (JSON)
+  step2GapsJson     String? // STEP 2: detected gaps (JSON)
+  step3MatchJson    String? // STEP 3: offer-vs-gap match result (JSON)
+  step4PitchJson    String? // STEP 4: personalized pitch (JSON)
+  step5EmailJson    String? // STEP 5: smart email draft (JSON)
+  overallScore      Float? // 0-100 offer-fit score
+  temperature       String? // hot | warm | cold
+  outreachMessageId String? // OutreachMessage draft created by STEP 5
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status])
 }

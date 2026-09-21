@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Webhook path fixes, pass 2: anchored exact-string replacements for ambiguous lines."""
+import os
+
+ROOT = "/home/z/my-project/docs/deployment"
+
+FIXES = [
+    # (relative file, old substring, new substring)
+    ("01-architecture.md",
+     'WH["Webhooks - /api/payments/webhook, /api/gmail/pubsub/webhook"]',
+     'WH["Webhooks - /api/payments/webhook/stripe + /razorpay, /api/gmail/pubsub/webhook"]'),
+    ("02-environment-variables-and-secrets.md",
+     "After deploy: register the webhook URL `https://app.yourdomain.com/api/payments/webhook` in each provider's dashboard.",
+     "After deploy: register `https://app.yourdomain.com/api/payments/webhook/stripe` in Stripe and `https://app.yourdomain.com/api/payments/webhook/razorpay` in Razorpay."),
+    ("06-dns-and-domains.md",
+     "- Webhooks land on `https://app.yourdomain.com/api/payments/webhook` — one domain for everything.",
+     "- Webhooks land on `https://app.yourdomain.com/api/payments/webhook/stripe` (Stripe) and `/api/payments/webhook/razorpay` (Razorpay) — one domain for everything."),
+    ("README.md",
+     "`STRIPE_*`, `RAZORPAY_*` + `/api/payments/webhook` |",
+     "`STRIPE_*`, `RAZORPAY_*` + `/api/payments/webhook/stripe` · `/api/payments/webhook/razorpay` |"),
+    ("README.md",
+     "Stripe + Razorpay → `POST /api/payments/webhook` | Public HTTPS endpoint |",
+     "Stripe → `POST /api/payments/webhook/stripe`; Razorpay → `POST /api/payments/webhook/razorpay` | Public HTTPS endpoint |"),
+    ("cloudflare/README.md",
+     "-->|webhook POST /api/payments/webhook| W",
+     "-->|webhook POST /api/payments/webhook/stripe (+ /razorpay)| W"),
+    ("cloudflare/README.md",
+     "Stripe/Razorpay still POST to `/api/payments/webhook`; the URL is just served by a Worker.",
+     "Stripe still POSTs to `/api/payments/webhook/stripe` and Razorpay to `/api/payments/webhook/razorpay`; the URLs are just served by a Worker."),
+    ("cloudflare/README.md",
+     "Register webhooks (Stripe/Razorpay → `/api/payments/webhook`)",
+     "Register webhooks (Stripe → `/api/payments/webhook/stripe`, Razorpay → `/api/payments/webhook/razorpay`)"),
+    ("cloudflare/architecture.md",
+     'WEBH["Webhooks - /api/payments/webhook, /api/gmail/pubsub/webhook"]',
+     'WEBH["Webhooks - /api/payments/webhook/stripe + /razorpay, /api/gmail/pubsub/webhook"]'),
+    ("cloudflare/architecture.md",
+     "Stripe/Razorpay sign and POST to `/api/payments/webhook` exactly as before",
+     "Stripe signs and POSTs to `/api/payments/webhook/stripe`, Razorpay to `/api/payments/webhook/razorpay`, exactly as before"),
+    ("cloudflare/backend.md",
+     "> **Path note (verified in the repository):** the handbook shorthand in [`../01-architecture.md`](../01-architecture.md) and [`manual-deployment.md`](./manual-deployment.md) §11 says `/api/payments/webhook`; the current code exposes per-provider handlers at `/api/payments/webhook/stripe` and `/api/payments/webhook/razorpay` (`src/app/api/payments/webhook/*/route.ts`). Register the exact path and confirm with a test event — if the shorthand 404s, use the per-provider path above.",
+     "> **Path note (verified in the repository):** the current code exposes per-provider handlers at `/api/payments/webhook/stripe` and `/api/payments/webhook/razorpay` (`src/app/api/payments/webhook/*/route.ts`) — there is no single `/api/payments/webhook` route. Register the exact per-provider path and confirm with a test event."),
+    ("cloudflare/manual-deployment.md",
+     "watch `npx wrangler tail` for the `POST /api/payments/webhook 200` line.",
+     "watch `npx wrangler tail` for the `POST /api/payments/webhook/stripe 200` line."),
+    ("cloudflare/networking.md",
+     "`/api/auth/*` (login, OTP, magic link) and `/api/payments/webhook` are the classic abuse targets",
+     "`/api/auth/*` (login, OTP, magic link) and `/api/payments/webhook/*` are the classic abuse targets"),
+    ("cloudflare/networking.md",
+     "- `/api/payments/webhook` and `/api/gmail/pubsub/webhook` come from provider IP ranges",
+     "- `/api/payments/webhook/*` and `/api/gmail/pubsub/webhook` come from provider IP ranges"),
+    ("aws/README.md",
+     'PAY["Stripe / Razorpay"] -->|"/api/payments/webhook"| ALB',
+     'PAY["Stripe / Razorpay"] -->|"/api/payments/webhook/stripe + /razorpay"| ALB'),
+    ("aws/README.md",
+     "- [ ] (R) Webhook URL `https://app.yourdomain.com/api/payments/webhook` registered in Stripe/Razorpay dashboards",
+     "- [ ] (R) Webhook URLs `https://app.yourdomain.com/api/payments/webhook/stripe` (Stripe) and `https://app.yourdomain.com/api/payments/webhook/razorpay` (Razorpay) registered"),
+    ("aws/README.md",
+     "see it land in `/api/payments/webhook` (check ALB access logs / app logs for a 200)",
+     "see it land in `/api/payments/webhook/stripe` (or `/api/payments/webhook/razorpay`; check ALB access logs / app logs for a 200)"),
+    ("aws/architecture.md",
+     "Public ALB paths: `/api/payments/webhook`, `/api/gmail/pubsub/webhook`",
+     "Public ALB paths: `/api/payments/webhook/stripe` + `/api/payments/webhook/razorpay`, `/api/gmail/pubsub/webhook`"),
+    ("aws/backend.md",
+     "| Webhooks | `/api/payments/webhook`, `/api/gmail/pubsub/webhook`, `/api/telegram/webhook` |",
+     "| Webhooks | `/api/payments/webhook/stripe` + `/api/payments/webhook/razorpay`, `/api/gmail/pubsub/webhook`, `/api/telegram/webhook` |"),
+    ("aws/backend.md",
+     '--url "https://${APP_HOST}/api/payments/webhook" \\',
+     '--url "https://${APP_HOST}/api/payments/webhook/stripe" \\'),
+    ("aws/backend.md",
+     'curl -s -o /dev/null -w "%{http_code}\\n" -X GET https://${APP_HOST}/api/payments/webhook',
+     'curl -s -o /dev/null -w "%{http_code}\\n" -X GET https://${APP_HOST}/api/payments/webhook/stripe'),
+    ("aws/dns-ssl.md",
+     "re-register or edit to `https://app.yourdomain.com/api/payments/webhook` and re-copy the signing secret",
+     "re-register or edit to `https://app.yourdomain.com/api/payments/webhook/stripe` (Stripe) / `https://app.yourdomain.com/api/payments/webhook/razorpay` (Razorpay) and re-copy the signing secret"),
+    ("aws/troubleshooting.md",
+     'curl -s -o /dev/null -w "%{http_code}\\n" -X POST https://${APP_HOST}/api/payments/webhook   # 400 is FINE (no signature) — proves reachability',
+     'curl -s -o /dev/null -w "%{http_code}\\n" -X POST https://${APP_HOST}/api/payments/webhook/stripe   # 400 is FINE (no signature) — proves reachability'),
+    ("aws/troubleshooting.md",
+     "register `https://app.yourdomain.com/api/payments/webhook` (POST) and re-copy the signing secret",
+     "register `https://app.yourdomain.com/api/payments/webhook/stripe` (Stripe) or `https://app.yourdomain.com/api/payments/webhook/razorpay` (Razorpay) (POST) and re-copy the signing secret"),
+    ("gcp/README.md",
+     '-->|"webhook POST /api/payments/webhook"| Edge',
+     '-->|"webhook POST /api/payments/webhook/stripe (+ /razorpay)"| Edge'),
+    ("gcp/README.md",
+     "[ ] Stripe webhook registered: https://app.yourdomain.com/api/payments/webhook (+ Razorpay if used)",
+     "[ ] Stripe webhook registered: https://app.yourdomain.com/api/payments/webhook/stripe (+ Razorpay → https://app.yourdomain.com/api/payments/webhook/razorpay if used)"),
+    ("gcp/README.md",
+     "POST /api/payments/webhook returns 200 and updates entitlements",
+     "POST /api/payments/webhook/stripe returns 200 and updates entitlements"),
+    ("gcp/backend.md",
+     "### 13.1 Payments — `POST /api/payments/webhook`",
+     "### 13.1 Payments — `POST /api/payments/webhook/stripe` (Stripe) · `/api/payments/webhook/razorpay` (Razorpay)"),
+    ("gcp/backend.md",
+     "- Both providers POST to the **same path**; the route dispatches by source (verified: `src/app/api/payments/webhook/` with `stripe/` and `razorpay/` handlers).",
+     "- Each provider has its **own path** (verified: `src/app/api/payments/webhook/stripe/route.ts` and `src/app/api/payments/webhook/razorpay/route.ts`; there is no single shared `/api/payments/webhook` route). Register the matching URL per provider."),
+    ("gcp/monitoring.md",
+     'httpRequest.requestUrl:"/api/payments/webhook"\' --limit=20',
+     'httpRequest.requestUrl:"/api/payments/webhook/"\' --limit=20'),
+    ("gcp/troubleshooting.md",
+     'httpRequest.requestUrl:"/api/payments/webhook"\' --limit=10',
+     'httpRequest.requestUrl:"/api/payments/webhook/"\' --limit=10'),
+    ("gcp/troubleshooting.md",
+     "(`https://app.yourdomain.com/api/payments/webhook`), copy the fresh",
+     "(`https://app.yourdomain.com/api/payments/webhook/stripe` or `https://app.yourdomain.com/api/payments/webhook/razorpay`), copy the fresh"),
+    ("azure/README.md",
+     'PAY["Stripe / Razorpay"] -->|"webhook /api/payments/webhook"| CAPP',
+     'PAY["Stripe / Razorpay"] -->|"webhook /api/payments/webhook/stripe (+ /razorpay)"| CAPP'),
+    ("azure/backend.md",
+     "/api/payments/webhook, /api/gmail/pubsub/webhook, Telegram webhook -> inbound webhooks",
+     "/api/payments/webhook/stripe + /api/payments/webhook/razorpay, /api/gmail/pubsub/webhook, Telegram webhook -> inbound webhooks"),
+    ("azure/troubleshooting.md",
+     '-X POST "https://app.yourdomain.com/api/payments/webhook"',
+     '-X POST "https://app.yourdomain.com/api/payments/webhook/stripe"'),
+]
+
+def main():
+    failed, applied = [], 0
+    for rel, old, new in FIXES:
+        path = os.path.join(ROOT, rel)
+        text = open(path, encoding="utf-8").read()
+        if old not in text:
+            failed.append(rel)
+            print(f"NOT FOUND in {rel}: {old[:80]}...")
+            continue
+        open(path, "w", encoding="utf-8").write(text.replace(old, new, 1))
+        applied += 1
+    print(f"applied: {applied}/{len(FIXES)}; failed: {len(failed)}")
+
+if __name__ == "__main__":
+    main()

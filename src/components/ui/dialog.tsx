@@ -51,6 +51,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   closeButtonDisabled = false,
+  overlayClassName,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -58,10 +59,15 @@ function DialogContent({
   // payment is in progress so the user can't abandon a Stripe redirect
   // mid-flow (PART 3 of SUBSCRIPTION-PAYMENT-FIX-20260909).
   closeButtonDisabled?: boolean
+  // Optional className for the dim overlay. Full-screen mobile dialogs
+  // (e.g. Legal Documents) need to stack ABOVE the app's mobile header
+  // (z-[100]) and bottom nav (z-[200]) — pass e.g. "z-[300]" for both
+  // overlayClassName and className in that case.
+  overlayClassName?: string
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/providers";
 import { FeedbackProvider } from "@/components/feedback/feedback-provider";
 
@@ -49,6 +50,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <Toaster />
+          <RadixToaster />
           <FeedbackProvider />
         </Providers>
       </body>

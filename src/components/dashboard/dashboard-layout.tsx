@@ -20,9 +20,9 @@ import {
   Clock,
   Sparkles,
   MoreHorizontal,
-  Settings,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
   MessageSquare,
   GitBranch,
   User,
@@ -33,7 +33,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuShortcut } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAppStore, pathToTab } from '@/lib/store';
+import { useAppStore, pathToTab, SIDEBAR_COLLAPSED_STORAGE_KEY } from '@/lib/store';
 import type { TabId } from '@/lib/types';
 import { fetchReminders } from '@/lib/api';
 import { useNotificationStore } from '@/lib/store';
@@ -62,6 +62,7 @@ const DealsTab = React.lazy(() => import('./deals-tab'));
 const CompetitorTab = React.lazy(() => import('./competitor-tab'));
 const SettingsShell = React.lazy(() => import('./settings-shell'));
 const WorkflowsTab = React.lazy(() => import('./workflows-tab'));
+const NotificationsTab = React.lazy(() => import('./notifications-tab'));
 import PlanGate from './plan-gate';
 import CreditGate from './credit-gate';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -112,6 +113,16 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings, shortLabel: 'Config' },
 ];
 
+// Page titles for tabs that are reachable but not present in the sidebar
+// NAV_ITEMS (e.g. the full-page notifications history opened from the bell).
+const EXTRA_TAB_TITLES: Partial<Record<TabId, string>> = {
+  notifications: 'Notifications',
+};
+
+function tabTitle(tab: TabId): string {
+  return NAV_ITEMS.find((n) => n.id === tab)?.label ?? EXTRA_TAB_TITLES[tab] ?? 'Dashboard';
+}
+
 function SidebarNav({
   activeTab,
   onTabChange,
@@ -134,11 +145,12 @@ function SidebarNav({
           <button
             key={item.id}
             onClick={() => onTabChange(item.id)}
+            aria-label={collapsed && orientation === 'vertical' ? item.label : undefined}
             className={cn(
               'relative flex items-center rounded-lg text-sm font-medium transition-all duration-200',
               'hover:bg-accent hover:text-accent-foreground',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
+              collapsed && orientation === 'vertical' ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
               isActive
                 ? 'bg-primary/10 text-primary font-semibold'
                 : 'text-muted-foreground',
@@ -146,7 +158,9 @@ function SidebarNav({
             )}
           >
             <Icon className="shrink-0 h-4 w-4" />
-            {!collapsed && <span className={cn(orientation === 'horizontal' && 'hidden sm:inline')}>{item.label}</span>}
+            {(!collapsed || orientation === 'horizontal') && (
+              <span className={cn(orientation === 'horizontal' && 'hidden sm:inline')}>{item.label}</span>
+            )}
             {isActive && orientation === 'vertical' && !collapsed && (
               <motion.div
                 layoutId="sidebar-indicator"
@@ -171,6 +185,9 @@ function SidebarNav({
           </button>
         );
 
+        // Collapsed desktop rail: labels are hidden, so expose the destination
+        // via a right-side tooltip. Radix tooltips also open on keyboard focus,
+        // which keeps the rail fully keyboard accessible.
         if (collapsed && orientation === 'vertical') {
           return (
             <Tooltip key={item.id}>
@@ -296,6 +313,24 @@ export default function DashboardLayout({
   const userEmail = authUser?.email || '';
   const userAvatarUrl = authUser?.avatarUrl || null;
 
+  // Restore the persisted sidebar collapsed preference after mount.
+  // (First render + SSR use the expanded default so hydration matches; the
+  // stored value — if any — is applied immediately afterwards, before paint
+  // of the interaction.)
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+      if (stored === '1' || stored === '0') {
+        const collapsed = stored === '1';
+        if (collapsed !== useAppStore.getState().sidebarCollapsed) {
+          useAppStore.setState({ sidebarCollapsed: collapsed });
+        }
+      }
+    } catch {
+      // storage unavailable — keep expanded default
+    }
+  }, []);
+
   // Check if onboarding should show on first visit (hydration-safe via useSyncExternalStore)
   const onboardingCompleted = useSyncExternalStore(
     (callback) => {
@@ -411,6 +446,7 @@ export default function DashboardLayout({
             case 'insights': return <InsightsTab />;
             case 'deals': return <DealsTab />;
             case 'competitors': return <PlanGate requiredPlan="pro" featureName="Competitor Analysis" onUpgrade={() => setUpgradeModalOpen(true)}><CompetitorTab /></PlanGate>;
+            case 'notifications': return <NotificationsTab />;
             case 'settings': return <SettingsShell />;
             default: return <OverviewTab />;
           }
@@ -425,8 +461,12 @@ export default function DashboardLayout({
   const secondaryNavItems = NAV_ITEMS.slice(5);
   const isMoreActive = secondaryNavItems.some((item) => item.id === activeTab);
 
+  // h-full (not h-screen): this layout renders inside AuthGate's
+  // flex-1 min-h-0 wrapper, which may be shorter than the viewport when
+  // the Trial/CreditWarning banners are shown above it. A hard 100vh
+  // height made the footer overflow and get clipped below the fold.
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-full flex flex-col bg-background overflow-hidden">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:text-sm focus:font-medium">
         Skip to content
       </a>
@@ -513,31 +553,63 @@ export default function DashboardLayout({
             </DropdownMenuContent>
           </DropdownMenu>
           <span className="text-xs text-muted-foreground hidden md:inline">
-            {NAV_ITEMS.find((n) => n.id === activeTab)?.label}
+            {tabTitle(activeTab)}
           </span>
         </div>
       </header>
 
       {/* ===== Middle Section: Sidebar + Content ===== */}
       <div className="flex flex-1 min-h-0">
-        {/* Desktop Sidebar - Collapsible */}
-        <aside className={cn(
-          "hidden lg:flex lg:flex-col lg:border-r bg-sidebar shrink-0 transition-all duration-300 ease-in-out",
-          sidebarCollapsed ? "lg:w-16" : "lg:w-60"
-        )}>
+        {/* Desktop Sidebar — collapsible (expanded ≈256px / collapsed icon rail ≈64px).
+            State persists in localStorage; mobile nav is separate and untouched.
+            Expanded layout mirrors the reference screenshot: logo → 12 nav items →
+            Credits card → Notifications (user/theme controls live in the navbar). */}
+        <aside
+          className={cn(
+            'hidden lg:flex lg:flex-col lg:border-r bg-sidebar shrink-0 transition-all duration-300 ease-in-out relative',
+            sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+          )}
+          aria-label="Sidebar"
+        >
+          {/* Collapse/Expand handle — sits ON the sidebar/content border at the
+              top (aligned with the logo row), replacing the old bottom-of-
+              sidebar toggle that wasted a permanent footer row. The half-out
+              position makes the border itself the affordance — a premium,
+              unobtrusive notch. z-[120] keeps the button above the sticky
+              topbar (z-[100]) whose background would otherwise paint over
+              the 10px of the handle that overlaps the content side. */}
+          <button
+            type="button"
+            className="absolute top-[18px] -right-[10px] z-[120] hidden lg:inline-flex h-5 w-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground hover:bg-accent hover:scale-110 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="h-3 w-3" /> : <PanelLeftClose className="h-3 w-3" />}
+          </button>
+
           {/* Logo */}
           <div className="flex h-14 items-center gap-2 border-b px-4 gradient-bg-animated shrink-0">
             <Rocket className="h-6 w-6 text-primary shrink-0" />
             {!sidebarCollapsed && <span className="font-bold text-lg tracking-tight gradient-text">AcquisitionOS</span>}
           </div>
-          <ScrollArea className="flex-1 py-4">
-            <div className={cn("relative", sidebarCollapsed ? "px-2" : "px-3")}>
+          {/* min-h-0: lets the Radix ScrollArea shrink below its content
+              height inside this flex column. Without it the nav list forces
+              the aside taller than the viewport, the h-screen root overflows
+              (scrollHeight > clientHeight) and any programmatic scroll
+              (focus/scrollIntoView) silently shifts the WHOLE layout up,
+              leaving the footer floating mid-screen. */}
+          <ScrollArea className="min-h-0 flex-1 py-4">
+            <div className={cn('relative', sidebarCollapsed ? 'px-2' : 'px-3')}>
               <TooltipProvider>
                 <SidebarNav activeTab={activeTab} onTabChange={setActiveTab} collapsed={sidebarCollapsed} />
               </TooltipProvider>
             </div>
           </ScrollArea>
-          {/* Collapsible sections - hidden when collapsed */}
+          {/* Collapsible sections — hidden in the collapsed icon rail to keep it
+              compact and intentional; all content is reachable in expanded state
+              and stays untouched when expanded. */}
           {!sidebarCollapsed && (
             <>
               {/* Credits Display */}
@@ -555,89 +627,16 @@ export default function DashboardLayout({
               </div>
             </>
           )}
-          {/* User Profile + Theme Toggle (real user data) */}
-          <div className="border-t p-4 shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    "flex items-center w-full rounded-lg p-1 -m-1 hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    !sidebarCollapsed ? "gap-3" : "justify-center"
-                  )}
-                  aria-label="User menu"
-                >
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={userAvatarUrl || undefined} alt={userDisplayName} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">{userInitials}</AvatarFallback>
-                  </Avatar>
-                  {!sidebarCollapsed && (
-                    <>
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-medium truncate">{userDisplayName}</p>
-                        <p className="text-xs text-primary/70 truncate">{currentPlanName} Plan</p>
-                      </div>
-                      <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-                    </>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" align="end" className="w-56">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{userDisplayName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
-                    <Badge variant="outline" className="w-fit text-[10px] mt-1">{currentPlanName} Plan</Badge>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setUpgradeModalOpen(true)} className="cursor-pointer">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => { await signOut(); }}
-                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {!sidebarCollapsed && (
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground">Theme</span>
-                <ThemeToggle size="sm" />
-              </div>
-            )}
-          </div>
-          {/* Collapse Toggle Button */}
-          <div className="border-t p-2 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground mx-auto flex"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
-          </div>
+          {/* Collapse/Expand toggle moved to the border handle at the top of
+              the sidebar (see aside top) — the bottom footer row it used to
+              occupy is gone, freeing that space. */}
         </aside>
 
         {/* Desktop Topbar + Main Content */}
         <div className="flex flex-col flex-1 min-w-0">
           {/* Desktop Topbar */}
           <header role="banner" className="hidden lg:flex sticky top-0 z-[100] h-14 items-center gap-4 border-b bg-background/95 backdrop-blur-md px-6 shrink-0">
-            <h1 className="text-lg font-semibold">{NAV_ITEMS.find((n) => n.id === activeTab)?.label}</h1>
+            <h1 className="text-lg font-semibold">{tabTitle(activeTab)}</h1>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setCommandPaletteOpen(true)} aria-label="Search">
                 <Search className="h-4 w-4" />
@@ -699,7 +698,7 @@ export default function DashboardLayout({
             </div>
           </header>
           {/* Main Content Area */}
-          <main role="main" id="main-content" aria-label={NAV_ITEMS.find((n) => n.id === activeTab)?.label || 'Content'} className="flex-1 overflow-auto bg-grid relative min-w-0">
+          <main role="main" id="main-content" aria-label={tabTitle(activeTab) || 'Content'} className="flex-1 overflow-auto bg-grid relative min-w-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -808,25 +807,29 @@ export default function DashboardLayout({
         <span className="flex-1 text-center truncate px-2">
           AcquisitionOS &mdash; AI-Powered Client Acquisition System
         </span>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 flex-wrap justify-end">
           <button
             type="button"
             onClick={() => useLegalStore.getState().openLegal('privacy')}
-            className="hover:text-foreground transition-colors"
+            className="hover:text-foreground transition-colors shrink-0"
           >
             Privacy
           </button>
-          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground/30 shrink-0">·</span>
           <button
             type="button"
             onClick={() => useLegalStore.getState().openLegal('terms')}
-            className="hover:text-foreground transition-colors"
+            className="hover:text-foreground transition-colors shrink-0"
           >
             Terms
           </button>
-          <span className="text-muted-foreground/30">·</span>
-          <LiveClock />
-          <span className="flex items-center gap-1 text-foreground">
+          {/* Live clock hidden between lg and xl so the footer cluster never
+              overlaps the centered product line on 1024–1280px viewports */}
+          <span className="text-muted-foreground/30 shrink-0 hidden xl:inline">·</span>
+          <span className="hidden xl:block shrink-0">
+            <LiveClock />
+          </span>
+          <span className="flex items-center gap-1 text-foreground shrink-0">
             Crafted with <span className="text-red-500">❤️</span> by{' '}
             <a
               href="https://www.linkedin.com/company/quantumfusion-solutions"

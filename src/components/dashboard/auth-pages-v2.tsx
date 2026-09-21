@@ -37,6 +37,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useLegalStore } from '@/lib/legal-store';
+import { DevDeliveryNotice, parseDevDelivery } from '@/components/dashboard/dev-delivery-notice';
+import type { DevDeliveryPayload } from '@/lib/dev-auth';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ============================================================
@@ -304,7 +306,7 @@ export function SignInPage({
   onMagicLinkClick?: () => void;
   onOtpLoginClick?: () => void;
   /** Called when sign-in is blocked because the email is not verified yet. */
-  onVerifyEmailClick?: (email: string) => void;
+  onVerifyEmailClick?: (email: string, devDelivery?: DevDeliveryPayload) => void;
 }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
@@ -370,13 +372,15 @@ export function SignInPage({
           emailNotVerified?: boolean;
           email?: string;
           noPasswordSet?: boolean;
+          devDelivery?: DevDeliveryPayload;
         };
         setGeneralError(result.error || 'Sign in failed');
         toast.error(result.error || 'Sign in failed');
         if (r.emailNotVerified && typeof r.email === 'string' && r.email) {
           // A fresh verification code was auto-sent by the API — take the
-          // user straight to the verification page to enter it.
-          setTimeout(() => onVerifyEmailClick?.(r.email as string), 600);
+          // user straight to the verification page to enter it. In dev mode
+          // (no email provider) the code travels along and is surfaced there.
+          setTimeout(() => onVerifyEmailClick?.(r.email as string, r.devDelivery), 600);
         }
         // For noPasswordSet, the Google / Magic Link / OTP buttons below the
         // form are the suggested methods — the alert text points to them.
@@ -565,7 +569,7 @@ export function SignUpPage({
   onVerifyEmail,
 }: {
   onSignInClick?: () => void;
-  onVerifyEmail?: (email: string) => void;
+  onVerifyEmail?: (email: string, devDelivery?: DevDeliveryPayload) => void;
 }) {
   const { signUp } = useAuth();
   const [name, setName] = useState('');
@@ -577,6 +581,9 @@ export function SignUpPage({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  // DEV-ONLY (sandbox): the verification code surfaced in-place when the
+  // server cannot send emails. Never set in production.
+  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
   // Set when the server reports the email is already registered (any method)
   const [emailRegistered, setEmailRegistered] = useState(false);
   // Local submitting state for the form's submit button. We intentionally do
@@ -634,7 +641,10 @@ export function SignUpPage({
           requiresVerification?: boolean;
           email?: string;
           error?: string;
+          devDelivery?: DevDeliveryPayload;
         };
+        // DEV-ONLY: capture the in-place delivered verification code.
+        setDevDelivery(parseDevDelivery(result) || signUpData.devDelivery);
         if (signUpData.requiresVerification) {
           // Email delivered via real Gmail SMTP — user checks their inbox.
           // No preview URL is returned anymore.
@@ -671,9 +681,10 @@ export function SignUpPage({
               We&apos;ve sent a verification code to{' '}
               <span className="font-medium text-foreground">{email}</span>
             </p>
+            <DevDeliveryNotice delivery={devDelivery} className="text-left" />
             <LoadingButton
               className="w-full h-10"
-              onClick={() => onVerifyEmail?.(email)}
+              onClick={() => onVerifyEmail?.(email, devDelivery)}
             >
               Verify Email
             </LoadingButton>
@@ -901,18 +912,25 @@ export function SignUpPage({
 
 export function VerifyEmailPage({
   email,
+  initialDevDelivery,
   onVerified,
   onBackToSignIn,
 }: {
   email: string;
+  /** DEV-ONLY (sandbox): verification code surfaced in-place when the
+   *  server cannot send emails. Never set in production. */
+  initialDevDelivery?: DevDeliveryPayload;
   onVerified?: () => void;
   onBackToSignIn?: () => void;
 }) {
   const { verifyEmail, signIn } = useAuth();
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState(initialDevDelivery?.code || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  // DEV-ONLY (sandbox): the verification code surfaced in-place when the
+  // server cannot send emails. Never set in production.
+  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>(initialDevDelivery);
   // Email preview metadata — populated when the user clicks "Resend" and the
   // server delivers via Ethereal (test SMTP). The verification OTP is NEVER
   // returned in the response — the user reads it from the preview inbox.
@@ -969,6 +987,8 @@ export function VerifyEmailPage({
         // the actual email.
         setEmailPreviewUrl(data.emailPreviewUrl);
         setEmailProvider(data.emailProvider);
+        // DEV-ONLY: capture the in-place delivered code (sandbox mode).
+        setDevDelivery(parseDevDelivery(data));
         toast.success('Verification code resent!');
       } else {
         toast.error('Failed to resend code');
@@ -999,6 +1019,11 @@ export function VerifyEmailPage({
             previewUrl={emailPreviewUrl}
             provider={emailProvider}
             message="Click below to open the email preview and read the 6-digit verification code, then enter it here. If you haven't received the email yet, click Resend below."
+          />
+
+          <DevDeliveryNotice
+            delivery={devDelivery}
+            onFillCode={(code) => setOtp(code)}
           />
 
           {/* OTP Input */}
@@ -1060,7 +1085,7 @@ export function ForgotPasswordPage({
   onOtpSent,
 }: {
   onBackToSignIn?: () => void;
-  onOtpSent?: (email: string, emailPreviewUrl?: string, emailProvider?: string) => void;
+  onOtpSent?: (email: string, emailPreviewUrl?: string, emailProvider?: string, devDelivery?: DevDeliveryPayload) => void;
 }) {
   const { forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
@@ -1072,6 +1097,9 @@ export function ForgotPasswordPage({
   // returned in the response.
   const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
   const [emailProvider, setEmailProvider] = useState<string | undefined>();
+  // DEV-ONLY (sandbox): the reset code surfaced in-place when the server
+  // cannot send emails. Never set in production.
+  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -1091,13 +1119,17 @@ export function ForgotPasswordPage({
           message?: string;
           emailPreviewUrl?: string;
           emailProvider?: string;
+          devDelivery?: DevDeliveryPayload;
         };
         setEmailPreviewUrl(r.emailPreviewUrl);
         setEmailProvider(r.emailProvider);
+        // DEV-ONLY: capture the in-place delivered reset code (sandbox mode).
+        const devResult = parseDevDelivery(result) || r.devDelivery;
+        setDevDelivery(devResult);
         toast.success('If an account exists for this email, you will receive a reset code.');
         // Auto-navigate after a moment — pass the preview URL through to the
         // reset password page so the user can immediately open the email.
-        setTimeout(() => onOtpSent?.(email, r.emailPreviewUrl, r.emailProvider), 1500);
+        setTimeout(() => onOtpSent?.(email, r.emailPreviewUrl, r.emailProvider, devResult), 1500);
       } else {
         setError(result.error || 'Request failed');
         toast.error(result.error || 'Request failed');
@@ -1129,6 +1161,7 @@ export function ForgotPasswordPage({
                 provider={emailProvider}
                 message="Redirecting to the reset page... You can also open the email preview now to grab your reset code."
               />
+              <DevDeliveryNotice delivery={devDelivery} className="text-left" />
               <p className="text-xs text-muted-foreground">Redirecting to reset page...</p>
             </div>
           ) : (
@@ -1183,15 +1216,19 @@ export function ResetPasswordPage({
   initialOtp,
   initialEmailPreviewUrl,
   initialEmailProvider,
+  initialDevDelivery,
 }: {
   email: string;
   onSuccess?: () => void;
   initialOtp?: string;
   initialEmailPreviewUrl?: string;
   initialEmailProvider?: string;
+  /** DEV-ONLY (sandbox): reset code surfaced in-place when the server
+   *  cannot send emails. Never set in production. */
+  initialDevDelivery?: DevDeliveryPayload;
 }) {
   const { resetPassword } = useAuth();
-  const [otp, setOtp] = useState(initialOtp || '');
+  const [otp, setOtp] = useState(initialOtp || initialDevDelivery?.code || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -1202,6 +1239,9 @@ export function ResetPasswordPage({
   // ForgotPasswordPage), updated whenever the user resends the code.
   const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>(initialEmailPreviewUrl);
   const [emailProvider, setEmailProvider] = useState<string | undefined>(initialEmailProvider);
+  // DEV-ONLY (sandbox): the reset code surfaced in-place when the server
+  // cannot send emails. Never set in production.
+  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>(initialDevDelivery);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   useEffect(() => {
@@ -1266,6 +1306,8 @@ export function ResetPasswordPage({
         // email in a browser and read the new reset code.
         setEmailPreviewUrl(data.emailPreviewUrl);
         setEmailProvider(data.emailProvider);
+        // DEV-ONLY: capture the in-place delivered code (sandbox mode).
+        setDevDelivery(parseDevDelivery(data));
         toast.success('Code resent!');
       } else {
         toast.error('Failed to resend');
@@ -1285,6 +1327,10 @@ export function ResetPasswordPage({
             previewUrl={emailPreviewUrl}
             provider={emailProvider}
             message="Click below to open the email preview and read the 6-digit reset code, then enter it here along with your new password."
+          />
+          <DevDeliveryNotice
+            delivery={devDelivery}
+            onFillCode={(code) => setOtp(code)}
           />
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* OTP */}
@@ -2088,6 +2134,8 @@ export function AuthDemo() {
   const [resetEmail, setResetEmail] = useState('user@example.com');
   const [resetEmailPreviewUrl, setResetEmailPreviewUrl] = useState<string | undefined>();
   const [resetEmailProvider, setResetEmailProvider] = useState<string | undefined>();
+  const [verifyDevDelivery, setVerifyDevDelivery] = useState<DevDeliveryPayload | undefined>();
+  const [resetDevDelivery, setResetDevDelivery] = useState<DevDeliveryPayload | undefined>();
 
   const navigate = (page: AuthPageId) => setActivePage(page);
 
@@ -2152,8 +2200,9 @@ export function AuthDemo() {
           {activePage === 'signup' && (
             <SignUpPage
               onSignInClick={() => navigate('signin')}
-              onVerifyEmail={(email) => {
+              onVerifyEmail={(email, devDelivery) => {
                 setVerifyEmail(email);
+                setVerifyDevDelivery(devDelivery);
                 navigate('verify-email');
               }}
             />
@@ -2161,6 +2210,7 @@ export function AuthDemo() {
           {activePage === 'verify-email' && (
             <VerifyEmailPage
               email={verifyEmail}
+              initialDevDelivery={verifyDevDelivery}
               onVerified={() => navigate('signin')}
               onBackToSignIn={() => navigate('signin')}
             />
@@ -2168,10 +2218,11 @@ export function AuthDemo() {
           {activePage === 'forgot-password' && (
             <ForgotPasswordPage
               onBackToSignIn={() => navigate('signin')}
-              onOtpSent={(email, emailPreviewUrl, emailProvider) => {
+              onOtpSent={(email, emailPreviewUrl, emailProvider, devDelivery) => {
                 setResetEmail(email);
                 setResetEmailPreviewUrl(emailPreviewUrl);
                 setResetEmailProvider(emailProvider);
+                setResetDevDelivery(devDelivery);
                 navigate('reset-password');
               }}
             />
@@ -2182,6 +2233,7 @@ export function AuthDemo() {
               onSuccess={() => navigate('signin')}
               initialEmailPreviewUrl={resetEmailPreviewUrl}
               initialEmailProvider={resetEmailProvider}
+              initialDevDelivery={resetDevDelivery}
             />
           )}
           {activePage === 'mfa-verify' && (

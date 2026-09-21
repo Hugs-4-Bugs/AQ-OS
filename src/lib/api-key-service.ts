@@ -6,6 +6,7 @@
 
 import crypto from 'crypto';
 import { db } from '@/lib/db';
+import { createNotificationOnce } from '@/lib/notification-service';
 
 // ===== CONSTANTS =====
 const KEY_PREFIX_LIVE = 'aq_live_';
@@ -235,6 +236,19 @@ export async function createApiKey(params: CreateApiKeyParams): Promise<{
     action: 'api_key_created',
     apiKeyId: apiKey.id,
     details: `Created API key "${params.name}" (${params.environment}, scopes: ${params.scopes.join(', ')})`,
+  });
+
+  // User-facing notification (deduped per key).
+  await createNotificationOnce({
+    userId: params.userId,
+    type: 'api_key_created',
+    title: 'API key created',
+    message: `API key "${params.name}" (${params.environment}) is ready to use. Store it securely — it cannot be viewed again.`,
+    actionUrl: '/business-ai/settings',
+    metadata: { apiKeyId: apiKey.id, environment: params.environment },
+    dedupeKey: `apikey:${apiKey.id}:created`,
+  }).catch(() => {
+    // Never fail key creation because of a notification problem
   });
 
   return {
@@ -478,6 +492,19 @@ export async function revokeApiKey(userId: string, apiKeyId: string): Promise<vo
     action: 'api_key_revoked',
     apiKeyId,
     details: `Revoked API key "${apiKey.name}" (${apiKey.keyPrefix})`,
+  });
+
+  // User-facing notification (deduped per key — a key can only be revoked once).
+  await createNotificationOnce({
+    userId,
+    type: 'api_key_revoked',
+    title: 'API key revoked',
+    message: `API key "${apiKey.name}" was revoked. Requests using it will no longer be accepted.`,
+    actionUrl: '/business-ai/settings',
+    metadata: { apiKeyId, environment: apiKey.environment },
+    dedupeKey: `apikey:${apiKeyId}:revoked`,
+  }).catch(() => {
+    // Never fail revocation because of a notification problem
   });
 }
 

@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
  * Fetch notifications for the authenticated user, ordered newest first.
  * Query params:
  *   - limit: number (default 50, max 100)
+ *   - offset: number (default 0) — for pagination on the notifications page
  *   - unreadOnly: boolean (default false)
  */
 export async function GET(request: NextRequest) {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = request.nextUrl;
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0);
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
     const where = {
@@ -30,6 +32,7 @@ export async function GET(request: NextRequest) {
     const notifications = await db.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      skip: offset,
       take: limit,
       select: {
         id: true,

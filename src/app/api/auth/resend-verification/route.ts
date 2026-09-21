@@ -8,6 +8,7 @@ import {
   OTP_EXPIRY_SECONDS,
 } from '@/lib/auth';
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
+import { devOtpDelivery } from '@/lib/dev-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     // ── Send verification email (REAL Gmail SMTP only) ───────────
     const emailConfigured = isEmailServiceConfigured();
+    let devDelivery: ReturnType<typeof devOtpDelivery> = undefined;
     if (emailConfigured) {
       try {
         const result = await sendVerificationEmail(normalizedEmail, user.name || 'User', otp);
@@ -90,10 +92,15 @@ export async function POST(request: NextRequest) {
       }
     } else {
       console.error('[Resend Verification] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY).');
+      // DEV-ONLY: surface the generated verification code to the requesting
+      // client so the flow can continue when no real provider exists. In
+      // production builds this is always undefined.
+      devDelivery = devOtpDelivery(otp, 'verification code');
     }
 
     return NextResponse.json({
       message: 'If an account exists and is not yet verified, a new verification code has been sent.',
+      ...(devDelivery ? { devDelivery } : {}),
     });
   } catch (error) {
     console.error('Resend verification error:', error);

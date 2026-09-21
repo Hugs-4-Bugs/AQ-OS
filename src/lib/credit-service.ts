@@ -12,6 +12,7 @@
 
 import { db } from '@/lib/db';
 import { logCreditEvent } from '@/lib/billing-audit';
+import { createNotificationOnce } from '@/lib/notification-service';
 import { PLAN_CREDITS, type PlanType } from '@/lib/entitlement-service';
 
 // ===== CREDIT COSTS MAPPING =====
@@ -195,11 +196,38 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
         balance: 0,
         action_type: action,
       });
+      // User-facing notification — deduped to one per 12h window so the
+      // per-action cadence of deductCredits cannot spam the bell.
+      await createNotificationOnce({
+        userId,
+        type: 'credit_critical',
+        title: 'You are out of credits',
+        message: 'Your credit balance has reached zero. Top up your credits or upgrade your plan to keep discovering leads and running workflows.',
+        actionUrl: '/business-ai/settings',
+        metadata: { balance: 0, action_type: action },
+        dedupeKey: 'credit_critical',
+        dedupeWindowMinutes: 12 * 60,
+      }).catch(() => {
+        // Never fail the deduction path because of a notification problem
+      });
     } else if (result.newBalance <= 10) {
       await logCreditEvent(userId, 'credit_warning', {
         amount: cost,
         balance: result.newBalance,
         action_type: action,
+      });
+      // User-facing notification — deduped to one per 12h window.
+      await createNotificationOnce({
+        userId,
+        type: 'credit_low',
+        title: 'Credits running low',
+        message: `Only ${result.newBalance} credit${result.newBalance === 1 ? '' : 's'} left. Top up soon so your workflows and discovery runs keep going.`,
+        actionUrl: '/business-ai/settings',
+        metadata: { balance: result.newBalance, action_type: action },
+        dedupeKey: 'credit_low',
+        dedupeWindowMinutes: 12 * 60,
+      }).catch(() => {
+        // Never fail the deduction path because of a notification problem
       });
     }
 

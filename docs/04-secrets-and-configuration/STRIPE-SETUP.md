@@ -1,6 +1,12 @@
 # Stripe Setup Guide
 
-> Read with `PAYMENTS-AND-BILLING.md`. Honest note: payments are currently INACTIVE in this deployment because no Stripe credentials are set — the flow below is what to do to activate it.
+> Read with `docs/payments/PAYMENT-SYSTEM.md` and `RAZORPAY-SETUP.md`.
+> **Stripe and Razorpay both run side by side** — users pick the gateway at
+> checkout. Stripe is the international/USD option; Razorpay covers
+> UPI/net-banking in INR.
+>
+> Honest note: payments are INACTIVE in a deployment until credentials are
+> set — the flow below is what to do to activate Stripe.
 
 ## 1. Create a Stripe Account
 
@@ -18,22 +24,36 @@
 
 ## 3. Products & Prices — IMPORTANT, READ
 
-**This application does NOT use Stripe Price IDs.** `createCheckoutSession` in `src/lib/stripe-service.ts` builds inline `price_data` from amounts hardcoded in the file:
+**The canonical checkout (`/api/payments/create-checkout-session`) uses real
+Stripe Price IDs resolved from environment variables.** The Stripe Price
+object is the single source of truth for the charged amount — no amounts are
+hardcoded.
 
-```ts
-const PLAN_PRICES_USD = {
-  pro:   { monthly: 29,  yearly: 279  },
-  elite: { monthly: 89,  yearly: 849 },
-};
-const PLAN_PRICES_INR = {
-  pro:   { monthly: 2299,  yearly: 22499 },
-  elite: { monthly: 6999,  yearly: 67499 },
-};
+1. Dashboard → **Products** → create:
+   - **AcquisitionOS Pro** — recurring USD prices: **$19 / month** and **$144 / year**
+   - **AcquisitionOS Elite** — recurring USD prices: **$63 / month** and **$456 / year**
+   (Amounts must match `src/lib/payments/plan-config.ts` / the pricing UI.)
+2. Copy each Price ID (`price_...`) into env vars:
+
+```env
+STRIPE_PRO_MONTHLY_PRICE_ID=price_...
+STRIPE_PRO_YEARLY_PRICE_ID=price_...
+STRIPE_ELITE_MONTHLY_PRICE_ID=price_...
+STRIPE_ELITE_YEARLY_PRICE_ID=price_...
+# optional — one-time prices for credit add-on packs:
+STRIPE_PRICE_CREDITS_100_ID=price_...
+STRIPE_PRICE_CREDITS_500_ID=price_...
+STRIPE_PRICE_CREDITS_1000_ID=price_...
 ```
 
-Plans: **free / pro / elite** (no separate "premium" tier in code). To change pricing, edit these constants — do not hunt for `STRIPE_PRICE_*` env vars (they are not read).
+The resolver accepts legacy aliases (`STRIPE_PRICE_ID_PRO_MONTHLY`,
+`STRIPE_PRICE_PRO_MONTHLY_ID`, `STRIPE_PRICE_PRO_MONTHLY`) but prefer the
+canonical names above. If a price id is missing, checkout fails loudly with
+the exact env var names to set — there is no mock fallback.
 
-You can still create matching Products/Prices in the Stripe Dashboard for your own bookkeeping/invoicing, but the app will not reference them.
+> The older `src/lib/stripe-service.ts` (legacy `create-order` route) still
+> contains inline `price_data` amounts; it is a parallel compatibility path.
+> New integrations and the pricing UI use the canonical env-driven flow.
 
 ## 4. Set Up the Webhook Endpoint
 
@@ -51,7 +71,7 @@ https://your-domain.com/api/payments/webhook/stripe
 
 | Event | What the app does |
 |---|---|
-| `checkout.session.completed` | Marks `PaymentOrder` completed, upserts `Subscription`, grants plan credits (`CreditsLedger`), generates `Invoice` + PDF + email |
+| `checkout.session.completed` | Marks `PaymentOrder` completed, upserts `Subscription`, grants plan credits (`CreditsLedger`), generates `Invoice` + PDF + email; routes credit add-on orders through `fulfillCreditAddon` |
 | `invoice.paid` | Renewal fulfillment (period rollover, credit refresh) |
 | `invoice.payment_failed` | Dunning: failure counters, recovery emails, past_due status |
 | `customer.subscription.updated` | Sync plan/status/period/cancel-at-period-end |

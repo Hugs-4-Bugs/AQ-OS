@@ -31,6 +31,16 @@ import {
   RefreshCw,
   Cloud,
   CloudOff,
+  Coins,
+  CreditCard,
+  KeyRound,
+  Megaphone,
+  ShieldAlert,
+  Search,
+  Banknote,
+  Info,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,8 +59,18 @@ import {
 } from '@/components/ui/sheet';
 import {
   useNotificationStore,
+  useAppStore,
   type NotificationType,
+  type Notification,
 } from '@/lib/store';
+import {
+  navigateNotificationTarget,
+  openNotificationsPage,
+} from '@/lib/notification-navigation';
+import {
+  acquireNotificationRealtime,
+  releaseNotificationRealtime,
+} from '@/lib/notification-realtime';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -62,15 +82,39 @@ const NOTIFICATION_ICONS: Record<NotificationType, React.ElementType> = {
   deal_lost: XCircle,
   credit_low: AlertTriangle,
   credit_critical: AlertTriangle,
+  credit_assigned: Coins,
   payment_success: CheckCircle,
   payment_failed: XCircle,
+  payment: CreditCard,
   trial_ending: Clock,
   new_lead_discovered: UserPlus,
   analysis_complete: BarChart3,
+  analysis: BarChart3,
   sequence_completed: CheckSquare,
   workflow_triggered: Zap,
-  gmail_token_expired: AlertCircle,
+  workflow_completed: CheckCircle2,
+  workflow_failed: XCircle,
+  workflow_execution_complete: CheckCircle,
+  discovery_completed: Search,
+  discovery_failed: XCircle,
+  campaign_completed: Megaphone,
+  campaign_failed: XCircle,
+  api_key_created: KeyRound,
+  api_key_revoked: KeyRound,
+  security_alert: ShieldAlert,
+  subscription_renewed: RefreshCw,
+  subscription_cancelling: Clock,
+  subscription_expired: XCircle,
+  refund_processed: Banknote,
+  chargeback_received: AlertTriangle,
+  lead_reply: Mail,
+  lead_pipeline_update: ArrowRight,
+  lead_stage_moved: ArrowRight,
+  team_invite: UserPlus,
   team_member_joined: Users,
+  gmail_token_expired: AlertCircle,
+  system: Bell,
+  info: Info,
   // Meeting & Calendar
   meeting_scheduled: Calendar,
   meeting_completed: CheckCircle2,
@@ -92,15 +136,39 @@ const NOTIFICATION_COLORS: Record<NotificationType, string> = {
   deal_lost: 'text-red-500 bg-red-500/10',
   credit_low: 'text-amber-500 bg-amber-500/10',
   credit_critical: 'text-red-500 bg-red-500/10',
+  credit_assigned: 'text-green-500 bg-green-500/10',
   payment_success: 'text-green-500 bg-green-500/10',
   payment_failed: 'text-red-500 bg-red-500/10',
+  payment: 'text-emerald-500 bg-emerald-500/10',
   trial_ending: 'text-orange-500 bg-orange-500/10',
   new_lead_discovered: 'text-purple-500 bg-purple-500/10',
   analysis_complete: 'text-blue-500 bg-blue-500/10',
+  analysis: 'text-blue-500 bg-blue-500/10',
   sequence_completed: 'text-green-500 bg-green-500/10',
   workflow_triggered: 'text-yellow-500 bg-yellow-500/10',
-  gmail_token_expired: 'text-red-500 bg-red-500/10',
+  workflow_completed: 'text-green-500 bg-green-500/10',
+  workflow_failed: 'text-red-500 bg-red-500/10',
+  workflow_execution_complete: 'text-green-500 bg-green-500/10',
+  discovery_completed: 'text-blue-500 bg-blue-500/10',
+  discovery_failed: 'text-red-500 bg-red-500/10',
+  campaign_completed: 'text-green-500 bg-green-500/10',
+  campaign_failed: 'text-red-500 bg-red-500/10',
+  api_key_created: 'text-blue-500 bg-blue-500/10',
+  api_key_revoked: 'text-red-500 bg-red-500/10',
+  security_alert: 'text-red-500 bg-red-500/10',
+  subscription_renewed: 'text-green-500 bg-green-500/10',
+  subscription_cancelling: 'text-orange-500 bg-orange-500/10',
+  subscription_expired: 'text-orange-500 bg-orange-500/10',
+  refund_processed: 'text-green-500 bg-green-500/10',
+  chargeback_received: 'text-red-500 bg-red-500/10',
+  lead_reply: 'text-blue-500 bg-blue-500/10',
+  lead_pipeline_update: 'text-sky-500 bg-sky-500/10',
+  lead_stage_moved: 'text-sky-500 bg-sky-500/10',
+  team_invite: 'text-blue-500 bg-blue-500/10',
   team_member_joined: 'text-blue-500 bg-blue-500/10',
+  gmail_token_expired: 'text-red-500 bg-red-500/10',
+  system: 'text-muted-foreground bg-muted/10',
+  info: 'text-blue-500 bg-blue-500/10',
   // Meeting & Calendar (teal theme)
   meeting_scheduled: 'text-teal-500 bg-teal-500/10',
   meeting_completed: 'text-teal-600 bg-teal-500/10',
@@ -122,15 +190,39 @@ const NOTIFICATION_ACCENT: Record<NotificationType, string> = {
   deal_lost: 'border-l-red-500',
   credit_low: 'border-l-amber-500',
   credit_critical: 'border-l-red-500',
+  credit_assigned: 'border-l-green-500',
   payment_success: 'border-l-green-500',
   payment_failed: 'border-l-red-500',
+  payment: 'border-l-emerald-500',
   trial_ending: 'border-l-orange-500',
   new_lead_discovered: 'border-l-purple-500',
   analysis_complete: 'border-l-blue-500',
+  analysis: 'border-l-blue-500',
   sequence_completed: 'border-l-green-500',
   workflow_triggered: 'border-l-yellow-500',
-  gmail_token_expired: 'border-l-red-500',
+  workflow_completed: 'border-l-green-500',
+  workflow_failed: 'border-l-red-500',
+  workflow_execution_complete: 'border-l-green-500',
+  discovery_completed: 'border-l-blue-500',
+  discovery_failed: 'border-l-red-500',
+  campaign_completed: 'border-l-green-500',
+  campaign_failed: 'border-l-red-500',
+  api_key_created: 'border-l-blue-500',
+  api_key_revoked: 'border-l-red-500',
+  security_alert: 'border-l-red-500',
+  subscription_renewed: 'border-l-green-500',
+  subscription_cancelling: 'border-l-orange-500',
+  subscription_expired: 'border-l-orange-500',
+  refund_processed: 'border-l-green-500',
+  chargeback_received: 'border-l-red-500',
+  lead_reply: 'border-l-blue-500',
+  lead_pipeline_update: 'border-l-sky-500',
+  lead_stage_moved: 'border-l-sky-500',
+  team_invite: 'border-l-blue-500',
   team_member_joined: 'border-l-blue-500',
+  gmail_token_expired: 'border-l-red-500',
+  system: 'border-l-muted-foreground/40',
+  info: 'border-l-blue-500',
   // Meeting & Calendar (teal accents)
   meeting_scheduled: 'border-l-teal-500',
   meeting_completed: 'border-l-teal-600',
@@ -213,11 +305,11 @@ function playNotificationSound() {
 
 function NotificationItem({
   notification,
-  onMarkRead,
+  onOpen,
   compact = false,
 }: {
   notification: import('@/lib/store').Notification;
-  onMarkRead: (id: string) => void;
+  onOpen: (notification: import('@/lib/store').Notification) => void;
   compact?: boolean;
 }) {
   // CRITICAL FIX (notification crash): If the API returns a notification
@@ -242,7 +334,7 @@ function NotificationItem({
         accentClass,
         compact ? 'px-3 py-2' : 'px-4 py-3'
       )}
-      onClick={() => onMarkRead(notification.id)}
+      onClick={() => onOpen(notification)}
     >
       {/* Type-specific icon with colored background */}
       <div
@@ -282,6 +374,11 @@ function NotificationItem({
         </p>
       </div>
 
+      {/* Click-through affordance for actionable notifications */}
+      {notification.actionUrl && (
+        <ArrowRight className="h-3.5 w-3.5 mt-1 shrink-0 text-muted-foreground/40" />
+      )}
+
       {/* Unread indicator dot */}
       {!notification.read && (
         <div className="mt-2 shrink-0">
@@ -298,8 +395,12 @@ function NotificationItem({
 
 function NotificationListContent({
   compact = false,
+  onNavigate,
 }: {
   compact?: boolean;
+  /** Called after a notification's click-through navigation fires so the
+   *  caller can close the popover/sheet. */
+  onNavigate?: () => void;
 }) {
   const {
     notifications,
@@ -310,6 +411,18 @@ function NotificationListContent({
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const handleOpen = useCallback(
+    (notification: Notification) => {
+      // Click → mark read (persisted) — then navigate to the relevant
+      // destination when the event has one.
+      markAsRead(notification.id);
+      if (notification.actionUrl && navigateNotificationTarget(notification.actionUrl)) {
+        onNavigate?.();
+      }
+    },
+    [markAsRead, onNavigate]
+  );
+
   if (notifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -317,7 +430,7 @@ function NotificationListContent({
           <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping opacity-20" />
           <Bell className="h-10 w-10 text-muted-foreground/30 relative" />
         </div>
-        <p className="text-sm font-medium text-muted-foreground mt-3">No notifications</p>
+        <p className="text-sm font-medium text-muted-foreground mt-3">No new notifications</p>
         <p className="text-xs text-muted-foreground/50 mt-1">
           We&apos;ll alert you when something happens
         </p>
@@ -334,7 +447,7 @@ function NotificationListContent({
               <NotificationItem
                 key={notification.id}
                 notification={notification}
-                onMarkRead={markAsRead}
+                onOpen={handleOpen}
                 compact={compact}
               />
             ))}
@@ -351,6 +464,10 @@ function NotificationListContent({
         <button
           type="button"
           className="text-[10px] text-primary hover:text-primary/80 font-medium transition-colors inline-flex items-center gap-1"
+          onClick={() => {
+            onNavigate?.();
+            openNotificationsPage();
+          }}
         >
           View All Notifications
           <ExternalLink className="h-2.5 w-2.5" />
@@ -512,11 +629,17 @@ export default function NotificationCenter() {
     clearNotifications,
     preferences,
     isMuted,
+    serverUnreadCount,
+    setServerUnreadCount,
   } = useNotificationStore();
 
   const initialized = useRef(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Timestamp of the last "mark all as read" — poll/SSE items created BEFORE
+  // this moment must not re-enter the store as unread (prevents the classic
+  // race where an in-flight poll resurrects just-read notifications).
+  const markAllReadAtRef = useRef<number>(0);
 
   // Responsive breakpoint detection using useSyncExternalStore
   const isLg = useSyncExternalStore(
@@ -555,6 +678,14 @@ export default function NotificationCenter() {
         case 'sequence_completed':
         case 'new_lead_discovered':
         case 'team_member_joined':
+        case 'workflow_completed':
+        case 'workflow_execution_complete':
+        case 'discovery_completed':
+        case 'campaign_completed':
+        case 'api_key_created':
+        case 'subscription_renewed':
+        case 'refund_processed':
+        case 'credit_assigned':
           toast.success(title, opts);
           break;
         case 'deal_lost':
@@ -562,11 +693,19 @@ export default function NotificationCenter() {
         case 'credit_critical':
         case 'gmail_token_expired':
         case 'meeting_cancelled':
+        case 'workflow_failed':
+        case 'discovery_failed':
+        case 'campaign_failed':
+        case 'api_key_revoked':
+        case 'security_alert':
+        case 'chargeback_received':
+        case 'subscription_expired':
           toast.error(title, opts);
           break;
         case 'credit_low':
         case 'trial_ending':
         case 'calendar_disconnected':
+        case 'subscription_cancelling':
           toast.warning(title, opts);
           break;
         default:
@@ -619,6 +758,11 @@ export default function NotificationCenter() {
           : Array.isArray(data)
             ? data
             : [];
+        // Authoritative unread count from the server — drives the bell badge
+        // even when unread items exceed the local store cap.
+        if (data && typeof data.unreadCount === 'number') {
+          setServerUnreadCount(data.unreadCount);
+        }
         for (const item of items) {
           if (!item || typeof item !== 'object') continue;
           // Mark server ID as seen so first poll doesn't toast for it
@@ -634,6 +778,10 @@ export default function NotificationCenter() {
             title: item.title || 'Notification',
             message: item.message || '',
             timestamp: item.createdAt ? new Date(item.createdAt) : new Date(),
+            // Preserve the PERSISTED read state — previously the store forced
+            // read:false, which resurrected read notifications after refresh.
+            read: !!item.read,
+            actionUrl: item.actionUrl ?? null,
           });
         }
       } catch (e) {
@@ -641,7 +789,7 @@ export default function NotificationCenter() {
       }
     }
     fetchNotifications();
-  }, [addNotification, capSeenSet]);
+  }, [addNotification, capSeenSet, setServerUnreadCount]);
 
   // Poll for new notifications every 30 seconds.
   // The 30-second interval is the minimum required cadence — do NOT make it
@@ -687,7 +835,7 @@ export default function NotificationCenter() {
           : Array.isArray(data)
             ? data
             : [];
-        const newItems = (items as Array<{ id?: string; createdAt?: string; type?: string; title?: string; message?: string }>).filter(
+        const newItems = (items as Array<{ id?: string; createdAt?: string; type?: string; title?: string; message?: string; read?: boolean; actionUrl?: string | null }>).filter(
           (item) => {
             if (!item || typeof item !== 'object') return false;
             const id = item.id ? String(item.id) : '';
@@ -695,18 +843,27 @@ export default function NotificationCenter() {
             return id && !seenNotifIdsRef.current.has(id);
           }
         );
+        if (data && typeof (data as { unreadCount?: number }).unreadCount === 'number') {
+          setServerUnreadCount((data as { unreadCount: number }).unreadCount);
+        }
         for (const item of newItems) {
           const notifType = (item.type || 'info') as NotificationType;
           const id = String(item.id);
           // Cap the seen-IDs set to prevent unbounded memory growth
           seenNotifIdsRef.current = capSeenSet(seenNotifIdsRef.current);
           seenNotifIdsRef.current.add(id);
+          const itemCreatedMs = item.createdAt ? new Date(item.createdAt).getTime() : Date.now();
+          // An item older than the last "mark all as read" click arrives as
+          // already-read — it must NOT resurrect as unread (race guard).
+          const wasReadBeforeMarkAll = itemCreatedMs <= markAllReadAtRef.current;
           addNotification({
             id,
             type: notifType,
             title: item.title || 'Notification',
             message: item.message || '',
             timestamp: item.createdAt ? new Date(item.createdAt) : new Date(),
+            read: wasReadBeforeMarkAll || !!item.read,
+            actionUrl: item.actionUrl ?? null,
           });
 
           // Play sound if tab is not focused and sound is enabled
@@ -730,9 +887,25 @@ export default function NotificationCenter() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [addNotification, preferences.soundEnabled, isMuted, showToastForType, capSeenSet]);
+  }, [addNotification, preferences.soundEnabled, isMuted, showToastForType, capSeenSet, setServerUnreadCount]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // ===== Real-time delivery (SSE — shared singleton) =====
+  // This component is mounted THREE times in the layout (mobile header,
+  // sidebar footer, desktop topbar). The EventSource connection and the
+  // event processing (one store add, one badge increment, one toast) are
+  // centralized in lib/notification-realtime.ts so a single backend event
+  // is processed exactly once regardless of how many instances are live.
+  // The 30s polling fallback above stays active for dropped connections.
+  useEffect(() => {
+    acquireNotificationRealtime();
+    return () => {
+      releaseNotificationRealtime();
+    };
+  }, []);
+
+  // Badge = authoritative server unread count once known (survives the
+  // 50-item local store cap); falls back to the local count before first sync.
+  const unreadCount = serverUnreadCount ?? notifications.filter((n) => !n.read).length;
 
   // Handle bell click: desktop uses popover, mobile uses sheet
   const handleBellClick = useCallback(() => {
@@ -795,7 +968,10 @@ export default function NotificationCenter() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-xs text-primary hover:text-primary"
-            onClick={markAllAsRead}
+            onClick={() => {
+              markAllReadAtRef.current = Date.now();
+              markAllAsRead();
+            }}
           >
             <CheckCheck className="h-3 w-3 mr-1" />
             Read
@@ -842,7 +1018,7 @@ export default function NotificationCenter() {
             className="w-80 sm:w-96 p-0 rounded-xl shadow-2xl border-border/50 z-[100] overflow-hidden"
           >
             {headerContent}
-            <NotificationListContent compact />
+            <NotificationListContent compact onNavigate={() => setDesktopOpen(false)} />
           </PopoverContent>
         </Popover>
       )}
@@ -860,7 +1036,7 @@ export default function NotificationCenter() {
               <SheetDescription className="sr-only">Your notification center</SheetDescription>
               {headerContent}
               <div className="flex-1 min-h-0">
-                <NotificationListContent />
+                <NotificationListContent onNavigate={() => setMobileOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>

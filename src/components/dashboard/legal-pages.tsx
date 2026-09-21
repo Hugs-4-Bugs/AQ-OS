@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useLegalStore, type LegalPage } from '@/lib/legal-store';
@@ -749,12 +748,93 @@ const LEGAL_TABS: { value: LegalPage; label: string; icon: React.ElementType }[]
   { value: 'cookies', label: 'Cookie Policy', icon: Cookie },
 ];
 
+/*
+ * MOBILE ACTIVE-TAB VISIBILITY
+ * ────────────────────────────
+ * On narrow screens the tab strip is a horizontal scroll container, and
+ * `activePage` can be set OUTSIDE the strip (Settings → Legal cards,
+ * footer links). When that happens the newly-active tab may sit scrolled
+ * out of view, leaving the active state invisible. This sub-component
+ * owns the strip and scrolls it just enough to keep the active tab fully
+ * in view. It only touches the strip's own scrollLeft — never ancestors
+ * (page/body) — so the layout stays put. Desktop is unaffected: the
+ * strip shows all tabs without scrolling, so the adjustment is a no-op.
+ *
+ * NOTE: this MUST be a child component (not an effect in LegalPages).
+ * Radix Dialog mounts its portal content one render late (Presence), so
+ * on the parent commit where `open` flips true the strip DOM does not
+ * exist yet and parent-level refs are null. As a child of DialogContent
+ * this component mounts WITH the strip, so its own effects always see
+ * the real nodes.
+ */
+function LegalTabStrip({ activePage }: { activePage: LegalPage }) {
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    const tab = activeTabRef.current;
+    if (!strip || !tab) return;
+    const raf = requestAnimationFrame(() => {
+      const tabRect = tab.getBoundingClientRect();
+      const stripRect = strip.getBoundingClientRect();
+      const pad = 12; // keep a little breathing room past the edge
+      if (tabRect.left < stripRect.left) {
+        strip.scrollLeft -= stripRect.left - tabRect.left + pad;
+      } else if (tabRect.right > stripRect.right) {
+        strip.scrollLeft += tabRect.right - stripRect.right + pad;
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activePage]);
+
+  return (
+    <div ref={stripRef} className="overflow-x-auto custom-scrollbar -mx-1 px-1 max-w-full">
+      <TabsList className="flex w-max bg-transparent h-auto p-0 gap-0">
+        {LEGAL_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activePage === tab.value;
+          return (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              ref={isActive ? activeTabRef : undefined}
+              className="flex items-center gap-1.5 px-3 py-2.5 text-xs sm:text-sm rounded-t-lg border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary whitespace-nowrap transition-colors"
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="whitespace-nowrap">{tab.label}</span>
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </div>
+  );
+}
+
 export default function LegalPages() {
   const { open, activePage, closeLegal, setActivePage } = useLegalStore();
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) closeLegal(); }}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden">
+      {/*
+        LEGAL DIALOG LAYOUT — MOBILE-FIRST FULL-SCROLL FIX
+        ────────────────────────────────────────────────────────
+        • showCloseButton={false}: the floating X is removed; the explicit
+          "Back" button in the header is the single close affordance.
+        • Mobile (<sm): the dialog becomes a full-screen sheet
+          (h-[100dvh], w-full, rounded-none) so the ENTIRE document is
+          reachable — no fixed-height clipping, no inaccessible bottom
+          content at 320/375/390/430px.
+        • Desktop (≥sm): centered 90vh dialog, as before.
+        • Inner layout is flex-column with a min-h-0 scroll region, so
+          the content area always fits whatever header height the
+          current viewport produces (no more h-[calc(90vh-…)] guessing).
+      */}
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="z-[300]"
+        className="z-[300] max-w-4xl w-full sm:w-[95vw] h-[100dvh] sm:h-[90vh] p-0 gap-0 overflow-hidden flex flex-col rounded-none sm:rounded-lg top-0 left-0 translate-x-0 translate-y-0 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]"
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>Legal Documents</DialogTitle>
           <DialogDescription>
@@ -765,45 +845,33 @@ export default function LegalPages() {
         <Tabs
           value={activePage}
           onValueChange={(v) => setActivePage(v as LegalPage)}
-          className="flex flex-col h-full"
+          className="flex flex-col flex-1 min-h-0"
         >
-          {/* Tab Header */}
-          <div className="border-b px-4 pt-4 pb-0">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">Legal Documents</h2>
+          {/* Tab Header — fixed row, never clipped */}
+          <div className="border-b px-4 sm:px-6 pt-4 pb-0 shrink-0 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-base sm:text-lg font-semibold truncate min-w-0">Legal Documents</h2>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={closeLegal}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground shrink-0"
+                aria-label="Back — close legal documents"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
             </div>
-            {/* Mobile: scrollable tabs */}
-            <div className="overflow-x-auto custom-scrollbar -mx-1 px-1">
-              <TabsList className="flex w-max bg-transparent h-auto p-0 gap-0">
-                {LEGAL_TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <TabsTrigger
-                      key={tab.value}
-                      value={tab.value}
-                      className="flex items-center gap-1.5 px-3 py-2.5 text-xs sm:text-sm rounded-t-lg border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary whitespace-nowrap transition-colors"
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {tab.label}
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-            </div>
+            {/* Mobile: horizontally scrollable tabs (touch-friendly, no wrap/overlap);
+                auto-keeps the ACTIVE tab in view — see LegalTabStrip. */}
+            <LegalTabStrip activePage={activePage} />
           </div>
 
-          {/* Tab Content — scrollable */}
-          <ScrollArea className="h-[calc(90vh-10rem)]">
-            <div className="p-6 sm:p-8">
+          {/* Tab Content — the single scroll owner; flex-1 + min-h-0 fills
+              all remaining space at ANY viewport, so the FULL document is
+              always reachable by scrolling (no clipped bottom on mobile). */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar">
+            <div className="px-4 sm:p-8 py-5 sm:py-8 pb-10 sm:pb-8 max-w-full overflow-x-hidden [&_article]:[overflow-wrap:anywhere]">
               <TabsContent value="privacy" className="mt-0">
                 <h2 className="text-xl font-bold mb-1">Privacy Policy</h2>
                 <p className="text-sm text-muted-foreground mb-6">How AcquisitionOS collects, uses, and protects your personal information.</p>
@@ -828,7 +896,7 @@ export default function LegalPages() {
                 <CookiePolicyContent />
               </TabsContent>
             </div>
-          </ScrollArea>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

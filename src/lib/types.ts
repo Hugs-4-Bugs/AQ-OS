@@ -332,6 +332,7 @@ export type TabId =
   | "insights"
   | "deals"
   | "competitors"
+  | "notifications"
   | "settings";
 
 export type ThreatLevel = "low" | "medium" | "high";

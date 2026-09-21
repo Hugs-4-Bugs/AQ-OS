@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { getGoogleClientSecret } from '@/lib/email-ethereal';
+import { isDevAuthDeliveryEnabled } from '@/lib/dev-auth';
 
 export async function GET(request: NextRequest) {
   try {
     // Credentials are validated at token exchange time in the callback route.
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) {
+    // DEV-ONLY: when no real Google OAuth credentials exist (sandbox/preview),
+    // route the button to an in-app simulated consent page instead of failing
+    // with 503 ("Google sign-in could not start"). The callback route only
+    // accepts the simulated profile when dev mode is active AND
+    // GOOGLE_CLIENT_ID is still absent — with real credentials configured,
+    // the normal OAuth flow runs exactly as before.
+    const devMode = !clientId && isDevAuthDeliveryEnabled();
+    if (!clientId && !devMode) {
       console.error('[Google OAuth State] GOOGLE_CLIENT_ID is not set');
       return NextResponse.json(
         { error: 'Google OAuth is not configured' },
@@ -101,6 +109,22 @@ export async function GET(request: NextRequest) {
       origin,
     });
     const state = Buffer.from(statePayload).toString('base64url');
+
+    // ── DEV-ONLY simulated consent flow ─────────────────────────
+    // No real GOOGLE_CLIENT_ID on this server + dev mode active: point the
+    // button at the in-app simulated Google consent page. It collects the
+    // account email locally and redirects into the SAME callback route,
+    // reusing the identical user-upsert / session / cookie logic.
+    if (devMode) {
+      const devAuthUrl = `${resolvedOrigin}/auth/dev/google-consent?state=${encodeURIComponent(state)}`;
+      console.warn(`[Google OAuth State] DEV MODE: GOOGLE_CLIENT_ID missing — using in-app simulated consent page. origin=${resolvedOrigin}`);
+      return NextResponse.json({
+        authUrl: devAuthUrl,
+        state,
+        googleEnabled: true,
+        devMode: true,
+      });
+    }
 
     const scope = 'openid email profile';
 

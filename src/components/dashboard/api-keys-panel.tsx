@@ -34,6 +34,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { applyModalSafeArea } from '@/lib/modal-safe-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1615,7 +1616,24 @@ export default function ApiKeysPanel() {
       {/* ═══════════ CREATE API KEY DIALOG ═══════════ */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent
-          className="sm:max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto w-[calc(100%-2rem)] sm:w-auto"
+          // RESPONSIVE FIX: the dialog used to be the scroll container
+          // (overflow-y-auto), which scrolled the header/close button and
+          // the action footer out of view (Escape is intentionally disabled
+          // here). Grid rows now pin the header + footer and make ONLY the
+          // body scroll: header (auto) / body (minmax(0,1fr)) / footer (auto).
+          // NAVBAR-SAFE POSITIONING: the shared DialogContent vertically
+          // centers dialogs, which put this dialog's top BEHIND the sticky
+          // navbar (z-[100] above this z-50 dialog), hiding the title and
+          // close button. Instead of a hardcoded offset, the
+          // applyModalSafeArea ref (see src/lib/modal-safe-area.ts)
+          // measures the real chrome at open time - the header (pushed
+          // down by any banner above it) and the bottom nav / footer - and
+          // sets --aos-modal-top (header bottom + 12px gap) and
+          // --aos-modal-maxh (down to 12px above the bottom chrome), so
+          // the header, scrollable body and footer all stay inside the
+          // usable viewport at every size.
+          ref={(node) => (node ? applyModalSafeArea(node) : undefined)}
+          className="sm:max-w-lg top-[var(--aos-modal-top,60px)]! translate-y-0! max-h-[var(--aos-modal-maxh,calc(100dvh-145px))] w-[calc(100%-2rem)] sm:w-auto grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -1630,7 +1648,11 @@ export default function ApiKeysPanel() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          {/* RESPONSIVE FIX: this body is the scroll container (min-h-0 lets
+              the grid row shrink; overflow-y-auto keeps every field — name,
+              environment, permissions, expiration, rate limit — reachable
+              while the header and action buttons stay visible). */}
+          <div className="space-y-4 py-2 min-h-0 overflow-y-auto">
             {/* Name */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Key Name</Label>

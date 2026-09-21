@@ -11,6 +11,7 @@ import {
   OTP_EXPIRY_SECONDS,
 } from '@/lib/auth';
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
+import { devOtpDelivery } from '@/lib/dev-auth';
 import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
@@ -160,11 +161,18 @@ export async function POST(request: NextRequest) {
       console.error('[Signup] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY). User cannot verify their email.');
     }
 
+    // DEV-ONLY: when no real email provider exists (sandbox/preview) surface
+    // the generated verification code to the requesting client so the new
+    // account can actually be verified and used. In production builds
+    // devOtpDelivery() returns undefined and the response is unchanged.
+    const devDelivery = emailConfigured ? undefined : devOtpDelivery(verificationOtp, 'verification code');
+
     return NextResponse.json(
       {
         message: 'Account created! Please check your email for a verification code.',
         requiresVerification: true,
         email: normalizedEmail,
+        ...(devDelivery ? { devDelivery } : {}),
       },
       { status: 201 }
     );

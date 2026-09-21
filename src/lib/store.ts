@@ -8,15 +8,39 @@ export type NotificationType =
   | "deal_lost"
   | "credit_low"
   | "credit_critical"
+  | "credit_assigned"
   | "payment_success"
   | "payment_failed"
+  | "payment"
   | "trial_ending"
   | "new_lead_discovered"
   | "analysis_complete"
+  | "analysis"
   | "sequence_completed"
   | "workflow_triggered"
-  | "gmail_token_expired"
+  | "workflow_completed"
+  | "workflow_failed"
+  | "workflow_execution_complete"
+  | "discovery_completed"
+  | "discovery_failed"
+  | "campaign_completed"
+  | "campaign_failed"
+  | "api_key_created"
+  | "api_key_revoked"
+  | "security_alert"
+  | "subscription_renewed"
+  | "subscription_cancelling"
+  | "subscription_expired"
+  | "refund_processed"
+  | "chargeback_received"
+  | "lead_reply"
+  | "lead_pipeline_update"
+  | "lead_stage_moved"
+  | "team_invite"
   | "team_member_joined"
+  | "gmail_token_expired"
+  | "system"
+  | "info"
   // Meeting & Calendar types
   | "meeting_scheduled"
   | "meeting_completed"
@@ -38,6 +62,9 @@ export interface Notification {
   message: string;
   timestamp: Date;
   read: boolean;
+  /** Optional in-app destination (e.g. "/business-ai/leads"). Present when
+   *  the backend event has a meaningful click-through target. */
+  actionUrl?: string | null;
 }
 
 interface AppState {
@@ -51,6 +78,10 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
 }
+
+// localStorage key for the desktop sidebar collapsed preference (client-only
+// UI preference — intentionally NOT stored in the database).
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = 'acquisitionos_sidebar_collapsed';
 
 export const useAppStore = create<AppState>((set, get) => ({
   activeTab: "overview",
@@ -71,7 +102,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setSelectedLeadId: (id) => set({ selectedLeadId: id }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  // Persist the collapsed preference so a refresh restores the user's choice.
+  // Initial render always uses the expanded default (SSR-safe); the persisted
+  // value is re-applied after mount by the layout's hydration effect.
+  setSidebarCollapsed: (collapsed) => {
+    set({ sidebarCollapsed: collapsed });
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
+      } catch {
+        // storage unavailable (private mode / quota) — preference stays in-memory
+      }
+    }
+  },
 }));
 
 /**
@@ -92,6 +135,7 @@ export function tabToPath(tab: TabId): string {
     insights: '/business-ai/analytics',
     deals: '/business-ai/proposals',
     competitors: '/business-ai/competitors',
+    notifications: '/business-ai/notifications',
     settings: '/business-ai/settings',
   };
   return TAB_PATH_MAP[tab] || '/';
@@ -117,6 +161,7 @@ export function pathToTab(pathname: string): TabId | null {
     '/business-ai/analytics': 'insights',
     '/business-ai/proposals': 'deals',
     '/business-ai/competitors': 'competitors',
+    '/business-ai/notifications': 'notifications',
     '/business-ai/settings': 'settings',
   };
   return PATH_TAB_MAP[path] || null;
@@ -133,7 +178,14 @@ interface NotificationPreferences {
 interface NotificationState {
   notifications: Notification[];
   preferences: NotificationPreferences;
-  addNotification: (notification: Omit<Notification, "id" | "read"> & { id?: string }) => void;
+  /** Authoritative unread count from the server (GET /api/notifications
+   *  `unreadCount` / SSE). `null` until the first server sync — the UI falls
+   *  back to counting local items. Guarantees the bell badge stays accurate
+   *  even when unread notifications exceed the local 50-item store cap. */
+  serverUnreadCount: number | null;
+  setServerUnreadCount: (count: number) => void;
+  adjustServerUnreadCount: (delta: number) => void;
+  addNotification: (notification: Omit<Notification, "id" | "read"> & { id?: string; read?: boolean }) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotifications: () => void;
@@ -145,10 +197,22 @@ interface NotificationState {
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
+  serverUnreadCount: null,
   preferences: {
     soundEnabled: true,
     mutedUntil: null,
   },
+
+  setServerUnreadCount: (count) =>
+    set({ serverUnreadCount: Math.max(0, count) }),
+
+  adjustServerUnreadCount: (delta) =>
+    set((state) => ({
+      serverUnreadCount:
+        state.serverUnreadCount === null
+          ? null
+          : Math.max(0, state.serverUnreadCount + delta),
+    })),
 
   addNotification: (notification) =>
     set((state) => {
@@ -158,17 +222,32 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         // from GET /api/notifications) so markAsRead(id) can PATCH the exact
         // database row. Only generate a synthetic id for local-only items.
         id: notification.id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        read: false,
+        // SSE-delivered notifications arrive already persisted and unread;
+        // local-only callers (follow-up reminders) also expect unread.
+        read: notification.read ?? false,
       };
+      // Guard against the same server row being added twice (SSE + polling
+      // fallback can both observe the same notification).
+      if (state.notifications.some((n) => n.id === newNotification.id)) {
+        return state;
+      }
       const updated = [newNotification, ...state.notifications];
       return { notifications: updated.slice(0, MAX_NOTIFICATIONS) };
     }),
 
   markAsRead: (id) => {
+    const target = get().notifications.find((n) => n.id === id);
     set((state) => ({
       notifications: state.notifications.map((n) =>
         n.id === id ? { ...n, read: true } : n
       ),
+      // Keep the authoritative server count in sync (optimistic).
+      serverUnreadCount:
+        state.serverUnreadCount === null
+          ? null
+          : target && !target.read
+            ? Math.max(0, state.serverUnreadCount - 1)
+            : state.serverUnreadCount,
     }));
     // Persist mark-as-read to the backend API (fire-and-forget, optimistic).
     // PATCH /api/notifications/[id]/read — alias route that exists alongside
@@ -188,7 +267,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   markAllAsRead: () => {
     const state = get();
-    set({ notifications: state.notifications.map((n) => ({ ...n, read: true })) });
+    set({ notifications: state.notifications.map((n) => ({ ...n, read: true })), serverUnreadCount: 0 });
     // Persist mark-all-as-read to the backend API (fire-and-forget, optimistic).
     // POST /api/notifications/mark-read with empty JSON body marks ALL as read
     // for the authenticated user. Body must be valid JSON (the route calls

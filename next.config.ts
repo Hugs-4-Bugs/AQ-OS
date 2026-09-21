@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
   // ─── React ─────────────────────────────────────────────────────
   reactStrictMode: true,
 
+  // ─── Dev Tools Indicator ───────────────────────────────────────
+  // Disables the floating Next.js dev-tools pill (the "N / N Issues" button
+  // that overlays the bottom-left of the app shell). This is development
+  // chrome, not product UI. Runtime errors are NOT suppressed: they still
+  // surface in the terminal, the browser console and the compile-error
+  // overlay — only the always-visible floating badge is removed.
+  devIndicators: false,
+
   // ─── Output ────────────────────────────────────────────────────
   // Standalone output is REQUIRED for Docker-based deployments (Dockerfile
   // copies .next/standalone/server.js). This produces a self-contained
@@ -113,13 +121,25 @@ const nextConfig: NextConfig = {
 
   // ─── Headers for Caching Static Assets ─────────────────────────
   async headers() {
+    // IMPORTANT: immutable, year-long caching must apply to PRODUCTION
+    // builds only. In `next dev` the Turbopack chunk names are stable
+    // (path-based, not content-hashed), so honoring these headers in dev
+    // makes browsers cache stale chunks forever and code changes never
+    // appear without a manual cache purge.
+    const isDev = process.env.NODE_ENV !== 'production';
+    const assetCacheControl = isDev
+      ? 'no-store, must-revalidate'
+      : 'public, max-age=31536000, immutable';
+    const jsonCacheControl = isDev
+      ? 'no-store, must-revalidate'
+      : 'public, max-age=3600, stale-while-revalidate=86400';
     return [
       {
         source: '/(.*)\\.(js|css|woff2?|ttf|otf|eot|ico|svg|png|jpg|jpeg|webp|avif)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: assetCacheControl,
           },
         ],
       },
@@ -128,7 +148,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600, stale-while-revalidate=86400',
+            value: jsonCacheControl,
           },
         ],
       },

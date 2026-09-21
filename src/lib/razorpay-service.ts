@@ -450,13 +450,17 @@ export function verifyPaymentSignature(
       return { success: false, error: 'Missing required parameters: orderId, paymentId, signature' };
     }
 
-    if (!RAZORPAY_KEY_SECRET) {
+    // SECURITY: read the secret lazily — a module-load snapshot can be
+    // empty when env is injected after import (serverless cold starts,
+    // test runners). Fail closed when no secret is available at all.
+    const secret = process.env.RAZORPAY_KEY_SECRET || RAZORPAY_KEY_SECRET;
+    if (!secret) {
       console.error('[RazorpayService] RAZORPAY_KEY_SECRET is not configured');
       return { success: false, error: 'Payment verification is not configured' };
     }
 
     // Compute expected signature using HMAC-SHA256
-    const expectedSignature = createHmac('sha256', RAZORPAY_KEY_SECRET)
+    const expectedSignature = createHmac('sha256', secret)
       .update(`${orderId}|${paymentId}`)
       .digest('hex');
 
@@ -495,13 +499,15 @@ export function verifyWebhookSignature(
       return { success: false, error: 'Missing body or signature' };
     }
 
-    if (!RAZORPAY_WEBHOOK_SECRET) {
+    // SECURITY: read the secret lazily (see verifyPaymentSignature).
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
       console.error('[RazorpayService] RAZORPAY_WEBHOOK_SECRET is not configured');
       return { success: false, error: 'Webhook verification is not configured' };
     }
 
     // Compute expected signature
-    const expectedSignature = createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+    const expectedSignature = createHmac('sha256', secret)
       .update(body)
       .digest('hex');
 
@@ -1273,14 +1279,21 @@ export async function fetchRazorpayOrder(razorpayOrderId: string): Promise<{
 }> {
   try {
     const razorpay = getRazorpayInstance();
-    const order = await razorpay.orders.fetch(razorpayOrderId);
+    const order = (await razorpay.orders.fetch(razorpayOrderId)) as unknown as {
+      id: string;
+      status: string;
+      amount: string | number;
+      currency: string;
+      receipt?: string;
+      created_at: number;
+    };
 
     return {
       success: true,
       order: {
         id: order.id,
         status: order.status,
-        amount: order.amount,
+        amount: typeof order.amount === 'string' ? parseFloat(order.amount) : (order.amount ?? 0),
         currency: order.currency,
         receipt: order.receipt || '',
         created_at: order.created_at,
@@ -1310,16 +1323,20 @@ export async function fetchRazorpayOrderPayments(razorpayOrderId: string): Promi
 }> {
   try {
     const razorpay = getRazorpayInstance();
-    const result = await razorpay.orders.fetchPayments(razorpayOrderId);
+    const result = (await razorpay.orders.fetchPayments(razorpayOrderId)) as unknown as {
+      items: Array<Record<string, unknown>>;
+    };
 
     return {
       success: true,
-      payments: result.items.map((payment: Record<string, unknown>) => ({
+      payments: (result.items || []).map((payment: Record<string, unknown>) => ({
         id: payment.id as string,
         status: payment.status as string,
-        amount: payment.amount as number,
-        method: payment.method as string,
-        created_at: payment.created_at as number,
+        amount: (typeof payment.amount === 'string'
+          ? parseFloat(payment.amount)
+          : (payment.amount as number)) || 0,
+        method: (payment.method as string) || '',
+        created_at: (payment.created_at as number) || 0,
       })),
     };
   } catch (error) {

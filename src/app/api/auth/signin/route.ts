@@ -17,6 +17,7 @@ import {
   OTP_EXPIRY_SECONDS,
 } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
+import { devOtpDelivery } from '@/lib/dev-auth';
 import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
@@ -147,6 +148,7 @@ export async function POST(request: NextRequest) {
       // never have arrived. This directly fixes "user not receiving the
       // account verification mail".
       let verificationResent = false;
+      let freshVerificationOtp: string | undefined;
       try {
         const otpStillFresh =
           user.emailVerificationOtpExpiry &&
@@ -165,6 +167,7 @@ export async function POST(request: NextRequest) {
               emailVerificationOtpExpiry: verificationOtpExpiry,
             },
           });
+          freshVerificationOtp = verificationOtp;
           const result = await sendVerificationEmail(
             user.email,
             user.name || 'User',
@@ -193,14 +196,26 @@ export async function POST(request: NextRequest) {
         // Never block the response due to audit logging
       });
 
+      // DEV-ONLY: when no email provider exists (sandbox/preview) the fresh
+      // code cannot be emailed — surface it to the requesting client so the
+      // account can still be verified. Undefined in production / when the
+      // previous code is still fresh (the user already has it).
+      const devDelivery =
+        !verificationResent && freshVerificationOtp
+          ? devOtpDelivery(freshVerificationOtp, 'verification code')
+          : undefined;
+
       return NextResponse.json(
         {
           error: verificationResent
             ? 'Please verify your email first — a fresh verification code has just been sent to your inbox (check your spam folder too).'
-            : 'Please verify your email first — use the verification code we emailed you (it is still valid).',
+            : devDelivery
+              ? 'Please verify your email first — a fresh verification code was generated, but email delivery is not configured on this server. Development mode: the code is shown on the verification page.'
+              : 'Please verify your email first — use the verification code we emailed you (it is still valid).',
           emailNotVerified: true,
           email: normalizedEmail,
           verificationResent,
+          ...(devDelivery ? { devDelivery } : {}),
         },
         { status: 403 }
       );

@@ -8,6 +8,7 @@ import { withAuth } from '@/lib/auth-middleware';
 import { startDiscoveryJob, type DiscoverySource } from '@/lib/lead-discovery-service';
 
 const VALID_SOURCES: DiscoverySource[] = [
+  'all',
   'ai_search', 'google_maps', 'google_business', 'justdial', 'indiamart',
   'yelp', 'yellow_pages', 'sulekha', 'linkedin', 'instagram', 'facebook',
 ];
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     try {
       const body = await request.json();
 
-      const { niche, country, city, source, maxResults } = body;
+      const { niche, country, city, source, maxResults, requirements } = body;
 
       // Validate required fields
       if (!niche || typeof niche !== 'string' || niche.trim().length === 0) {
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
       const sanitizedCountry = country.trim().substring(0, 100);
       const sanitizedCity = city ? String(city).trim().substring(0, 100) : undefined;
       const sanitizedMaxResults = maxResults ? Math.min(Math.max(parseInt(String(maxResults), 10) || 10, 1), 50) : undefined;
+      const sanitizedRequirements = requirements ? String(requirements).trim().substring(0, 300) : undefined;
 
       // Start discovery job
       const result = await startDiscoveryJob(user.id, {
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
         city: sanitizedCity,
         source,
         maxResults: sanitizedMaxResults,
+        requirements: sanitizedRequirements,
       }, user.orgId ?? undefined);
 
       if (result.status === 'failed') {

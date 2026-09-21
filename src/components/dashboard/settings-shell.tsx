@@ -34,6 +34,8 @@ import {
   Copy,
   X,
   QrCode,
+  Briefcase,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // FIX 17: real QR code rendering for TOTP 2FA setup (was: otpauth link only)
@@ -56,13 +58,16 @@ import { useTheme } from 'next-themes';
 import { useSettingsStore } from '@/lib/settings-store';
 import { toast } from 'sonner';
 import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
+import DiscoverySourcesSettings from '@/components/dashboard/discovery-sources-settings';
+import OfferProfileSettings from '@/components/dashboard/offer-profile-settings';
 import { useLegalStore } from '@/lib/legal-store';
 import ObservabilityDashboard from '@/components/dashboard/observability-dashboard';
 
-type SettingsSection = 'profile' | 'notifications' | 'billing' | 'security' | 'appearance' | 'integrations' | 'api' | 'data' | 'legal' | 'monitoring';
+type SettingsSection = 'profile' | 'offer' | 'notifications' | 'billing' | 'security' | 'appearance' | 'integrations' | 'api' | 'data' | 'legal' | 'monitoring';
 
 const SETTINGS_NAV = [
   { id: 'profile' as const, label: 'Profile', icon: User },
+  { id: 'offer' as const, label: 'My Offer', icon: Briefcase },
   { id: 'notifications' as const, label: 'Notifications', icon: Bell },
   { id: 'billing' as const, label: 'Billing', icon: CreditCard },
   { id: 'security' as const, label: 'Security', icon: Shield },
@@ -980,6 +985,19 @@ useEffect(() => {
             </div>
           )}
 
+          {/* ═══ MY OFFER (what you sell — powers the 5-step prospect pipeline) ═══ */}
+          {activeSection === 'offer' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold">My Offer</h3>
+                <p className="text-sm text-muted-foreground">
+                  What you sell to prospects. The AI prospect pipeline matches detected company gaps to these offers.
+                </p>
+              </div>
+              <OfferProfileSettings />
+            </div>
+          )}
+
           {/* ═══ NOTIFICATIONS ═══ */}
           {activeSection === 'notifications' && (
             <div className="space-y-6">
@@ -1649,6 +1667,20 @@ useEffect(() => {
                 <h3 className="text-lg font-semibold">Integrations</h3>
                 <p className="text-sm text-muted-foreground">Connect your tools and services</p>
               </div>
+
+              {/* ─── Discovery Sources ─── */}
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold">Discovery Sources</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Lead discovery runs on real data only — sources without credentials return
+                    a configuration message instead of results.
+                  </p>
+                </div>
+                <DiscoverySourcesSettings />
+              </div>
+
+              <Separator />
 
               {/* Gmail Integration */}
               <Card>

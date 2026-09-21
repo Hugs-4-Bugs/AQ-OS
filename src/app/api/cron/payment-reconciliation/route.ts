@@ -1,9 +1,17 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — GET /api/cron/payment-reconciliation
-// Runs every 6 hours to reconcile missed Stripe payments.
-// Queries Stripe for successful payments in the last 24 hours,
-// checks if they exist in the local DB, and fulfills any that
-// were missed (e.g., server was down during webhook delivery).
+// Runs on a schedule to reconcile missed payments for BOTH gateways:
+//
+//   Stripe   : queries successful payment intents / paid checkout sessions
+//              from the last 24h and fulfills any the webhook missed
+//              (existing behavior, preserved verbatim).
+//   Razorpay : for every pending Razorpay order older than 15 minutes,
+//              fetches the order's payments from the Razorpay API; a
+//              captured payment is activated through the same idempotent
+//              path used by the webhook and the checkout verify route.
+//              Covers: browser closed after payment, webhook delayed or
+//              never delivered, redirect failures after payment.
+//
 // Protected by CRON_SECRET header.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -14,20 +22,68 @@ import { logBillingEvent } from '@/lib/billing-audit';
 import { generateInvoicePdf } from '@/lib/invoice-pdf-service';
 import { sendInvoiceEmail } from '@/lib/invoice-email-service';
 
-export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const cronSecret = process.env.CRON_SECRET || 'acquisitionos-cron-dev';
-  const authHeader = request.headers.get('authorization');
-  const providedSecret = authHeader?.replace('Bearer ', '');
+interface ReconciliationOutcome {
+  checked?: number;
+  sessionsChecked?: number;
+  ordersChecked?: number;
+  alreadyFulfilled: number;
+  lateFulfillments: number;
+  errors: number;
+  lateFulfillmentDetails: Array<{ paymentId: string; orderId: string; userId: string }>;
+}
 
-  if (providedSecret !== cronSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/** Shared late-fulfillment completion: activate + invoice PDF + email.
+ * Activation itself is idempotent (confirmPaymentAndActivate). */
+async function fulfillLatePayment(
+  userId: string,
+  orderId: string,
+  providerPaymentId: string,
+  source: string
+): Promise<boolean> {
+  const result = await confirmPaymentAndActivate(userId, orderId, providerPaymentId);
+  if (!result.success) {
+    console.error(`[PaymentReconciliation] Failed to fulfill order ${orderId}:`, result.error);
+    return false;
   }
 
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) {
-    return NextResponse.json({ success: true, message: 'Stripe not configured, skipping' });
+  await logBillingEvent({
+    userId,
+    action: 'late_fulfillment',
+    details: `Late fulfillment for order ${orderId} via ${source}`,
+    metadata: { orderId, providerPaymentId, source },
+  });
+
+  try {
+    const pdfResult = await generateInvoicePdf(orderId);
+    if (pdfResult.success) {
+      console.log(`[PaymentReconciliation] ✓ Late invoice PDF generated: ${pdfResult.pdfUrl}`);
+    }
+  } catch (pdfErr) {
+    console.error('[PaymentReconciliation] ✗ Late invoice PDF error:', pdfErr);
   }
+
+  try {
+    const emailResult = await sendInvoiceEmail(userId, orderId);
+    if (emailResult?.sent) {
+      console.log(`[PaymentReconciliation] ✓ Late invoice email sent to user ${userId}`);
+    }
+  } catch (emailErr) {
+    console.error('[PaymentReconciliation] ✗ Late invoice email error:', emailErr);
+  }
+
+  return true;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Stripe reconciliation — existing logic, preserved.
+// ────────────────────────────────────────────────────────────────────
+async function reconcileStripe(stripeKey: string): Promise<ReconciliationOutcome> {
+  const outcome: ReconciliationOutcome = {
+    alreadyFulfilled: 0,
+    lateFulfillments: 0,
+    errors: 0,
+    lateFulfillmentDetails: [],
+  };
 
   try {
     const Stripe = (await import('stripe')).default;
@@ -40,91 +96,45 @@ export async function GET(request: NextRequest) {
       limit: 100,
       created: { gte: twentyFourHoursAgo },
     });
-
-    let lateFulfillments = 0;
-    let alreadyFulfilled = 0;
-    let errors = 0;
-    const lateFulfillmentDetails: Array<{ paymentIntentId: string; orderId: string; userId: string }> = [];
+    outcome.checked = paymentIntents.data.length;
 
     for (const pi of paymentIntents.data) {
       if (pi.status !== 'succeeded') continue;
 
       // Check if this payment intent is already fulfilled in our DB
       const existingOrder = await db.paymentOrder.findFirst({
-        where: {
-          providerPaymentId: pi.id,
-          status: 'completed',
-        },
+        where: { providerPaymentId: pi.id, status: 'completed' },
       });
-
       if (existingOrder) {
-        alreadyFulfilled++;
+        outcome.alreadyFulfilled++;
         continue;
       }
 
       // Find pending order by payment intent ID
       const pendingOrder = await db.paymentOrder.findFirst({
-        where: {
-          providerPaymentId: pi.id,
-          status: 'pending',
-        },
+        where: { providerPaymentId: pi.id, status: 'pending' },
       });
 
       if (pendingOrder) {
         try {
-          const result = await confirmPaymentAndActivate(
+          const fulfilled = await fulfillLatePayment(
             pendingOrder.userId,
             pendingOrder.id,
-            pi.id
+            pi.id,
+            'payment reconciliation cron (payment intent)'
           );
-
-          if (result.success) {
-            lateFulfillments++;
-
-            // Log late fulfillment
-            await logBillingEvent({
-              userId: pendingOrder.userId,
-              action: 'late_fulfillment',
-              details: `Late fulfillment for order ${pendingOrder.id} via payment reconciliation cron`,
-              metadata: {
-                paymentIntentId: pi.id,
-                orderId: pendingOrder.id,
-                amount: pi.amount / 100,
-                currency: pi.currency,
-              },
-            });
-
-            // Generate invoice PDF
-            try {
-              const pdfResult = await generateInvoicePdf(pendingOrder.id);
-              if (pdfResult.success) {
-                console.log(`[PaymentReconciliation] ✓ Late invoice PDF generated: ${pdfResult.pdfUrl}`);
-              }
-            } catch (pdfErr) {
-              console.error('[PaymentReconciliation] ✗ Late invoice PDF error:', pdfErr);
-            }
-
-            // Send invoice email
-            try {
-              const emailResult = await sendInvoiceEmail(pendingOrder.userId, pendingOrder.id);
-              if (emailResult?.sent) {
-                console.log(`[PaymentReconciliation] ✓ Late invoice email sent to user ${pendingOrder.userId}`);
-              }
-            } catch (emailErr) {
-              console.error('[PaymentReconciliation] ✗ Late invoice email error:', emailErr);
-            }
-
-            lateFulfillmentDetails.push({
-              paymentIntentId: pi.id,
+          if (fulfilled) {
+            outcome.lateFulfillments++;
+            outcome.lateFulfillmentDetails.push({
+              paymentId: pi.id,
               orderId: pendingOrder.id,
               userId: pendingOrder.userId,
             });
           } else {
-            errors++;
-            console.error(`[PaymentReconciliation] Failed to fulfill order ${pendingOrder.id}:`, result.error);
+            outcome.errors++;
           }
         } catch (err) {
-          errors++;
+          outcome.errors++;
           console.error(`[PaymentReconciliation] Error fulfilling order ${pendingOrder.id}:`, err);
         }
       }
@@ -137,12 +147,11 @@ export async function GET(request: NextRequest) {
       limit: 100,
       created: { gte: twentyFourHoursAgo },
     });
+    outcome.sessionsChecked = checkoutSessions.data.length;
 
     for (const session of checkoutSessions.data) {
-      // Only process paid sessions
       if (session.payment_status !== 'paid') continue;
 
-      // Check if this session is already fulfilled in our DB
       const existingOrder = await db.paymentOrder.findFirst({
         where: {
           OR: [
@@ -151,13 +160,11 @@ export async function GET(request: NextRequest) {
           ],
         },
       });
-
       if (existingOrder) {
-        alreadyFulfilled++;
+        outcome.alreadyFulfilled++;
         continue;
       }
 
-      // Try to find a pending order for this session
       const pendingOrder = await db.paymentOrder.findFirst({
         where: {
           OR: [
@@ -168,63 +175,26 @@ export async function GET(request: NextRequest) {
       });
 
       if (pendingOrder) {
-        // Fulfill the pending order
         try {
           const providerPaymentId = (session.payment_intent as string) || session.id;
-          const result = await confirmPaymentAndActivate(
+          const fulfilled = await fulfillLatePayment(
             pendingOrder.userId,
             pendingOrder.id,
-            providerPaymentId
+            providerPaymentId,
+            'checkout session reconciliation'
           );
-
-          if (result.success) {
-            lateFulfillments++;
-
-            // Log late fulfillment
-            await logBillingEvent({
-              userId: pendingOrder.userId,
-              action: 'late_fulfillment',
-              details: `Late fulfillment for order ${pendingOrder.id} via checkout session reconciliation`,
-              metadata: {
-                sessionId: session.id,
-                paymentIntentId: session.payment_intent?.toString(),
-                orderId: pendingOrder.id,
-                amount: (session.amount_total || 0) / 100,
-                currency: session.currency,
-              },
-            });
-
-            // Generate invoice PDF
-            try {
-              const pdfResult = await generateInvoicePdf(pendingOrder.id);
-              if (pdfResult.success) {
-                console.log(`[PaymentReconciliation] ✓ Late invoice PDF generated (session): ${pdfResult.pdfUrl}`);
-              }
-            } catch (pdfErr) {
-              console.error('[PaymentReconciliation] ✗ Late invoice PDF error (session):', pdfErr);
-            }
-
-            // Send invoice email
-            try {
-              const emailResult = await sendInvoiceEmail(pendingOrder.userId, pendingOrder.id);
-              if (emailResult?.sent) {
-                console.log(`[PaymentReconciliation] ✓ Late invoice email sent (session) to user ${pendingOrder.userId}`);
-              }
-            } catch (emailErr) {
-              console.error('[PaymentReconciliation] ✗ Late invoice email error (session):', emailErr);
-            }
-
-            lateFulfillmentDetails.push({
-              paymentIntentId: session.payment_intent?.toString() || session.id,
+          if (fulfilled) {
+            outcome.lateFulfillments++;
+            outcome.lateFulfillmentDetails.push({
+              paymentId: providerPaymentId,
               orderId: pendingOrder.id,
               userId: pendingOrder.userId,
             });
           } else {
-            errors++;
-            console.error(`[PaymentReconciliation] Failed to fulfill order ${pendingOrder.id} (session):`, result.error);
+            outcome.errors++;
           }
         } catch (err) {
-          errors++;
+          outcome.errors++;
           console.error(`[PaymentReconciliation] Error fulfilling order ${pendingOrder.id} (session):`, err);
         }
       } else if (session.metadata?.user_id) {
@@ -254,106 +224,174 @@ export async function GET(request: NextRequest) {
             },
           });
 
-          const result = await confirmPaymentAndActivate(
+          const fulfilled = await fulfillLatePayment(
             session.metadata.user_id,
             retroactiveOrder.id,
-            providerPaymentId
+            providerPaymentId,
+            'retroactive checkout session reconciliation'
           );
-
-          if (result.success) {
-            lateFulfillments++;
-
-            await logBillingEvent({
-              userId: session.metadata.user_id,
-              action: 'late_fulfillment',
-              details: `Retroactive order ${retroactiveOrder.id} created and fulfilled via checkout session reconciliation`,
-              metadata: {
-                sessionId: session.id,
-                paymentIntentId: session.payment_intent?.toString(),
-                orderId: retroactiveOrder.id,
-                amount,
-                currency,
-                plan,
-                billingCycle,
-              },
-            });
-
-            // Generate invoice PDF
-            try {
-              const pdfResult = await generateInvoicePdf(retroactiveOrder.id);
-              if (pdfResult.success) {
-                console.log(`[PaymentReconciliation] ✓ Retroactive invoice PDF generated: ${pdfResult.pdfUrl}`);
-              }
-            } catch (pdfErr) {
-              console.error('[PaymentReconciliation] ✗ Retroactive invoice PDF error:', pdfErr);
-            }
-
-            // Send invoice email
-            try {
-              const emailResult = await sendInvoiceEmail(session.metadata.user_id, retroactiveOrder.id);
-              if (emailResult?.sent) {
-                console.log(`[PaymentReconciliation] ✓ Retroactive invoice email sent to user ${session.metadata.user_id}`);
-              }
-            } catch (emailErr) {
-              console.error('[PaymentReconciliation] ✗ Retroactive invoice email error:', emailErr);
-            }
-
-            lateFulfillmentDetails.push({
-              paymentIntentId: providerPaymentId,
+          if (fulfilled) {
+            outcome.lateFulfillments++;
+            outcome.lateFulfillmentDetails.push({
+              paymentId: providerPaymentId,
               orderId: retroactiveOrder.id,
               userId: session.metadata.user_id,
             });
           } else {
-            errors++;
-            console.error(`[PaymentReconciliation] Failed to fulfill retroactive order ${retroactiveOrder.id}:`, result.error);
+            outcome.errors++;
           }
         } catch (err) {
-          errors++;
+          outcome.errors++;
           console.error(`[PaymentReconciliation] Error creating/fulfilling retroactive order for session ${session.id}:`, err);
         }
       }
     }
+  } catch (error) {
+    outcome.errors++;
+    console.error('[PaymentReconciliation] Stripe reconciliation error:', error);
+  }
 
-    // Send admin notification if any late fulfillments were found
-    if (lateFulfillments > 0) {
+  return outcome;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Razorpay reconciliation — for every pending Razorpay order older than
+// 15 minutes, ask Razorpay whether the order was actually paid.
+// ────────────────────────────────────────────────────────────────────
+async function reconcileRazorpay(): Promise<ReconciliationOutcome> {
+  const outcome: ReconciliationOutcome = {
+    ordersChecked: 0,
+    alreadyFulfilled: 0,
+    lateFulfillments: 0,
+    errors: 0,
+    lateFulfillmentDetails: [],
+  };
+
+  try {
+    const Razorpay = (await import('razorpay')).default;
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    });
+
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const staleOrders = await db.paymentOrder.findMany({
+      where: {
+        provider: 'razorpay',
+        status: 'pending',
+        createdAt: { lt: fifteenMinutesAgo },
+        // Only orders that have a gateway order id (subscription-checkout
+        // orders without one are handled via the subscription webhooks).
+        providerOrderId: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    outcome.ordersChecked = staleOrders.length;
+
+    for (const order of staleOrders) {
       try {
-        const admins = await db.user.findMany({
-          where: { role: 'owner' },
-          select: { id: true },
-          take: 5,
-        });
+        const payments = await razorpay.orders.fetchPayments(order.providerOrderId!);
+        const items = (payments as { items?: Array<{ id: string; status: string }> }).items || [];
+        const captured = items.find((p) => p.status === 'captured' || p.status === 'authorized');
 
-        for (const admin of admins) {
-          await db.notification.create({
-            data: {
-              userId: admin.id,
-              type: 'system_alert',
-              title: 'Late Payment Fulfillments Detected',
-              message: `Payment reconciliation found ${lateFulfillments} payment(s) that were charged but not fulfilled. These have now been processed.`,
-              actionUrl: '/dashboard',
-            },
-          });
+        if (!captured) continue; // never paid — stays pending for the user to retry
+
+        const existingCompleted = await db.paymentOrder.findFirst({
+          where: { id: order.id, status: 'completed' },
+        });
+        if (existingCompleted) {
+          outcome.alreadyFulfilled++;
+          continue;
         }
-      } catch {
-        // Non-critical
+
+        const fulfilled = await fulfillLatePayment(
+          order.userId,
+          order.id,
+          captured.id,
+          'razorpay payment reconciliation'
+        );
+        if (fulfilled) {
+          outcome.lateFulfillments++;
+          outcome.lateFulfillmentDetails.push({
+            paymentId: captured.id,
+            orderId: order.id,
+            userId: order.userId,
+          });
+        } else {
+          outcome.errors++;
+        }
+      } catch (orderErr) {
+        outcome.errors++;
+        console.error(`[PaymentReconciliation] Razorpay reconciliation error for order ${order.id}:`, orderErr);
       }
     }
-
-    return NextResponse.json({
-      success: true,
-      checked: paymentIntents.data.length,
-      sessionsChecked: checkoutSessions.data.length,
-      alreadyFulfilled,
-      lateFulfillments,
-      errors,
-      lateFulfillmentDetails,
-      timestamp: new Date().toISOString(),
-    });
   } catch (error) {
-    console.error('[PaymentReconciliation] Error:', error);
-    return NextResponse.json(
-      { error: 'Payment reconciliation failed', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    outcome.errors++;
+    console.error('[PaymentReconciliation] Razorpay reconciliation error:', error);
   }
+
+  return outcome;
+}
+
+export async function GET(request: NextRequest) {
+  // Verify cron secret
+  const cronSecret = process.env.CRON_SECRET || 'acquisitionos-cron-dev';
+  const authHeader = request.headers.get('authorization');
+  const providedSecret = authHeader?.replace('Bearer ', '');
+
+  if (providedSecret !== cronSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  const razorpayConfigured = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+
+  if (!stripeKey && !razorpayConfigured) {
+    return NextResponse.json({ success: true, message: 'No payment gateways configured, skipping' });
+  }
+
+  const stripeResult = stripeKey
+    ? await reconcileStripe(stripeKey)
+    : { skipped: true, reason: 'Stripe not configured' };
+  const razorpayResult = razorpayConfigured
+    ? await reconcileRazorpay()
+    : { skipped: true, reason: 'Razorpay not configured' };
+
+  const lateFulfillments =
+    (('lateFulfillments' in stripeResult && stripeResult.lateFulfillments) || 0) +
+    (('lateFulfillments' in razorpayResult && razorpayResult.lateFulfillments) || 0);
+
+  // Notify admins when any late fulfillments were found (either gateway)
+  if (lateFulfillments > 0) {
+    try {
+      const admins = await db.user.findMany({
+        where: { role: 'owner' },
+        select: { id: true },
+        take: 5,
+      });
+
+      for (const admin of admins) {
+        await db.notification.create({
+          data: {
+            userId: admin.id,
+            type: 'system_alert',
+            title: 'Late Payment Fulfillments Detected',
+            message: `Payment reconciliation found ${lateFulfillments} payment(s) that were charged but not fulfilled. These have now been processed.`,
+            actionUrl: '/dashboard',
+          },
+        });
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    stripe: stripeResult,
+    razorpay: razorpayResult,
+    lateFulfillments,
+    timestamp: new Date().toISOString(),
+  });
 }

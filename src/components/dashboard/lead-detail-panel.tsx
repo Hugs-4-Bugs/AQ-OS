@@ -46,6 +46,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ProspectPipelineTab from '@/components/dashboard/prospect-pipeline-tab';
 import {
   Select,
   SelectContent,
@@ -534,12 +535,13 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
         <ScrollArea className="flex-1 min-h-0 custom-scrollbar">
           <div className="p-4">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full grid grid-cols-5 mb-4 h-9">
+              <TabsList className="w-full grid grid-cols-6 mb-4 h-9">
                 <TabsTrigger value="overview" className="text-[10px] sm:text-xs px-1">Overview</TabsTrigger>
                 <TabsTrigger value="contact" className="text-[10px] sm:text-xs px-1">Contact</TabsTrigger>
                 <TabsTrigger value="notes" className="text-[10px] sm:text-xs px-1">Notes</TabsTrigger>
                 <TabsTrigger value="activity" className="text-[10px] sm:text-xs px-1">Activity</TabsTrigger>
                 <TabsTrigger value="company" className="text-[10px] sm:text-xs px-1">Company</TabsTrigger>
+                <TabsTrigger value="pipeline" className="text-[10px] sm:text-xs px-1">AI Pipeline</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -934,6 +936,11 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
                   )}
                   {enrichMutation.isPending ? 'Analyzing Website...' : 'Analyze Website'}
                 </Button>
+              </TabsContent>
+
+              {/* AI Pipeline Tab — 5-step prospecting pipeline */}
+              <TabsContent value="pipeline" className="space-y-4">
+                <ProspectPipelineTab lead={lead} />
               </TabsContent>
             </Tabs>
           </div>

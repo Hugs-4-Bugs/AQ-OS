@@ -544,26 +544,31 @@ export default function PipelineTab() {
   const activeLead = leads.find(l => l.id === activeLeadId);
 
   return (
-    <ScrollArea className="h-full custom-scrollbar">
+    /* FIX: Radix ScrollArea's viewport child defaults to `display: table` (inline style),
+       which lets the board grow to max-content width — the page ScrollArea then silently
+       clips every pipeline stage beyond the viewport width. Forcing `display: block` on
+       THIS instance's viewport child constrains the board so its own overflow-x-auto
+       kicks in and ALL stages in STAGE_ORDER stay reachable via horizontal scrolling. */
+    <ScrollArea className="h-full custom-scrollbar [&_[data-slot=scroll-area-viewport]>div]:block!">
       <div className="p-4 lg:p-6 space-y-4 pb-20 lg:pb-6">
         {/* Pipeline Stats */}
         <PipelineSummaryStats leads={leads} />
 
-        {/* Mobile scroll hint */}
-        <div className="lg:hidden mb-1">
+        {/* Horizontal scroll hint (applies on all breakpoints — the board scrolls horizontally when columns exceed the viewport width) */}
+        <div className="mb-1">
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             ← Scroll horizontally to see all stages →
           </p>
         </div>
 
-        {/* Kanban Board */}
+        {/* Kanban Board — horizontally scrollable at ALL breakpoints so every stage in STAGE_ORDER stays reachable (never clipped by the page ScrollArea viewport) */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex items-start gap-3 overflow-x-auto pb-4 lg:overflow-visible snap-x snap-mandatory [-webkit-overflow-scrolling:touch] scrollbar-none">
+          <div className="flex items-start gap-3 overflow-x-auto pb-4 pr-1 sm:pr-2 [-webkit-overflow-scrolling:touch] custom-scrollbar">
             {STAGE_ORDER.map((stage) => (
               <StageColumn
                 key={stage}

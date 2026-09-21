@@ -17,6 +17,8 @@ import {
   MfaVerificationPage,
 } from '@/components/dashboard/auth-pages-v2';
 import LegalPages from '@/components/dashboard/legal-pages';
+import { DevDeliveryNotice, parseDevDelivery } from '@/components/dashboard/dev-delivery-notice';
+import type { DevDeliveryPayload } from '@/lib/dev-auth';
 import { useLegalStore } from '@/lib/legal-store';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -223,6 +225,9 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
   const [deliveryIssue, setDeliveryIssue] = useState(false);
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [fallbackReason, setFallbackReason] = useState<string | undefined>();
+  // DEV-ONLY (sandbox): the OTP surfaced in-place when the server cannot
+  // send emails. Never set in production.
+  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
   const cooldownRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   // Cooldown timer for resend
@@ -265,12 +270,16 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
           setEmailPreviewUrl(data.emailPreviewUrl);
           setEmailProvider(data.emailProvider);
           setFallbackReason(data.fallbackReason);
+          // DEV-ONLY: capture the in-place delivered code (sandbox mode).
+          setDevDelivery(parseDevDelivery(data));
           // Surface delivery failures (e.g. Gmail daily quota exceeded) so the
           // user knows the OTP will NOT arrive and doesn't wait forever.
           setDeliveryIssue(!!data.deliveryIssue);
           setDeliveryMessage(data.deliveryMessage || '');
-          if (data.deliveryIssue) {
+          if (data.deliveryIssue && !data.devDelivery) {
             toast.error('Email delivery failed — see details below');
+          } else if (data.devDelivery) {
+            toast.info('Dev mode: email delivery not configured — your login code is shown below.');
           } else if (data.fallbackReason) {
             toast.warning('Gmail limit reached — OTP delivered to preview inbox. Click the preview link below.');
           } else {
@@ -418,6 +427,10 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
                     </div>
                   </motion.div>
                 )}
+                <DevDeliveryNotice
+                  delivery={devDelivery}
+                  onFillCode={(code) => setOtp(code)}
+                />
                 <EmailPreviewNotice
                   previewUrl={emailPreviewUrl}
                   provider={emailProvider}
@@ -488,6 +501,9 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
   const [deliveryIssue, setDeliveryIssue] = useState(false);
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [fallbackReason, setFallbackReason] = useState<string | undefined>();
+  // DEV-ONLY (sandbox): the sign-in link surfaced in-place when the server
+  // cannot send emails. Never set in production.
+  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
 
   const handleSendMagicLink = useCallback(
     async (e: React.FormEvent) => {
@@ -514,9 +530,13 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
           setDeliveryIssue(!!data.deliveryIssue);
           setDeliveryMessage(data.deliveryMessage || '');
           setFallbackReason(data.fallbackReason);
+          // DEV-ONLY: capture the in-place delivered link (sandbox mode).
+          setDevDelivery(parseDevDelivery(data));
           setSent(true);
-          if (data.deliveryIssue) {
+          if (data.deliveryIssue && !data.devDelivery) {
             toast.error('Email delivery failed — see details below');
+          } else if (data.devDelivery) {
+            toast.info('Dev mode: email delivery not configured — your sign-in link is shown below.');
           } else if (data.fallbackReason) {
             toast.warning('Gmail limit reached — magic link delivered to preview inbox. Click the preview link below.');
           } else {
@@ -581,6 +601,7 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
                     </div>
                   </motion.div>
                 )}
+                <DevDeliveryNotice delivery={devDelivery} />
                 <EmailPreviewNotice
                   previewUrl={emailPreviewUrl}
                   provider={emailProvider}
@@ -834,19 +855,25 @@ export default function AuthGate() {
     setAuthPage('forgot-password');
   }, []);
 
-  const navigateToVerifyEmail = useCallback((email: string) => {
+  const navigateToVerifyEmail = useCallback((email: string, devDelivery?: DevDeliveryPayload) => {
     setFlowEmail(email);
+    setVerifyDevDelivery(devDelivery);
     setAuthPage('verify-email');
   }, []);
 
   const [resetEmailPreviewUrl, setResetEmailPreviewUrl] = useState<string | undefined>();
   const [resetEmailProvider, setResetEmailProvider] = useState<string | undefined>();
+  // DEV-ONLY (sandbox): reset/verification code surfaced in-place when the
+  // server cannot send emails. Never set in production.
+  const [verifyDevDelivery, setVerifyDevDelivery] = useState<DevDeliveryPayload | undefined>();
+  const [resetDevDelivery, setResetDevDelivery] = useState<DevDeliveryPayload | undefined>();
 
   const navigateToResetPassword = useCallback(
-    (email: string, emailPreviewUrl?: string, emailProvider?: string) => {
+    (email: string, emailPreviewUrl?: string, emailProvider?: string, devDelivery?: DevDeliveryPayload) => {
       setFlowEmail(email);
       setResetEmailPreviewUrl(emailPreviewUrl);
       setResetEmailProvider(emailProvider);
+      setResetDevDelivery(devDelivery);
       setAuthPage('reset-password');
     },
     []
@@ -953,6 +980,7 @@ export default function AuthGate() {
           {legalDialog}
           <VerifyEmailPage
             email={flowEmail}
+            initialDevDelivery={verifyDevDelivery}
             onVerified={handleEmailVerified}
             onBackToSignIn={navigateToSignIn}
           />
@@ -979,6 +1007,7 @@ export default function AuthGate() {
             onSuccess={handleResetPasswordSuccess}
             initialEmailPreviewUrl={resetEmailPreviewUrl}
             initialEmailProvider={resetEmailProvider}
+            initialDevDelivery={resetDevDelivery}
           />
         </>
       );

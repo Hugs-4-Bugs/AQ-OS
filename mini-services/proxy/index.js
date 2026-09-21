@@ -1,6 +1,10 @@
 const http = require('http');
 
-const PROXY_PORT = 3000;
+// NOTE: must NOT be 3000 — the Next.js dev server binds :3000 directly
+// (the platform preview maps to it). A previous session-restore race let
+// this proxy grab :3000 and forward it to the watchdog stub on :3001,
+// which broke the live preview (stub text instead of the app).
+const PROXY_PORT = 3002;
 const TARGET_PORT = 3001;
 const TARGET_HOST = '127.0.0.1';
 

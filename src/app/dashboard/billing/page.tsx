@@ -176,6 +176,27 @@ function getPlanDisplayName(plan: string): string {
   }
 }
 
+// ── Gateway badge ──
+// Shows which payment gateway processed the payment (Stripe or Razorpay).
+// Displays only the gateway name — never keys or identifiers.
+function getGatewayBadge(provider: string | null | undefined) {
+  if (provider === 'stripe') {
+    return (
+      <Badge variant="outline" className="text-[10px] border-[#635BFF]/40 text-[#635BFF]">
+        Stripe
+      </Badge>
+    );
+  }
+  if (provider === 'razorpay') {
+    return (
+      <Badge variant="outline" className="text-[10px] border-[#3395FF]/40 text-[#3395FF] dark:text-[#5aa9ff]">
+        Razorpay
+      </Badge>
+    );
+  }
+  return null;
+}
+
 function getStatusBadge(status: string) {
   switch (status) {
     case 'completed':
@@ -577,6 +598,7 @@ export default function BillingHistoryPage() {
                         <TableHead className="text-xs">Plan</TableHead>
                         <TableHead className="text-xs">Cycle</TableHead>
                         <TableHead className="text-xs">Amount</TableHead>
+                        <TableHead className="text-xs">Paid Via</TableHead>
                         <TableHead className="text-xs">Status</TableHead>
                         <TableHead className="text-xs">Invoice</TableHead>
                         <TableHead className="text-xs text-right">Actions</TableHead>
@@ -596,6 +618,9 @@ export default function BillingHistoryPage() {
                           </TableCell>
                           <TableCell className="text-xs py-3 font-medium">
                             {formatCurrency(order.amount, order.currency)}
+                          </TableCell>
+                          <TableCell className="text-xs py-3">
+                            {getGatewayBadge(order.provider)}
                           </TableCell>
                           <TableCell className="text-xs py-3">
                             {getStatusBadge(order.status)}
@@ -679,6 +704,9 @@ export default function BillingHistoryPage() {
                           <p className="text-xs text-muted-foreground capitalize">
                             {order.billingCycle} · {formatDate(order.createdAt)}
                           </p>
+                          {getGatewayBadge(order.provider) && (
+                            <div className="mt-1">{getGatewayBadge(order.provider)}</div>
+                          )}
                         </div>
                         {getStatusBadge(order.status)}
                       </div>

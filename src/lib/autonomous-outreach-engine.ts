@@ -23,6 +23,7 @@ import { deductCredits, checkCreditSufficiency, refundCredits } from '@/lib/cred
 import { startDiscoveryJob, getDiscoveryJobStatus } from '@/lib/lead-discovery-service';
 import { generateOutreach } from '@/lib/ai/outreach-generator';
 import { logAuditEvent } from '@/lib/lead-audit';
+import { createNotificationOnce } from '@/lib/notification-service';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // ===== TYPE DEFINITIONS =====
@@ -489,6 +490,19 @@ export async function processAutonomousCampaign(
       discoveredCount,
       outreachGenerated: outreachGeneratedCount,
     });
+
+    // User-facing notification (deduped per campaign run).
+    await createNotificationOnce({
+      userId,
+      type: 'campaign_completed',
+      title: 'Outreach campaign completed',
+      message: `Your autonomous campaign finished: ${discoveredCount} lead${discoveredCount === 1 ? '' : 's'} discovered and ${outreachGeneratedCount} outreach message${outreachGeneratedCount === 1 ? '' : 's'} generated.`,
+      actionUrl: '/business-ai/outreach',
+      metadata: { campaignId, discoveredCount, outreachGenerated: outreachGeneratedCount },
+      dedupeKey: `campaign:${campaignId}:completed`,
+    }).catch(() => {
+      // Never fail the campaign path because of a notification problem
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error in campaign pipeline';
     console.error(`[AutonomousOutreach] Campaign ${campaignId} pipeline error:`, error);
@@ -498,6 +512,20 @@ export async function processAutonomousCampaign(
     await logAuditEvent(userId, 'autonomous_campaign_failed', {
       campaignId,
       error: errorMessage,
+    });
+
+    // User-facing notification — safe message only (raw error stays in the
+    // campaign record / audit log).
+    await createNotificationOnce({
+      userId,
+      type: 'campaign_failed',
+      title: 'Outreach campaign failed',
+      message: 'Your autonomous outreach campaign could not be completed. You can restart it from the Outreach page.',
+      actionUrl: '/business-ai/outreach',
+      metadata: { campaignId },
+      dedupeKey: `campaign:${campaignId}:failed`,
+    }).catch(() => {
+      // Never fail the campaign path because of a notification problem
     });
   }
 }

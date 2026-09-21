@@ -222,19 +222,11 @@ export default function FollowUpReminders() {
   }
 
   // ─── Empty State ───
+  // Render nothing when there are no pending reminders: the reference shell
+  // shows only Credits + Notifications in the lower sidebar. The widget (and
+  // all of its actions) still renders whenever any reminder exists.
   if (reminders.length === 0 && meetingReminders.length === 0) {
-    return (
-      <div className="p-3">
-        <div className="flex items-center gap-2 mb-3">
-          <Clock className="h-4 w-4 text-primary" />
-          <span className="text-xs font-medium text-muted-foreground">Reminders</span>
-        </div>
-        <div className="text-center py-4">
-          <Bell className="h-6 w-6 text-muted-foreground/20 mx-auto mb-2" />
-          <p className="text-xs text-muted-foreground">No upcoming reminders</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

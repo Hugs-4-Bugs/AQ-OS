@@ -37,9 +37,11 @@ import {
   Calendar,
   Send,
   BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscriptionStore } from '@/lib/subscription-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1150,6 +1152,7 @@ function WorkflowList({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [executingId, setExecutingId] = useState<string | null>(null);
 
   const fetchWorkflows = useCallback(async () => {
     try {
@@ -1223,21 +1226,29 @@ function WorkflowList({
   };
 
   const handleExecute = async (wf: Workflow) => {
+    if (executingId) return;
+    setExecutingId(wf.id);
     try {
       const result = await apiFetch<{ executionId: string; status: string }>(
         `/api/workflows/${wf.id}/execute`,
         { method: 'POST', body: JSON.stringify({}) }
       );
       toast({
-        title: 'Workflow executed',
-        description: `Execution ${result.executionId} started with status: ${result.status}`,
+        title: 'Workflow executing...',
+        description: `${wf.name} started — execution ${result.executionId}`,
       });
+      // Refresh the workflow card after 2 seconds to show the updated run count
+      setTimeout(() => {
+        fetchWorkflows();
+      }, 2000);
     } catch (err) {
       toast({
         title: 'Execution failed',
         description: err instanceof Error ? err.message : 'Failed to execute workflow',
         variant: 'destructive',
       });
+    } finally {
+      setExecutingId(null);
     }
   };
 
@@ -1386,9 +1397,14 @@ function WorkflowList({
                         size="sm"
                         className="h-7 text-xs"
                         onClick={() => handleExecute(wf)}
-                        disabled={wf.status === 'archived' || wf.disabledBySubscription}
+                        disabled={wf.status === 'archived' || wf.disabledBySubscription || executingId === wf.id}
                       >
-                        <Play className="h-3 w-3 mr-1" /> Run
+                        {executingId === wf.id ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Play className="h-3 w-3 mr-1" />
+                        )}
+                        {executingId === wf.id ? 'Starting…' : 'Run'}
                       </Button>
                     </div>
                   </div>
@@ -1418,6 +1434,250 @@ function WorkflowList({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// ===== AI WORKFLOW GENERATION (ELITE ONLY) =====
+
+interface GeneratedStep {
+  nodeType: string;
+  actionType: string;
+  title: string;
+  config: Record<string, unknown>;
+}
+
+interface AiGenerated {
+  name: string;
+  description: string;
+  triggerType: string;
+  triggerConfig: Record<string, unknown>;
+  steps: GeneratedStep[];
+}
+
+interface AiGeneratePayload {
+  name: string;
+  description: string;
+  triggerType: string;
+  triggerConfig: Record<string, unknown>;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  steps: { type: string; name: string; config: Record<string, unknown>; order: number }[];
+  status: string;
+}
+
+function AiGenerateWorkflowModal({
+  open,
+  onOpenChange,
+  onEdit,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEdit: (payload: AiGeneratePayload) => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [description, setDescription] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState<{ generated: AiGenerated; payload: AiGeneratePayload } | null>(null);
+  const [savingStatus, setSavingStatus] = useState<'draft' | 'active' | null>(null);
+
+  const reset = () => {
+    setDescription('');
+    setGenerated(null);
+    setGenerating(false);
+    setSavingStatus(null);
+  };
+
+  const handleGenerate = async () => {
+    if (!description.trim() || generating) return;
+    setGenerating(true);
+    setGenerated(null);
+    try {
+      const data = await apiFetch<{
+        success: boolean;
+        generated: AiGenerated;
+        payload: AiGeneratePayload;
+        creditsDeducted: number;
+        newBalance: number;
+      }>('/api/workflows/ai-generate', {
+        method: 'POST',
+        body: JSON.stringify({ description: description.trim() }),
+      });
+      setGenerated({ generated: data.generated, payload: data.payload });
+      toast({
+        title: 'Workflow generated',
+        description: `${data.creditsDeducted} credits used — review the preview below.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Generation failed',
+        description: err instanceof Error ? err.message : 'Failed to generate workflow',
+        variant: 'destructive',
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSave = async (status: 'draft' | 'active') => {
+    if (!generated || savingStatus) return;
+    setSavingStatus(status);
+    try {
+      await apiFetch('/api/workflows', {
+        method: 'POST',
+        body: JSON.stringify({ ...generated.payload, status }),
+      });
+      toast({
+        title: status === 'active' ? 'Workflow saved & activated' : 'Workflow saved as draft',
+        description: `"${generated.payload.name}" was created like a manually built workflow.`,
+      });
+      reset();
+      onOpenChange(false);
+      onSaved();
+    } catch (err) {
+      toast({
+        title: 'Save failed',
+        description: err instanceof Error ? err.message : 'Failed to save workflow',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingStatus(null);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Create Workflow with AI
+          </DialogTitle>
+          <DialogDescription>
+            Describe your automation in plain English and AI will build it. Elite feature — costs 5 credits per generation.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="ai-workflow-description">Workflow description</Label>
+            <Textarea
+              id="ai-workflow-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your workflow in plain English... e.g. 'When a lead replies to my email, wait 2 hours, then send a personalized follow-up using AI, then move them to Replied stage in pipeline'"
+              rows={4}
+              className="resize-none text-sm"
+              disabled={generating || !!savingStatus}
+            />
+          </div>
+
+          {!generated ? (
+            <Button
+              onClick={handleGenerate}
+              disabled={!description.trim() || generating}
+              className="w-full gap-2"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate Workflow
+                </>
+              )}
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              {/* Generated Workflow Preview */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
+                <p className="text-xs font-semibold flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  Generated Workflow Preview
+                </p>
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="outline" className="bg-purple-500/10 border-purple-500/25 text-purple-600 dark:text-purple-400">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Trigger: {getTriggerLabel(generated.generated.triggerType)}
+                  </Badge>
+                </div>
+                <div className="space-y-1.5">
+                  {generated.generated.steps.map((step, i) => {
+                    const colors = getNodeColor(step.nodeType);
+                    // Always a rendered element (never a bare component) to avoid React child errors
+                    const stepIcon = step.nodeType === 'delay'
+                      ? <Clock className="h-3.5 w-3.5" />
+                      : step.nodeType === 'condition'
+                        ? <GitBranch className="h-3.5 w-3.5" />
+                        : renderActionIcon(step.actionType, 'h-3.5 w-3.5');
+                    return (
+                      <div key={i} className={cn('flex items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-xs', colors.bg, colors.border)}>
+                        <span className="font-mono text-[10px] text-muted-foreground w-8 shrink-0">Step {i + 1}</span>
+                        <span className={cn('shrink-0', colors.text)}>{stepIcon}</span>
+                        <span className="font-medium truncate">{step.title}</span>
+                        <Badge variant="outline" className="ml-auto text-[9px] h-4 px-1 shrink-0">
+                          {getActionLabel(step.actionType)}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {generated.generated.steps.length} step{generated.generated.steps.length !== 1 ? 's' : ''} ·
+                  saved to DB exactly like a manual workflow
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    const payload = generated.payload;
+                    reset();
+                    onOpenChange(false);
+                    onEdit(payload);
+                  }}
+                  disabled={!!savingStatus}
+                >
+                  <Edit3 className="h-3.5 w-3.5 mr-1" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => handleSave('draft')}
+                  disabled={!!savingStatus}
+                >
+                  {savingStatus === 'draft' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+                  Save as Draft
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                  onClick={() => handleSave('active')}
+                  disabled={!!savingStatus}
+                >
+                  {savingStatus === 'active' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                  Save &amp; Activate
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2111,14 +2371,58 @@ function TemplatesTab({ onTemplateUsed }: { onTemplateUsed: () => void }) {
 
 export default function WorkflowsTab() {
   const { toast } = useToast();
+  const currentPlan = useSubscriptionStore((s) => s.currentPlan);
   const [subTab, setSubTab] = useState<'workflows' | 'executions' | 'templates'>('workflows');
   const [builderMode, setBuilderMode] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [saving, setSaving] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiPreset, setAiPreset] = useState<Workflow | null>(null);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
 
   const handleCreateNew = () => {
     setEditingWorkflow(null);
+    setAiPreset(null);
+    setBuilderMode(true);
+  };
+
+  const handleCreateWithAi = () => {
+    // Visible to all — functional for Elite only
+    if (currentPlan !== 'elite') {
+      toast({
+        title: 'Upgrade to Elite to use AI workflow creation',
+        description: 'AI workflow generation is available on the Elite plan.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setAiModalOpen(true);
+  };
+
+  const handleAiEdit = (payload: {
+    name: string;
+    description: string;
+    triggerType: string;
+    triggerConfig: Record<string, unknown>;
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
+  }) => {
+    // Open the standard builder prefilled with the generated workflow (creates a NEW workflow on save)
+    setEditingWorkflow(null);
+    setAiPreset({
+      id: 'ai-preset',
+      name: payload.name,
+      description: payload.description,
+      triggerType: payload.triggerType,
+      triggerConfig: payload.triggerConfig,
+      nodes: payload.nodes,
+      edges: payload.edges,
+      status: 'draft',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Workflow);
     setBuilderMode(true);
   };
 
@@ -2154,6 +2458,7 @@ export default function WorkflowsTab() {
       }
       setBuilderMode(false);
       setEditingWorkflow(null);
+      setAiPreset(null);
     } catch (err) {
       toast({
         title: 'Error',
@@ -2168,6 +2473,7 @@ export default function WorkflowsTab() {
   const handleCancelBuilder = () => {
     setBuilderMode(false);
     setEditingWorkflow(null);
+    setAiPreset(null);
   };
 
   // If in builder mode, show builder full-screen
@@ -2175,7 +2481,7 @@ export default function WorkflowsTab() {
     return (
       <div className="h-full">
         <WorkflowBuilder
-          workflow={editingWorkflow}
+          workflow={editingWorkflow ?? aiPreset}
           onSave={handleSave}
           onCancel={handleCancelBuilder}
           saving={saving}
@@ -2221,6 +2527,14 @@ export default function WorkflowsTab() {
                 >
                   <BookOpen className="h-4 w-4 mr-1" /> Documentation
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCreateWithAi}
+                  className="border-primary/30 hover:bg-primary/5"
+                >
+                  <Sparkles className="h-4 w-4 mr-1 text-primary" /> Create with AI
+                </Button>
                 <Button size="sm" onClick={handleCreateNew}>
                   <Plus className="h-4 w-4 mr-1" /> New Workflow
                 </Button>
@@ -2232,6 +2546,7 @@ export default function WorkflowsTab() {
         <div className="flex-1 overflow-auto">
           <TabsContent value="workflows" className="p-4 mt-0">
             <WorkflowList
+              key={listRefreshKey}
               onSelectWorkflow={(wf) => setSelectedWorkflow(wf)}
               onEditWorkflow={handleEdit}
             />
@@ -2246,6 +2561,14 @@ export default function WorkflowsTab() {
           </TabsContent>
         </div>
       </Tabs>
+
+      {/* AI Workflow Generation modal (Elite only) */}
+      <AiGenerateWorkflowModal
+        open={aiModalOpen}
+        onOpenChange={setAiModalOpen}
+        onEdit={handleAiEdit}
+        onSaved={() => setListRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }

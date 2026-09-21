@@ -786,7 +786,8 @@ function getPlanPricing(plan: PlanType, billingCycle: BillingCycle): {
 export async function confirmPaymentAndActivate(
   userId: string,
   paymentOrderId: string,
-  providerPaymentId: string
+  providerPaymentId: string,
+  providerSubscriptionId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Validate user owns the order (lightweight check outside tx is fine)
@@ -848,6 +849,12 @@ export async function confirmPaymentAndActivate(
             scheduledPlanChange: null,
             currentPeriodStart: now,
             currentPeriodEnd: periodEnd,
+            // Link the gateway subscription id when provided (Razorpay
+            // recurring checkout / future gateways). Stripe keeps its own
+            // id via the subscription webhook handler.
+            ...(providerSubscriptionId && paymentOrder.provider === 'razorpay'
+              ? { razorpaySubscriptionId: providerSubscriptionId }
+              : {}),
           },
         });
       } else {
@@ -864,6 +871,10 @@ export async function confirmPaymentAndActivate(
             currentPeriodStart: now,
             currentPeriodEnd: periodEnd,
             billingCycle: paymentOrder.billingCycle || 'monthly',
+            razorpaySubscriptionId:
+              providerSubscriptionId && paymentOrder.provider === 'razorpay'
+                ? providerSubscriptionId
+                : null,
           },
         });
       }

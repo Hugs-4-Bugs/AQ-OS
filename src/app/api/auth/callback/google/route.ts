@@ -19,7 +19,9 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { createRelayToken, isSameOrigin } from '@/lib/oauth-relay';
+import { isDevAuthDeliveryEnabled } from '@/lib/dev-auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -224,6 +226,24 @@ function classifyTokenExchangeFailure(
 }
 
 /**
+ * Build a synthetic Google profile for the DEV-ONLY simulated consent flow.
+ * The pseudo `sub` is a deterministic hash of the email so repeated dev
+ * logins with the same email link to the same account (same behavior as a
+ * real Google identity). Only used when GOOGLE_CLIENT_ID is absent and dev
+ * mode is enabled — never in production or with real credentials.
+ */
+function buildDevGoogleProfile(email: string, name?: string | null): GoogleUserInfo {
+  const normalized = email.toLowerCase().trim();
+  const sub = 'dev-google-' + createHash('sha256').update(normalized).digest('hex').slice(0, 24);
+  return {
+    sub,
+    email: normalized,
+    email_verified: true,
+    name: (name || '').trim() || 'Google User',
+  };
+}
+
+/**
  * Handle the Google OAuth callback.
  *
  * Returns:
@@ -231,12 +251,18 @@ function classifyTokenExchangeFailure(
  *   { failureCode } on classified failure (so caller can redirect to
  *   the most helpful auth_error query).
  *   null on hard failure (treated as 'google_failed' by callers).
+ *
+ * DEV-ONLY: when `devProfile` is provided (sandbox simulated consent), the
+ * token exchange and userinfo fetch against Google are skipped entirely and
+ * the provided profile is used instead — every later step (user upsert,
+ * backfill, session creation, cookies) runs IDENTICALLY to the real flow.
  */
 async function handleGoogleOAuth(
   code: string,
   request: NextRequest,
   stateFromQuery: string | undefined,
-  requestId: string
+  requestId: string,
+  devProfile?: GoogleUserInfo
 ): Promise<
   | { accessToken: string; refreshToken: string; user: any; stateOrigin?: string }
   | { failureCode: GoogleFailureCode }
@@ -254,9 +280,12 @@ async function handleGoogleOAuth(
     return null;
   }
 
-  if (!clientId || !clientSecret) {
+  if (!devProfile && (!clientId || !clientSecret)) {
     console.error(`[Google Callback ${requestId}] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET`);
     return null;
+  }
+  if (devProfile) {
+    console.warn(`[Google Callback ${requestId}] DEV MODE: using simulated profile for ${devProfile.email} (no token exchange)`);
   }
 
   // ── CAUSE A: State parameter decoding ────────────────────────
@@ -330,58 +359,68 @@ async function handleGoogleOAuth(
   const ua = getUserAgent?.(request) || 'unknown';
 
   // ── CAUSE B: Token exchange with Google ──────────────────────
-  let tokenData: GoogleTokenResponse;
-  try {
-    // [G-CB] Step 2: token exchange starting
-    console.log(`[G-CB] Step 2: token exchange starting (redirect_uri=${redirectUri})`);
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
-    });
+  // DEV-ONLY shortcut: the simulated consent flow has no authorization code
+  // to exchange — skip straight to the profile.
+  let tokenData: GoogleTokenResponse | undefined;
+  if (!devProfile) {
+    try {
+      // [G-CB] Step 2: token exchange starting
+      console.log(`[G-CB] Step 2: token exchange starting (redirect_uri=${redirectUri})`);
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
 
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      console.error(`[Google Callback ${requestId}] ✗ Token exchange FAILED (status=${tokenResponse.status}):`, errorData);
-      return { failureCode: classifyTokenExchangeFailure(tokenResponse.status, errorData) };
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.text();
+        console.error(`[Google Callback ${requestId}] ✗ Token exchange FAILED (status=${tokenResponse.status}):`, errorData);
+        return { failureCode: classifyTokenExchangeFailure(tokenResponse.status, errorData) };
+      }
+
+      tokenData = await tokenResponse.json();
+      // [G-CB] Step 3: token exchange result
+      console.log(`[G-CB] Step 3: token exchange result: access_token=${!!tokenData.access_token}, error=${(tokenData as any).error || 'none'}`);
+      console.log(`[Google Callback ${requestId}] ✓ Token exchange successful`);
+    } catch (tokenErr) {
+      console.error(`[Google Callback ${requestId}] Token exchange crashed:`, tokenErr instanceof Error ? tokenErr.message : tokenErr);
+      return null;
     }
-
-    tokenData = await tokenResponse.json();
-    // [G-CB] Step 3: token exchange result
-    console.log(`[G-CB] Step 3: token exchange result: access_token=${!!tokenData.access_token}, error=${(tokenData as any).error || 'none'}`);
-    console.log(`[Google Callback ${requestId}] ✓ Token exchange successful`);
-  } catch (tokenErr) {
-    console.error(`[Google Callback ${requestId}] Token exchange crashed:`, tokenErr instanceof Error ? tokenErr.message : tokenErr);
-    return null;
   }
 
   // ── CAUSE D: User profile fetch from Google ──────────────────
   let googleUser: GoogleUserInfo;
-  try {
-    // [G-CB] Step 4: userinfo fetch starting
-    console.log(`[G-CB] Step 4: userinfo fetch starting`);
-    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
+  if (devProfile) {
+    // DEV-ONLY: use the simulated profile from the in-app consent page.
+    googleUser = devProfile;
+    console.log(`[Google Callback ${requestId}] ✓ DEV profile used: email=${googleUser.email}, name=${googleUser.name}`);
+  } else {
+    try {
+      // [G-CB] Step 4: userinfo fetch starting
+      console.log(`[G-CB] Step 4: userinfo fetch starting`);
+      const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData!.access_token}` },
+      });
 
-    if (!profileResponse.ok) {
-      console.error(`[Google Callback ${requestId}] ✗ Failed to fetch user profile (status=${profileResponse.status})`);
+      if (!profileResponse.ok) {
+        console.error(`[Google Callback ${requestId}] ✗ Failed to fetch user profile (status=${profileResponse.status})`);
+        return null;
+      }
+
+      googleUser = await profileResponse.json();
+      // [G-CB] Step 5: google email
+      console.log(`[G-CB] Step 5: google email: ${googleUser.email}, name: ${googleUser.name || 'n/a'}`);
+      console.log(`[Google Callback ${requestId}] ✓ User profile fetched: email=${googleUser.email}, name=${googleUser.name}`);
+    } catch (profileErr) {
+      console.error(`[Google Callback ${requestId}] Profile fetch crashed:`, profileErr instanceof Error ? profileErr.message : profileErr);
       return null;
     }
-
-    googleUser = await profileResponse.json();
-    // [G-CB] Step 5: google email
-    console.log(`[G-CB] Step 5: google email: ${googleUser.email}, name: ${googleUser.name || 'n/a'}`);
-    console.log(`[Google Callback ${requestId}] ✓ User profile fetched: email=${googleUser.email}, name=${googleUser.name}`);
-  } catch (profileErr) {
-    console.error(`[Google Callback ${requestId}] Profile fetch crashed:`, profileErr instanceof Error ? profileErr.message : profileErr);
-    return null;
   }
 
   if (!googleUser.email) {
@@ -689,12 +728,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(userOriginRedirect('/?auth_error=oauth_failed', request, state));
     }
 
-    if (!code) {
+    // ── DEV-ONLY simulated consent callback ─────────────────────
+    // Activated ONLY when ALL of the following hold:
+    //   1. ?dev=1&dev_email=... params are present (from the in-app
+    //      simulated consent page /auth/dev/google-consent)
+    //   2. No real GOOGLE_CLIENT_ID is configured on this server
+    //   3. Dev-mode auth delivery is enabled (never in production)
+    // With real credentials configured, dev params are ignored and the
+    // genuine Google OAuth flow runs exactly as before.
+    const devEmailParam = searchParams.get('dev_email');
+    const devNameParam = searchParams.get('dev_name');
+    const devAllowed =
+      !process.env.GOOGLE_CLIENT_ID && isDevAuthDeliveryEnabled();
+    const devProfile =
+      searchParams.get('dev') === '1' && devEmailParam && devAllowed
+        ? buildDevGoogleProfile(devEmailParam, devNameParam)
+        : undefined;
+    if (searchParams.get('dev') === '1' && !devAllowed) {
+      console.warn(`[Google Callback ${requestId}] dev=1 param ignored — dev mode not allowed (real credentials or production)`);
+    }
+
+    if (!code && !devProfile) {
       console.error(`[Google Callback ${requestId}] No code parameter in callback`);
       return NextResponse.redirect(userOriginRedirect('/?auth_error=no_code', request, state));
     }
 
-    const result = await handleGoogleOAuth(code, request, state, requestId);
+    const result = await handleGoogleOAuth(code || 'dev-mock-code', request, state, requestId, devProfile);
 
     if (!result) {
       console.error(`[G-CB] FAILED — handleGoogleOAuth returned null. Check earlier [G-CB] step logs for the failure point.`);

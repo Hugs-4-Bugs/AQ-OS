@@ -5,6 +5,50 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { publishEvent } from '@/lib/realtime-event-bus';
+
+// ---------------------------------------------------------------------------
+// Real-time delivery (SSE)
+// ---------------------------------------------------------------------------
+
+/**
+ * Publish a freshly-created notification row to the `notification_events`
+ * channel of the realtime event bus so any connected SSE client
+ * (GET /api/events/notifications) receives it instantly, without waiting
+ * for the 30s polling fallback.
+ *
+ * Fire-and-forget by design: real-time delivery must never break the
+ * caller's flow, and the DB row is already persisted at this point.
+ */
+export function publishNotificationCreated(notification: {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  actionUrl?: string | null;
+  metadata?: string | null;
+  createdAt: Date;
+}): void {
+  publishEvent({
+    channel: 'notification_events',
+    eventType: 'notification_created',
+    payload: {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      read: notification.read,
+      actionUrl: notification.actionUrl ?? null,
+      metadata: notification.metadata ?? null,
+      createdAt: notification.createdAt,
+    },
+    userId: notification.userId,
+  }).catch(() => {
+    // Swallow — SSE delivery is best-effort; polling is the fallback.
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -120,6 +164,9 @@ export async function createNotification(params: CreateNotificationParams) {
       },
     });
 
+    // Real-time: push to SSE subscribers (fire-and-forget, best-effort).
+    publishNotificationCreated(notification);
+
     return {
       id: notification.id,
       type: notification.type,
@@ -134,6 +181,60 @@ export async function createNotification(params: CreateNotificationParams) {
     // Don't throw — notification creation should never break the caller's flow
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Deduplicated creation (idempotency for retried background jobs)
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a notification at most once per `dedupeKey` within an optional
+ * time window. Used by event producers that may legitimately re-run for the
+ * same underlying event (workflow replay/retry, discovery re-poll, recurring
+ * credit-threshold checks) so one event never yields duplicate notifications.
+ *
+ * The dedupe key is embedded in the row's metadata as
+ * `"dedupeKey":"<key>"` and looked up with a `contains` match, which keeps
+ * the implementation schema-neutral (no new column / migration required).
+ *
+ * Returns the existing row when a duplicate is detected (`duplicate: true`),
+ * or `{ duplicate: false, id }` for a freshly created notification.
+ */
+export async function createNotificationOnce(
+  params: CreateNotificationParams & {
+    dedupeKey?: string;
+    dedupeWindowMinutes?: number;
+  },
+): Promise<{ id: string | null; duplicate: boolean }> {
+  const { dedupeKey, dedupeWindowMinutes, ...rest } = params;
+
+  if (dedupeKey) {
+    try {
+      const existing = await db.notification.findFirst({
+        where: {
+          userId: rest.userId,
+          metadata: { contains: `"dedupeKey":"${dedupeKey}"` },
+          ...(dedupeWindowMinutes
+            ? { createdAt: { gte: new Date(Date.now() - dedupeWindowMinutes * 60 * 1000) } }
+            : {}),
+        },
+        select: { id: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) {
+        return { id: existing.id, duplicate: true };
+      }
+    } catch (error) {
+      // Lookup failure must never block notification creation.
+      console.error('[notification-service] dedupe lookup failed:', error);
+    }
+  }
+
+  const metadata: Record<string, unknown> = { ...(rest.metadata || {}) };
+  if (dedupeKey) metadata.dedupeKey = dedupeKey;
+
+  const created = await createNotification({ ...rest, metadata });
+  return { id: created?.id ?? null, duplicate: false };
 }
 
 // ---------------------------------------------------------------------------

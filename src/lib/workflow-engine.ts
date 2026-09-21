@@ -9,6 +9,7 @@ import { executeAction, type ActionContext, type ActionResult } from '@/lib/work
 import { deductExecutionCredits, getActionCreditCost, checkExecutionLimit } from '@/lib/workflow-credits';
 import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
+import { createNotificationOnce } from '@/lib/notification-service';
 
 // Helper to publish workflow SSE events safely
 async function emitWorkflowEvent(
@@ -256,6 +257,20 @@ async function runSteps(
         },
       });
 
+      // User-facing notification (safe message — raw errors stay in the
+      // execution record, never in the notification text).
+      await createNotificationOnce({
+        userId,
+        type: 'workflow_failed',
+        title: 'Workflow execution failed',
+        message: `A workflow run stopped at step "${step.name || 'unknown'}" and could not continue. You can retry it from the Workflows page.`,
+        actionUrl: '/business-ai/workflows',
+        metadata: { workflowId, executionId, failedStep: step.name },
+        dedupeKey: `wfexec:${executionId}:failed`,
+      }).catch(() => {
+        // Never fail the execution path because of a notification problem
+      });
+
       await logWorkflowEvent(userId, 'workflow_failed', {
         workflowId,
         executionId,
@@ -302,6 +317,20 @@ async function runSteps(
         completedAt: new Date(),
         currentStep: steps.length,
       },
+    });
+
+    // User-facing notification (deduped per execution — replay/retry of the
+    // same execution id will not create a second notification).
+    await createNotificationOnce({
+      userId,
+      type: 'workflow_completed',
+      title: 'Workflow completed',
+      message: `A workflow run finished successfully — all ${steps.length} step${steps.length === 1 ? '' : 's'} completed.`,
+      actionUrl: '/business-ai/workflows',
+      metadata: { workflowId, executionId, totalSteps: steps.length },
+      dedupeKey: `wfexec:${executionId}:completed`,
+    }).catch(() => {
+      // Never fail the execution path because of a notification problem
     });
 
     // Emit realtime completion event
@@ -353,8 +382,13 @@ export async function processStep(
       };
     }
 
-    // Execute the action
-    result = await executeAction(step.type, step.config, context);
+    // Execute the action.
+    // WorkflowStep.type stores the NODE type ('action' | 'delay' | 'condition' | 'ai_action'),
+    // while executeAction dispatches on the ACTION type ('send_email' | 'wait_delay' | ...).
+    // The action type always rides in config.actionType; fall back to step.type for
+    // legacy steps that stored the action type directly.
+    const actionType = String(step.config?.actionType || step.type);
+    result = await executeAction(actionType, step.config, context);
 
     const durationMs = Date.now() - startTime;
 

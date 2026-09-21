@@ -6,6 +6,7 @@
 
 import { db } from '@/lib/db';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
+import { createNotificationOnce } from '@/lib/notification-service';
 import {
   type WorkflowNode,
   type WorkflowEdge,
@@ -241,6 +242,23 @@ export async function processExecution(executionId: string): Promise<void> {
       // Update workflow stats
       await updateWorkflowStats(workflow.id, false, Date.now() - startTime);
 
+      // User-facing notification — only for real users (skip the synthetic
+      // 'system' owner), safe message (raw error stays in the execution row).
+      const failedOwner = execution.userId || 'system';
+      if (failedOwner !== 'system') {
+        await createNotificationOnce({
+          userId: failedOwner,
+          type: 'workflow_failed',
+          title: 'Workflow execution failed',
+          message: `A workflow run stopped at step "${step.title || 'unknown'}" after ${maxRetries} retr${maxRetries === 1 ? 'y' : 'ies'}. You can retry it from the Workflows page.`,
+          actionUrl: '/business-ai/workflows',
+          metadata: { workflowId: workflow.id, executionId, failedStep: step.title, isDeadLetter },
+          dedupeKey: `wfexec:${executionId}:failed`,
+        }).catch(() => {
+          // Never fail the execution path because of a notification problem
+        });
+      }
+
       await publishWorkflowEvent(execution.userId || 'system', 'step_failed', {
         workflowId: workflow.id,
         executionId,
@@ -305,6 +323,23 @@ export async function processExecution(executionId: string): Promise<void> {
     executionId,
     durationMs: totalDuration,
   });
+
+  // User-facing notification — only for real users (skip 'system' owner);
+  // deduped per execution so replay/retry cannot double-notify.
+  const completedOwner = execution.userId || 'system';
+  if (completedOwner !== 'system') {
+    await createNotificationOnce({
+      userId: completedOwner,
+      type: 'workflow_completed',
+      title: 'Workflow completed',
+      message: `A workflow run finished successfully in ${totalDuration < 1000 ? `${totalDuration}ms` : `${Math.round(totalDuration / 1000)}s`}.`,
+      actionUrl: '/business-ai/workflows',
+      metadata: { workflowId: workflow.id, executionId, durationMs: totalDuration },
+      dedupeKey: `wfexec:${executionId}:completed`,
+    }).catch(() => {
+      // Never fail the execution path because of a notification problem
+    });
+  }
 
   await auditLog(execution.userId || 'system', 'workflow_completed', workflow.id, {
     executionId,

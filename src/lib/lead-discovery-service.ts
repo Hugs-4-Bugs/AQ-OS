@@ -10,11 +10,20 @@ import { db } from '@/lib/db';
 import { deductCredits, CREDIT_COSTS } from '@/lib/credit-service';
 import { logAuditEvent } from '@/lib/lead-audit';
 import { checkDuplicate } from '@/lib/lead-dedup-service';
+import { createNotificationOnce } from '@/lib/notification-service';
 import ZAI from 'z-ai-web-dev-sdk';
+import {
+  getSourceStatusInfo,
+  type DiscoverySourceId,
+} from '@/lib/lead-discovery/source-registry';
+import {
+  runSourceAdapter,
+} from '@/lib/lead-discovery/source-adapters';
 
 // ===== TYPES =====
 
 export type DiscoverySource =
+  | 'all'
   | 'ai_search'
   | 'google_maps'
   | 'google_business'
@@ -27,12 +36,25 @@ export type DiscoverySource =
   | 'instagram'
   | 'facebook';
 
+// Sources fanned out (in parallel) when the user selects "all".
+// Keep in sync with the client-side ALL_SOURCES_COUNT (7).
+const ALL_DISCOVERY_SOURCES: DiscoverySource[] = [
+  'ai_search',
+  'google_maps',
+  'linkedin',
+  'justdial',
+  'indiamart',
+  'yellow_pages',
+  'sulekha',
+];
+
 export interface DiscoveryParams {
   niche: string;
   country: string;
   city?: string;
   source: DiscoverySource;
   maxResults?: number;
+  requirements?: string;
 }
 
 export interface DiscoveredLead {
@@ -52,6 +74,8 @@ export interface DiscoveredLead {
   country?: string;
   niche?: string;
   source: string;
+  /** REAL street address or provider context (stored in Lead.notes). */
+  address?: string;
 }
 
 export interface DiscoveryJobResult {
@@ -103,6 +127,26 @@ export async function startDiscoveryJob(
       status: 'failed',
       message: 'Missing required fields: niche, country, source',
     };
+  }
+
+  // ── PRE-FLIGHT SOURCE CHECK ────────────────────────────────────────
+  // A source without its real credentials is NEVER run. We refuse the job
+  // up-front with the exact configuration message instead of returning
+  // fake, mock, or placeholder leads.
+  if (params.source !== 'all' && params.source !== 'ai_search') {
+    const sourceInfo = getSourceStatusInfo(params.source as DiscoverySourceId);
+    if (sourceInfo.status !== 'connected') {
+      await logAuditEvent(userId, 'discovery_source_not_configured', {
+        source: params.source,
+        status: sourceInfo.status,
+        missing: sourceInfo.requiredEnvVars.map((v) => v.name),
+      });
+      return {
+        jobId: '',
+        status: 'failed',
+        message: sourceInfo.configMessage,
+      };
+    }
   }
 
   // Check concurrent job limit
@@ -255,7 +299,6 @@ async function processDiscoveryJob(
 
   try {
     const maxResults = Math.min(params.maxResults || RESULTS_PER_JOB, RESULTS_PER_JOB);
-    const discoveredLeads: DiscoveredLead[] = [];
 
     // Step 1: Use web search to find businesses
     let zai: ZAI;
@@ -265,34 +308,49 @@ async function processDiscoveryJob(
       throw new Error('Failed to initialize AI SDK. Check API configuration.');
     }
 
-    // Build search queries based on source
-    const searchQueries = buildSearchQueries(params);
+    // Step 1a: Gather discovered leads — single source, or parallel fan-out across
+    // all configured sources when the user selected "all" (merged + deduplicated).
+    let discoveredLeads: DiscoveredLead[] = [];
+    let skippedSourceNotes: string[] = [];
 
-    for (const query of searchQueries) {
-      if (discoveredLeads.length >= maxResults) break;
+    if (params.source === 'all') {
+      // Distribute the per-source quota across the configured sources
+      const perSourceLimit = Math.min(
+        Math.max(5, Math.ceil(maxResults / ALL_DISCOVERY_SOURCES.length)),
+        RESULTS_PER_JOB
+      );
 
-      try {
-        // Web search
-        const searchResults = await zai.functions.invoke('web_search', {
-          query,
-          num: Math.min(20, maxResults - discoveredLeads.length),
-        });
+      console.log(`[DiscoveryService] "all" mode: fanning out to ${ALL_DISCOVERY_SOURCES.length} sources in parallel (per-source limit ${perSourceLimit})`);
 
-        if (!searchResults || searchResults.length === 0) continue;
+      const settled = await Promise.allSettled(
+        ALL_DISCOVERY_SOURCES.map((src) =>
+          discoverFromSource(zai, { ...params, source: src, maxResults: perSourceLimit }, perSourceLimit)
+        )
+      );
 
-        // Extract structured lead data from search results using LLM
-        const leadsFromResults = await extractLeadsFromSearchResults(
-          zai,
-          searchResults,
-          params,
-          maxResults - discoveredLeads.length
-        );
-
-        discoveredLeads.push(...leadsFromResults);
-      } catch (searchErr) {
-        console.error(`[DiscoveryService] Search query failed: "${query}"`, searchErr);
-        // Continue with next query
+      // Merge fulfilled results; each lead keeps its own per-source tag.
+      // Rejected sources are recorded as honest skip notes (config errors,
+      // rate limits, API failures) — they never produce substitute data.
+      for (let i = 0; i < settled.length; i++) {
+        const outcome = settled[i];
+        if (outcome.status === 'fulfilled') {
+          discoveredLeads.push(...outcome.value);
+        } else {
+          const src = ALL_DISCOVERY_SOURCES[i];
+          const reason = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+          console.error(`[DiscoveryService] "all" mode: source ${src} skipped:`, reason);
+          skippedSourceNotes.push(`${src}: ${reason}`);
+        }
       }
+
+      const beforeDedupe = discoveredLeads.length;
+      discoveredLeads = dedupeDiscoveredLeads(discoveredLeads);
+      // Keep the merged set bounded so credit usage stays predictable
+      discoveredLeads = discoveredLeads.slice(0, Math.max(maxResults, perSourceLimit * 2));
+
+      console.log(`[DiscoveryService] "all" mode: merged ${beforeDedupe} results → ${discoveredLeads.length} unique leads`);
+    } else {
+      discoveredLeads = await discoverFromSource(zai, params, maxResults);
     }
 
     // Step 2: Deduplicate and import leads
@@ -328,7 +386,7 @@ async function processDiscoveryJob(
           continue;
         }
 
-        // Create lead
+        // Create lead — tag with the lead's own source so "all" mode shows the real origin
         await db.lead.create({
           data: {
             userId,
@@ -348,9 +406,10 @@ async function processDiscoveryJob(
             city: leadData.city || params.city || null,
             country: leadData.country || params.country,
             niche: leadData.niche || params.niche,
-            source: params.source,
+            source: leadData.source || params.source,
             stage: 'discovered',
             hasWebsite: !!leadData.website,
+            notes: leadData.address ? `Address: ${leadData.address}` : null,
           },
         });
 
@@ -384,6 +443,26 @@ async function processDiscoveryJob(
       duplicates,
       failed: failedCount,
     });
+
+    // User-facing notification (deduped per discovery job).
+    const skippedSuffix =
+      skippedSourceNotes.length > 0
+        ? ` Skipped: ${skippedSourceNotes.slice(0, 3).map((n) => n.split(':')[0]).join(', ')}${skippedSourceNotes.length > 3 ? ` +${skippedSourceNotes.length - 3} more` : ''}.`
+        : '';
+    await createNotificationOnce({
+      userId,
+      type: 'discovery_completed',
+      title: 'Lead discovery completed',
+      message:
+        imported > 0
+          ? `Discovery finished: ${imported} new lead${imported === 1 ? '' : 's'} imported from ${params.source || 'your sources'}${duplicates > 0 ? ` (${duplicates} duplicate${duplicates === 1 ? '' : 's'} skipped)` : ''}.${skippedSuffix}`
+          : `Discovery finished for ${params.source || 'your sources'} — no new leads were found this time.${skippedSuffix}`,
+      actionUrl: imported > 0 ? '/business-ai/leads' : '/business-ai/discover',
+      metadata: { jobId, source: params.source, totalFound: discoveredLeads.length, imported, duplicates, failed: failedCount },
+      dedupeKey: `discovery:${jobId}:completed`,
+    }).catch(() => {
+      // Never fail the discovery path because of a notification problem
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -403,10 +482,174 @@ async function processDiscoveryJob(
       source: params.source,
       error: errorMessage,
     });
+
+    // User-facing notification — safe message only (the raw error stays in
+    // the job record / audit log, never in the notification text).
+    await createNotificationOnce({
+      userId,
+      type: 'discovery_failed',
+      title: 'Lead discovery failed',
+      message: `The discovery run for ${params.source || 'your sources'} could not be completed. Please try again from the Discover page.`,
+      actionUrl: '/business-ai/discover',
+      metadata: { jobId, source: params.source },
+      dedupeKey: `discovery:${jobId}:failed`,
+    }).catch(() => {
+      // Never fail the discovery path because of a notification problem
+    });
   }
 }
 
 // ===== SEARCH QUERY BUILDER =====
+
+/**
+ * REAL-DATA-ONLY dispatcher for one source.
+ *  - ai_search        → built-in AI web search (existing z-ai flow, real results)
+ *  - every other source → the source's real adapter (official API or live scraping)
+ *
+ * Throws on failure so single-source jobs fail with the exact provider error
+ * (config missing / rate limited / API error) and "all"-mode fan-out records
+ * the source as skipped. Fake or placeholder data is NEVER returned.
+ */
+async function discoverFromSource(
+  zai: ZAI,
+  params: DiscoveryParams,
+  maxResults: number
+): Promise<DiscoveredLead[]> {
+  if (params.source === 'ai_search') {
+    return sanitizeDiscoveredLeads(
+      await searchSourceLeads(zai, params, maxResults),
+      params,
+      maxResults
+    );
+  }
+
+  const searchLocation = params.city ? `${params.city}, ${params.country}` : params.country;
+  const result = await runSourceAdapter(
+    params.source as DiscoverySourceId,
+    params.niche,
+    searchLocation,
+    maxResults
+  );
+
+  if (result.error) {
+    // Surface the exact, honest reason — including "Rate limit reached,
+    // try again in X minutes" for rate limiting.
+    throw new Error(result.error.message);
+  }
+
+  return sanitizeDiscoveredLeads(result.leads, params, maxResults);
+}
+
+/**
+ * Universal lead validation (applies to EVERY source, including AI search):
+ *   1. A lead without a business name is discarded.
+ *   2. A lead without any location information (its own, or the search's)
+ *      is discarded — every returned lead has at least name + location.
+ *   3. Per-source duplicates are removed.
+ */
+function sanitizeDiscoveredLeads(
+  leads: DiscoveredLead[],
+  params: DiscoveryParams,
+  maxResults: number
+): DiscoveredLead[] {
+  const seen = new Set<string>();
+  const out: DiscoveredLead[] = [];
+
+  for (const lead of leads) {
+    const name = (lead.businessName || '').trim();
+    if (!name || name.length < 2) continue;
+
+    const hasLocation = Boolean(
+      lead.city || lead.country || lead.address || params.city || params.country
+    );
+    if (!hasLocation) continue;
+
+    const key = `${name.toLowerCase()}|${(lead.phone || lead.website || lead.city || '').toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      ...lead,
+      businessName: name,
+      source: lead.source || params.source,
+    });
+
+    if (out.length >= maxResults) break;
+  }
+
+  return out;
+}
+
+/**
+ * Run web-search + LLM extraction for ONE source. Used directly for single-source
+ * jobs and per-source inside the "all" parallel fan-out.
+ */
+async function searchSourceLeads(
+  zai: ZAI,
+  params: DiscoveryParams,
+  maxResults: number
+): Promise<DiscoveredLead[]> {
+  const discoveredLeads: DiscoveredLead[] = [];
+  const searchQueries = buildSearchQueries(params);
+
+  for (const query of searchQueries) {
+    if (discoveredLeads.length >= maxResults) break;
+
+    try {
+      // Web search
+      const searchResults = await zai.functions.invoke('web_search', {
+        query,
+        num: Math.min(20, maxResults - discoveredLeads.length),
+      });
+
+      if (!searchResults || searchResults.length === 0) continue;
+
+      // Extract structured lead data from search results using LLM
+      const leadsFromResults = await extractLeadsFromSearchResults(
+        zai,
+        searchResults,
+        params,
+        maxResults - discoveredLeads.length
+      );
+
+      discoveredLeads.push(...leadsFromResults);
+    } catch (searchErr) {
+      console.error(`[DiscoveryService] Search query failed: "${query}"`, searchErr);
+      // Continue with next query
+    }
+  }
+
+  return discoveredLeads;
+}
+
+/**
+ * Cross-source deduplication for "all" mode — merges results from parallel
+ * sources and removes duplicates by website, email or normalized business name.
+ */
+function dedupeDiscoveredLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
+  const seen = new Set<string>();
+  const unique: DiscoveredLead[] = [];
+
+  const normalizeName = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizeSite = (site?: string) =>
+    site ? site.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') : '';
+
+  for (const lead of leads) {
+    const keys = [
+      lead.website ? `site:${normalizeSite(lead.website)}` : '',
+      lead.email ? `email:${lead.email.toLowerCase()}` : '',
+      `name:${normalizeName(lead.businessName)}`,
+    ].filter(Boolean);
+
+    // A lead is a duplicate if any of its keys was already seen
+    if (keys.some((k) => seen.has(k))) continue;
+    keys.forEach((k) => seen.add(k));
+    unique.push(lead);
+  }
+
+  return unique;
+}
 
 function buildSearchQueries(params: DiscoveryParams): string[] {
   const { niche, country, city, source } = params;
@@ -451,6 +694,10 @@ function buildSearchQueries(params: DiscoveryParams): string[] {
       queries.push(`${niche} businesses in ${location}`);
   }
 
+  // NOTE: requirements (e.g. "no website") are intentionally NOT appended to the
+  // search queries — doing so pollutes the queries with marketing-agency pages and
+  // kills recall. They are passed to the LLM extraction prompt instead, which
+  // prioritizes/filters businesses matching the requirements.
   return queries;
 }
 
@@ -474,6 +721,8 @@ async function extractLeadsFromSearchResults(
 NICHE: ${params.niche}
 COUNTRY: ${params.country}
 CITY: ${params.city || 'Not specified'}
+TARGET SOURCE: ${params.source}
+QUALIFYING REQUIREMENTS: ${params.requirements || 'None — accept all matching businesses'}
 
 SEARCH RESULTS:
 ${resultsText}
@@ -494,6 +743,7 @@ Extract each business as a JSON object with these fields:
 - city: City if different from search
 - country: Country if different from search
 
+Prioritize businesses that match the qualifying requirements when present.
 Return ONLY a JSON array of objects. No explanation, no markdown.
 If no businesses found, return empty array [].
 Maximum ${maxLeads} results.`;

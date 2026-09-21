@@ -100,11 +100,13 @@ export async function POST(request: Request) {
       const orderId = paymentEntity.order_id;
 
       // Find the payment order by providerOrderId
-      let order = await db.paymentOrder.findFirst({
-        where: { providerOrderId: orderId },
-      });
+      let order = orderId
+        ? await db.paymentOrder.findFirst({
+            where: { providerOrderId: orderId },
+          })
+        : null;
 
-      // Fallback: if not found by providerOrderId, try to find by recent pending orders
+      // Fallback 1: if not found by providerOrderId, try to find by recent pending orders
       // This handles dev mode where providerOrderId may be a dev placeholder
       if (!order) {
         console.warn('[Razorpay Webhook] Order not found by providerOrderId, trying fallback lookup');
@@ -123,6 +125,29 @@ export async function POST(request: Request) {
             },
             orderBy: { createdAt: 'desc' },
           });
+        }
+      }
+
+      // Fallback 2: subscription charges (incl. the FIRST charge of a
+      // recurring checkout) carry a subscription_id instead of our order id
+      // in order_id. Resolve the order via providerSubscriptionId, then via
+      // the subscription entity's notes.paymentOrderId.
+      const paymentSubscriptionId: string | undefined =
+        paymentEntity.subscription_id || payload.payload?.subscription?.entity?.id || undefined;
+      if (!order && paymentSubscriptionId) {
+        order = await db.paymentOrder.findFirst({
+          where: { providerSubscriptionId: paymentSubscriptionId, provider: 'razorpay' },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!order) {
+          const subNotes = payload.payload?.subscription?.entity?.notes || {};
+          const notedOrderId = subNotes.paymentOrderId;
+          if (notedOrderId) {
+            order = await db.paymentOrder.findUnique({ where: { id: notedOrderId } });
+          }
+        }
+        if (order) {
+          console.log('[Razorpay Webhook] Resolved subscription charge to payment order:', order.id);
         }
       }
 
@@ -211,11 +236,15 @@ export async function POST(request: Request) {
           },
         });
       } else {
-        // Standard subscription/plan purchase — use confirmPaymentAndActivate for atomic subscription + credit update
+        // Standard subscription/plan purchase — use confirmPaymentAndActivate for atomic subscription + credit update.
+        // Pass the gateway subscription id (when present) so the local
+        // Subscription row is linked to the Razorpay subscription for
+        // renewal/cancellation webhooks.
         const result = await confirmPaymentAndActivate(
           order.userId,
           order.id,
-          paymentEntity.id
+          paymentEntity.id,
+          paymentSubscriptionId || undefined
         );
 
         if (!result.success) {
@@ -708,14 +737,89 @@ export async function POST(request: Request) {
       });
 
       if (!subscription) {
-        console.error('[Razorpay Webhook] subscription.charged: No matching subscription for razorpaySubscriptionId:', razorpaySubId);
+        // ── First charge of a NEW recurring checkout: the local
+        // Subscription doesn't exist yet. Resolve the pending PaymentOrder
+        // (by providerSubscriptionId, then notes.paymentOrderId) and run
+        // the SAME idempotent activation path as the checkout verify route.
+        const paymentEntity = payload.payload?.payment?.entity;
+        const paymentId = paymentEntity?.id;
+
+        let order = await db.paymentOrder.findFirst({
+          where: { providerSubscriptionId: razorpaySubId.toString(), provider: 'razorpay' },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!order) {
+          const notedOrderId = subEntity.notes?.paymentOrderId;
+          if (notedOrderId) {
+            order = await db.paymentOrder.findUnique({ where: { id: notedOrderId } });
+          }
+        }
+
+        if (!order || order.status !== 'pending') {
+          // Nothing to activate (verify route already activated it, or the
+          // order is unknown). Ack so Razorpay stops retrying.
+          console.warn('[Razorpay Webhook] subscription.charged: no pending order for subscription', razorpaySubId);
+          await db.paymentWebhook.update({
+            where: { eventId },
+            data: { processed: true, processedAt: new Date(), processingError: order ? null : 'No matching payment order for subscription' },
+          });
+          return NextResponse.json({ success: true, message: order ? 'Already processed' : 'No matching order' });
+        }
+
+        if (!paymentId) {
+          console.error('[Razorpay Webhook] subscription.charged: no payment id in payload for first charge');
+          await db.paymentWebhook.update({
+            where: { eventId },
+            data: { processingError: 'No payment id in payload', processed: true, processedAt: new Date() },
+          });
+          return NextResponse.json({ success: true });
+        }
+
+        const activation = await confirmPaymentAndActivate(order.userId, order.id, paymentId, razorpaySubId.toString());
+        if (!activation.success) {
+          console.error('[Razorpay Webhook] subscription.charged activation failed:', activation.error);
+          await db.paymentWebhook.update({
+            where: { eventId },
+            data: { processingError: activation.error || 'Activation failed', paymentOrderId: order.id },
+          });
+          return NextResponse.json({ error: 'Payment activation failed' }, { status: 500 });
+        }
+
+        if (order.couponCode) {
+          try {
+            await incrementCouponUsage(order.couponCode);
+          } catch (couponErr) {
+            console.error('[Razorpay Webhook] Failed to increment coupon usage (non-critical):', couponErr);
+          }
+        }
+
+        const firstChargeCredits = PLAN_CREDITS[order.plan as PlanType] || PLAN_CREDITS.free;
+        await notifyPaymentSuccess({
+          userId: order.userId,
+          plan: order.plan,
+          amount: order.amount,
+          currency: order.currency,
+          creditsAdded: firstChargeCredits,
+          orderId: order.id,
+        });
+
+        await logPaymentEvent(order.userId, 'payment_completed', {
+          amount: order.amount,
+          currency: order.currency,
+          provider: 'razorpay',
+          plan: order.plan,
+          paymentOrderId: order.id,
+          reason: 'Razorpay subscription first charge',
+        });
+
         await db.paymentWebhook.update({
           where: { eventId },
-          data: { processingError: 'No matching subscription found', processed: true, processedAt: new Date() },
+          data: { processed: true, processedAt: new Date(), paymentOrderId: order.id },
         });
         return NextResponse.json({ success: true });
       }
 
+      // Renewal for an existing linked subscription:
       // Reset credits for the new billing period
       await resetMonthlyCredits(subscription.userId, subscription.plan as PlanType);
 
@@ -760,6 +864,112 @@ export async function POST(request: Request) {
       });
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // Handle subscription.halted (recurring payment failed and the
+    // mandate was paused by the bank/customer OR retries exhausted).
+    // Keep the plan in a recoverable past_due state — do NOT grant or
+    // revoke credits here; dunning/recovery owns the next steps.
+    // ═══════════════════════════════════════════════════════════
+    if (event === 'subscription.halted') {
+      const subEntity = payload.payload?.subscription?.entity;
+      const razorpaySubId = subEntity?.id;
+      if (razorpaySubId) {
+        const subscription = await db.subscription.findFirst({
+          where: { razorpaySubscriptionId: razorpaySubId.toString() },
+        });
+
+        if (subscription && subscription.status === 'active') {
+          await db.subscription.update({
+            where: { id: subscription.id },
+            data: { status: 'past_due' },
+          });
+
+          await logSubscriptionEvent(subscription.userId, 'subscription_past_due', {
+            fromStatus: 'active',
+            toStatus: 'past_due',
+            reason: 'Razorpay subscription halted',
+          });
+
+          await notifyPaymentFailure({
+            userId: subscription.userId,
+            plan: subscription.plan,
+            reason: 'Your recurring payment failed and the subscription was halted. Update your payment method to restore access.',
+            amount: 0,
+            currency: 'INR',
+          });
+        }
+      }
+
+      await db.paymentWebhook.update({
+        where: { eventId },
+        data: { processed: true, processedAt: new Date() },
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Handle subscription.completed (subscription finished its full
+    // tenure / reached end of life) — treat as expiration.
+    // ═══════════════════════════════════════════════════════════
+    if (event === 'subscription.completed') {
+      const subEntity = payload.payload?.subscription?.entity;
+      const razorpaySubId = subEntity?.id;
+      if (razorpaySubId) {
+        const subscription = await db.subscription.findFirst({
+          where: { razorpaySubscriptionId: razorpaySubId.toString() },
+        });
+
+        if (subscription && subscription.status !== 'expired') {
+          const previousPlan = subscription.plan;
+          await db.subscription.update({
+            where: { id: subscription.id },
+            data: { status: 'expired' },
+          });
+
+          // Downgrade to free with fresh free-tier credits.
+          const freeCredits = PLAN_CREDITS.free;
+          await db.user.update({
+            where: { id: subscription.userId },
+            data: {
+              plan: 'free',
+              isTrial: false,
+              credits: freeCredits,
+              creditsMonthly: freeCredits,
+              rolloverCredits: 0,
+            },
+          });
+
+          await db.creditsLedger.create({
+            data: {
+              userId: subscription.userId,
+              action: 'subscription_cancelled',
+              credits: freeCredits,
+              balance: freeCredits,
+              description: 'Razorpay subscription completed its tenure — reset to free tier',
+              referenceId: subscription.id,
+            },
+          });
+
+          await notifySubscriptionExpired({
+            userId: subscription.userId,
+            previousPlan,
+            reason: 'Subscription tenure completed',
+          });
+
+          await logSubscriptionEvent(subscription.userId, 'subscription_expired', {
+            fromPlan: previousPlan,
+            toPlan: 'free',
+            fromStatus: subscription.status,
+            toStatus: 'expired',
+          });
+        }
+      }
+
+      await db.paymentWebhook.update({
+        where: { eventId },
+        data: { processed: true, processedAt: new Date() },
+      });
+    }
+
     // For unhandled events, just mark as processed
     const handledEvents = [
       'payment.captured',
@@ -768,6 +978,8 @@ export async function POST(request: Request) {
       'refund.processed',
       'subscription.cancelled',
       'subscription.charged',
+      'subscription.halted',
+      'subscription.completed',
     ];
     if (!handledEvents.includes(event)) {
       await db.paymentWebhook.update({

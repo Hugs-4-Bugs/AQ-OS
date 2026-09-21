@@ -22,8 +22,16 @@ export async function GET(request: NextRequest) {
     // production URL. CRITICAL: redirect_uri must match the domain the user
     // is currently on, otherwise Google will redirect them to a different
     // domain after authentication, losing their session.
+    //
+    // PATH CONSISTENCY FIX: use the canonical callback path
+    // (/api/auth/callback/google) — the same path built by
+    // /api/auth/google/state (the flow the sign-in button uses) and
+    // reported by /api/auth/google/redirect-uri (the URI users whitelist
+    // in Google Cloud Console). The legacy /api/auth/google/callback path
+    // is NOT whitelisted in the user's Google Cloud Console, so sending it
+    // caused redirect_uri_mismatch for anyone entering through this route.
     const appUrl = getAppUrl(request);
-    const redirectUri = `${appUrl}/api/auth/google/callback`;
+    const redirectUri = `${appUrl}/api/auth/callback/google`;
 
     // Build a state containing nonce + redirectUri + origin so the callback
     // can reconstruct the EXACT same redirect_uri for token exchange.

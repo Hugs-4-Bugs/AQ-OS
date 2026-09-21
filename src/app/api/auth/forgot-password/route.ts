@@ -8,6 +8,7 @@ import {
   OTP_EXPIRY_SECONDS,
 } from '@/lib/auth';
 import { sendPasswordResetEmail, isEmailServiceConfigured } from '@/lib/email';
+import { devOtpDelivery } from '@/lib/dev-auth';
 import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     // ── Send password reset OTP via email (REAL Gmail SMTP only) ──
     const emailConfigured = isEmailServiceConfigured();
+    let devDelivery: ReturnType<typeof devOtpDelivery> = undefined;
     if (emailConfigured) {
       try {
         const result = await sendPasswordResetEmail(normalizedEmail, user.name || 'User', otp);
@@ -90,10 +92,15 @@ export async function POST(request: NextRequest) {
       }
     } else {
       console.error('[Forgot Password] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY). Reset OTP cannot be delivered.');
+      // DEV-ONLY: surface the generated reset code to the requesting client so
+      // the flow can continue when no real provider exists (sandbox/preview).
+      // In production builds this is always undefined.
+      devDelivery = devOtpDelivery(otp, 'reset code');
     }
 
     return NextResponse.json({
       message: 'If an account exists with this email, a reset code has been sent.',
+      ...(devDelivery ? { devDelivery } : {}),
     });
   } catch (error) {
     console.error('Forgot password error:', error);

@@ -36,11 +36,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { createStripeCheckoutSession, createStripeCreditAddonCheckoutSession } from '@/lib/payment-service';
+import { getPaymentProvider, isPaymentGateway, type PaymentGateway } from '@/lib/payments';
 import { logBillingEvent } from '@/lib/billing-audit';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 import type { PlanType } from '@/lib/entitlement-service';
 
 interface CreateCheckoutSessionBody {
+  // Payment gateway selection. Defaults to 'stripe' for backward
+  // compatibility with existing clients. 'razorpay' returns a Razorpay
+  // Checkout payload (order or subscription) instead of a redirect URL.
+  gateway?: PaymentGateway;
   // Subscription shape
   plan?: 'pro' | 'elite';
   billingCycle?: 'monthly' | 'yearly';
@@ -76,17 +81,30 @@ const KNOWN_PRICE_IDS = new Set(
 );
 
 export async function POST(request: NextRequest) {
-  // Real Stripe only — fail loudly instead of simulating.
-  if (!process.env.STRIPE_SECRET_KEY) {
+  // Parse the body ONCE. The requested gateway decides which provider
+  // path runs; unknown/missing gateway values fall back to 'stripe' so
+  // existing clients keep working unchanged.
+  const rawBody: unknown = await request.json().catch(() => null);
+  const body: CreateCheckoutSessionBody =
+    rawBody && typeof rawBody === 'object' ? (rawBody as CreateCheckoutSessionBody) : {};
+  const requestedGateway: PaymentGateway = isPaymentGateway(body.gateway) ? body.gateway : 'stripe';
+
+  // Real gateways only — fail loudly instead of simulating.
+  if (requestedGateway === 'stripe' && !process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json(
       { error: 'Stripe is not configured. Set STRIPE_SECRET_KEY.' },
+      { status: 500 }
+    );
+  }
+  if (requestedGateway === 'razorpay' && !(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)) {
+    return NextResponse.json(
+      { error: 'Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.' },
       { status: 500 }
     );
   }
 
   return withAuth(request, async (user) => {
     try {
-      const body = (await request.json()) as CreateCheckoutSessionBody;
       const { type, creditAmount, plan, billingCycle, priceId, couponCode, successUrl, cancelUrl } = body;
 
       const ipAddress = getClientIp(request);
@@ -114,6 +132,56 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // ── Razorpay: server-computed INR order, opened via Checkout.js ──
+        if (requestedGateway === 'razorpay') {
+          const provider = getPaymentProvider('razorpay');
+          const result = await provider.createCheckout({
+            userId: user.id,
+            kind: 'credits',
+            creditAmount,
+            ipAddress,
+            userAgent,
+          });
+          if (!result.success) {
+            const status = result.error?.includes('not configured') ? 500 : 400;
+            return NextResponse.json({ error: result.error }, { status });
+          }
+
+          await logBillingEvent({
+            userId: user.id,
+            action: 'payment_initiated',
+            details: `Razorpay credit add-on order created for ${creditAmount} credits`,
+            ipAddress,
+            userAgent,
+            metadata: {
+              orderId: result.orderId,
+              razorpayOrderId: result.razorpayOrderId,
+              amount: result.amount,
+              currency: result.currency,
+              type: 'credits',
+              creditAmount,
+              provider: 'razorpay',
+            },
+          });
+
+          return NextResponse.json({
+            gateway: 'razorpay',
+            orderId: result.orderId,
+            razorpayOrderId: result.razorpayOrderId,
+            razorpayKeyId: result.razorpayKeyId,
+            razorpayAmount: result.razorpayAmount,
+            razorpayCurrency: result.razorpayCurrency,
+            prefill: result.prefill,
+            amount: result.amount,
+            currency: result.currency,
+            type: 'credits',
+            creditAmount,
+            credits: result.creditsAllocated ?? creditAmount,
+            mode: result.mode,
+          });
+        }
+
+        // ── Stripe (default): hosted checkout redirect ──
         const result = await createStripeCreditAddonCheckoutSession({
           userId: user.id,
           creditAmount,
@@ -197,6 +265,67 @@ export async function POST(request: NextRequest) {
         try { new URL(cancelUrl); } catch {
           return NextResponse.json({ error: 'Invalid cancelUrl format.' }, { status: 400 });
         }
+      }
+
+      // ── Razorpay: server-side order/subscription creation. The amount,
+      //    currency and plan are computed on the server — the browser only
+      //    opens Razorpay Checkout with the returned identifiers. The
+      //    payment is then verified at /api/payments/razorpay/verify. ──
+      if (requestedGateway === 'razorpay') {
+        const provider = getPaymentProvider('razorpay');
+        const result = await provider.createCheckout({
+          userId: user.id,
+          kind: 'subscription',
+          plan: plan as 'pro' | 'elite',
+          billingCycle,
+          couponCode,
+          ipAddress,
+          userAgent,
+        });
+
+        if (!result.success) {
+          const status = result.error?.includes('Invalid plan change') ? 400
+            : result.error?.includes('already on') ? 409
+            : result.error?.includes('not configured') ? 500
+            : 400;
+          return NextResponse.json({ error: result.error }, { status });
+        }
+
+        await logBillingEvent({
+          userId: user.id,
+          action: 'payment_initiated',
+          details: `Razorpay checkout created via create-checkout-session for ${plan} plan (${billingCycle})${result.razorpaySubscriptionId ? ' [recurring]' : ''}`,
+          ipAddress,
+          userAgent,
+          metadata: {
+            orderId: result.orderId,
+            razorpayOrderId: result.razorpayOrderId,
+            razorpaySubscriptionId: result.razorpaySubscriptionId,
+            amount: result.amount,
+            currency: result.currency,
+            plan,
+            billingCycle,
+            provider: 'razorpay',
+          },
+        });
+
+        return NextResponse.json({
+          gateway: 'razorpay',
+          orderId: result.orderId,
+          razorpayOrderId: result.razorpayOrderId ?? null,
+          razorpaySubscriptionId: result.razorpaySubscriptionId ?? null,
+          razorpayKeyId: result.razorpayKeyId,
+          razorpayAmount: result.razorpayAmount,
+          razorpayCurrency: result.razorpayCurrency,
+          prefill: result.prefill,
+          amount: result.amount,
+          currency: result.currency,
+          plan: result.plan,
+          billingCycle: result.billingCycle,
+          creditsAllocated: result.creditsAllocated,
+          recurring: !!result.razorpaySubscriptionId,
+          mode: result.mode,
+        });
       }
 
       // Delegate to the REAL Stripe checkout service (same used by
