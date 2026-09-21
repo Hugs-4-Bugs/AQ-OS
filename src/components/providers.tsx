@@ -2,7 +2,7 @@
 
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 function GlobalErrorFallback() {
@@ -38,6 +38,17 @@ export function Providers({ children }: { children: ReactNode }) {
       },
     },
   }));
+
+  // ACCOUNT ISOLATION (cache layer): on sign-out/sign-in account switches,
+  // purge every cached server query so the next account can never briefly
+  // see the previous account's data through a stale React Query snapshot.
+  useEffect(() => {
+    const clearCaches = () => {
+      queryClient.clear();
+    };
+    window.addEventListener('aqos:auth-logout', clearCaches);
+    return () => window.removeEventListener('aqos:auth-logout', clearCaches);
+  }, [queryClient]);
 
   return (
     <ErrorBoundary fallback={<GlobalErrorFallback />}>

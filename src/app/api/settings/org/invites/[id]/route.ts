@@ -39,6 +39,19 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    // ACCOUNT ISOLATION: only org owner/admin may read invitation details —
+    // and the join token is NEVER returned by this endpoint. The token is
+    // the credential that accepts the invitation; exposing it to any member
+    // would let them bypass the approval flow (see POST /resend which
+    // already enforces the same membership check). Members GET 403.
+    const callerMembership = await db.orgMember.findFirst({
+      where: { orgId: invitation.orgId, userId: authUser.id, role: { in: ['owner', 'admin'] } },
+      select: { id: true },
+    });
+    if (!callerMembership) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
     // Determine status
     let status = 'sent';
     if (invitation.acceptedAt && invitation.acceptedAt.getTime() === 0) {
@@ -62,7 +75,7 @@ export async function GET(
         orgName: invitation.organization.name,
         email: invitation.email,
         role: invitation.role,
-        token: invitation.token,
+        // token intentionally omitted — delivered only via the invite email.
         invitedBy: invitation.invitedBy,
         inviterName: inviter?.name || inviter?.email || 'Unknown',
         status,

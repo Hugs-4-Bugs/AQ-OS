@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db, dbMonitor, getConnectionPoolStats } from '@/lib/db';
 import { apiMonitor } from '@/lib/observability/api-monitor';
 import { alertEngine } from '@/lib/observability/alerts';
@@ -13,7 +13,7 @@ import { logger } from '@/lib/observability/logger';
 import { getRecentTraces } from '@/lib/observability/tracer';
 
 export async function GET(request: NextRequest) {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
   try {
     // ── System Health Metrics ────────────────────────────────────
     const mem = process.memoryUsage();

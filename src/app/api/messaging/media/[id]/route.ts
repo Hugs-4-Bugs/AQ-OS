@@ -15,14 +15,11 @@ export async function GET(
     try {
       const { id } = await params;
 
-      const metadata = await getMediaMetadata(id);
+      // ACCOUNT ISOLATION: scope metadata to the authenticated owner (404,
+      // not 403, to avoid confirming other users' resource IDs).
+      const metadata = await getMediaMetadata(id, user.id);
       if (!metadata) {
         return NextResponse.json({ error: 'Media file not found' }, { status: 404 });
-      }
-
-      // Check ownership
-      if (metadata.filePath && !metadata.filePath.includes(user.id)) {
-        // Additional ownership check via DB already done in getMediaMetadata
       }
 
       // Check if raw file is requested (via ?download=true or ?raw=true)

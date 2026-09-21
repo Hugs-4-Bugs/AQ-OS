@@ -659,16 +659,68 @@ export default function OnboardingFlow({ open, onComplete }: OnboardingFlowProps
     }
   }, [currentStep, data]);
 
+  const persistOnboarding = useCallback(async (d: OnboardingData) => {
+    // Database is the source of truth for onboarding data. Persist the
+    // profile fields through the existing settings APIs so the data survives
+    // logout→login, session expiry and browser refresh (localStorage is kept
+    // below only as a best-effort cache, never the system of record).
+    try {
+      await fetch('/api/settings/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: d.name || undefined,
+          phone: d.phone || undefined,
+          country: d.country || undefined,
+          company: d.companyName || undefined,
+        }),
+      });
+
+      await fetch('/api/settings/onboarding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          companyName: d.companyName || undefined,
+          targetNiches: d.targetNiches,
+          targetCountries: d.targetCountries,
+          targetChannels: d.preferredChannels,
+          profileCompleted: true,
+          nichesSelected: true,
+          countriesSelected: true,
+          channelsSelected: true,
+          completed: true,
+        }),
+      });
+
+      // Keep the navbar/store in sync with the persisted name without a
+      // full refetch (AuthGate's /api/auth/me remains authoritative).
+      if (d.name) {
+        const { useAuthStore } = await import('@/lib/auth-store');
+        const current = useAuthStore.getState().user;
+        if (current) {
+          useAuthStore.getState().setUser({ ...current, name: d.name });
+        }
+      }
+    } catch {
+      // Network failure — localStorage fallback below still lets the user
+      // proceed today; the DB sync will be retried on the next save.
+    }
+  }, []);
+
   const handleNext = useCallback(() => {
     if (currentStep < TOTAL_STEPS - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      // Complete onboarding
+      // Complete onboarding — persist to the database first (source of
+      // truth), then mirror to localStorage for instant hydration.
+      void persistOnboarding(data);
       localStorage.setItem('acquisitionos_onboarding_completed', 'true');
       localStorage.setItem('acquisitionos_onboarding_data', JSON.stringify(data));
       onComplete();
     }
-  }, [currentStep, data, onComplete]);
+  }, [currentStep, data, onComplete, persistOnboarding]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 0) {
@@ -677,6 +729,20 @@ export default function OnboardingFlow({ open, onComplete }: OnboardingFlowProps
   }, [currentStep]);
 
   const handleSkip = useCallback(() => {
+    // Persist the completion flag to the DB too, so skipping survives
+    // logout→login / a fresh browser (not just this device's localStorage).
+    void (async () => {
+      try {
+        await fetch('/api/settings/onboarding', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ completed: true }),
+        });
+      } catch {
+        // Best-effort — localStorage still set below for instant hydration.
+      }
+    })();
     localStorage.setItem('acquisitionos_onboarding_completed', 'true');
     onComplete();
   }, [onComplete]);

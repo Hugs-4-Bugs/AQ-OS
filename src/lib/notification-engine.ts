@@ -398,7 +398,20 @@ export async function isChannelEnabled(
   if (type && prefs.typePreferences) {
     try {
       const typePrefs = JSON.parse(prefs.typePreferences) as Record<string, TypePreference>;
-      const override = typePrefs[type];
+      // Exact per-type override first, then a category-level override written
+      // by the Settings → Notifications UI (deal_updates / credit_alerts /
+      // weekly_digest). This makes the category toggles actually govern the
+      // notification types they cover without touching the global switches.
+      const CATEGORY_BY_TYPE: Record<string, string> = {
+        deal_won: 'deal_updates',
+        stage_advanced: 'deal_updates',
+        lead_reply: 'deal_updates',
+        analysis: 'deal_updates',
+        credit_assigned: 'credit_alerts',
+        credit_low: 'credit_alerts',
+        weekly_digest: 'weekly_digest',
+      };
+      const override = typePrefs[type] || (CATEGORY_BY_TYPE[type] ? typePrefs[CATEGORY_BY_TYPE[type]] : undefined);
       if (override) {
         const channelKey: Record<NotificationChannel, keyof TypePreference> = {
           in_app: 'inApp',

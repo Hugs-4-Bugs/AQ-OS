@@ -150,6 +150,10 @@ export default function SettingsShell() {
     avatar: '',
   });
   const [profileLoading, setProfileLoading] = useState(true);
+  // Guard against the "empty form overwrite" persistence bug: saves are only
+  // allowed after the profile has actually been loaded from the database.
+  const [profileLoadedOnce, setProfileLoadedOnce] = useState(false);
+  const [profileLoadFailed, setProfileLoadFailed] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
 
   // ── Billing state ────────────────────────────────────────────
@@ -218,6 +222,9 @@ export default function SettingsShell() {
     weeklyDigest: false,
   });
   const [notifSaving, setNotifSaving] = useState(false);
+  // Raw per-type preferences as loaded from the DB (may contain other
+  // producers' keys) — merged back on save so this UI never clobbers them.
+  const notifTypePrefsRef = useRef<Record<string, { inApp?: boolean; email?: boolean }>>({});
 
   // ── Delete account state ─────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState('');
@@ -254,8 +261,12 @@ export default function SettingsShell() {
   const [meetingSettingsSaving, setMeetingSettingsSaving] = useState(false);
 
   // ── Fetch profile data ───────────────────────────────────────
+  // On failure the form must NOT silently render empty defaults: saving an
+  // empty form would overwrite the stored profile with blank values. Instead
+  // we track the failure and block save until real data has been loaded.
   const loadProfile = useCallback(async () => {
     setProfileLoading(true);
+    setProfileLoadFailed(false);
     try {
       const res = await fetch('/api/settings/profile', { credentials: 'include' });
       if (res.ok) {
@@ -268,9 +279,36 @@ export default function SettingsShell() {
           company: data.profile?.company || '',
           avatar: data.profile?.avatar || '',
         });
+        setProfileLoadedOnce(true);
+      } else if (res.status === 401) {
+        // Access token expired — try one refresh, then re-fetch so the form
+        // hydrates from the database instead of staying empty.
+        const refreshed = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (refreshed.ok) {
+          const retry = await fetch('/api/settings/profile', { credentials: 'include' });
+          if (retry.ok) {
+            const data = await retry.json();
+            setProfile({
+              name: data.profile?.name || '',
+              email: data.profile?.email || '',
+              phone: data.profile?.phone || '',
+              country: data.profile?.country || '',
+              company: data.profile?.company || '',
+              avatar: data.profile?.avatar || '',
+            });
+            setProfileLoadedOnce(true);
+            return;
+          }
+        }
+        setProfileLoadFailed(true);
+      } else {
+        setProfileLoadFailed(true);
       }
     } catch {
-      // Ignore
+      setProfileLoadFailed(true);
     } finally {
       setProfileLoading(false);
     }
@@ -328,14 +366,22 @@ export default function SettingsShell() {
       if (res.ok) {
         const data = await res.json();
         if (data.preferences) {
+          // typePreferences is the DB-persisted per-category JSON object
+          // (Record<string, { inApp?: boolean; email?: boolean }>); the
+          // three category toggles below round-trip through it so every
+          // switch survives refresh / logout→login.
+          const typePrefs: Record<string, { inApp?: boolean; email?: boolean } | undefined> =
+            typeof data.preferences.typePreferences === 'string'
+              ? (() => { try { return JSON.parse(data.preferences.typePreferences); } catch { return {}; } })()
+              : (data.preferences.typePreferences ?? {});
           setNotifPrefs({
             emailNotifications: data.preferences.emailEnabled ?? true,
             pushNotifications: data.preferences.inAppEnabled ?? true,
-            dealUpdates: true,
-            creditAlerts: true,
-            weeklyDigest: data.preferences.typePreferences ?
-              JSON.parse(data.preferences.typePreferences).weekly_digest?.inApp ?? false : false,
+            dealUpdates: typePrefs.deal_updates?.inApp ?? true,
+            creditAlerts: typePrefs.credit_alerts?.inApp ?? true,
+            weeklyDigest: typePrefs.weekly_digest?.inApp ?? false,
           });
+          notifTypePrefsRef.current = typePrefs as Record<string, { inApp?: boolean; email?: boolean }>;
         }
       }
     } catch {
@@ -481,6 +527,12 @@ useEffect(() => {
 
   // ── Save profile ─────────────────────────────────────────────
   const handleSaveProfile = useCallback(async () => {
+    // Never write to the DB from a form that never hydrated — the fields
+    // would be blank defaults and would erase the stored profile.
+    if (!profileLoadedOnce) {
+      toast.error('Profile has not loaded yet. Please wait or reload the page before saving.');
+      return;
+    }
     setProfileSaving(true);
     try {
       const res = await fetch('/api/settings/profile', {
@@ -805,18 +857,34 @@ useEffect(() => {
   const handleSaveNotifPrefs = useCallback(async () => {
     setNotifSaving(true);
     try {
-      await fetch('/api/settings/notifications', {
+      // Persist ALL five toggles: the two global channel switches plus the
+      // three category toggles via the existing typePreferences JSON column
+      // (same record the notification engine reads). Other producers' keys in
+      // typePreferences are preserved by merging over the loaded snapshot.
+      const mergedTypePrefs: Record<string, { inApp?: boolean; email?: boolean }> = {
+        ...notifTypePrefsRef.current,
+        deal_updates: { inApp: notifPrefs.dealUpdates, email: notifPrefs.dealUpdates },
+        credit_alerts: { inApp: notifPrefs.creditAlerts, email: notifPrefs.creditAlerts },
+        weekly_digest: { inApp: notifPrefs.weeklyDigest, email: notifPrefs.weeklyDigest },
+      };
+      const res = await fetch('/api/settings/notifications', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           emailEnabled: notifPrefs.emailNotifications,
           inAppEnabled: notifPrefs.pushNotifications,
+          typePreferences: mergedTypePrefs,
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Save failed (${res.status})`);
+      }
+      notifTypePrefsRef.current = mergedTypePrefs;
       toast.success('Notification preferences saved');
-    } catch {
-      toast.error('Failed to save preferences');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save preferences');
     } finally {
       setNotifSaving(false);
     }
@@ -994,6 +1062,16 @@ useEffect(() => {
                     </div>
                   ) : (
                     <>
+                      {profileLoadFailed && (
+                        <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">
+                          <span className="text-destructive">
+                            Your profile could not be loaded. Saving is disabled to protect your data.
+                          </span>
+                          <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={() => void loadProfile()}>
+                            Retry
+                          </Button>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Full Name</Label>
                         <Input

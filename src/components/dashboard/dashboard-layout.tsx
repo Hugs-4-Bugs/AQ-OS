@@ -340,14 +340,48 @@ export default function DashboardLayout({
     () => localStorage.getItem('acquisitionos_onboarding_completed') !== null,
     () => true // Server: assume completed (don't show onboarding during SSR)
   );
+  // DB-first completion check: the database is the source of truth for
+  // onboarding state. A user who already completed (or skipped) the wizard on
+  // another device/browser must not be forced through it again just because
+  // this browser's localStorage is empty. localStorage is only used to skip
+  // the network check instantly when it already knows the answer.
   const [onboardingChecked, setOnboardingChecked] = useState(false);
-  if (!onboardingChecked && !onboardingCompleted) {
-    setOnboardingChecked(true);
-    setOnboardingOpen(true);
-  }
-  if (!onboardingChecked && onboardingCompleted) {
-    setOnboardingChecked(true);
-  }
+  useEffect(() => {
+    if (onboardingChecked) return;
+    if (onboardingCompleted) {
+      setOnboardingChecked(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings/onboarding', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const done =
+            data?.settings?.onboardingCompleted === true || data?.progress?.completed === true;
+          if (done) {
+            // Mirror the DB state into localStorage so subsequent visits skip
+            // the network check.
+            localStorage.setItem('acquisitionos_onboarding_completed', 'true');
+            if (!cancelled) {
+              setOnboardingChecked(true);
+              return;
+            }
+          }
+        }
+      } catch {
+        // Network/DB unavailable — fall through to the legacy behavior below.
+      }
+      if (!cancelled && !onboardingChecked) {
+        setOnboardingChecked(true);
+        setOnboardingOpen(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [onboardingChecked, onboardingCompleted]);
 
   const reminderCheckInterval = useSettingsStore((s) => s.reminderCheckInterval);
 

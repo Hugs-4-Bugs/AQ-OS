@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
 
 // GET /api/leads/discover/suggestions?niche=dental&country=USA
+// ACCOUNT ISOLATION + COST CONTROL: this endpoint spends LLM tokens, so it
+// must never be reachable without an authenticated session (previously it
+// was fully public and could be called by anyone, unthrottled).
 export async function GET(request: NextRequest) {
+  return withAuth(request, async () => {
   try {
     const { searchParams } = new URL(request.url);
     const niche = searchParams.get('niche');
@@ -94,5 +99,6 @@ export async function GET(request: NextRequest) {
     ];
 
     return NextResponse.json({ suggestions: fallbackSuggestions });
-  }
+    }
+  });
 }

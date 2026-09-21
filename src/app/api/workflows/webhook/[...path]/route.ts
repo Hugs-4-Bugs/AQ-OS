@@ -14,9 +14,23 @@ export async function POST(
     const { path } = await params;
     const webhookPath = path.join('/');
 
-    const body = await request.json().catch(() => ({}));
+    // Keep the raw body so HMAC signature verification (when the workflow
+    // has a webhookSecret configured) matches exactly what was sent.
+    const rawBody = await request.text();
+    let body: Record<string, unknown> = {};
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      body = {};
+    }
 
-    const execution = await handleWebhookTrigger(webhookPath, body);
+    const execution = await handleWebhookTrigger(webhookPath, body, {
+      rawBody,
+      signature:
+        request.headers.get('x-webhook-signature') ||
+        request.headers.get('x-hub-signature-256') ||
+        '',
+    });
 
     return NextResponse.json(execution, { status: 202 });
   } catch (error) {
@@ -24,6 +38,10 @@ export async function POST(
 
     if (message.includes('No active workflow')) {
       return NextResponse.json({ error: message }, { status: 404 });
+    }
+
+    if (message.includes('Invalid webhook signature')) {
+      return NextResponse.json({ error: message }, { status: 401 });
     }
 
     console.error('[Workflows API] Webhook error:', error);

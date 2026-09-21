@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { metricsCollector } from '@/lib/observability/metrics-collector';
 import { db } from '@/lib/db';
 
@@ -69,7 +69,7 @@ async function collectDatabaseMetrics(): Promise<void> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
   try {
     // Collect real data from the database
     await collectDatabaseMetrics();

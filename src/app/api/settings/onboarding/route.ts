@@ -30,13 +30,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Parse the data JSON field
-    let parsedData = {};
-    try {
-      parsedData = progress.data ? JSON.parse(progress.data) : {};
-    } catch {
-      parsedData = {};
-    }
-
+    // NOTE: OnboardingProgress has no `data` column; return the structured
+    // UserSettings onboarding data instead (kept for response compatibility).
     return NextResponse.json({
       progress: {
         currentStep: progress.currentStep,
@@ -49,7 +44,7 @@ export async function GET(request: NextRequest) {
         firstLeadAdded: progress.firstLeadAdded,
         firstAnalysisRun: progress.firstAnalysisRun,
         bonusCreditsAwarded: progress.bonusCreditsAwarded,
-        data: parsedData,
+        data: {},
       },
       settings: settings
         ? {
@@ -95,8 +90,6 @@ export async function PUT(request: NextRequest) {
       companyName,
       businessDescription,
       timezone,
-      preferredCurrency,
-      data,
     } = body;
 
     // Update onboarding progress
@@ -109,21 +102,31 @@ export async function PUT(request: NextRequest) {
     if (toolsConnected !== undefined) progressData.toolsConnected = Boolean(toolsConnected);
     if (firstLeadAdded !== undefined) progressData.firstLeadAdded = Boolean(firstLeadAdded);
     if (firstAnalysisRun !== undefined) progressData.firstAnalysisRun = Boolean(firstAnalysisRun);
-    if (data !== undefined) progressData.data = JSON.stringify(data);
+    // NOTE: the previous version accepted a free-form `data` field and wrote
+    // it as progressData.data — but the OnboardingProgress table has no
+    // `data` column, so any request containing `data` failed with a Prisma
+    // validation error (500). Structured onboarding data lives in
+    // UserSettings (companyName / targetNiches / targetCountries /
+    // targetChannels) below.
 
-    // Check if onboarding is now complete
+    // Check if onboarding is now complete.
+    // BUG FIX (persistence): the previous version only evaluated completion
+    // when a progress row ALREADY existed — a first-time user (no row yet)
+    // sending `completed: true` got their row created with completed=false,
+    // so the onboarding wizard re-appeared after every logout→login. The
+    // check now works for both first-time and existing rows.
     const currentProgress = await db.onboardingProgress.findUnique({ where: { userId: user.id } });
-    if (currentProgress) {
-      const allStepsComplete =
-        (profileCompleted ?? currentProgress.profileCompleted) &&
-        (nichesSelected ?? currentProgress.nichesSelected) &&
-        (countriesSelected ?? currentProgress.countriesSelected) &&
-        (channelsSelected ?? currentProgress.channelsSelected);
-
-      if (allStepsComplete || completed) {
-        progressData.completed = true;
-      }
+    const allStepsComplete =
+      Boolean(profileCompleted ?? currentProgress?.profileCompleted ?? false) &&
+      Boolean(nichesSelected ?? currentProgress?.nichesSelected ?? false) &&
+      Boolean(countriesSelected ?? currentProgress?.countriesSelected ?? false) &&
+      Boolean(channelsSelected ?? currentProgress?.channelsSelected ?? false);
+    if (allStepsComplete || completed) {
+      progressData.completed = true;
     }
+    // Bonus credits are awarded once per account — remember the pre-update
+    // award flag so first-time completion (no prior row) is still eligible.
+    const previouslyAwarded = currentProgress?.bonusCreditsAwarded ?? false;
 
     if (Object.keys(progressData).length > 0 || !currentProgress) {
       await db.onboardingProgress.upsert({
@@ -144,7 +147,9 @@ export async function PUT(request: NextRequest) {
     if (companyName !== undefined) settingsData.companyName = companyName;
     if (businessDescription !== undefined) settingsData.businessDescription = businessDescription;
     if (timezone !== undefined) settingsData.timezone = timezone;
-    if (preferredCurrency !== undefined) settingsData.preferredCurrency = preferredCurrency;
+    // NOTE: the previous version also accepted `preferredCurrency`, but the
+    // UserSettings table has no such column — same Prisma 500 failure class
+    // as the removed `data` field. It is intentionally not persisted.
     if (progressData.completed) {
       settingsData.onboardingCompleted = true;
       settingsData.onboardingStep = 100;
@@ -165,7 +170,7 @@ export async function PUT(request: NextRequest) {
 
     // Award bonus credits on completion
     let bonusAwarded = false;
-    if (progressData.completed && currentProgress && !currentProgress.bonusCreditsAwarded) {
+    if (progressData.completed && !previouslyAwarded) {
       await db.$transaction(async (tx) => {
         const fullUser = await tx.user.findUnique({ where: { id: user.id } });
         if (fullUser) {

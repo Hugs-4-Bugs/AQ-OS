@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAppUrl, buildAppUrl } from '@/lib/app-url';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,7 +34,12 @@ function envStatus(key: string): { key: string; status: 'SET' | 'MISSING' | 'EMP
   return { key, status: 'SET', preview: val.substring(0, 60) };
 }
 
+// ACCOUNT ISOLATION: this endpoint previously ran fully public and exposed
+// deployment configuration (env previews, DB user counts, OAuth redirect
+// URIs, proxy headers) to anyone on the internet. It is now restricted to
+// the platform super_admin account.
 export async function GET(request: NextRequest) {
+  return withSuperAdmin(request, async () => {
   const startTime = Date.now();
 
   // ── 1. Environment variables ────────────────────────────────────
@@ -167,5 +173,6 @@ export async function GET(request: NextRequest) {
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate',
     },
+  });
   });
 }

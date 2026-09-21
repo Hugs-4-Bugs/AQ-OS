@@ -7,18 +7,24 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { getProxyPoolStatus, addProxy, removeProxy } from '@/lib/proxy-rotation-service';
 import { db } from '@/lib/db';
 import type { ProxyType } from '@/lib/proxy-rotation-service';
 
 const VALID_PROXY_TYPES: ProxyType[] = ['datacenter', 'residential', 'mobile', 'isp'];
 
+// ACCOUNT ISOLATION: ProxyEndpoint is a platform-global pool with no owner
+// column — every tenant's scraping traffic flows through it. Tenant-scoped
+// users must never be able to read, inject or remove entries (a malicious
+// tenant could otherwise route other tenants' traffic through their own
+// proxy and intercept it). Platform super_admin only.
+
 /**
  * GET: Get proxy pool status and list of proxies
  */
 export async function GET(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const { searchParams } = new URL(request.url);
       const includeProxies = searchParams.get('includeProxies') === 'true';
@@ -67,7 +73,7 @@ export async function GET(request: NextRequest) {
  * POST: Add a new proxy to the pool
  */
 export async function POST(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const body = await request.json();
       const { url, type, rateLimitPerMinute, country, provider } = body;
@@ -143,7 +149,7 @@ export async function POST(request: NextRequest) {
  * DELETE: Remove a proxy from the pool
  */
 export async function DELETE(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const { searchParams } = new URL(request.url);
       const proxyId = searchParams.get('id');

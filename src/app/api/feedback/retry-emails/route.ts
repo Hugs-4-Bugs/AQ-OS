@@ -12,7 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { retryFailedAdminEmails } from '@/lib/feedback/admin-email';
 
 export async function POST(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 2) Admin session path
-  return withAdmin(request, async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const result = await retryFailedAdminEmails(20);
       return NextResponse.json({ success: true, ...result });

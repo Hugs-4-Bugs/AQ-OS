@@ -7,6 +7,7 @@ import { useAuthStore, type AuthUser } from '@/lib/auth-store';
 import { useSubscriptionStore } from '@/lib/subscription-store';
 import { useRouter } from 'next/navigation';
 import { apiCall, getErrorFallbackMessage } from '@/lib/api-error-handler';
+import { clearAccountScopedClientState } from '@/lib/cache-invalidation';
 
 export function useAuth() {
   const router = useRouter();
@@ -233,6 +234,12 @@ export function useAuth() {
     } catch {
       // Continue even if API call fails — still clear local state
     }
+    // ACCOUNT ISOLATION (cache layer): purge every account-scoped client
+    // cache BEFORE the next login so account B can never briefly observe
+    // account A's data through React Query snapshots, zustand persists or
+    // user-scoped localStorage keys.
+    clearAccountScopedClientState();
+    window.dispatchEvent(new Event('aqos:auth-logout')); // React Query clear (providers.tsx)
     logout();
     useSubscriptionStore.getState().reset(); // Reset subscription store
     router.push('/');

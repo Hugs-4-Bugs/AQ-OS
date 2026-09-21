@@ -7729,3 +7729,37 @@ Work Log:
 Stage Summary:
 - Dead preferences button now navigates to the existing Settings → Notifications on all breakpoints; profile company + appearance preferences persist across logout/login at the API and DB level; 36+ cross-tenant leaks closed across leads, outreach, gmail, workflows, AI, analytics, admin surfaces with a single fail-closed access rule; platform-wide endpoints locked to super_admin; all six acceptance tests (A-F) demonstrated with real accounts
 - Files: 80 source files modified + new scripts (repro-profile-persistence.sh, verify-final.sh, verify-b.sh); 3 test screenshots in download/; db/custom.db changed only by test data written through public APIs
+
+---
+Task ID: 1
+Agent: main (Super Z)
+Task: 三大 issue 前向修复（通知偏好导航收尾 + 资料持久化 + 跨账户隔离）
+
+Work Log:
+- 基线记录：HEAD 442d288, main
+- 三路并行诊断（Explore agents）：Issue 1 导航链已在 HEAD 闭合；Issue 2 根因=onboarding 只写 localStorage + onboarding route data/preferredCurrency 不存在列 500 + profile GET 静默失败空表单覆盖 + /me 无 refresh 回退；Issue 3 审计 502 route，剩 6 个漏洞 + 登出缓存清理不完整
+- 修复 Issue 1 残留：settings-shell 通知偏好 5 开关经 typePreferences 持久化（加载/保存对称+合并他人 key）；notification-engine 类别回退（deal_updates/credit_alerts/weekly_digest）
+- 修复 Issue 2：onboarding-flow 完成时 PUT /api/settings/profile + /api/settings/onboarding 落库 + setUser 同步；skip 也落库；onboarding route 移除 data/preferredCurrency 不存在字段；dashboard-layout onboarding 触发 DB 优先；loadProfile 失败防护（401→refresh 重试，失败显示错误禁保存）；auth-gate /me 401 → /api/auth/refresh → 重试
+- 修复 Issue 3：proxy-pool→withSuperAdmin；media metadata 所有权（getMediaMetadata 加 userId，route 404）；metrics×2+feedback/retry-emails→withSuperAdmin；org invites GET 需 owner/admin 且不再返回 token；discover/suggestions 加 withAuth；auth/debug→withSuperAdmin；workflow webhook [...path] 支持 HMAC secret 校验；新增 src/lib/cache-invalidation.ts，signOut 清理 React Query/zustand war-room-settings/用户范围 localStorage
+- tsc 全量：修改文件 0 错误（预存错误不涉及）
+
+Stage Summary:
+- 修改 17 文件 + 新增 1 文件（cache-invalidation.ts），无 schema 变更、无迁移、无破坏性数据操作
+- 待执行测试 A-F
+
+---
+Task ID: 2
+Agent: main (Super Z)
+Task: 测试 A-F 执行与最终提交
+
+Work Log:
+- 测试 B/C/D/F + 7 项安全回归（scripts/test-all-abcdef.sh）：49/50 通过；唯一失败 B6 系 OTP 限流下测试脚本节奏问题，单独重跑通过（scripts/test-b6-retry.sh）→ 有效 50/50
+- 测试 E：B 账户自有 lead 跑 prospecting pipeline → status=completed, progress=100, 5 步（step3 因未配置 offer 合法跳过），research/gaps/pitch/email 均有真实内容，outreach 记录归属 B
+- 测试 A（agent-browser 真实点击）：桌面 1280/平板 768/移动 375 三端，Notification preferences → 均导航至 Settings → Notifications 节（5 张截图）；UI 开关与 DB typePreferences 一致；UI 保存 → DB 同步验证；刷新后状态保持
+- 浏览器验证登出清理：onboarding/discovery/saved keys 清除；重新登录（localStorage 空）不再弹 onboarding（DB 优先）
+- 发现并修复 onboarding route 额外 bug：首次完成（无 progress 行）时 completed:true 被忽略
+- 提交 ccafc9a（29 文件，+778/-68），未触碰 db/custom.db 与 dev.log
+
+Stage Summary:
+- 最终 HEAD: ccafc9a（起始 442d288，中间无异常移动）
+- 全部测试通过；lead-resolution.ts 未改动；无回滚/reset/迁移/破坏性数据操作

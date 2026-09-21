@@ -817,12 +817,41 @@ export default function AuthGate() {
         window.history.replaceState({}, '', window.location.pathname);
       }
 
-      try {
+      const loadMe = async (): Promise<boolean> => {
         const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setUser(data.user);
-        } else {
+          return true;
+        }
+        return false;
+      };
+
+      try {
+        let ok = await loadMe();
+        if (!ok) {
+          // Access token may simply have expired (15 min). The refresh
+          // session lasts 30 days — try one silent refresh before forcing
+          // the user back through login, then hydrate the identity again.
+          try {
+            const refreshRes = await fetch('/api/auth/refresh', {
+              method: 'POST',
+              credentials: 'include',
+            });
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json().catch(() => null);
+              if (refreshData?.user) {
+                setUser(refreshData.user);
+                ok = true;
+              } else {
+                ok = await loadMe();
+              }
+            }
+          } catch {
+            // Refresh failed (network) — fall through to signed-out state.
+          }
+        }
+        if (!ok) {
           setUser(null);
         }
       } catch {

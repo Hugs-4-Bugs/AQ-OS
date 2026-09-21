@@ -44,8 +44,8 @@
 [SMTP-Env-Diag] resend  : RESEND_API_KEY=MISSING
 [SMTP-Env-Diag] resolved: user=SET, pass=SET, configured=YES
 [Sentry] No NEXT_PUBLIC_SENTRY_DSN configured — Sentry is in no-op mode
-[2m2026-09-21T13:04:13.001Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v24.21.0","environment":"development"}[0m
-✓ Ready in 5s
+[2m2026-09-21T14:05:06.797Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v24.21.0","environment":"development"}[0m
+✓ Ready in 5.8s
 ⚠ ./src/instrumentation.ts:100:15
 Ecmascript file had an error
 [0m [90m  98 |[39m [90m */[39m
@@ -88,416 +88,11 @@ A Node.js module is loaded ('path' at line 30) which is not supported in the Edg
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
 
 
- GET /api/health 200 in 1138ms (compile: 927ms, proxy.ts: 167ms, render: 44ms)
-[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
-[EmailService] Attempting SMTP to smtp.gmail.com:587…
-[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
-[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<88257304-92b7-3bd5-521f-5db2e29c7ba1@gmail.com>, response=250 2.0.0 OK  1789996117 98e67ed59e1d1-3a0309d5760sm4565917a91.4 - gsmtp
-[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <88257304-92b7-3bd5-521f-5db2e29c7ba1@gmail.com>)
-OTP email result: success — provider=smtp, messageId=<88257304-92b7-3bd5-521f-5db2e29c7ba1@gmail.com>
- POST /api/auth/otp/request 200 in 3.9s (compile: 325ms, proxy.ts: 7ms, render: 3.6s)
- POST /api/auth/otp/verify 200 in 121ms (compile: 77ms, proxy.ts: 4ms, render: 39ms)
- PUT /api/settings/profile 200 in 117ms (compile: 97ms, proxy.ts: 4ms, render: 15ms)
- GET /api/settings/profile 200 in 36ms (compile: 10ms, proxy.ts: 3ms, render: 23ms)
- POST /api/auth/signout 200 in 90ms (compile: 77ms, proxy.ts: 3ms, render: 11ms)
-[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
-[EmailService] Attempting SMTP to smtp.gmail.com:587…
-[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
-[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<377957ec-de1b-93b4-9559-f6dd54079a97@gmail.com>, response=250 2.0.0 OK  1789996120 41be03b00d2f7-cc72ae8eae3sm3448740a12.14 - gsmtp
-[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <377957ec-de1b-93b4-9559-f6dd54079a97@gmail.com>)
-OTP email result: success — provider=smtp, messageId=<377957ec-de1b-93b4-9559-f6dd54079a97@gmail.com>
- POST /api/auth/otp/request 200 in 3.2s (compile: 5ms, proxy.ts: 5ms, render: 3.2s)
- POST /api/auth/otp/verify 200 in 49ms (compile: 8ms, proxy.ts: 3ms, render: 38ms)
- GET /api/settings/profile 200 in 20ms (compile: 9ms, proxy.ts: 4ms, render: 7ms)
-[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
-[EmailService] Attempting SMTP to smtp.gmail.com:587…
-[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
-[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<2e3136b0-00b3-2917-2b11-474ae60a1731@gmail.com>, response=250 2.0.0 OK  1789996123 98e67ed59e1d1-3a0309d5760sm4566225a91.4 - gsmtp
-[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <2e3136b0-00b3-2917-2b11-474ae60a1731@gmail.com>)
-OTP email result: success — provider=smtp, messageId=<2e3136b0-00b3-2917-2b11-474ae60a1731@gmail.com>
- POST /api/auth/otp/request 200 in 2.6s (compile: 6ms, proxy.ts: 3ms, render: 2.6s)
- POST /api/auth/otp/verify 429 in 15ms (compile: 7ms, proxy.ts: 4ms, render: 4ms)
-[2m2026-09-21T13:08:43.833Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"9d7226854a80453aae81a828aaab04d6","method":"GET","path":"/api/leads","statusCode":200,"durationMs":10.809130000008736}[0m
- GET /api/leads?limit=200 200 in 170ms (compile: 150ms, proxy.ts: 4ms, render: 16ms)
-[2m2026-09-21T13:08:43.867Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/leads → 401 [2m{"requestId":"15f8529a627b44e59086111b9309000f","method":"GET","path":"/api/leads","statusCode":401,"durationMs":0.2785649999859743}[0m
- GET /api/leads?limit=200 401 in 19ms (compile: 12ms, proxy.ts: 4ms, render: 3ms)
-[2m2026-09-21T13:08:43.897Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"409ea9bd6f38490190804383cd08c660","method":"GET","path":"/api/leads","statusCode":200,"durationMs":6.848265000036918}[0m
- GET /api/leads?limit=200 200 in 19ms (compile: 6ms, proxy.ts: 3ms, render: 10ms)
-[2m2026-09-21T13:08:43.922Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/leads → 401 [2m{"requestId":"cfbb26b6f061469581d94476f7073cab","method":"GET","path":"/api/leads","statusCode":401,"durationMs":0.32269000000087544}[0m
- GET /api/leads?limit=200 401 in 13ms (compile: 8ms, proxy.ts: 3ms, render: 3ms)
- GET /api/leads/cmtsrc65f000jnpmcwjsum91n 403 in 739ms (compile: 700ms, proxy.ts: 2ms, render: 36ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 41ms (compile: 35ms, proxy.ts: 3ms, render: 3ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 200 in 21ms (compile: 10ms, proxy.ts: 3ms, render: 8ms)
- GET /api/leads/cmtsrc65f000jnpmcwjsum91n 401 in 18ms (compile: 11ms, proxy.ts: 4ms, render: 4ms)
- PUT /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 20ms (compile: 8ms, proxy.ts: 8ms, render: 4ms)
- DELETE /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 14ms (compile: 7ms, proxy.ts: 3ms, render: 4ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/activities 401 in 1095ms (compile: 1087ms, proxy.ts: 3ms, render: 5ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/communications 401 in 894ms (compile: 873ms, proxy.ts: 6ms, render: 16ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/notes 401 in 766ms (compile: 748ms, proxy.ts: 3ms, render: 15ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/reminders 401 in 776ms (compile: 755ms, proxy.ts: 3ms, render: 18ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/activities 401 in 38ms (compile: 32ms, proxy.ts: 3ms, render: 3ms)
- GET /api/leads/stats 401 in 290ms (compile: 284ms, proxy.ts: 3ms, render: 4ms)
- GET /api/deals 401 in 71ms (compile: 64ms, proxy.ts: 3ms, render: 4ms)
- GET /api/notifications?limit=50 200 in 75ms (compile: 57ms, proxy.ts: 3ms, render: 15ms)
- GET /api/notifications?limit=50 401 in 22ms (compile: 6ms, proxy.ts: 12ms, render: 4ms)
-[2m2026-09-21T13:08:49.378Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 401 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":401,"durationMs":0}[0m
- POST /api/prospecting/pipeline/run 401 in 371ms (compile: 363ms, proxy.ts: 4ms, render: 4ms)
-[2m2026-09-21T13:08:49.400Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 401 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":401,"durationMs":0}[0m
- POST /api/prospecting/pipeline/run 401 in 12ms (compile: 7ms, proxy.ts: 3ms, render: 3ms)
- GET /api/credits 200 in 77ms (compile: 64ms, proxy.ts: 3ms, render: 10ms)
- GET /api/credits 401 in 12ms (compile: 7ms, proxy.ts: 3ms, render: 2ms)
- GET /api/credits 200 in 14ms (compile: 5ms, proxy.ts: 3ms, render: 6ms)
- GET /api/credits 401 in 10ms (compile: 6ms, proxy.ts: 2ms, render: 2ms)
- GET /api/billing/analytics 403 in 187ms (compile: 178ms, proxy.ts: 2ms, render: 6ms)
- POST /api/realtime/recover 401 in 186ms (compile: 179ms, proxy.ts: 4ms, render: 4ms)
- POST /api/auth/otp/request 429 in 59ms (compile: 33ms, proxy.ts: 14ms, render: 12ms)
-[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
-[EmailService] Attempting SMTP to smtp.gmail.com:587…
-[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
-[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<8d1a1e35-ab25-f852-70fe-5d62d6c8f59f@gmail.com>, response=250 2.0.0 OK  1789996186 98e67ed59e1d1-3a063fcfc02sm41375a91.11 - gsmtp
-[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <8d1a1e35-ab25-f852-70fe-5d62d6c8f59f@gmail.com>)
-OTP email result: success — provider=smtp, messageId=<8d1a1e35-ab25-f852-70fe-5d62d6c8f59f@gmail.com>
- POST /api/auth/otp/request 200 in 3.0s (compile: 11ms, proxy.ts: 4ms, render: 2.9s)
- POST /api/auth/otp/verify 200 in 39ms (compile: 10ms, proxy.ts: 4ms, render: 26ms)
-[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
-[EmailService] Attempting SMTP to smtp.gmail.com:587…
-[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
-[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<bb89fe64-2bb8-9a51-c5e5-2397333728b5@gmail.com>, response=250 2.0.0 OK  1789996260 98e67ed59e1d1-3a063fcb25fsm50840a91.10 - gsmtp
-[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <bb89fe64-2bb8-9a51-c5e5-2397333728b5@gmail.com>)
-OTP email result: success — provider=smtp, messageId=<bb89fe64-2bb8-9a51-c5e5-2397333728b5@gmail.com>
- POST /api/auth/otp/request 200 in 3.2s (compile: 9ms, proxy.ts: 3ms, render: 3.2s)
- POST /api/auth/otp/verify 200 in 36ms (compile: 10ms, proxy.ts: 3ms, render: 22ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 403 in 52ms (compile: 37ms, proxy.ts: 5ms, render: 11ms)
- GET /api/leads/cmtsrc65f000jnpmcwjsum91n 200 in 26ms (compile: 11ms, proxy.ts: 3ms, render: 11ms)
- PUT /api/leads/cmqme6hgj0023rc2j1d2dhukv 403 in 25ms (compile: 10ms, proxy.ts: 4ms, render: 11ms)
- DELETE /api/leads/cmqme6hgj0023rc2j1d2dhukv 403 in 51ms (compile: 10ms, proxy.ts: 29ms, render: 13ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/activities 403 in 114ms (compile: 64ms, proxy.ts: 3ms, render: 47ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/communications 403 in 113ms (compile: 40ms, proxy.ts: 61ms, render: 12ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/notes 403 in 140ms (compile: 120ms, proxy.ts: 3ms, render: 17ms)
- GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/reminders 403 in 192ms (compile: 146ms, proxy.ts: 3ms, render: 43ms)
- POST /api/leads/cmqme6hgj0023rc2j1d2dhukv/notes 403 in 116ms (compile: 67ms, proxy.ts: 4ms, render: 45ms)
-[2m2026-09-21T13:11:04.253Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"442dfa22b8944466a6549b370914599f","method":"GET","path":"/api/leads","statusCode":200,"durationMs":21.03398599999491}[0m
- GET /api/leads?limit=200 200 in 64ms (compile: 22ms, proxy.ts: 3ms, render: 38ms)
-[2m2026-09-21T13:11:04.406Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"21ce788619f5468e9047b288f7d86519","method":"GET","path":"/api/leads","statusCode":200,"durationMs":10.939551000017673}[0m
- GET /api/leads?limit=200 200 in 79ms (compile: 55ms, proxy.ts: 3ms, render: 21ms)
- GET /api/notifications?limit=5 200 in 67ms (compile: 43ms, proxy.ts: 5ms, render: 19ms)
-[2m2026-09-21T13:11:04.647Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 200 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":200,"durationMs":53}[0m
- POST /api/prospecting/pipeline/run 200 in 107ms (compile: 36ms, proxy.ts: 4ms, render: 68ms)
-[LeadResolution] LEAD_ACCESS_DENIED: lead=cmqme6hgj0023rc2j1d2dhukv belongs to user=cmqltkkuv000xrc2jn99wodqj, requester=cmqrtgnjx0000qfgnsbhzyzxq
-[2m2026-09-21T13:11:04.835Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 404 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":404,"durationMs":23}[0m
- POST /api/prospecting/pipeline/run 404 in 113ms (compile: 61ms, proxy.ts: 15ms, render: 37ms)
- GET /api/credits 200 in 103ms (compile: 37ms, proxy.ts: 4ms, render: 61ms)
-[notification-service] Unknown notification type "ai_analysis_complete". Valid types: deal_won, lead_reply, analysis, stage_advanced, payment_success, payment_failure, refund_processed, chargeback_received, subscription_renewed, subscription_cancelling, subscription_expired, credit_assigned, credit_low, payment, team_invite, system. Creating anyway.
 ○ Compiling / ...
- GET /business-ai/settings 200 in 12.5s (compile: 12.2s, proxy.ts: 7ms, render: 379ms)
-⚠ ./src/instrumentation.ts:100:15
-Ecmascript file had an error
-[0m [90m  98 |[39m [90m */[39m
- [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
-[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
- [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
- [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
- [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
-
-A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime
-
-
-⚠ ./src/instrumentation.ts:29:1
-Ecmascript file had an error
-[0m [90m 27 |[39m [90m */[39m
- [90m 28 |[39m
-[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
-
-A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
-⚠ ./src/instrumentation.ts:30:1
-Ecmascript file had an error
-[0m [90m 28 |[39m
- [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
- [90m 33 |[39m [90m// .env file parser[39m[0m
-
-A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
- GET /api/auth/me 401 in 134ms (compile: 122ms, proxy.ts: 7ms, render: 5ms)
- GET /api/auth/me 401 in 31ms (compile: 25ms, proxy.ts: 3ms, render: 3ms)
-[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
-[EmailService] Attempting SMTP to smtp.gmail.com:587…
-[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
-[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<86ae50b2-73d1-df2a-e653-45804d6f93f2@gmail.com>, response=250 2.0.0 OK  1789996366 d2e1a72fcca58-877a6bec901sm3185874b3a.4 - gsmtp
-[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <86ae50b2-73d1-df2a-e653-45804d6f93f2@gmail.com>)
-OTP email result: success — provider=smtp, messageId=<86ae50b2-73d1-df2a-e653-45804d6f93f2@gmail.com>
- POST /api/auth/otp/request 200 in 4.0s (compile: 33ms, proxy.ts: 12ms, render: 4.0s)
- POST /api/auth/otp/verify 200 in 109ms (compile: 51ms, proxy.ts: 8ms, render: 50ms)
- GET /business-ai/settings 200 in 169ms (compile: 10ms, proxy.ts: 13ms, render: 146ms)
-⚠ ./src/instrumentation.ts:100:15
-Ecmascript file had an error
-[0m [90m  98 |[39m [90m */[39m
- [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
-[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
- [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
- [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
- [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
-
-A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime
-
-
-⚠ ./src/instrumentation.ts:29:1
-Ecmascript file had an error
-[0m [90m 27 |[39m [90m */[39m
- [90m 28 |[39m
-[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
-
-A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
-⚠ ./src/instrumentation.ts:30:1
-Ecmascript file had an error
-[0m [90m 28 |[39m
- [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
- [90m 33 |[39m [90m// .env file parser[39m[0m
-
-A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
- GET /api/auth/me 200 in 49ms (compile: 39ms, proxy.ts: 4ms, render: 7ms)
- GET /api/auth/me 200 in 28ms (compile: 14ms, proxy.ts: 4ms, render: 10ms)
- GET /api/notifications?limit=20 200 in 76ms (compile: 43ms, proxy.ts: 4ms, render: 29ms)
- GET /api/reminders?overdue=true 200 in 219ms (compile: 131ms, proxy.ts: 23ms, render: 65ms)
- GET /api/reminders? 200 in 270ms (compile: 178ms, proxy.ts: 61ms, render: 31ms)
- GET /api/notifications?limit=20 200 in 193ms (compile: 42ms, proxy.ts: 25ms, render: 126ms)
- GET /api/notifications?limit=20 200 in 187ms (compile: 116ms, proxy.ts: 39ms, render: 33ms)
- GET /api/reminders?overdue=true 200 in 197ms (compile: 13ms, proxy.ts: 11ms, render: 173ms)
- GET /api/reminders?overdue=true 200 in 216ms (compile: 171ms, proxy.ts: 12ms, render: 33ms)
- GET /api/subscriptions/current 200 in 480ms (compile: 302ms, proxy.ts: 27ms, render: 152ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:12:58.039Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":21}[0m
- GET /api/meetings/reminders?limit=10 200 in 640ms (compile: 579ms, proxy.ts: 25ms, render: 36ms)
- GET /api/subscriptions/entitlements 200 in 381ms (compile: 298ms, proxy.ts: 5ms, render: 79ms)
- GET /api/settings/profile 200 in 160ms (compile: 69ms, proxy.ts: 8ms, render: 83ms)
- GET /api/payments/history 200 in 600ms (compile: 321ms, proxy.ts: 55ms, render: 223ms)
- GET /api/settings/notifications 200 in 580ms (compile: 432ms, proxy.ts: 63ms, render: 85ms)
- GET /api/subscriptions/current 200 in 611ms (compile: 94ms, proxy.ts: 21ms, render: 496ms)
- GET /api/settings/appearance 200 in 618ms (compile: 593ms, proxy.ts: 8ms, render: 17ms)
-[2m2026-09-21T13:12:59.525Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":39}[0m
- GET /api/meetings/settings 200 in 631ms (compile: 124ms, proxy.ts: 435ms, render: 72ms)
- GET /api/settings/profile 200 in 228ms (compile: 29ms, proxy.ts: 101ms, render: 98ms)
- GET /api/payments/history 200 in 231ms (compile: 37ms, proxy.ts: 106ms, render: 88ms)
- GET /api/settings/2fa/status 200 in 289ms (compile: 207ms, proxy.ts: 58ms, render: 24ms)
- GET /api/subscriptions/current 200 in 307ms (compile: 31ms, proxy.ts: 108ms, render: 168ms)
- GET /api/settings/notifications 200 in 99ms (compile: 59ms, proxy.ts: 3ms, render: 36ms)
- GET /api/settings/appearance 200 in 197ms (compile: 97ms, proxy.ts: 67ms, render: 33ms)
-[2m2026-09-21T13:12:59.921Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":103}[0m
- GET /api/meetings/settings 200 in 293ms (compile: 94ms, proxy.ts: 77ms, render: 122ms)
- GET /api/settings/2fa/status 200 in 261ms (compile: 125ms, proxy.ts: 91ms, render: 46ms)
-[2m2026-09-21T13:12:59.995Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":76}[0m
- GET /api/calendar/events 404 in 347ms (compile: 184ms, proxy.ts: 82ms, render: 81ms)
-[2m2026-09-21T13:13:00.026Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":5}[0m
- GET /api/calendar/events 404 in 28ms (compile: 14ms, proxy.ts: 4ms, render: 10ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 57ms (compile: 27ms, proxy.ts: 4ms, render: 25ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 89ms (compile: 32ms, proxy.ts: 6ms, render: 50ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 103ms (compile: 20ms, proxy.ts: 11ms, render: 72ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 38ms (compile: 17ms, proxy.ts: 3ms, render: 18ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 118ms (compile: 16ms, proxy.ts: 12ms, render: 90ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 122ms (compile: 25ms, proxy.ts: 10ms, render: 86ms)
- GET /api/reminders?overdue=true 200 in 122ms (compile: 58ms, proxy.ts: 6ms, render: 58ms)
- GET /api/reminders?overdue=true 200 in 49ms (compile: 16ms, proxy.ts: 8ms, render: 24ms)
- GET /api/reminders? 200 in 50ms (compile: 29ms, proxy.ts: 7ms, render: 14ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:13:58.320Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":8}[0m
- GET /api/meetings/reminders?limit=10 200 in 31ms (compile: 11ms, proxy.ts: 4ms, render: 16ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 38ms (compile: 11ms, proxy.ts: 8ms, render: 18ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 59ms (compile: 22ms, proxy.ts: 6ms, render: 31ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 60ms (compile: 31ms, proxy.ts: 17ms, render: 12ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 51ms (compile: 22ms, proxy.ts: 8ms, render: 20ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 72ms (compile: 28ms, proxy.ts: 10ms, render: 35ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 72ms (compile: 28ms, proxy.ts: 24ms, render: 20ms)
- GET /api/reminders?overdue=true 200 in 71ms (compile: 36ms, proxy.ts: 24ms, render: 11ms)
- GET /api/reminders?overdue=true 200 in 25ms (compile: 9ms, proxy.ts: 4ms, render: 12ms)
- GET /api/reminders? 200 in 25ms (compile: 11ms, proxy.ts: 4ms, render: 10ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:14:58.349Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":7}[0m
- GET /api/meetings/reminders?limit=10 200 in 23ms (compile: 8ms, proxy.ts: 3ms, render: 12ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 112ms (compile: 49ms, proxy.ts: 9ms, render: 54ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 155ms (compile: 74ms, proxy.ts: 25ms, render: 56ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 153ms (compile: 62ms, proxy.ts: 75ms, render: 17ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 64ms (compile: 16ms, proxy.ts: 14ms, render: 34ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 62ms (compile: 31ms, proxy.ts: 10ms, render: 21ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 68ms (compile: 23ms, proxy.ts: 13ms, render: 33ms)
- GET /api/reminders?overdue=true 200 in 61ms (compile: 38ms, proxy.ts: 9ms, render: 14ms)
- GET /api/reminders?overdue=true 200 in 22ms (compile: 10ms, proxy.ts: 3ms, render: 9ms)
- GET /api/reminders? 200 in 19ms (compile: 7ms, proxy.ts: 6ms, render: 7ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:15:58.373Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":5}[0m
- GET /api/meetings/reminders?limit=10 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 109ms (compile: 42ms, proxy.ts: 9ms, render: 59ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 112ms (compile: 81ms, proxy.ts: 9ms, render: 22ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 111ms (compile: 74ms, proxy.ts: 23ms, render: 14ms)
- GET /api/events/notifications 200 in 3.9min (compile: 215ms, proxy.ts: 185ms, render: 3.9min)
- GET /business-ai/settings 200 in 264ms (compile: 37ms, proxy.ts: 12ms, render: 214ms)
-⚠ ./src/instrumentation.ts:100:15
-Ecmascript file had an error
-[0m [90m  98 |[39m [90m */[39m
- [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
-[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
- [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
- [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
- [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
-
-A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime
-
-
-⚠ ./src/instrumentation.ts:29:1
-Ecmascript file had an error
-[0m [90m 27 |[39m [90m */[39m
- [90m 28 |[39m
-[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
-
-A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
-⚠ ./src/instrumentation.ts:30:1
-Ecmascript file had an error
-[0m [90m 28 |[39m
- [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
- [90m 33 |[39m [90m// .env file parser[39m[0m
-
-A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
- GET /api/auth/me 200 in 102ms (compile: 26ms, proxy.ts: 16ms, render: 60ms)
- GET /api/auth/me 200 in 203ms (compile: 112ms, proxy.ts: 68ms, render: 22ms)
- GET /api/notifications?limit=20 200 in 68ms (compile: 24ms, proxy.ts: 4ms, render: 39ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
- GET /api/reminders? 200 in 154ms (compile: 42ms, proxy.ts: 53ms, render: 59ms)
- GET /api/notifications?limit=20 200 in 161ms (compile: 51ms, proxy.ts: 31ms, render: 78ms)
-[2m2026-09-21T13:16:54.004Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":60}[0m
- GET /api/meetings/reminders?limit=10 200 in 149ms (compile: 48ms, proxy.ts: 37ms, render: 63ms)
- GET /api/reminders?overdue=true 200 in 150ms (compile: 56ms, proxy.ts: 38ms, render: 57ms)
- GET /api/notifications?limit=20 200 in 173ms (compile: 82ms, proxy.ts: 54ms, render: 37ms)
- GET /api/reminders?overdue=true 200 in 147ms (compile: 63ms, proxy.ts: 62ms, render: 23ms)
- GET /api/reminders?overdue=true 200 in 99ms (compile: 58ms, proxy.ts: 31ms, render: 10ms)
- GET /api/subscriptions/current 200 in 115ms (compile: 46ms, proxy.ts: 31ms, render: 38ms)
- GET /api/subscriptions/entitlements 200 in 23ms (compile: 11ms, proxy.ts: 4ms, render: 8ms)
- GET /api/settings/appearance 200 in 26ms (compile: 7ms, proxy.ts: 4ms, render: 15ms)
- GET /api/settings/profile 200 in 107ms (compile: 22ms, proxy.ts: 21ms, render: 64ms)
- GET /api/payments/history 200 in 109ms (compile: 54ms, proxy.ts: 21ms, render: 34ms)
- GET /api/settings/notifications 200 in 143ms (compile: 74ms, proxy.ts: 11ms, render: 57ms)
-[2m2026-09-21T13:16:54.912Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":54}[0m
- GET /api/meetings/settings 200 in 159ms (compile: 87ms, proxy.ts: 13ms, render: 60ms)
- GET /api/subscriptions/current 200 in 179ms (compile: 39ms, proxy.ts: 21ms, render: 120ms)
- GET /api/settings/2fa/status 200 in 125ms (compile: 61ms, proxy.ts: 36ms, render: 28ms)
- GET /api/settings/appearance 200 in 137ms (compile: 60ms, proxy.ts: 39ms, render: 38ms)
- GET /api/settings/profile 200 in 185ms (compile: 68ms, proxy.ts: 34ms, render: 83ms)
- GET /api/payments/history 200 in 167ms (compile: 98ms, proxy.ts: 48ms, render: 22ms)
- GET /api/subscriptions/current 200 in 215ms (compile: 52ms, proxy.ts: 53ms, render: 110ms)
- GET /api/settings/notifications 200 in 156ms (compile: 24ms, proxy.ts: 81ms, render: 51ms)
- GET /api/settings/2fa/status 200 in 113ms (compile: 76ms, proxy.ts: 17ms, render: 21ms)
-[2m2026-09-21T13:16:55.234Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":43}[0m
- GET /api/meetings/settings 200 in 129ms (compile: 60ms, proxy.ts: 22ms, render: 48ms)
-[2m2026-09-21T13:16:55.237Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":7}[0m
- GET /api/calendar/events 404 in 115ms (compile: 70ms, proxy.ts: 33ms, render: 13ms)
-[2m2026-09-21T13:16:55.287Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":19}[0m
- GET /api/calendar/events 404 in 43ms (compile: 9ms, proxy.ts: 9ms, render: 25ms)
- GET /api/events/notifications 200 in 17.4s (compile: 20ms, proxy.ts: 5ms, render: 17.3s)
- GET / 200 in 112ms (compile: 3ms, proxy.ts: 3ms, render: 106ms)
- GET / 200 in 109ms (compile: 3ms, proxy.ts: 5ms, render: 101ms)
- GET / 200 in 64ms (compile: 5ms, proxy.ts: 18ms, render: 41ms)
- GET / 200 in 44ms (compile: 4ms, proxy.ts: 3ms, render: 37ms)
- GET / 200 in 44ms (compile: 6ms, proxy.ts: 3ms, render: 35ms)
- GET / 200 in 41ms (compile: 3ms, proxy.ts: 5ms, render: 33ms)
- GET / 200 in 49ms (compile: 5ms, proxy.ts: 4ms, render: 40ms)
- GET /api/notifications?limit=5&unreadOnly=true 401 in 32ms (compile: 23ms, proxy.ts: 5ms, render: 5ms)
-[2m2026-09-21T13:21:37.827Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 401 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":401,"durationMs":0}[0m
- GET /api/meetings/reminders?limit=10 401 in 48ms (compile: 25ms, proxy.ts: 20ms, render: 4ms)
- GET /api/subscriptions/current 401 in 59ms (compile: 36ms, proxy.ts: 20ms, render: 3ms)
- GET /api/reminders? 401 in 125ms (compile: 109ms, proxy.ts: 6ms, render: 10ms)
- GET /api/reminders?overdue=true 401 in 196ms (compile: 179ms, proxy.ts: 7ms, render: 10ms)
- POST /api/auth/refresh 200 in 298ms (compile: 149ms, proxy.ts: 4ms, render: 145ms)
- GET /api/notifications?limit=5&unreadOnly=true 401 in 13ms (compile: 7ms, proxy.ts: 3ms, render: 3ms)
-⚠ ./src/instrumentation.ts:100:15
-Ecmascript file had an error
-[0m [90m  98 |[39m [90m */[39m
- [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
-[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
- [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
- [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
- [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
-
-A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime
-
-
-⚠ ./src/instrumentation.ts:29:1
-Ecmascript file had an error
-[0m [90m 27 |[39m [90m */[39m
- [90m 28 |[39m
-[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
-
-A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
-⚠ ./src/instrumentation.ts:30:1
-Ecmascript file had an error
-[0m [90m 28 |[39m
- [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
- [90m 33 |[39m [90m// .env file parser[39m[0m
-
-A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
- GET /api/reminders?overdue=true 401 in 16ms (compile: 9ms, proxy.ts: 3ms, render: 4ms)
- GET /api/notifications?limit=5&unreadOnly=true 401 in 15ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
- GET /business-ai/leads 200 in 40ms (compile: 4ms, proxy.ts: 2ms, render: 34ms)
- GET /business-ai/leads 200 in 48ms (compile: 4ms, proxy.ts: 3ms, render: 42ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 6.3s (compile: 6.0s, proxy.ts: 34ms, render: 236ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 32ms (compile: 9ms, proxy.ts: 13ms, render: 10ms)
+ GET /business-ai/leads 200 in 15.4s (compile: 14.8s, proxy.ts: 215ms, render: 337ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 24ms (compile: 9ms, proxy.ts: 4ms, render: 10ms)
 ⚠ ./src/instrumentation.ts:100:15
 Ecmascript file had an error
 [0m [90m  98 |[39m [90m */[39m
@@ -542,25 +137,32 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
 
 ⚠ Blocked cross-origin request from preview-chat-9232d24b-5032-48c7-b56f-c132c2f15528.space-z.ai to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config
 Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
- GET /api/auth/me 200 in 15ms (compile: 6ms, proxy.ts: 3ms, render: 6ms)
- GET /api/auth/me 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
- GET /api/auth/me 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
- GET /api/notifications?limit=20 200 in 17ms (compile: 6ms, proxy.ts: 4ms, render: 7ms)
- GET /api/reminders? 200 in 22ms (compile: 10ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/auth/me 200 in 172ms (compile: 129ms, proxy.ts: 10ms, render: 32ms)
+ GET /api/auth/me 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/auth/me 200 in 78ms (compile: 16ms, proxy.ts: 3ms, render: 59ms)
+ GET /api/notifications?limit=20 200 in 134ms (compile: 65ms, proxy.ts: 45ms, render: 24ms)
+ GET /api/reminders?overdue=true 200 in 210ms (compile: 170ms, proxy.ts: 4ms, render: 35ms)
+ GET /api/reminders? 200 in 445ms (compile: 404ms, proxy.ts: 23ms, render: 18ms)
 [MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:21:44.262Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":4}[0m
- GET /api/meetings/reminders?limit=10 200 in 22ms (compile: 11ms, proxy.ts: 4ms, render: 7ms)
- GET /api/reminders?overdue=true 200 in 71ms (compile: 12ms, proxy.ts: 14ms, render: 46ms)
- GET /api/notifications?limit=20 200 in 46ms (compile: 19ms, proxy.ts: 9ms, render: 18ms)
- GET /api/subscriptions/current 200 in 47ms (compile: 11ms, proxy.ts: 6ms, render: 30ms)
- GET /api/reminders?overdue=true 200 in 15ms (compile: 7ms, proxy.ts: 3ms, render: 5ms)
- GET /api/notifications?limit=20 200 in 18ms (compile: 6ms, proxy.ts: 3ms, render: 8ms)
- GET /api/subscriptions/entitlements 200 in 16ms (compile: 8ms, proxy.ts: 3ms, render: 5ms)
- GET /api/reminders?overdue=true 200 in 20ms (compile: 8ms, proxy.ts: 2ms, render: 9ms)
-[2m2026-09-21T13:21:45.607Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"cf8eb0573e5e4d229d367260f848c8c9","method":"GET","path":"/api/leads","statusCode":200,"durationMs":5.813397999852896}[0m
- GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 21ms (compile: 7ms, proxy.ts: 3ms, render: 11ms)
- GET /business-ai/leads 200 in 44ms (compile: 5ms, proxy.ts: 4ms, render: 35ms)
- GET /api/events/notifications 200 in 9.0s (compile: 28ms, proxy.ts: 8ms, render: 8.9s)
+[2m2026-09-21T14:05:30.806Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":164}[0m
+ GET /api/meetings/reminders?limit=10 200 in 672ms (compile: 494ms, proxy.ts: 9ms, render: 169ms)
+ GET /api/notifications?limit=20 200 in 420ms (compile: 30ms, proxy.ts: 8ms, render: 382ms)
+ GET /api/subscriptions/current 200 in 646ms (compile: 336ms, proxy.ts: 4ms, render: 306ms)
+ GET /api/reminders?overdue=true 200 in 90ms (compile: 57ms, proxy.ts: 21ms, render: 12ms)
+ GET /api/notifications?limit=20 200 in 111ms (compile: 40ms, proxy.ts: 23ms, render: 48ms)
+ GET /api/subscriptions/entitlements 200 in 179ms (compile: 118ms, proxy.ts: 54ms, render: 8ms)
+ GET /api/reminders?overdue=true 200 in 66ms (compile: 37ms, proxy.ts: 4ms, render: 25ms)
+ GET /api/leads/stats 200 in 626ms (compile: 312ms, proxy.ts: 6ms, render: 308ms)
+[2m2026-09-21T14:05:32.960Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"443b42a8b0384c7cadbee006658fa062","method":"GET","path":"/api/leads","statusCode":200,"durationMs":266.0791169999975}[0m
+ GET /api/leads?sortBy=conversionScore&sortOrder=desc 200 in 633ms (compile: 351ms, proxy.ts: 11ms, render: 271ms)
+ GET /api/deals 200 in 682ms (compile: 417ms, proxy.ts: 11ms, render: 255ms)
+[2m2026-09-21T14:05:32.987Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/stats → 200 [2m{"method":"GET","path":"/api/meetings/stats","route":"meetings/stats","statusCode":200,"durationMs":183}[0m
+ GET /api/meetings/stats 200 in 601ms (compile: 402ms, proxy.ts: 12ms, render: 187ms)
+[2m2026-09-21T14:05:32.989Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings → 200 [2m{"method":"GET","path":"/api/meetings","route":"meetings","statusCode":200,"durationMs":71}[0m
+ GET /api/meetings 200 in 663ms (compile: 577ms, proxy.ts: 11ms, render: 75ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 35ms (compile: 15ms, proxy.ts: 4ms, render: 16ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 5ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
 ⚠ ./src/instrumentation.ts:100:15
 Ecmascript file had an error
 [0m [90m  98 |[39m [90m */[39m
@@ -603,182 +205,1199 @@ A Node.js module is loaded ('path' at line 30) which is not supported in the Edg
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
 
 
- GET /api/auth/me 200 in 15ms (compile: 6ms, proxy.ts: 3ms, render: 6ms)
- GET /api/auth/me 200 in 18ms (compile: 8ms, proxy.ts: 4ms, render: 7ms)
- GET /api/notifications?limit=20 200 in 21ms (compile: 5ms, proxy.ts: 3ms, render: 13ms)
- GET /api/reminders? 200 in 16ms (compile: 6ms, proxy.ts: 2ms, render: 8ms)
- GET /api/reminders?overdue=true 200 in 15ms (compile: 6ms, proxy.ts: 2ms, render: 7ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:21:56.433Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":7}[0m
- GET /api/meetings/reminders?limit=10 200 in 18ms (compile: 6ms, proxy.ts: 2ms, render: 10ms)
- GET /api/subscriptions/current 200 in 16ms (compile: 5ms, proxy.ts: 2ms, render: 9ms)
- GET /api/reminders?overdue=true 200 in 17ms (compile: 6ms, proxy.ts: 3ms, render: 8ms)
- GET /api/notifications?limit=20 200 in 14ms (compile: 5ms, proxy.ts: 3ms, render: 6ms)
- GET /api/subscriptions/entitlements 200 in 13ms (compile: 6ms, proxy.ts: 3ms, render: 5ms)
- GET /api/notifications?limit=20 200 in 19ms (compile: 7ms, proxy.ts: 4ms, render: 8ms)
- GET /api/reminders?overdue=true 200 in 21ms (compile: 6ms, proxy.ts: 9ms, render: 6ms)
-[2m2026-09-21T13:21:58.430Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"b7cda58f2fb5410eb1901c0765b68670","method":"GET","path":"/api/leads","statusCode":200,"durationMs":5.971129999961704}[0m
- GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 21ms (compile: 7ms, proxy.ts: 4ms, render: 10ms)
- PATCH /api/notifications/cmtsrg4a3000qnpz71nylnoh3/read 200 in 1579ms (compile: 1543ms, proxy.ts: 3ms, render: 33ms)
-○ Compiling /admin/feedback ...
- GET /admin/feedback 200 in 3.7s (compile: 3.5s, proxy.ts: 6ms, render: 169ms)
- GET /api/events/notifications 200 in 8.2s (compile: 5ms, proxy.ts: 3ms, render: 8.2s)
-⚠ ./src/instrumentation.ts:100:15
-Ecmascript file had an error
-[0m [90m  98 |[39m [90m */[39m
- [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
-[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
- [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
- [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
- [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
-
-A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime
-
-
-⚠ ./src/instrumentation.ts:29:1
-Ecmascript file had an error
-[0m [90m 27 |[39m [90m */[39m
- [90m 28 |[39m
-[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
-
-A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
-⚠ ./src/instrumentation.ts:30:1
-Ecmascript file had an error
-[0m [90m 28 |[39m
- [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
- [90m 33 |[39m [90m// .env file parser[39m[0m
-
-A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
- GET /api/auth/me 200 in 27ms (compile: 7ms, proxy.ts: 4ms, render: 15ms)
- GET /api/admin/feedback?page=1&limit=20&sortBy=newest 403 in 220ms (compile: 210ms, proxy.ts: 3ms, render: 7ms)
- GET /api/admin/feedback?page=1&limit=20&sortBy=newest 403 in 22ms (compile: 12ms, proxy.ts: 4ms, render: 6ms)
- GET /business-ai/leads 200 in 53ms (compile: 6ms, proxy.ts: 8ms, render: 39ms)
-⚠ ./src/instrumentation.ts:100:15
-Ecmascript file had an error
-[0m [90m  98 |[39m [90m */[39m
- [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
-[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
- [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
- [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
- [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
-
-A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime
-
-
-⚠ ./src/instrumentation.ts:29:1
-Ecmascript file had an error
-[0m [90m 27 |[39m [90m */[39m
- [90m 28 |[39m
-[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
-
-A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
-⚠ ./src/instrumentation.ts:30:1
-Ecmascript file had an error
-[0m [90m 28 |[39m
- [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
- [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 31 |[39m
- [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
- [90m 33 |[39m [90m// .env file parser[39m[0m
-
-A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
-
-
- GET /api/auth/me 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
- GET /api/auth/me 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
- GET /api/auth/me 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
- GET /api/notifications?limit=20 200 in 21ms (compile: 9ms, proxy.ts: 3ms, render: 9ms)
- GET /api/reminders? 200 in 17ms (compile: 8ms, proxy.ts: 3ms, render: 6ms)
-[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
-[2m2026-09-21T13:22:45.987Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":5}[0m
- GET /api/meetings/reminders?limit=10 200 in 19ms (compile: 7ms, proxy.ts: 3ms, render: 8ms)
- GET /api/reminders?overdue=true 200 in 18ms (compile: 7ms, proxy.ts: 4ms, render: 6ms)
- GET /api/notifications?limit=20 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
- GET /api/reminders?overdue=true 200 in 17ms (compile: 7ms, proxy.ts: 2ms, render: 8ms)
- GET /api/notifications?limit=20 200 in 49ms (compile: 9ms, proxy.ts: 3ms, render: 37ms)
- GET /api/subscriptions/current 200 in 47ms (compile: 13ms, proxy.ts: 4ms, render: 31ms)
- GET /api/reminders?overdue=true 200 in 47ms (compile: 25ms, proxy.ts: 7ms, render: 14ms)
- GET /api/subscriptions/entitlements 200 in 15ms (compile: 6ms, proxy.ts: 3ms, render: 6ms)
-[2m2026-09-21T13:22:47.811Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"4be87d8c0a274987bf75f8f719c60c36","method":"GET","path":"/api/leads","statusCode":200,"durationMs":6.7556920000351965}[0m
- GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 23ms (compile: 10ms, proxy.ts: 3ms, render: 11ms)
-[2m2026-09-21T13:22:56.191Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":7}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 101ms (compile: 87ms, proxy.ts: 3ms, render: 12ms)
-[2m2026-09-21T13:22:56.837Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 24ms (compile: 12ms, proxy.ts: 4ms, render: 8ms)
-[2m2026-09-21T13:22:58.237Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 200 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":200,"durationMs":81}[0m
- POST /api/prospecting/pipeline/run 200 in 107ms (compile: 9ms, proxy.ts: 4ms, render: 95ms)
-[WebsiteScorer] Analyzing: https://dinnerindia.com/customer-comments (Dinner India, resturant)
-[2m2026-09-21T13:22:58.538Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":10}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 27ms (compile: 9ms, proxy.ts: 3ms, render: 15ms)
-[WebsiteScorer] Analyzing: https://dinnerindia.com/customer-comments (Dinner India, resturant)
-[2m2026-09-21T13:23:02.353Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
-[2m2026-09-21T13:23:06.184Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 24ms (compile: 9ms, proxy.ts: 8ms, render: 8ms)
-[2m2026-09-21T13:23:10.128Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":8}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 24ms (compile: 9ms, proxy.ts: 3ms, render: 11ms)
- POST /api/auth/refresh 200 in 25ms (compile: 7ms, proxy.ts: 3ms, render: 15ms)
-[2m2026-09-21T13:23:14.149Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":5}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 20ms (compile: 8ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/health 200 in 138ms (compile: 126ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/subscriptions/current 200 in 62ms (compile: 47ms, proxy.ts: 3ms, render: 12ms)
+ POST /api/auth/refresh 200 in 197ms (compile: 128ms, proxy.ts: 4ms, render: 65ms)
+ GET /api/subscriptions/entitlements 200 in 26ms (compile: 15ms, proxy.ts: 4ms, render: 7ms)
+[2m2026-09-21T14:06:13.071Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"a86578ceb1814b05baabaaed1395ecfa","method":"GET","path":"/api/leads","statusCode":200,"durationMs":6.6165710000059335}[0m
+ GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 38ms (compile: 18ms, proxy.ts: 7ms, render: 13ms)
+ POST /api/auth/refresh 200 in 29ms (compile: 8ms, proxy.ts: 4ms, render: 17ms)
+ GET /api/reminders?overdue=true 200 in 27ms (compile: 10ms, proxy.ts: 4ms, render: 13ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 9ms, proxy.ts: 6ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 7ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 8ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 9ms, proxy.ts: 4ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 9ms, proxy.ts: 5ms, render: 7ms)
+ POST /api/auth/refresh 200 in 28ms (compile: 11ms, proxy.ts: 4ms, render: 14ms)
+ GET /api/subscriptions/current 200 in 27ms (compile: 11ms, proxy.ts: 5ms, render: 11ms)
+ GET /api/subscriptions/entitlements 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 5ms)
+ GET /api/reminders?overdue=true 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 5ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
  GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 40ms (compile: 13ms, proxy.ts: 9ms, render: 18ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
-[notification-service] Unknown notification type "ai_analysis_complete". Valid types: deal_won, lead_reply, analysis, stage_advanced, payment_success, payment_failure, refund_processed, chargeback_received, subscription_renewed, subscription_cancelling, subscription_expired, credit_assigned, credit_low, payment, team_invite, system. Creating anyway.
-[2m2026-09-21T13:23:18.168Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
- GET /api/prospecting/pipeline/status?leadId=cmtsqzsym0059nptr6etpmvkp 200 in 19ms (compile: 7ms, proxy.ts: 4ms, render: 8ms)
-[2m2026-09-21T13:23:18.483Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"4c59b7da14954bdf9b724329380e4a47","method":"GET","path":"/api/leads","statusCode":200,"durationMs":5.75823500007391}[0m
- GET /api/leads?sortBy=createdAt&sortOrder=desc&page=1&limit=15 200 in 20ms (compile: 7ms, proxy.ts: 3ms, render: 10ms)
- GET /api/subscriptions/current 200 in 40ms (compile: 8ms, proxy.ts: 3ms, render: 28ms)
- POST /api/auth/refresh 200 in 27ms (compile: 7ms, proxy.ts: 6ms, render: 14ms)
+ GET /api/reminders?overdue=true 200 in 34ms (compile: 14ms, proxy.ts: 5ms, render: 15ms)
+ GET /api/reminders? 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:07:31.209Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":5}[0m
+ GET /api/meetings/reminders?limit=10 200 in 22ms (compile: 11ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 49ms (compile: 11ms, proxy.ts: 5ms, render: 33ms)
+ GET /api/reminders?overdue=true 200 in 48ms (compile: 36ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/events/notifications 200 in 3.0min (compile: 346ms, proxy.ts: 9ms, render: 3.0min)
+ POST /api/auth/refresh 200 in 25ms (compile: 9ms, proxy.ts: 4ms, render: 12ms)
+ GET /api/subscriptions/current 200 in 25ms (compile: 9ms, proxy.ts: 4ms, render: 12ms)
+ GET /api/subscriptions/entitlements 200 in 17ms (compile: 8ms, proxy.ts: 3ms, render: 6ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<17b156ab-9427-2da6-bc0c-0f4ddc6ad66b@gmail.com>, response=250 2.0.0 OK  1789999732 d2e1a72fcca58-877a69f2c99sm3380667b3a.1 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <17b156ab-9427-2da6-bc0c-0f4ddc6ad66b@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<17b156ab-9427-2da6-bc0c-0f4ddc6ad66b@gmail.com>
+ POST /api/auth/otp/request 200 in 3.4s (compile: 118ms, proxy.ts: 3ms, render: 3.3s)
+ POST /api/auth/otp/verify 200 in 135ms (compile: 95ms, proxy.ts: 4ms, render: 35ms)
+ PUT /api/settings/profile 200 in 163ms (compile: 144ms, proxy.ts: 6ms, render: 13ms)
+ GET /api/settings/profile 200 in 18ms (compile: 5ms, proxy.ts: 2ms, render: 10ms)
+ POST /api/auth/signout 200 in 91ms (compile: 78ms, proxy.ts: 3ms, render: 10ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<796cfb93-b99b-0cfe-9c34-c210f52b6f5d@gmail.com>, response=250 2.0.0 OK  1789999734 98e67ed59e1d1-3a023cf10bbsm5814189a91.3 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <796cfb93-b99b-0cfe-9c34-c210f52b6f5d@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<796cfb93-b99b-0cfe-9c34-c210f52b6f5d@gmail.com>
+ POST /api/auth/otp/request 200 in 2.3s (compile: 8ms, proxy.ts: 5ms, render: 2.2s)
+ POST /api/auth/otp/verify 200 in 34ms (compile: 8ms, proxy.ts: 3ms, render: 23ms)
+ GET /api/settings/profile 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<b504c064-3493-f3b6-7687-dc8ab652cba8@gmail.com>, response=250 2.0.0 OK  1789999737 d9443c01a7336-2ddc17ba234sm34815095ad.47 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <b504c064-3493-f3b6-7687-dc8ab652cba8@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<b504c064-3493-f3b6-7687-dc8ab652cba8@gmail.com>
+ POST /api/auth/otp/request 200 in 2.4s (compile: 9ms, proxy.ts: 3ms, render: 2.4s)
+ POST /api/auth/otp/verify 429 in 17ms (compile: 9ms, proxy.ts: 5ms, render: 4ms)
+ PUT /api/settings/profile 401 in 12ms (compile: 6ms, proxy.ts: 4ms, render: 3ms)
+ POST /api/auth/signout 200 in 13ms (compile: 8ms, proxy.ts: 2ms, render: 2ms)
+ POST /api/auth/otp/request 429 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ POST /api/auth/otp/verify 429 in 29ms (compile: 21ms, proxy.ts: 6ms, render: 2ms)
+ GET /api/settings/profile 401 in 20ms (compile: 14ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/settings/profile 200 in 31ms (compile: 11ms, proxy.ts: 4ms, render: 16ms)
+ POST /api/auth/otp/request 429 in 15ms (compile: 8ms, proxy.ts: 4ms, render: 3ms)
+ POST /api/auth/otp/verify 429 in 39ms (compile: 8ms, proxy.ts: 28ms, render: 3ms)
+ GET /api/reminders?overdue=true 200 in 23ms (compile: 8ms, proxy.ts: 5ms, render: 10ms)
+ GET /api/reminders? 200 in 29ms (compile: 9ms, proxy.ts: 13ms, render: 7ms)
+ GET /api/notifications?limit=20 200 in 20ms (compile: 6ms, proxy.ts: 3ms, render: 11ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:08:58.728Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":6}[0m
+ GET /api/meetings/reminders?limit=10 200 in 19ms (compile: 6ms, proxy.ts: 3ms, render: 9ms)
+ PUT /api/settings/onboarding 401 in 1071ms (compile: 1064ms, proxy.ts: 4ms, render: 4ms)
+ GET /api/settings/onboarding 401 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/settings/onboarding 401 in 11ms (compile: 7ms, proxy.ts: 3ms, render: 2ms)
+ GET /api/settings/notifications 401 in 59ms (compile: 52ms, proxy.ts: 4ms, render: 3ms)
+ PUT /api/settings/notifications 401 in 11ms (compile: 6ms, proxy.ts: 2ms, render: 3ms)
+ POST /api/auth/signout 200 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ POST /api/auth/otp/request 429 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ POST /api/auth/otp/verify 429 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ GET /api/settings/notifications 401 in 11ms (compile: 7ms, proxy.ts: 2ms, render: 2ms)
+ PUT /api/settings/notifications 401 in 17ms (compile: 12ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/auth/me 401 in 16ms (compile: 9ms, proxy.ts: 4ms, render: 3ms)
+[2m2026-09-21T14:08:59.486Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/leads → 401 [2m{"requestId":"f03d0ef582314f9691e01bf8c9ccaf04","method":"GET","path":"/api/leads","statusCode":401,"durationMs":0.3611289999971632}[0m
+ GET /api/leads?limit=200 401 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 3ms)
+ POST /api/auth/signout 200 in 10ms (compile: 6ms, proxy.ts: 2ms, render: 2ms)
+ POST /api/auth/otp/request 429 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ POST /api/auth/otp/verify 429 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/auth/me 401 in 13ms (compile: 8ms, proxy.ts: 2ms, render: 3ms)
+[2m2026-09-21T14:08:59.616Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/leads → 401 [2m{"requestId":"6d61c34a34454bf49c4f870554bd50de","method":"GET","path":"/api/leads","statusCode":401,"durationMs":0.2881210000196006}[0m
+ GET /api/leads?limit=200 401 in 12ms (compile: 7ms, proxy.ts: 2ms, render: 3ms)
+ GET /api/auth/me 401 in 14ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/notifications?limit=100 401 in 23ms (compile: 8ms, proxy.ts: 1959µs, render: 13ms)
+ POST /api/auth/signout 200 in 15ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 13ms (compile: 6ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 46ms (compile: 10ms, proxy.ts: 2ms, render: 33ms)
+ POST /api/auth/otp/verify 429 in 15ms (compile: 6ms, proxy.ts: 4ms, render: 5ms)
+ GET /api/auth/me 401 in 44ms (compile: 7ms, proxy.ts: 30ms, render: 7ms)
+[2m2026-09-21T14:08:59.926Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/leads → 401 [2m{"requestId":"200922f369604e5b9783ad417df7712b","method":"GET","path":"/api/leads","statusCode":401,"durationMs":0.3176589999930002}[0m
+ GET /api/leads?limit=200 401 in 12ms (compile: 6ms, proxy.ts: 4ms, render: 3ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 6ms, proxy.ts: 5ms, render: 9ms)
+ GET /api/leads/cmtsrc65f000jnpmcwjsum91n 401 in 1006ms (compile: 994ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 72ms (compile: 65ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 34ms (compile: 12ms, proxy.ts: 3ms, render: 19ms)
+ GET /api/leads/cmtsrc65f000jnpmcwjsum91n 401 in 20ms (compile: 12ms, proxy.ts: 3ms, render: 5ms)
+ PUT /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 20ms (compile: 13ms, proxy.ts: 3ms, render: 3ms)
+ DELETE /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 15ms (compile: 8ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/activities 401 in 685ms (compile: 664ms, proxy.ts: 2ms, render: 19ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/communications 401 in 652ms (compile: 632ms, proxy.ts: 3ms, render: 18ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/notes 401 in 646ms (compile: 626ms, proxy.ts: 4ms, render: 16ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/reminders 401 in 657ms (compile: 634ms, proxy.ts: 3ms, render: 19ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/outreach 405 in 648ms (compile: 633ms, proxy.ts: 3ms, render: 13ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/analyze 405 in 736ms (compile: 710ms, proxy.ts: 5ms, render: 21ms)
+[2m2026-09-21T14:09:05.555Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 401 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":401,"durationMs":0}[0m
+ POST /api/prospecting/pipeline/run 401 in 242ms (compile: 235ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/leads/export 401 in 223ms (compile: 217ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/credits 401 in 68ms (compile: 62ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/credits 401 in 13ms (compile: 7ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/credits/history 401 in 274ms (compile: 267ms, proxy.ts: 3ms, render: 4ms)
+[2m2026-09-21T14:09:06.278Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/workflows → 401 [2m{"requestId":"c212e8af5391429c8a796416f100fb1f","method":"GET","path":"/api/workflows","statusCode":401,"durationMs":0.4849990000075195}[0m
+ GET /api/workflows 401 in 81ms (compile: 74ms, proxy.ts: 3ms, render: 4ms)
+[2m2026-09-21T14:09:06.298Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/workflows → 401 [2m{"requestId":"c1e4d37fce6d4dbd9788b9f083e43048","method":"GET","path":"/api/workflows","statusCode":401,"durationMs":0.2841049999988172}[0m
+ GET /api/workflows 401 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/notifications?limit=100 401 in 11ms (compile: 6ms, proxy.ts: 3ms, render: 2ms)
+ GET /api/settings/api-keys 401 in 65ms (compile: 59ms, proxy.ts: 2ms, render: 3ms)
+ GET /api/settings/api-keys 401 in 11ms (compile: 6ms, proxy.ts: 2ms, render: 3ms)
+ GET /api/leads/proxy-pool 401 in 253ms (compile: 247ms, proxy.ts: 2ms, render: 3ms)
+ POST /api/leads/proxy-pool 401 in 11ms (compile: 6ms, proxy.ts: 3ms, render: 2ms)
+ GET /api/metrics 401 in 282ms (compile: 276ms, proxy.ts: 2ms, render: 4ms)
+ GET /api/metrics/dashboard 401 in 233ms (compile: 227ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/leads/discover/suggestions?niche=dental&country=USA 401 in 257ms (compile: 251ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/auth/debug 401 in 190ms (compile: 183ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/messaging/media/nonexistent-id-123 401 in 868ms (compile: 850ms, proxy.ts: 2ms, render: 15ms)
+ POST /api/auth/otp/request 429 in 21ms (compile: 13ms, proxy.ts: 4ms, render: 4ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 26ms (compile: 14ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 25ms (compile: 13ms, proxy.ts: 4ms, render: 9ms)
+ GET /api/reminders?overdue=true 200 in 19ms (compile: 10ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 9ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 26ms (compile: 14ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 10ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/subscriptions/current 200 in 28ms (compile: 10ms, proxy.ts: 3ms, render: 14ms)
+ POST /api/auth/refresh 200 in 26ms (compile: 9ms, proxy.ts: 6ms, render: 11ms)
  GET /api/subscriptions/entitlements 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
- GET / 200 in 41ms (compile: 3ms, proxy.ts: 3ms, render: 34ms)
- GET / 200 in 47ms (compile: 4ms, proxy.ts: 3ms, render: 40ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 23ms (compile: 8ms, proxy.ts: 6ms, render: 9ms)
- GET /api/reminders?overdue=true 200 in 30ms (compile: 10ms, proxy.ts: 13ms, render: 7ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 6ms, proxy.ts: 3ms, render: 13ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 8ms)
- POST /api/auth/refresh 200 in 20ms (compile: 6ms, proxy.ts: 4ms, render: 11ms)
- PATCH /api/notifications/cmub9zv7m0036mdx1ksq934rj/read 200 in 79ms (compile: 61ms, proxy.ts: 4ms, render: 14ms)
-Failed to invoke remote function: Error: Function invoke failed with status 500: {"result":null,"error":"Search failed: request failed with status 422: {\"code\":422,\"data\":null,\"message\":\"No search results available for query Cross Culture Restaurant resturant India contact details email phone owner information social media profiles\",\"name\":\"AssertionFailureError\",\"readableMessage\":\"AssertionFailureError: No search results available for query Cross Culture Restaurant resturant India contact details email phone owner information social media profiles\",\"status\":42206}\n"}
-    at async enrichLead (src/lib/lead-enrichment-service.ts:120:29)
-    at async (src/app/api/leads/[id]/enrich/route.ts:23:22)
-  118 |     let searchSnippet = '';
-  119 |     try {
-> 120 |       const searchResults = await zai.functions.invoke('web_search', {
-      |                             ^
-  121 |         query: searchQuery,
-  122 |         num: 5,
-  123 |       });
- GET /api/notifications?limit=5&unreadOnly=true 200 in 24ms (compile: 11ms, proxy.ts: 5ms, render: 8ms)
- GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 4ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<0aec3341-ced5-457c-71dd-c9ea594ef047@gmail.com>, response=250 2.0.0 OK  1789999815 41be03b00d2f7-cc72aea2da9sm3527377a12.18 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <0aec3341-ced5-457c-71dd-c9ea594ef047@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<0aec3341-ced5-457c-71dd-c9ea594ef047@gmail.com>
+ POST /api/auth/otp/request 200 in 2.4s (compile: 12ms, proxy.ts: 3ms, render: 2.4s)
+ POST /api/auth/otp/verify 200 in 30ms (compile: 7ms, proxy.ts: 4ms, render: 19ms)
+ PUT /api/settings/profile 200 in 19ms (compile: 7ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/settings/profile 200 in 21ms (compile: 9ms, proxy.ts: 3ms, render: 9ms)
+ POST /api/auth/signout 200 in 16ms (compile: 7ms, proxy.ts: 2ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<034a932a-5e44-9c8c-bc18-24c858ec81fd@gmail.com>, response=250 2.0.0 OK  1789999819 41be03b00d2f7-cc72ae70a9bsm3611981a12.10 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <034a932a-5e44-9c8c-bc18-24c858ec81fd@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<034a932a-5e44-9c8c-bc18-24c858ec81fd@gmail.com>
+ POST /api/auth/otp/request 200 in 2.8s (compile: 8ms, proxy.ts: 3ms, render: 2.8s)
+ POST /api/auth/otp/verify 200 in 31ms (compile: 8ms, proxy.ts: 3ms, render: 21ms)
+ GET /api/settings/profile 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<ba02686d-aa15-d785-ed77-5128e8dada3b@gmail.com>, response=250 2.0.0 OK  1789999824 41be03b00d2f7-cc72ae70637sm3617595a12.6 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <ba02686d-aa15-d785-ed77-5128e8dada3b@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<ba02686d-aa15-d785-ed77-5128e8dada3b@gmail.com>
+ POST /api/auth/otp/request 200 in 4.3s (compile: 7ms, proxy.ts: 2ms, render: 4.3s)
+ POST /api/auth/otp/verify 429 in 16ms (compile: 9ms, proxy.ts: 3ms, render: 4ms)
+ PUT /api/settings/profile 401 in 15ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/signout 200 in 23ms (compile: 11ms, proxy.ts: 7ms, render: 6ms)
+ POST /api/auth/otp/request 429 in 64ms (compile: 20ms, proxy.ts: 5ms, render: 38ms)
  GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
- GET /api/subscriptions/current 200 in 42ms (compile: 8ms, proxy.ts: 3ms, render: 30ms)
- POST /api/auth/refresh 200 in 51ms (compile: 17ms, proxy.ts: 19ms, render: 14ms)
- GET /api/subscriptions/entitlements 200 in 22ms (compile: 9ms, proxy.ts: 4ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/reminders?overdue=true 200 in 15ms (compile: 5ms, proxy.ts: 4ms, render: 5ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 27ms (compile: 16ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/subscriptions/current 200 in 33ms (compile: 10ms, proxy.ts: 4ms, render: 19ms)
+ GET /api/subscriptions/entitlements 200 in 16ms (compile: 8ms, proxy.ts: 3ms, render: 5ms)
+ POST /api/auth/otp/request 429 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 18ms (compile: 12ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 8ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+ POST /api/auth/refresh 200 in 25ms (compile: 10ms, proxy.ts: 4ms, render: 12ms)
+ POST /api/auth/otp/request 429 in 17ms (compile: 9ms, proxy.ts: 3ms, render: 6ms)
+ POST /api/auth/otp/verify 429 in 12ms (compile: 7ms, proxy.ts: 2ms, render: 2ms)
+ GET /api/subscriptions/current 200 in 22ms (compile: 9ms, proxy.ts: 3ms, render: 11ms)
+ GET /api/subscriptions/entitlements 200 in 19ms (compile: 10ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/settings/profile 401 in 15ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/settings/profile 200 in 19ms (compile: 7ms, proxy.ts: 3ms, render: 9ms)
+ POST /api/auth/otp/request 429 in 11ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 7ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/reminders?overdue=true 200 in 17ms (compile: 7ms, proxy.ts: 4ms, render: 5ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+ GET /api/events/notifications 200 in 3.0min (compile: 9ms, proxy.ts: 3ms, render: 3.0min)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<d86dee7e-d87f-fc82-c3a9-c4d089cc7b14@gmail.com>, response=250 2.0.0 OK  1789999906 d9443c01a7336-2ddc17881a2sm34539055ad.28 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <d86dee7e-d87f-fc82-c3a9-c4d089cc7b14@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<d86dee7e-d87f-fc82-c3a9-c4d089cc7b14@gmail.com>
+ POST /api/auth/otp/request 200 in 15.4s (compile: 7ms, proxy.ts: 3ms, render: 15.4s)
+ POST /api/auth/otp/verify 200 in 34ms (compile: 9ms, proxy.ts: 3ms, render: 22ms)
+ PUT /api/settings/onboarding 200 in 41ms (compile: 12ms, proxy.ts: 5ms, render: 24ms)
+ GET /api/settings/onboarding 200 in 26ms (compile: 12ms, proxy.ts: 4ms, render: 9ms)
+ GET /api/settings/onboarding 200 in 18ms (compile: 7ms, proxy.ts: 2ms, render: 8ms)
+ GET /api/settings/notifications 200 in 47ms (compile: 13ms, proxy.ts: 2ms, render: 31ms)
+ PUT /api/settings/notifications 200 in 22ms (compile: 9ms, proxy.ts: 3ms, render: 9ms)
+ POST /api/auth/signout 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<d2d87ab7-6b27-8ccf-6520-6572b2d7ab3b@gmail.com>, response=250 2.0.0 OK  1789999925 98e67ed59e1d1-3a06400accdsm239668a91.14 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <d2d87ab7-6b27-8ccf-6520-6572b2d7ab3b@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<d2d87ab7-6b27-8ccf-6520-6572b2d7ab3b@gmail.com>
+ POST /api/auth/otp/request 200 in 16.9s (compile: 6ms, proxy.ts: 2ms, render: 16.9s)
+ POST /api/auth/otp/verify 200 in 37ms (compile: 8ms, proxy.ts: 4ms, render: 25ms)
+ GET /api/settings/notifications 200 in 17ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+Update notification preferences error: SyntaxError: Unexpected token 'T', ..."lEnabled":True,"inAp"... is not valid JSON
+    at JSON.parse (<anonymous>)
+ PUT /api/settings/notifications 500 in 26ms (compile: 8ms, proxy.ts: 3ms, render: 15ms)
+ GET /api/auth/me 200 in 17ms (compile: 9ms, proxy.ts: 2ms, render: 5ms)
+[2m2026-09-21T14:12:06.350Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"e4735a0e7851411d8aff3127483f8018","method":"GET","path":"/api/leads","statusCode":200,"durationMs":6.768229999986943}[0m
+ GET /api/leads?limit=200 200 in 17ms (compile: 5ms, proxy.ts: 2ms, render: 9ms)
+ POST /api/auth/signout 200 in 14ms (compile: 5ms, proxy.ts: 2ms, render: 6ms)
+ POST /api/auth/otp/request 429 in 13ms (compile: 8ms, proxy.ts: 2ms, render: 2ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 32ms (compile: 11ms, proxy.ts: 6ms, render: 15ms)
+ GET /api/reminders?overdue=true 200 in 27ms (compile: 17ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 9ms, proxy.ts: 4ms, render: 8ms)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<c253fdff-911a-1dc9-6e55-ebf267b6f26c@gmail.com>, response=250 2.0.0 OK  1789999953 d9443c01a7336-2ddc179de41sm35147095ad.37 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <c253fdff-911a-1dc9-6e55-ebf267b6f26c@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<c253fdff-911a-1dc9-6e55-ebf267b6f26c@gmail.com>
+ POST /api/auth/otp/request 200 in 10.8s (compile: 6ms, proxy.ts: 3ms, render: 10.8s)
+ POST /api/auth/otp/verify 200 in 32ms (compile: 7ms, proxy.ts: 3ms, render: 22ms)
+ GET /api/auth/me 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[2m2026-09-21T14:12:34.306Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"d2f1080a089546e689490f047843c42f","method":"GET","path":"/api/leads","statusCode":200,"durationMs":4.7961340000038035}[0m
+ GET /api/leads?limit=200 200 in 15ms (compile: 6ms, proxy.ts: 1942µs, render: 7ms)
+ GET /api/auth/me 200 in 16ms (compile: 8ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/notifications?limit=100 200 in 13ms (compile: 6ms, proxy.ts: 1966µs, render: 5ms)
+ POST /api/auth/signout 200 in 13ms (compile: 5ms, proxy.ts: 2ms, render: 6ms)
+ POST /api/auth/otp/request 429 in 9ms (compile: 5ms, proxy.ts: 2ms, render: 1999µs)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<c00a0aca-1c3b-d407-42b1-df694f3c28f0@gmail.com>, response=250 2.0.0 OK  1789999972 41be03b00d2f7-cc72aee03efsm3570262a12.24 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <c00a0aca-1c3b-d407-42b1-df694f3c28f0@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<c00a0aca-1c3b-d407-42b1-df694f3c28f0@gmail.com>
+ POST /api/auth/otp/request 200 in 2.4s (compile: 7ms, proxy.ts: 4ms, render: 2.3s)
+ POST /api/auth/otp/verify 200 in 31ms (compile: 9ms, proxy.ts: 3ms, render: 19ms)
+ GET /api/auth/me 200 in 22ms (compile: 11ms, proxy.ts: 5ms, render: 7ms)
+[2m2026-09-21T14:12:53.951Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"10749c07c9f7483099665e2261f55a36","method":"GET","path":"/api/leads","statusCode":200,"durationMs":7.305196000030264}[0m
+ GET /api/leads?limit=200 200 in 22ms (compile: 9ms, proxy.ts: 3ms, render: 11ms)
+ GET /api/leads/cmtsrc65f000jnpmcwjsum91n 403 in 72ms (compile: 57ms, proxy.ts: 2ms, render: 13ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 15ms (compile: 9ms, proxy.ts: 2ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 200 in 22ms (compile: 13ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/leads/cmtsrc65f000jnpmcwjsum91n 401 in 18ms (compile: 13ms, proxy.ts: 3ms, render: 2ms)
+ PUT /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 14ms (compile: 8ms, proxy.ts: 2ms, render: 3ms)
+ DELETE /api/leads/cmqme6hgj0023rc2j1d2dhukv 401 in 36ms (compile: 30ms, proxy.ts: 2ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/activities 401 in 53ms (compile: 47ms, proxy.ts: 2ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/communications 401 in 52ms (compile: 46ms, proxy.ts: 2ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/notes 401 in 143ms (compile: 138ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/reminders 401 in 253ms (compile: 247ms, proxy.ts: 3ms, render: 4ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/outreach 405 in 370ms (compile: 360ms, proxy.ts: 8ms, render: 3ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/analyze 405 in 204ms (compile: 198ms, proxy.ts: 3ms, render: 4ms)
+[LeadResolution] LEAD_ACCESS_DENIED: lead=cmtsrc65f000jnpmcwjsum91n belongs to user=cmqrtgnjx0000qfgnsbhzyzxq, requester=cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:12:55.703Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 404 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":404,"durationMs":70}[0m
+ POST /api/prospecting/pipeline/run 404 in 97ms (compile: 17ms, proxy.ts: 3ms, render: 77ms)
+ GET /api/leads/export 401 in 13ms (compile: 6ms, proxy.ts: 2ms, render: 5ms)
+ GET /api/credits 200 in 145ms (compile: 36ms, proxy.ts: 11ms, render: 98ms)
+ GET /api/credits 401 in 45ms (compile: 25ms, proxy.ts: 5ms, render: 15ms)
+ GET /api/credits/history 200 in 82ms (compile: 11ms, proxy.ts: 3ms, render: 68ms)
+[2m2026-09-21T14:12:56.602Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/workflows → 200 [2m{"requestId":"006800c2333b4752958cc6cc6a6a97dd","method":"GET","path":"/api/workflows","statusCode":200,"durationMs":114.5154540000367}[0m
+ GET /api/workflows 200 in 208ms (compile: 28ms, proxy.ts: 9ms, render: 171ms)
+[2m2026-09-21T14:12:56.653Z[0m [33m[1mWARN [0m [2m[api][0m GET /api/workflows → 401 [2m{"requestId":"2859e01fa0c349d98a6fa07117f8b2f9","method":"GET","path":"/api/workflows","statusCode":401,"durationMs":0.19939700001850724}[0m
+ GET /api/workflows 401 in 17ms (compile: 8ms, proxy.ts: 2ms, render: 6ms)
+ GET /api/notifications?limit=100 200 in 85ms (compile: 14ms, proxy.ts: 2ms, render: 69ms)
+ GET /api/settings/api-keys 200 in 61ms (compile: 41ms, proxy.ts: 3ms, render: 16ms)
+ GET /api/settings/api-keys 401 in 16ms (compile: 6ms, proxy.ts: 2ms, render: 8ms)
+ GET /api/leads/proxy-pool 403 in 81ms (compile: 18ms, proxy.ts: 2ms, render: 61ms)
+ POST /api/leads/proxy-pool 403 in 21ms (compile: 12ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/metrics 403 in 29ms (compile: 6ms, proxy.ts: 2ms, render: 21ms)
+ GET /api/metrics/dashboard 403 in 13ms (compile: 6ms, proxy.ts: 3ms, render: 5ms)
+ GET /api/leads/discover/suggestions?niche=dental&country=USA 401 in 14ms (compile: 6ms, proxy.ts: 5ms, render: 3ms)
+ GET /api/auth/debug 403 in 13ms (compile: 6ms, proxy.ts: 3ms, render: 5ms)
+ GET /api/messaging/media/nonexistent-id-123 404 in 66ms (compile: 51ms, proxy.ts: 2ms, render: 12ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 7ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 10ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 7ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 28ms (compile: 6ms, proxy.ts: 3ms, render: 19ms)
+ GET /api/reminders?overdue=true 200 in 17ms (compile: 6ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+ POST /api/auth/refresh 200 in 25ms (compile: 8ms, proxy.ts: 4ms, render: 13ms)
+ GET /api/subscriptions/current 200 in 25ms (compile: 9ms, proxy.ts: 4ms, render: 12ms)
+ GET /api/subscriptions/entitlements 200 in 18ms (compile: 9ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 23ms (compile: 10ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 11ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 9ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 11ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/reminders?overdue=true 200 in 21ms (compile: 7ms, proxy.ts: 2ms, render: 12ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 23ms (compile: 9ms, proxy.ts: 5ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 10ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 20ms (compile: 10ms, proxy.ts: 3ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<4aed5187-320a-69ba-576a-fbf94321dc5f@gmail.com>, response=250 2.0.0 OK  1790000122 98e67ed59e1d1-3a063fc6c2csm299591a91.9 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <4aed5187-320a-69ba-576a-fbf94321dc5f@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<4aed5187-320a-69ba-576a-fbf94321dc5f@gmail.com>
+ POST /api/auth/otp/request 200 in 2.1s (compile: 10ms, proxy.ts: 4ms, render: 2.1s)
+ POST /api/auth/otp/verify 200 in 33ms (compile: 10ms, proxy.ts: 3ms, render: 21ms)
+ GET /api/auth/me 200 in 18ms (compile: 10ms, proxy.ts: 3ms, render: 6ms)
+ PUT /api/settings/profile 200 in 20ms (compile: 7ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/settings/profile 200 in 16ms (compile: 6ms, proxy.ts: 2ms, render: 7ms)
+ POST /api/auth/signout 200 in 20ms (compile: 8ms, proxy.ts: 4ms, render: 8ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 6ms, proxy.ts: 3ms, render: 10ms)
+ GET /api/reminders?overdue=true 200 in 17ms (compile: 6ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/subscriptions/current 200 in 20ms (compile: 8ms, proxy.ts: 2ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 15ms (compile: 7ms, proxy.ts: 2ms, render: 6ms)
+ GET /api/subscriptions/entitlements 200 in 14ms (compile: 6ms, proxy.ts: 2ms, render: 6ms)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<707014e4-98f4-1f56-3356-9181a99ba60d@gmail.com>, response=250 2.0.0 OK  1790000134 41be03b00d2f7-cc72ae70637sm3627191a12.6 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <707014e4-98f4-1f56-3356-9181a99ba60d@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<707014e4-98f4-1f56-3356-9181a99ba60d@gmail.com>
+ POST /api/auth/otp/request 200 in 10.4s (compile: 7ms, proxy.ts: 3ms, render: 10.3s)
+ POST /api/auth/otp/verify 200 in 30ms (compile: 6ms, proxy.ts: 3ms, render: 21ms)
+ GET /api/auth/me 200 in 15ms (compile: 5ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/settings/profile 200 in 35ms (compile: 15ms, proxy.ts: 3ms, render: 16ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<8bceade0-d54d-80ae-5bd8-286c041c4ce2@gmail.com>, response=250 2.0.0 OK  1790000138 98e67ed59e1d1-3a063bf8ddfsm281049a91.14 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <8bceade0-d54d-80ae-5bd8-286c041c4ce2@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<8bceade0-d54d-80ae-5bd8-286c041c4ce2@gmail.com>
+ POST /api/auth/otp/request 200 in 2.6s (compile: 5ms, proxy.ts: 3ms, render: 2.6s)
+ POST /api/auth/otp/verify 429 in 10ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ GET /api/auth/me 401 in 12ms (compile: 7ms, proxy.ts: 1803µs, render: 3ms)
+ POST /api/auth/otp/request 429 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/verify 429 in 9ms (compile: 5ms, proxy.ts: 2ms, render: 2ms)
+ PUT /api/settings/profile 401 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/signout 200 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 11ms (compile: 6ms, proxy.ts: 3ms, render: 2ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 27ms (compile: 10ms, proxy.ts: 5ms, render: 12ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 21ms (compile: 10ms, proxy.ts: 3ms, render: 8ms)
+ POST /api/auth/otp/request 429 in 13ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+ POST /api/auth/otp/verify 200 in 31ms (compile: 10ms, proxy.ts: 2ms, render: 19ms)
+ GET /api/auth/me 200 in 17ms (compile: 8ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/settings/profile 200 in 21ms (compile: 9ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/settings/profile 200 in 18ms (compile: 7ms, proxy.ts: 4ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 35ms (compile: 13ms, proxy.ts: 12ms, render: 9ms)
+ GET /api/reminders?overdue=true 200 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 9ms, proxy.ts: 5ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 6ms, proxy.ts: 4ms, render: 7ms)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<8cd522c1-29a4-e5a7-2a4f-12c2845d2a18@gmail.com>, response=250 2.0.0 OK  1790000190 98e67ed59e1d1-3a063f33101sm278897a91.2 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <8cd522c1-29a4-e5a7-2a4f-12c2845d2a18@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<8cd522c1-29a4-e5a7-2a4f-12c2845d2a18@gmail.com>
+ POST /api/auth/otp/request 200 in 2.1s (compile: 7ms, proxy.ts: 3ms, render: 2.1s)
+ POST /api/auth/otp/verify 429 in 14ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/auth/me 401 in 12ms (compile: 7ms, proxy.ts: 2ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 17ms (compile: 10ms, proxy.ts: 3ms, render: 5ms)
+ POST /api/auth/otp/verify 200 in 28ms (compile: 8ms, proxy.ts: 2ms, render: 17ms)
+ PUT /api/settings/onboarding 200 in 126ms (compile: 69ms, proxy.ts: 3ms, render: 55ms)
+ GET /api/settings/onboarding 200 in 108ms (compile: 63ms, proxy.ts: 6ms, render: 39ms)
+ GET /api/settings/onboarding 200 in 29ms (compile: 7ms, proxy.ts: 3ms, render: 20ms)
+ GET /api/settings/notifications 200 in 45ms (compile: 35ms, proxy.ts: 2ms, render: 8ms)
+ PUT /api/settings/notifications 200 in 19ms (compile: 6ms, proxy.ts: 4ms, render: 10ms)
+ POST /api/auth/signout 200 in 34ms (compile: 5ms, proxy.ts: 1978µs, render: 28ms)
+ POST /api/auth/otp/request 429 in 9ms (compile: 5ms, proxy.ts: 3ms, render: 1957µs)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 7ms)
+ POST /api/auth/otp/request 429 in 15ms (compile: 8ms, proxy.ts: 3ms, render: 4ms)
+ POST /api/auth/otp/request 429 in 12ms (compile: 6ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 22ms (compile: 12ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/reminders?overdue=true 200 in 18ms (compile: 8ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 14ms (compile: 6ms, proxy.ts: 2ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<f6ef3360-e36e-886e-8e3d-e0311e3c7345@gmail.com>, response=250 2.0.0 OK  1790000258 98e67ed59e1d1-3a063f89db3sm296833a91.7 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <f6ef3360-e36e-886e-8e3d-e0311e3c7345@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<f6ef3360-e36e-886e-8e3d-e0311e3c7345@gmail.com>
+ POST /api/auth/otp/request 200 in 2.1s (compile: 11ms, proxy.ts: 3ms, render: 2.1s)
+ POST /api/auth/otp/verify 200 in 34ms (compile: 9ms, proxy.ts: 4ms, render: 21ms)
+ GET /api/auth/me 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/settings/notifications 200 in 18ms (compile: 8ms, proxy.ts: 3ms, render: 7ms)
+Update notification preferences error: SyntaxError: Unexpected token 'F', ..."lEnabled":False,"inA"... is not valid JSON
+    at JSON.parse (<anonymous>)
+ PUT /api/settings/notifications 500 in 19ms (compile: 8ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/auth/me 200 in 14ms (compile: 6ms, proxy.ts: 2ms, render: 6ms)
+[2m2026-09-21T14:17:39.870Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"997f8b6cfb734ed99318971663ae8e46","method":"GET","path":"/api/leads","statusCode":200,"durationMs":7.146363000036217}[0m
+ GET /api/leads?limit=200 200 in 19ms (compile: 7ms, proxy.ts: 2ms, render: 10ms)
+ POST /api/auth/signout 200 in 18ms (compile: 7ms, proxy.ts: 3ms, render: 8ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<905e7da5-fdff-6299-0321-81629f01233a@gmail.com>, response=250 2.0.0 OK  1790000263 d9443c01a7336-2ddc179e248sm34887315ad.36 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <905e7da5-fdff-6299-0321-81629f01233a@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<905e7da5-fdff-6299-0321-81629f01233a@gmail.com>
+ POST /api/auth/otp/request 200 in 3.6s (compile: 7ms, proxy.ts: 2ms, render: 3.6s)
+ POST /api/auth/otp/verify 429 in 14ms (compile: 7ms, proxy.ts: 4ms, render: 3ms)
+ GET /api/auth/me 401 in 12ms (compile: 8ms, proxy.ts: 1976µs, render: 3ms)
+ POST /api/auth/otp/request 429 in 15ms (compile: 6ms, proxy.ts: 3ms, render: 5ms)
+ POST /api/auth/otp/verify 200 in 33ms (compile: 11ms, proxy.ts: 2ms, render: 19ms)
+ GET /api/auth/me 200 in 20ms (compile: 9ms, proxy.ts: 4ms, render: 6ms)
+[2m2026-09-21T14:18:00.727Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"adf84b3d1de94367b4dd7be97e4f566c","method":"GET","path":"/api/leads","statusCode":200,"durationMs":4.759795999969356}[0m
+ GET /api/leads?limit=200 200 in 17ms (compile: 7ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/auth/me 200 in 16ms (compile: 8ms, proxy.ts: 3ms, render: 5ms)
+ GET /api/notifications?limit=100 200 in 17ms (compile: 8ms, proxy.ts: 3ms, render: 6ms)
+ POST /api/auth/signout 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 8ms)
+ POST /api/auth/otp/request 429 in 10ms (compile: 5ms, proxy.ts: 3ms, render: 2ms)
+ POST /api/auth/otp/request 429 in 16ms (compile: 10ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 17ms (compile: 9ms, proxy.ts: 5ms, render: 3ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<ce84cd72-7a9a-d58c-f527-7de31da37bb8@gmail.com>, response=250 2.0.0 OK  1790000331 d9443c01a7336-2ddc17ba2c5sm35008755ad.49 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <ce84cd72-7a9a-d58c-f527-7de31da37bb8@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<ce84cd72-7a9a-d58c-f527-7de31da37bb8@gmail.com>
+ POST /api/auth/otp/request 200 in 2.9s (compile: 10ms, proxy.ts: 3ms, render: 2.9s)
+ POST /api/auth/otp/verify 200 in 34ms (compile: 10ms, proxy.ts: 3ms, render: 21ms)
+ GET /api/auth/me 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/auth/me 200 in 18ms (compile: 9ms, proxy.ts: 3ms, render: 6ms)
+[2m2026-09-21T14:18:52.938Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"c513502d9f2c4576ad0cd8d6cae993f2","method":"GET","path":"/api/leads","statusCode":200,"durationMs":7.191569000016898}[0m
+ GET /api/leads?limit=200 200 in 20ms (compile: 7ms, proxy.ts: 3ms, render: 10ms)
+ POST /api/auth/signout 200 in 14ms (compile: 6ms, proxy.ts: 2ms, render: 6ms)
+ POST /api/auth/signout 200 in 10ms (compile: 6ms, proxy.ts: 2ms, render: 1936µs)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<2cde625b-024b-ba69-35e7-970b9e710fb5@gmail.com>, response=250 2.0.0 OK  1790000335 98e67ed59e1d1-3a063f88484sm263982a91.6 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <2cde625b-024b-ba69-35e7-970b9e710fb5@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<2cde625b-024b-ba69-35e7-970b9e710fb5@gmail.com>
+ POST /api/auth/otp/request 200 in 2.2s (compile: 7ms, proxy.ts: 3ms, render: 2.2s)
+ POST /api/auth/otp/verify 429 in 16ms (compile: 9ms, proxy.ts: 4ms, render: 3ms)
+ GET /api/auth/me 401 in 15ms (compile: 9ms, proxy.ts: 4ms, render: 2ms)
+ POST /api/auth/otp/request 429 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+ POST /api/auth/otp/verify 200 in 28ms (compile: 7ms, proxy.ts: 2ms, render: 18ms)
+ POST /api/auth/otp/request 429 in 14ms (compile: 8ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 15ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 17ms (compile: 10ms, proxy.ts: 3ms, render: 3ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<1c7ba4c2-0bf5-6bd5-966a-9ae525ce9423@gmail.com>, response=250 2.0.0 OK  1790000402 98e67ed59e1d1-3a063f88484sm268260a91.6 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <1c7ba4c2-0bf5-6bd5-966a-9ae525ce9423@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<1c7ba4c2-0bf5-6bd5-966a-9ae525ce9423@gmail.com>
+ POST /api/auth/otp/request 200 in 2.4s (compile: 9ms, proxy.ts: 3ms, render: 2.4s)
+ POST /api/auth/otp/verify 200 in 34ms (compile: 10ms, proxy.ts: 3ms, render: 21ms)
+ GET /api/auth/me 200 in 18ms (compile: 9ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/leads/cmtsrc65f000jnpmcwjsum91n 403 in 129ms (compile: 65ms, proxy.ts: 3ms, render: 61ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 403 in 206ms (compile: 93ms, proxy.ts: 22ms, render: 92ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv 200 in 17ms (compile: 9ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/leads/cmtsrc65f000jnpmcwjsum91n 200 in 19ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+ PUT /api/leads/cmqme6hgj0023rc2j1d2dhukv 403 in 19ms (compile: 10ms, proxy.ts: 3ms, render: 6ms)
+ DELETE /api/leads/cmqme6hgj0023rc2j1d2dhukv 403 in 15ms (compile: 6ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/activities 403 in 64ms (compile: 51ms, proxy.ts: 2ms, render: 10ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/communications 403 in 199ms (compile: 150ms, proxy.ts: 3ms, render: 46ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/notes 403 in 191ms (compile: 170ms, proxy.ts: 6ms, render: 16ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/reminders 403 in 225ms (compile: 200ms, proxy.ts: 8ms, render: 17ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/outreach 405 in 199ms (compile: 193ms, proxy.ts: 2ms, render: 3ms)
+ GET /api/leads/cmqme6hgj0023rc2j1d2dhukv/analyze 405 in 287ms (compile: 278ms, proxy.ts: 3ms, render: 6ms)
+[LeadResolution] LEAD_ACCESS_DENIED: lead=cmtsrc65f000jnpmcwjsum91n belongs to user=cmqrtgnjx0000qfgnsbhzyzxq, requester=cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:20:06.024Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 404 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":404,"durationMs":73}[0m
+ POST /api/prospecting/pipeline/run 404 in 120ms (compile: 22ms, proxy.ts: 5ms, render: 93ms)
+ GET /api/leads/export 401 in 32ms (compile: 16ms, proxy.ts: 3ms, render: 13ms)
+ GET /api/credits 200 in 58ms (compile: 25ms, proxy.ts: 3ms, render: 30ms)
+ GET /api/credits 200 in 70ms (compile: 17ms, proxy.ts: 3ms, render: 50ms)
+ GET /api/credits/history 200 in 93ms (compile: 28ms, proxy.ts: 3ms, render: 63ms)
+[2m2026-09-21T14:20:06.691Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/workflows → 200 [2m{"requestId":"15be5d6c294f413d86f76f88bcafdaea","method":"GET","path":"/api/workflows","statusCode":200,"durationMs":31.320896000019275}[0m
+ GET /api/workflows 200 in 54ms (compile: 13ms, proxy.ts: 3ms, render: 38ms)
+[2m2026-09-21T14:20:06.816Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/workflows → 200 [2m{"requestId":"b258d589d8bc425787be30257638186b","method":"GET","path":"/api/workflows","statusCode":200,"durationMs":17.77295100002084}[0m
+ GET /api/workflows 200 in 75ms (compile: 43ms, proxy.ts: 5ms, render: 27ms)
+ GET /api/notifications?limit=100 200 in 64ms (compile: 37ms, proxy.ts: 4ms, render: 23ms)
+ GET /api/settings/api-keys 200 in 82ms (compile: 17ms, proxy.ts: 3ms, render: 63ms)
+ GET /api/settings/api-keys 200 in 45ms (compile: 29ms, proxy.ts: 3ms, render: 14ms)
+ GET /api/leads/proxy-pool 403 in 21ms (compile: 6ms, proxy.ts: 3ms, render: 12ms)
+ POST /api/leads/proxy-pool 403 in 41ms (compile: 7ms, proxy.ts: 3ms, render: 31ms)
+ GET /api/metrics 403 in 18ms (compile: 6ms, proxy.ts: 6ms, render: 6ms)
+ GET /api/metrics/dashboard 403 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/leads/discover/suggestions?niche=dental&country=USA 401 in 18ms (compile: 12ms, proxy.ts: 2ms, render: 3ms)
+ GET /api/auth/debug 403 in 15ms (compile: 7ms, proxy.ts: 3ms, render: 5ms)
+ GET /api/messaging/media/nonexistent-id-123 404 in 68ms (compile: 54ms, proxy.ts: 2ms, render: 11ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<0ae0186c-023b-4452-f384-beff8126c920@gmail.com>, response=250 2.0.0 OK  1790000458 d2e1a72fcca58-877a6bec90dsm3360203b3a.8 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <0ae0186c-023b-4452-f384-beff8126c920@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<0ae0186c-023b-4452-f384-beff8126c920@gmail.com>
+ POST /api/auth/otp/request 200 in 8.1s (compile: 9ms, proxy.ts: 8ms, render: 8.1s)
+ POST /api/auth/otp/verify 200 in 37ms (compile: 13ms, proxy.ts: 3ms, render: 21ms)
+ GET /api/auth/me 200 in 21ms (compile: 11ms, proxy.ts: 3ms, render: 7ms)
+ PUT /api/settings/profile 200 in 21ms (compile: 9ms, proxy.ts: 3ms, render: 10ms)
+ POST /api/auth/signout 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<2acf7a8a-69c4-176a-d46d-1509ad5b2d5f@gmail.com>, response=250 2.0.0 OK  1790000472 d9443c01a7336-2ddc18032e5sm34801345ad.76 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <2acf7a8a-69c4-176a-d46d-1509ad5b2d5f@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<2acf7a8a-69c4-176a-d46d-1509ad5b2d5f@gmail.com>
+ POST /api/auth/otp/request 200 in 10.7s (compile: 9ms, proxy.ts: 3ms, render: 10.7s)
+ POST /api/auth/otp/verify 200 in 31ms (compile: 6ms, proxy.ts: 3ms, render: 22ms)
+ GET /api/auth/me 200 in 32ms (compile: 22ms, proxy.ts: 4ms, render: 5ms)
+ GET /api/settings/profile 200 in 36ms (compile: 15ms, proxy.ts: 8ms, render: 13ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<76572930-4fd4-82e0-4145-f6c102365cb2@gmail.com>, response=250 2.0.0 OK  1790000487 d9443c01a7336-2ddc179df35sm35053105ad.40 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <76572930-4fd4-82e0-4145-f6c102365cb2@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<76572930-4fd4-82e0-4145-f6c102365cb2@gmail.com>
+ POST /api/auth/otp/request 200 in 2.5s (compile: 9ms, proxy.ts: 3ms, render: 2.5s)
+ POST /api/auth/otp/verify 429 in 15ms (compile: 9ms, proxy.ts: 3ms, render: 3ms)
+ GET /api/auth/me 401 in 13ms (compile: 7ms, proxy.ts: 2ms, render: 4ms)
+ POST /api/auth/otp/request 429 in 16ms (compile: 10ms, proxy.ts: 3ms, render: 3ms)
+ POST /api/auth/otp/request 429 in 18ms (compile: 9ms, proxy.ts: 4ms, render: 5ms)
+ POST /api/auth/otp/verify 200 in 26ms (compile: 7ms, proxy.ts: 3ms, render: 17ms)
+ GET /api/auth/me 200 in 19ms (compile: 8ms, proxy.ts: 4ms, render: 6ms)
+ PUT /api/settings/profile 200 in 23ms (compile: 7ms, proxy.ts: 3ms, render: 13ms)
+ POST /api/auth/signout 200 in 16ms (compile: 7ms, proxy.ts: 2ms, render: 7ms)
+[EmailService] sendEmail called: to=mailtoprabhat72@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<f58460af-1b6b-3cb4-5487-1fc68f3c7646@gmail.com>, response=250 2.0.0 OK  1790000533 98e67ed59e1d1-3a063c1995dsm310709a91.16 - gsmtp
+[EmailService] ✓ Sent via SMTP to mailtoprabhat72@gmail.com (id: <f58460af-1b6b-3cb4-5487-1fc68f3c7646@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<f58460af-1b6b-3cb4-5487-1fc68f3c7646@gmail.com>
+ POST /api/auth/otp/request 200 in 2.8s (compile: 8ms, proxy.ts: 3ms, render: 2.8s)
+ POST /api/auth/otp/verify 200 in 30ms (compile: 8ms, proxy.ts: 3ms, render: 19ms)
+ GET /api/auth/me 200 in 18ms (compile: 8ms, proxy.ts: 2ms, render: 8ms)
+ GET /api/settings/profile 200 in 23ms (compile: 12ms, proxy.ts: 4ms, render: 7ms)
+[2m2026-09-21T14:22:18.757Z[0m [32m[1mINFO [0m [2m[api][0m API POST prospecting/pipeline/run → 200 [2m{"method":"POST","path":"/api/prospecting/pipeline/run","route":"prospecting/pipeline/run","statusCode":200,"durationMs":25}[0m
+ POST /api/prospecting/pipeline/run 200 in 37ms (compile: 6ms, proxy.ts: 3ms, render: 28ms)
+[2m2026-09-21T14:22:30.418Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":6}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc65f000jnpmcwjsum91n 200 in 94ms (compile: 81ms, proxy.ts: 3ms, render: 10ms)
+[2m2026-09-21T14:22:35.466Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":6}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc65f000jnpmcwjsum91n 200 in 20ms (compile: 7ms, proxy.ts: 3ms, render: 10ms)
+[notification-service] Unknown notification type "ai_analysis_complete". Valid types: deal_won, lead_reply, analysis, stage_advanced, payment_success, payment_failure, refund_processed, chargeback_received, subscription_renewed, subscription_cancelling, subscription_expired, credit_assigned, credit_low, payment, team_invite, system. Creating anyway.
+[2m2026-09-21T14:22:40.505Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":4}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc65f000jnpmcwjsum91n 200 in 23ms (compile: 13ms, proxy.ts: 3ms, render: 7ms)
+[2m2026-09-21T14:22:49.913Z[0m [32m[1mINFO [0m [2m[api][0m API GET prospecting/pipeline/status → 200 [2m{"method":"GET","path":"/api/prospecting/pipeline/status","route":"prospecting/pipeline/status","statusCode":200,"durationMs":5}[0m
+ GET /api/prospecting/pipeline/status?leadId=cmtsrc65f000jnpmcwjsum91n 200 in 19ms (compile: 7ms, proxy.ts: 4ms, render: 8ms)
+ GET / 200 in 196ms (compile: 14ms, proxy.ts: 4ms, render: 178ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 401 in 25ms (compile: 15ms, proxy.ts: 4ms, render: 6ms)
+ GET /api/auth/me 401 in 19ms (compile: 8ms, proxy.ts: 6ms, render: 5ms)
+ POST /api/auth/refresh 401 in 31ms (compile: 7ms, proxy.ts: 21ms, render: 3ms)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<9a5d6f45-39ed-36af-a73c-133568234b98@gmail.com>, response=250 2.0.0 OK  1790000629 d9443c01a7336-2ddc179dbd5sm35164965ad.39 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <9a5d6f45-39ed-36af-a73c-133568234b98@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<9a5d6f45-39ed-36af-a73c-133568234b98@gmail.com>
+ POST /api/auth/otp/request 200 in 4.1s (compile: 18ms, proxy.ts: 19ms, render: 4.0s)
+ POST /api/auth/otp/verify 200 in 67ms (compile: 15ms, proxy.ts: 4ms, render: 48ms)
+ GET / 200 in 170ms (compile: 3ms, proxy.ts: 3ms, render: 163ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 24ms (compile: 15ms, proxy.ts: 3ms, render: 7ms)
+ GET /api/auth/me 200 in 24ms (compile: 12ms, proxy.ts: 4ms, render: 8ms)
+ GET /api/notifications?limit=20 200 in 270ms (compile: 47ms, proxy.ts: 55ms, render: 169ms)
+ GET /api/reminders? 200 in 274ms (compile: 195ms, proxy.ts: 55ms, render: 24ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+ GET /api/reminders?overdue=true 200 in 341ms (compile: 40ms, proxy.ts: 192ms, render: 109ms)
+[2m2026-09-21T14:23:56.152Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":29}[0m
+ GET /api/meetings/reminders?limit=10 200 in 371ms (compile: 119ms, proxy.ts: 186ms, render: 66ms)
+ GET /api/settings/onboarding 200 in 300ms (compile: 110ms, proxy.ts: 102ms, render: 88ms)
+ GET /api/notifications?limit=20 200 in 255ms (compile: 93ms, proxy.ts: 106ms, render: 57ms)
+ GET /api/notifications?limit=20 200 in 266ms (compile: 83ms, proxy.ts: 95ms, render: 88ms)
+ GET /api/reminders?overdue=true 200 in 186ms (compile: 89ms, proxy.ts: 71ms, render: 25ms)
+ GET /api/subscriptions/current 200 in 328ms (compile: 62ms, proxy.ts: 102ms, render: 164ms)
+ GET /api/reminders?overdue=true 200 in 124ms (compile: 27ms, proxy.ts: 85ms, render: 12ms)
+ GET /api/leads/stats 200 in 118ms (compile: 71ms, proxy.ts: 14ms, render: 33ms)
+ GET /api/settings/onboarding 200 in 145ms (compile: 31ms, proxy.ts: 14ms, render: 101ms)
+[2m2026-09-21T14:23:56.603Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"585aa214670c43a9ae30404ddc34d39e","method":"GET","path":"/api/leads","statusCode":200,"durationMs":74.79416500008665}[0m
+ GET /api/leads?sortBy=conversionScore&sortOrder=desc 200 in 182ms (compile: 80ms, proxy.ts: 23ms, render: 80ms)
+ GET /api/deals 200 in 184ms (compile: 94ms, proxy.ts: 25ms, render: 65ms)
+[2m2026-09-21T14:23:56.641Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings → 200 [2m{"method":"GET","path":"/api/meetings","route":"meetings","statusCode":200,"durationMs":12}[0m
+ GET /api/meetings 200 in 133ms (compile: 66ms, proxy.ts: 52ms, render: 15ms)
+[2m2026-09-21T14:23:56.696Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/stats → 200 [2m{"method":"GET","path":"/api/meetings/stats","route":"meetings/stats","statusCode":200,"durationMs":41}[0m
+ GET /api/meetings/stats 200 in 136ms (compile: 34ms, proxy.ts: 56ms, render: 46ms)
+ GET /api/subscriptions/entitlements 200 in 87ms (compile: 52ms, proxy.ts: 25ms, render: 10ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 40ms (compile: 23ms, proxy.ts: 3ms, render: 14ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 72ms (compile: 35ms, proxy.ts: 5ms, render: 32ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 72ms (compile: 50ms, proxy.ts: 5ms, render: 17ms)
+ GET /api/settings/notifications 200 in 253ms (compile: 51ms, proxy.ts: 12ms, render: 190ms)
+ GET /api/settings/profile 200 in 276ms (compile: 69ms, proxy.ts: 14ms, render: 193ms)
+ GET /api/settings/appearance 200 in 286ms (compile: 131ms, proxy.ts: 16ms, render: 139ms)
+ GET /api/payments/history 200 in 283ms (compile: 166ms, proxy.ts: 12ms, render: 105ms)
+ GET /api/subscriptions/current 200 in 358ms (compile: 37ms, proxy.ts: 11ms, render: 310ms)
+ GET /api/settings/2fa/status 200 in 373ms (compile: 246ms, proxy.ts: 52ms, render: 75ms)
+ GET /api/settings/notifications 200 in 366ms (compile: 210ms, proxy.ts: 83ms, render: 73ms)
+[2m2026-09-21T14:24:42.181Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":22}[0m
+ GET /api/meetings/settings 200 in 391ms (compile: 320ms, proxy.ts: 44ms, render: 26ms)
+ GET /api/settings/profile 200 in 350ms (compile: 256ms, proxy.ts: 68ms, render: 26ms)
+ GET /api/subscriptions/current 200 in 395ms (compile: 88ms, proxy.ts: 39ms, render: 268ms)
+ GET /api/settings/appearance 200 in 100ms (compile: 21ms, proxy.ts: 13ms, render: 66ms)
+ GET /api/payments/history 200 in 104ms (compile: 30ms, proxy.ts: 13ms, render: 61ms)
+ GET /api/settings/2fa/status 200 in 103ms (compile: 40ms, proxy.ts: 13ms, render: 50ms)
+[2m2026-09-21T14:24:42.310Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":18}[0m
+ GET /api/meetings/settings 200 in 106ms (compile: 70ms, proxy.ts: 15ms, render: 21ms)
+[2m2026-09-21T14:24:42.427Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":6}[0m
+ GET /api/calendar/events 404 in 195ms (compile: 113ms, proxy.ts: 72ms, render: 10ms)
+[2m2026-09-21T14:24:42.447Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":3}[0m
+ GET /api/calendar/events 404 in 18ms (compile: 6ms, proxy.ts: 2ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 32ms (compile: 14ms, proxy.ts: 3ms, render: 14ms)
+ GET /api/reminders?overdue=true 200 in 47ms (compile: 32ms, proxy.ts: 7ms, render: 9ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 55ms (compile: 15ms, proxy.ts: 9ms, render: 31ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 54ms (compile: 25ms, proxy.ts: 8ms, render: 20ms)
+ GET /api/reminders? 200 in 19ms (compile: 9ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/reminders?overdue=true 200 in 17ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:24:56.265Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":4}[0m
+ GET /api/meetings/reminders?limit=10 200 in 17ms (compile: 6ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 39ms (compile: 19ms, proxy.ts: 8ms, render: 13ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 46ms (compile: 14ms, proxy.ts: 10ms, render: 22ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 50ms (compile: 27ms, proxy.ts: 10ms, render: 13ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 30ms (compile: 14ms, proxy.ts: 3ms, render: 14ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 53ms (compile: 15ms, proxy.ts: 13ms, render: 25ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 50ms (compile: 23ms, proxy.ts: 11ms, render: 16ms)
+ GET /api/reminders?overdue=true 200 in 48ms (compile: 29ms, proxy.ts: 7ms, render: 11ms)
+ GET /api/reminders? 200 in 20ms (compile: 9ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/reminders?overdue=true 200 in 17ms (compile: 7ms, proxy.ts: 2ms, render: 7ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:25:56.291Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":4}[0m
+ GET /api/meetings/reminders?limit=10 200 in 17ms (compile: 8ms, proxy.ts: 2ms, render: 6ms)
+ PUT /api/settings/notifications 200 in 31ms (compile: 14ms, proxy.ts: 9ms, render: 9ms)
+ GET /business-ai/settings 200 in 78ms (compile: 5ms, proxy.ts: 7ms, render: 65ms)
+ GET /api/events/notifications 200 in 2.4min (compile: 92ms, proxy.ts: 43ms, render: 2.4min)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 67ms (compile: 15ms, proxy.ts: 3ms, render: 49ms)
+ GET /api/auth/me 200 in 24ms (compile: 9ms, proxy.ts: 6ms, render: 9ms)
+ GET /api/notifications?limit=20 200 in 118ms (compile: 28ms, proxy.ts: 19ms, render: 70ms)
+ GET /api/notifications?limit=20 200 in 120ms (compile: 64ms, proxy.ts: 20ms, render: 35ms)
+ GET /api/reminders? 200 in 107ms (compile: 73ms, proxy.ts: 14ms, render: 20ms)
+ GET /api/reminders?overdue=true 200 in 157ms (compile: 43ms, proxy.ts: 67ms, render: 47ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:26:19.093Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":168}[0m
+ GET /api/meetings/reminders?limit=10 200 in 270ms (compile: 23ms, proxy.ts: 64ms, render: 183ms)
+ GET /api/notifications?limit=20 200 in 401ms (compile: 30ms, proxy.ts: 64ms, render: 307ms)
+ GET /api/reminders?overdue=true 200 in 499ms (compile: 135ms, proxy.ts: 15ms, render: 350ms)
+ GET /api/reminders?overdue=true 200 in 587ms (compile: 419ms, proxy.ts: 101ms, render: 68ms)
+ GET /api/subscriptions/current 200 in 613ms (compile: 234ms, proxy.ts: 12ms, render: 367ms)
+ GET /api/subscriptions/entitlements 200 in 68ms (compile: 42ms, proxy.ts: 15ms, render: 11ms)
+ GET /api/settings/appearance 200 in 53ms (compile: 27ms, proxy.ts: 6ms, render: 20ms)
+ GET /api/settings/profile 200 in 81ms (compile: 34ms, proxy.ts: 12ms, render: 35ms)
+ GET /api/payments/history 200 in 120ms (compile: 49ms, proxy.ts: 27ms, render: 44ms)
+ GET /api/settings/notifications 200 in 119ms (compile: 72ms, proxy.ts: 32ms, render: 14ms)
+ GET /api/subscriptions/current 200 in 143ms (compile: 41ms, proxy.ts: 21ms, render: 81ms)
+ GET /api/settings/2fa/status 200 in 95ms (compile: 33ms, proxy.ts: 23ms, render: 38ms)
+[2m2026-09-21T14:26:20.188Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":56}[0m
+ GET /api/meetings/settings 200 in 134ms (compile: 24ms, proxy.ts: 51ms, render: 59ms)
+ GET /api/settings/appearance 200 in 125ms (compile: 59ms, proxy.ts: 28ms, render: 38ms)
+ GET /api/settings/profile 200 in 124ms (compile: 68ms, proxy.ts: 27ms, render: 29ms)
+ GET /api/subscriptions/current 200 in 178ms (compile: 69ms, proxy.ts: 32ms, render: 76ms)
+ GET /api/payments/history 200 in 100ms (compile: 44ms, proxy.ts: 33ms, render: 24ms)
+ GET /api/settings/notifications 200 in 109ms (compile: 51ms, proxy.ts: 21ms, render: 37ms)
+ GET /api/settings/2fa/status 200 in 100ms (compile: 48ms, proxy.ts: 37ms, render: 14ms)
+[2m2026-09-21T14:26:20.352Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":23}[0m
+ GET /api/meetings/settings 200 in 104ms (compile: 39ms, proxy.ts: 37ms, render: 28ms)
+[2m2026-09-21T14:26:20.393Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":30}[0m
+ GET /api/calendar/events 404 in 82ms (compile: 13ms, proxy.ts: 35ms, render: 34ms)
+[2m2026-09-21T14:26:20.414Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":4}[0m
+ GET /api/calendar/events 404 in 19ms (compile: 6ms, proxy.ts: 4ms, render: 9ms)
+ GET /api/settings/notifications 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 6ms)
+ GET /api/settings/notifications 200 in 17ms (compile: 8ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/auth/me 200 in 15ms (compile: 6ms, proxy.ts: 2ms, render: 6ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 49ms (compile: 11ms, proxy.ts: 8ms, render: 30ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 49ms (compile: 24ms, proxy.ts: 7ms, render: 18ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 50ms (compile: 33ms, proxy.ts: 6ms, render: 12ms)
+ PUT /api/settings/notifications 200 in 19ms (compile: 7ms, proxy.ts: 3ms, render: 9ms)
+ GET / 200 in 46ms (compile: 3ms, proxy.ts: 3ms, render: 40ms)
+ GET / 200 in 48ms (compile: 3ms, proxy.ts: 3ms, render: 41ms)
+ GET /api/events/notifications 200 in 35.8s (compile: 23ms, proxy.ts: 103ms, render: 35.7s)
+ GET /business-ai/settings 200 in 92ms (compile: 8ms, proxy.ts: 3ms, render: 80ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 59ms (compile: 15ms, proxy.ts: 3ms, render: 41ms)
+ GET /api/auth/me 200 in 23ms (compile: 12ms, proxy.ts: 4ms, render: 7ms)
+ GET /api/notifications?limit=20 200 in 111ms (compile: 50ms, proxy.ts: 17ms, render: 44ms)
+ GET /api/notifications?limit=20 200 in 148ms (compile: 59ms, proxy.ts: 20ms, render: 69ms)
+ GET /api/reminders? 200 in 136ms (compile: 45ms, proxy.ts: 41ms, render: 49ms)
+ GET /api/reminders?overdue=true 200 in 112ms (compile: 44ms, proxy.ts: 26ms, render: 42ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:26:56.330Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":10}[0m
+ GET /api/meetings/reminders?limit=10 200 in 97ms (compile: 27ms, proxy.ts: 57ms, render: 13ms)
+ GET /api/reminders?overdue=true 200 in 125ms (compile: 28ms, proxy.ts: 27ms, render: 71ms)
+ GET /api/notifications?limit=20 200 in 131ms (compile: 19ms, proxy.ts: 26ms, render: 86ms)
+ GET /api/reminders?overdue=true 200 in 120ms (compile: 82ms, proxy.ts: 22ms, render: 15ms)
+ GET /api/subscriptions/current 200 in 131ms (compile: 74ms, proxy.ts: 21ms, render: 36ms)
+ GET /api/subscriptions/entitlements 200 in 32ms (compile: 5ms, proxy.ts: 9ms, render: 18ms)
+ GET /api/settings/appearance 200 in 60ms (compile: 16ms, proxy.ts: 13ms, render: 31ms)
+ GET /api/settings/profile 200 in 80ms (compile: 34ms, proxy.ts: 11ms, render: 36ms)
+ GET /api/payments/history 200 in 86ms (compile: 52ms, proxy.ts: 11ms, render: 23ms)
+ GET /api/settings/notifications 200 in 89ms (compile: 58ms, proxy.ts: 12ms, render: 19ms)
+ GET /api/subscriptions/current 200 in 111ms (compile: 44ms, proxy.ts: 11ms, render: 56ms)
+[2m2026-09-21T14:26:57.140Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":45}[0m
+ GET /api/meetings/settings 200 in 105ms (compile: 36ms, proxy.ts: 21ms, render: 48ms)
+ GET /api/settings/2fa/status 200 in 90ms (compile: 44ms, proxy.ts: 15ms, render: 31ms)
+ GET /api/settings/appearance 200 in 91ms (compile: 50ms, proxy.ts: 15ms, render: 26ms)
+ GET /api/settings/profile 200 in 92ms (compile: 63ms, proxy.ts: 16ms, render: 14ms)
+ GET /api/subscriptions/current 200 in 142ms (compile: 20ms, proxy.ts: 50ms, render: 71ms)
+ GET /api/payments/history 200 in 91ms (compile: 12ms, proxy.ts: 44ms, render: 35ms)
+ GET /api/settings/notifications 200 in 92ms (compile: 28ms, proxy.ts: 46ms, render: 18ms)
+ GET /api/settings/2fa/status 200 in 59ms (compile: 36ms, proxy.ts: 13ms, render: 10ms)
+[2m2026-09-21T14:26:57.247Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":26}[0m
+ GET /api/meetings/settings 200 in 95ms (compile: 23ms, proxy.ts: 44ms, render: 28ms)
+[2m2026-09-21T14:26:57.263Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":4}[0m
+ GET /api/calendar/events 404 in 25ms (compile: 8ms, proxy.ts: 8ms, render: 9ms)
+[2m2026-09-21T14:26:57.315Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":5}[0m
+ GET /api/calendar/events 404 in 16ms (compile: 6ms, proxy.ts: 2ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 37ms (compile: 8ms, proxy.ts: 9ms, render: 20ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 38ms (compile: 14ms, proxy.ts: 10ms, render: 15ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 34ms (compile: 19ms, proxy.ts: 6ms, render: 9ms)
+ GET /api/events/notifications 200 in 30.0s (compile: 12ms, proxy.ts: 10ms, render: 30.0s)
+ GET /business-ai/settings 200 in 64ms (compile: 5ms, proxy.ts: 9ms, render: 51ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 36ms (compile: 9ms, proxy.ts: 3ms, render: 24ms)
+ GET /api/auth/me 200 in 62ms (compile: 10ms, proxy.ts: 42ms, render: 9ms)
+ GET /api/notifications?limit=20 200 in 41ms (compile: 11ms, proxy.ts: 4ms, render: 25ms)
+ GET /api/notifications?limit=20 200 in 44ms (compile: 25ms, proxy.ts: 4ms, render: 15ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+ GET /api/reminders? 200 in 85ms (compile: 13ms, proxy.ts: 12ms, render: 61ms)
+ GET /api/reminders?overdue=true 200 in 87ms (compile: 50ms, proxy.ts: 12ms, render: 24ms)
+[2m2026-09-21T14:27:27.618Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":17}[0m
+ GET /api/meetings/reminders?limit=10 200 in 88ms (compile: 56ms, proxy.ts: 12ms, render: 19ms)
+ GET /api/notifications?limit=20 200 in 104ms (compile: 61ms, proxy.ts: 13ms, render: 29ms)
+ GET /api/reminders?overdue=true 200 in 104ms (compile: 23ms, proxy.ts: 58ms, render: 23ms)
+ GET /api/subscriptions/current 200 in 109ms (compile: 30ms, proxy.ts: 57ms, render: 22ms)
+ GET /api/reminders?overdue=true 200 in 44ms (compile: 8ms, proxy.ts: 8ms, render: 28ms)
+ GET /api/subscriptions/entitlements 200 in 13ms (compile: 5ms, proxy.ts: 2ms, render: 5ms)
+ GET /api/settings/appearance 200 in 60ms (compile: 17ms, proxy.ts: 10ms, render: 32ms)
+ GET /api/settings/profile 200 in 109ms (compile: 22ms, proxy.ts: 11ms, render: 76ms)
+ GET /api/payments/history 200 in 117ms (compile: 85ms, proxy.ts: 11ms, render: 21ms)
+ GET /api/settings/notifications 200 in 120ms (compile: 89ms, proxy.ts: 20ms, render: 10ms)
+ GET /api/subscriptions/current 200 in 133ms (compile: 52ms, proxy.ts: 12ms, render: 69ms)
+[2m2026-09-21T14:27:28.508Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":65}[0m
+ GET /api/meetings/settings 200 in 105ms (compile: 15ms, proxy.ts: 19ms, render: 71ms)
+ GET /api/settings/2fa/status 200 in 113ms (compile: 60ms, proxy.ts: 11ms, render: 43ms)
+ GET /api/settings/appearance 200 in 114ms (compile: 58ms, proxy.ts: 31ms, render: 25ms)
+ GET /api/settings/profile 200 in 114ms (compile: 67ms, proxy.ts: 31ms, render: 16ms)
+ GET /api/subscriptions/current 200 in 173ms (compile: 20ms, proxy.ts: 73ms, render: 81ms)
+ GET /api/payments/history 200 in 105ms (compile: 12ms, proxy.ts: 51ms, render: 41ms)
+ GET /api/settings/notifications 200 in 106ms (compile: 20ms, proxy.ts: 51ms, render: 35ms)
+ GET /api/settings/2fa/status 200 in 97ms (compile: 41ms, proxy.ts: 10ms, render: 46ms)
+[2m2026-09-21T14:27:28.688Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/settings → 200 [2m{"method":"GET","path":"/api/meetings/settings","route":"meetings/settings","statusCode":200,"durationMs":60}[0m
+ GET /api/meetings/settings 200 in 141ms (compile: 28ms, proxy.ts: 51ms, render: 63ms)
+[2m2026-09-21T14:27:28.714Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":10}[0m
+ GET /api/calendar/events 404 in 64ms (compile: 11ms, proxy.ts: 40ms, render: 13ms)
+[2m2026-09-21T14:27:28.733Z[0m [32m[1mINFO [0m [2m[api][0m API GET calendar/events → 404 [2m{"method":"GET","path":"/api/calendar/events","route":"calendar/events","statusCode":404,"durationMs":4}[0m
+ GET /api/calendar/events 404 in 15ms (compile: 6ms, proxy.ts: 2ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 43ms (compile: 12ms, proxy.ts: 8ms, render: 23ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 43ms (compile: 19ms, proxy.ts: 8ms, render: 17ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 42ms (compile: 25ms, proxy.ts: 7ms, render: 10ms)
+ POST /api/auth/signout 200 in 24ms (compile: 7ms, proxy.ts: 3ms, render: 13ms)
+ GET / 200 in 34ms (compile: 8ms, proxy.ts: 4ms, render: 23ms)
+ GET /api/events/notifications 200 in 48s (compile: 11ms, proxy.ts: 13ms, render: 48s)
+[EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[EmailService] Attempting SMTP to smtp.gmail.com:587…
+[EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[EmailService] ✓ SMTP mail sent (attempt 1/3): messageId=<89bbf98d-e4fc-f7cb-9186-d5597df4520a@gmail.com>, response=250 2.0.0 OK  1790000927 98e67ed59e1d1-39e6d83e253sm5967878a91.1 - gsmtp
+[EmailService] ✓ Sent via SMTP to kattyboy785@gmail.com (id: <89bbf98d-e4fc-f7cb-9186-d5597df4520a@gmail.com>)
+OTP email result: success — provider=smtp, messageId=<89bbf98d-e4fc-f7cb-9186-d5597df4520a@gmail.com>
+ POST /api/auth/otp/request 200 in 3.1s (compile: 23ms, proxy.ts: 34ms, render: 3.0s)
+ POST /api/auth/otp/verify 200 in 267ms (compile: 63ms, proxy.ts: 5ms, render: 198ms)
+ GET / 200 in 318ms (compile: 48ms, proxy.ts: 20ms, render: 250ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 61ms (compile: 42ms, proxy.ts: 9ms, render: 11ms)
+ GET /api/auth/me 200 in 39ms (compile: 20ms, proxy.ts: 12ms, render: 7ms)
+ GET /api/notifications?limit=20 200 in 305ms (compile: 33ms, proxy.ts: 46ms, render: 225ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+ GET /api/reminders? 200 in 307ms (compile: 116ms, proxy.ts: 20ms, render: 171ms)
+ GET /api/reminders?overdue=true 200 in 311ms (compile: 131ms, proxy.ts: 18ms, render: 162ms)
+[2m2026-09-21T14:28:58.415Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":87}[0m
+ GET /api/meetings/reminders?limit=10 200 in 318ms (compile: 197ms, proxy.ts: 18ms, render: 103ms)
+ GET /api/notifications?limit=20 200 in 335ms (compile: 88ms, proxy.ts: 22ms, render: 225ms)
+ GET /api/notifications?limit=20 200 in 344ms (compile: 216ms, proxy.ts: 18ms, render: 110ms)
+ GET /api/reminders?overdue=true 200 in 206ms (compile: 101ms, proxy.ts: 48ms, render: 57ms)
+ GET /api/settings/onboarding 200 in 243ms (compile: 54ms, proxy.ts: 53ms, render: 135ms)
+ GET /api/reminders?overdue=true 200 in 238ms (compile: 140ms, proxy.ts: 37ms, render: 61ms)
+ GET /api/settings/onboarding 200 in 253ms (compile: 128ms, proxy.ts: 37ms, render: 87ms)
+ GET /api/subscriptions/current 200 in 277ms (compile: 113ms, proxy.ts: 37ms, render: 127ms)
+ GET /api/deals 200 in 103ms (compile: 67ms, proxy.ts: 22ms, render: 14ms)
+ GET /api/leads/stats 200 in 118ms (compile: 24ms, proxy.ts: 23ms, render: 71ms)
+[2m2026-09-21T14:28:58.820Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"ee68fa63a8324f68a5dc17a84536dd86","method":"GET","path":"/api/leads","statusCode":200,"durationMs":31.755359000060707}[0m
+ GET /api/leads?sortBy=conversionScore&sortOrder=desc 200 in 120ms (compile: 57ms, proxy.ts: 27ms, render: 36ms)
+[2m2026-09-21T14:28:58.849Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings → 200 [2m{"method":"GET","path":"/api/meetings","route":"meetings","statusCode":200,"durationMs":17}[0m
+ GET /api/meetings 200 in 118ms (compile: 36ms, proxy.ts: 60ms, render: 21ms)
+[2m2026-09-21T14:28:58.853Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/stats → 200 [2m{"method":"GET","path":"/api/meetings/stats","route":"meetings/stats","statusCode":200,"durationMs":6}[0m
+ GET /api/meetings/stats 200 in 118ms (compile: 33ms, proxy.ts: 75ms, render: 10ms)
+ GET /api/subscriptions/entitlements 200 in 16ms (compile: 6ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 192ms (compile: 63ms, proxy.ts: 12ms, render: 117ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 194ms (compile: 97ms, proxy.ts: 14ms, render: 82ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 199ms (compile: 120ms, proxy.ts: 15ms, render: 64ms)
+ GET /api/events/notifications 200 in 36.1s (compile: 117ms, proxy.ts: 54ms, render: 35.9s)
+ GET / 200 in 90ms (compile: 4ms, proxy.ts: 3ms, render: 83ms)
+ GET / 200 in 45ms (compile: 3ms, proxy.ts: 4ms, render: 38ms)
+ GET / 200 in 48ms (compile: 4ms, proxy.ts: 3ms, render: 41ms)
+ POST /api/auth/refresh 200 in 24ms (compile: 9ms, proxy.ts: 4ms, render: 11ms)
+ GET /api/reminders? 401 in 21ms (compile: 13ms, proxy.ts: 6ms, render: 3ms)
+ GET /api/reminders?overdue=true 401 in 31ms (compile: 23ms, proxy.ts: 6ms, render: 3ms)
+ GET /api/subscriptions/current 401 in 41ms (compile: 21ms, proxy.ts: 17ms, render: 2ms)
+[2m2026-09-21T14:33:26.002Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 401 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":401,"durationMs":0}[0m
+ GET /api/meetings/reminders?limit=10 401 in 48ms (compile: 20ms, proxy.ts: 26ms, render: 3ms)
+ GET /api/notifications?limit=5&unreadOnly=true 401 in 33ms (compile: 18ms, proxy.ts: 13ms, render: 2ms)
+ GET /api/reminders?overdue=true 401 in 11ms (compile: 6ms, proxy.ts: 2ms, render: 2ms)
+ GET /api/notifications?limit=5&unreadOnly=true 401 in 10ms (compile: 6ms, proxy.ts: 2ms, render: 2ms)
+ GET /api/notifications?limit=5&unreadOnly=true 401 in 12ms (compile: 5ms, proxy.ts: 4ms, render: 3ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET / 200 in 40ms (compile: 3ms, proxy.ts: 3ms, render: 34ms)
+ GET /api/reminders? 200 in 22ms (compile: 8ms, proxy.ts: 4ms, render: 10ms)
+ GET /api/reminders?overdue=true 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 7ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+[2m2026-09-21T14:33:27.528Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":27}[0m
+ GET /api/meetings/reminders?limit=10 200 in 49ms (compile: 9ms, proxy.ts: 2ms, render: 38ms)
+ GET / 200 in 43ms (compile: 4ms, proxy.ts: 6ms, render: 33ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 24ms (compile: 12ms, proxy.ts: 3ms, render: 9ms)
+ GET /business-ai/leads 200 in 38ms (compile: 4ms, proxy.ts: 3ms, render: 31ms)
+ GET /api/reminders?overdue=true 200 in 21ms (compile: 7ms, proxy.ts: 8ms, render: 7ms)
+ GET /api/notifications?limit=5&unreadOnly=true 200 in 18ms (compile: 8ms, proxy.ts: 5ms, render: 5ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/auth/me 200 in 19ms (compile: 6ms, proxy.ts: 2ms, render: 11ms)
+ GET /api/auth/me 200 in 16ms (compile: 7ms, proxy.ts: 3ms, render: 5ms)
+[MeetingReminders] Getting upcoming reminders for user cmqltkkuv000xrc2jn99wodqj
+ GET /api/reminders?overdue=true 200 in 38ms (compile: 24ms, proxy.ts: 7ms, render: 7ms)
+[2m2026-09-21T14:33:34.114Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/reminders → 200 [2m{"method":"GET","path":"/api/meetings/reminders","route":"meetings/reminders","statusCode":200,"durationMs":15}[0m
+ GET /api/meetings/reminders?limit=10 200 in 40ms (compile: 16ms, proxy.ts: 6ms, render: 18ms)
+ GET /api/reminders? 200 in 48ms (compile: 21ms, proxy.ts: 20ms, render: 6ms)
+ GET /api/subscriptions/current 200 in 28ms (compile: 8ms, proxy.ts: 3ms, render: 17ms)
+ GET /api/reminders?overdue=true 200 in 13ms (compile: 6ms, proxy.ts: 2ms, render: 5ms)
+ GET /api/subscriptions/entitlements 200 in 13ms (compile: 5ms, proxy.ts: 2ms, render: 6ms)
+ GET /api/reminders?overdue=true 200 in 13ms (compile: 5ms, proxy.ts: 2ms, render: 6ms)
+ GET /api/notifications?limit=20 200 in 18ms (compile: 6ms, proxy.ts: 3ms, render: 9ms)
+ GET /api/notifications?limit=20 200 in 21ms (compile: 6ms, proxy.ts: 4ms, render: 10ms)
+[2m2026-09-21T14:33:35.851Z[0m [32m[1mINFO [0m [2m[api][0m GET /api/leads → 200 [2m{"requestId":"247c443b915147638ff8da570b710dd4","method":"GET","path":"/api/leads","statusCode":200,"durationMs":16.370684999972582}[0m
+ GET /api/leads?sortBy=conversionScore&sortOrder=desc 200 in 38ms (compile: 11ms, proxy.ts: 7ms, render: 21ms)
+ GET /api/leads/stats 200 in 47ms (compile: 21ms, proxy.ts: 7ms, render: 19ms)
+ GET /api/deals 200 in 40ms (compile: 17ms, proxy.ts: 4ms, render: 19ms)
+[2m2026-09-21T14:33:35.926Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings → 200 [2m{"method":"GET","path":"/api/meetings","route":"meetings","statusCode":200,"durationMs":5}[0m
+ GET /api/meetings 200 in 22ms (compile: 7ms, proxy.ts: 7ms, render: 8ms)
+[2m2026-09-21T14:33:35.998Z[0m [32m[1mINFO [0m [2m[api][0m API GET meetings/stats → 200 [2m{"method":"GET","path":"/api/meetings/stats","route":"meetings/stats","statusCode":200,"durationMs":5}[0m
+ GET /api/meetings/stats 200 in 24ms (compile: 13ms, proxy.ts: 3ms, render: 8ms)
+ GET /api/notifications?limit=20 200 in 20ms (compile: 6ms, proxy.ts: 3ms, render: 11ms)

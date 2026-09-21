@@ -316,13 +316,23 @@ export function getMediaUrl(mediaId: string): string {
 /**
  * Get media file metadata from database
  */
-export async function getMediaMetadata(mediaId: string): Promise<MediaMetadataResult | null> {
+export async function getMediaMetadata(
+  mediaId: string,
+  userId?: string
+): Promise<MediaMetadataResult | null> {
   try {
     const mediaFile = await db.mediaFile.findUnique({
       where: { id: mediaId },
     });
 
     if (!mediaFile) return null;
+
+    // ACCOUNT ISOLATION: metadata (file name, storage path, business JSON)
+    // is user-owned. When a caller identity is supplied, deny anything not
+    // owned by that user — mirrors readMediaFile/deleteMedia behavior.
+    if (userId !== undefined && mediaFile.userId !== userId) {
+      return null;
+    }
 
     return {
       id: mediaFile.id,
