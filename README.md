@@ -560,7 +560,8 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 <div align="center">
 
-### Crafted with ❤️ by QuantumFusion Solutions <a>https://quantumfusion-solutions.vercel.app/</a> . Designed for closers.
+### Crafted with ❤️ by <a href="https://quantumfusion-solutions.vercel.app/" target="_blank" rel="noopener noreferrer">QuantumFusion Solutions</a>. Designed for closers.
+
 
 **AcquisitionOS** — Where intelligence meets execution.
 
