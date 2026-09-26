@@ -35,6 +35,10 @@ export interface DiscoveredLead {
   source: string;
   /** Street address or extra REAL context from the provider (stored in Lead.notes). */
   address?: string;
+  /** Actual employee count when the provider states one (e.g. LinkedIn staffCount). */
+  employeeCount?: number | null;
+  /** Provider employee range when no exact count exists (e.g. "51-100"). */
+  employeeRange?: string | null;
 }
 
 export type AdapterErrorKind =
@@ -434,6 +438,11 @@ export async function searchLinkedIn(
     const orgs = Array.isArray(data.elements) ? data.elements : [];
     const leads: DiscoveredLead[] = orgs.map((org) => {
       const loc = org.locations?.[0]?.address;
+      // Defensive: some LinkedIn projections include a staff count — keep it
+      // when present; never invent one when absent (unknown stays unknown).
+      const rawOrg = org as Record<string, unknown>;
+      const staffRaw = rawOrg.staffCount ?? rawOrg.employeeCount;
+      const staffCount = typeof staffRaw === 'number' && Number.isFinite(staffRaw) && staffRaw >= 0 ? Math.round(staffRaw) : null;
       return {
         businessName: cleanText(org.name) || cleanText(org.localizedName),
         website: org.websiteUrl ? normalizeUrl(org.websiteUrl) : undefined,
@@ -441,6 +450,7 @@ export async function searchLinkedIn(
         city: cleanText(loc?.city) || undefined,
         country: cleanText(loc?.country) || undefined,
         reviews: org.description ? cleanText(org.description).slice(0, 300) : undefined,
+        employeeCount: staffCount,
         source: 'linkedin',
       };
     });

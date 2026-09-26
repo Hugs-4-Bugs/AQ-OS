@@ -26,8 +26,10 @@ function envStatus(key: string): { key: string; status: 'SET' | 'MISSING' | 'EMP
   const val = process.env[key];
   if (val === undefined) return { key, status: 'MISSING', preview: '' };
   if (val === '') return { key, status: 'EMPTY', preview: '' };
-  // Show a short preview for debugging, but mask secrets
-  const isSecret = /SECRET|PASSWORD|PASS|KEY/i.test(key);
+  // SECURITY: connection strings and secrets are never echoed — only their
+  // presence. DATABASE_URL contains credentials and previously leaked in
+  // full through the non-secret branch below.
+  const isSecret = /SECRET|PASSWORD|PASS|KEY|TOKEN|URL|URI|DSN/i.test(key);
   if (isSecret) {
     return { key, status: 'SET', preview: val.substring(0, 4) + '****' };
   }
@@ -100,7 +102,8 @@ export async function GET(request: NextRequest) {
     responseTimeMs: number;
   } = {
     status: 'error',
-    databaseUrl: process.env.DATABASE_URL || 'NOT SET',
+    // SECURITY: never return the connection string — presence only
+    databaseUrl: process.env.DATABASE_URL ? 'SET (redacted)' : 'NOT SET',
     responseTimeMs: 0,
   };
 
@@ -112,14 +115,14 @@ export async function GET(request: NextRequest) {
     dbStatus = {
       status: 'healthy',
       userCount,
-      databaseUrl: process.env.DATABASE_URL || 'NOT SET',
+      databaseUrl: process.env.DATABASE_URL ? 'SET (redacted)' : 'NOT SET',
       responseTimeMs: Date.now() - dbStart,
     };
   } catch (err) {
     dbStatus = {
       status: 'error',
       error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
-      databaseUrl: process.env.DATABASE_URL || 'NOT SET',
+      databaseUrl: process.env.DATABASE_URL ? 'SET (redacted)' : 'NOT SET',
       responseTimeMs: Date.now() - dbStart,
     };
   }

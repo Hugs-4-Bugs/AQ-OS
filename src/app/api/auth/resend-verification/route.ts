@@ -9,8 +9,14 @@ import {
 } from '@/lib/auth';
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
+  // SECURITY HARDENING: IP-level limit — previously only a per-account
+  // 60s cooldown existed, so one client could email-bomb many accounts.
+  const rateLimitResult = withRateLimit(request, 'auth');
+  if (rateLimitResult) return rateLimitResult;
+
   try {
     const body = await request.json();
     const { email } = body;

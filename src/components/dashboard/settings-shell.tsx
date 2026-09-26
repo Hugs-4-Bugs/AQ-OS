@@ -36,6 +36,7 @@ import {
   QrCode,
   Briefcase,
   Plus,
+  LifeBuoy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // FIX 17: real QR code rendering for TOTP 2FA setup (was: otpauth link only)
@@ -982,6 +983,15 @@ useEffect(() => {
                 </button>
               );
             })}
+            {/* Support Center entry point — obvious access from Settings
+                without disturbing the section navigation above. */}
+            <a
+              href="/support"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <LifeBuoy className="h-4 w-4 shrink-0" />
+              <span>Help &amp; Support</span>
+            </a>
           </div>
         </div>
       </div>

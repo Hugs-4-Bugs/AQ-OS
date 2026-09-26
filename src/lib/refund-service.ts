@@ -358,7 +358,7 @@ export async function reverseCreditsOnRefund(
 ): Promise<{ success: boolean; creditsReversed: number; error?: string }> {
   try {
     const { PLAN_CREDITS } = await import('@/lib/entitlement-service');
-    const planType = plan as 'free' | 'pro' | 'elite';
+    const planType = plan as 'free' | 'starter' | 'pro' | 'elite';
     const creditsToReverse = PLAN_CREDITS[planType] || 0;
 
     if (creditsToReverse <= 0) {

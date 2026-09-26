@@ -2,12 +2,21 @@
 const nodemailer = require('/home/z/my-project/node_modules/nodemailer');
 
 async function main() {
+  // SECURITY: credentials come from .env — never hardcoded (they were
+  // previously committed here and had to be rotated).
   const cfg = {
-    host: 'smtp.gmail.com',
-    port: 587,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
-    auth: { user: 'mailtoprabhat72@gmail.com', pass: 'rodvowtaifcfjmue' },
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD,
+    },
   };
+  if (!cfg.auth.user || !cfg.auth.pass) {
+    console.error('Set SMTP_USER and SMTP_PASSWORD in .env before running this script.');
+    process.exit(1);
+  }
   const t = nodemailer.createTransport(cfg);
   console.log('[1] verifying SMTP connection...');
   await t.verify();

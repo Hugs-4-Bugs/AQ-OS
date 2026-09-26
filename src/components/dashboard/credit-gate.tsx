@@ -32,12 +32,15 @@ interface CreditGateProps {
 }
 
 const CREDIT_ADDONS = [
-  { credits: 100, priceINR: 499, priceUSD: 6, label: '100 Credits' },
-  { credits: 500, priceINR: 1999, priceUSD: 24, label: '500 Credits' },
+  { credits: 250, priceINR: 599, priceUSD: 7, label: 'Starter Pack' },
+  { credits: 500, priceINR: 999, priceUSD: 12, label: 'Growth Pack' },
+  { credits: 1000, priceINR: 1799, priceUSD: 22, label: 'Pro Pack' },
+  { credits: 2500, priceINR: 3999, priceUSD: 48, label: 'Power Pack' },
 ];
 
 const PLAN_LABELS: Record<PlanType, string> = {
   free: 'Free',
+  starter: 'Starter',
   pro: 'Pro',
   elite: 'Elite',
 };
@@ -303,21 +306,21 @@ export default function CreditGate({
         {/* Quick add-on options */}
         <div className="mt-4 w-full max-w-xs">
           <p className="text-xs text-muted-foreground mb-2">Quick credit add-ons:</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {CREDIT_ADDONS.map((addon) => (
               <button
                 key={addon.credits}
                 onClick={onUpgrade}
                 className={cn(
-                  'flex-1 flex flex-col items-center gap-1 rounded-lg border p-2',
+                  'flex flex-col items-center gap-1 rounded-lg border p-2 min-w-0',
                   'border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10',
                   'transition-all duration-200 cursor-pointer text-center'
                 )}
                 aria-label={`Buy ${addon.label} for ₹${addon.priceINR}`}
               >
-                <span className="text-xs font-semibold">{addon.label}</span>
+                <span className="text-xs font-semibold leading-tight">{addon.label}</span>
                 <span className="text-[10px] text-muted-foreground">
-                  ₹{addon.priceINR}
+                  {addon.credits.toLocaleString('en-IN')} cr · ₹{addon.priceINR.toLocaleString('en-IN')}
                 </span>
               </button>
             ))}

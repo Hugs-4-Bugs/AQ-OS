@@ -10,6 +10,7 @@ import {
   PLAN_DETAILS,
   type PlanType,
 } from '@/lib/subscription-store';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PlanGateProps {
@@ -22,8 +23,9 @@ interface PlanGateProps {
 
 const PLAN_LEVELS: Record<PlanType, number> = {
   free: 0,
-  pro: 1,
-  elite: 2,
+  starter: 1,
+  pro: 2,
+  elite: 3,
 };
 
 export default function PlanGate({
@@ -34,8 +36,43 @@ export default function PlanGate({
   onUpgrade,
 }: PlanGateProps) {
   const currentPlan = useSubscriptionStore((s) => s.currentPlan);
+  // ── P3 (Sep 2026): a plan gate may only DENY access when the plan is
+  // VERIFIED. Loading / never-verified / temporarily-unavailable states are
+  // NOT Free — showing the upgrade prompt in those states is what produced
+  // the false "Workflows requires Pro" for Pro/Elite users during backend
+  // hiccups. Decision table:
+  //   verified                          → plan decides (authoritative)
+  //   idle | loading                    → neutral loading state
+  //   unavailable + hasEverVerified     → last-KNOWN-GOOD plan decides
+  //   unavailable + !hasEverVerified    → neutral unavailable notice
+  const syncState = useSubscriptionStore((s) => s.syncState);
+  const hasEverVerified = useSubscriptionStore((s) => s.hasEverVerified);
 
-  const hasAccess = PLAN_LEVELS[currentPlan] >= PLAN_LEVELS[requiredPlan];
+  if (syncState === 'idle' || syncState === 'loading') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] gap-3 text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <p className="text-sm">Checking your subscription…</p>
+      </div>
+    );
+  }
+
+  const planDecides = syncState === 'verified' || (syncState === 'unavailable' && hasEverVerified);
+  const hasAccess = planDecides && PLAN_LEVELS[currentPlan] >= PLAN_LEVELS[requiredPlan];
+
+  if (syncState === 'unavailable' && !planDecides) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] gap-3 text-center p-8">
+        <RefreshCw className="h-8 w-8 text-muted-foreground" />
+        <h3 className="text-base font-semibold">Subscription status temporarily unavailable</h3>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          We couldn’t verify your plan just now — your entitlements are
+          preserved and this feature unlocks automatically once the service
+          responds. No action is needed.
+        </p>
+      </div>
+    );
+  }
 
   if (hasAccess) {
     return <>{children}</>;

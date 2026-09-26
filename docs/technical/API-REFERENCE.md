@@ -1,7 +1,7 @@
 # API Reference — AcquisitionOS
 
 > Owner: Engineering. Status: Living document. Last reviewed: 2026-09-09.
-> Source of truth: `src/app/api/` (485 route files). Full machine-readable inventory: `scripts/api-inventory.json` + the in-app `/api-docs` page.
+> Source of truth: `src/app/api/` (505 route files). Full machine-readable inventory: `scripts/api-inventory.json` + the in-app `/api-docs` page.
 
 ## How to Read This Reference
 
@@ -11,7 +11,7 @@
 - **Errors:** standard HTTP status codes + JSON `{ error: string, code?: string }`. See [ERROR-CODES.md](ERROR-CODES.md) for the full catalog.
 - **Examples:** `curl` examples use `localhost` for illustration; in the deployed app, use relative paths from the browser or the public preview domain.
 
-This document is a **category-organised summary** of all 485 routes. The exhaustive route-by-route table is in [`docs/06-api-reference/API-ROUTES.md`](../06-api-reference/API-ROUTES.md) (generated from source). Below is the navigable reference: the categories, the key routes per category, their methods, auth, and a one-line description.
+This document is a **category-organised summary** of all 505 routes. The exhaustive route-by-route table is in [`docs/06-api-reference/API-ROUTES.md`](../06-api-reference/API-ROUTES.md) (generated from source). Below is the navigable reference: the categories, the key routes per category, their methods, auth, and a one-line description.
 
 ---
 

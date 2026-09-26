@@ -20,8 +20,12 @@ describe('subscription-store', () => {
       expect(PLAN_DETAILS.free.creditsMonthly).toBe(50);
     });
 
-    it('should have pro plan with 500 monthly credits', () => {
-      expect(PLAN_DETAILS.pro.creditsMonthly).toBe(500);
+    it('should have pro plan with 750 monthly credits', () => {
+      expect(PLAN_DETAILS.pro.creditsMonthly).toBe(750);
+    });
+
+    it('should have starter plan with 150 monthly credits', () => {
+      expect(PLAN_DETAILS.starter.creditsMonthly).toBe(150);
     });
 
     it('should have elite plan with 2000 monthly credits', () => {
@@ -42,12 +46,23 @@ describe('subscription-store', () => {
       expect(PLAN_DETAILS.free.priceINR).toBe(0);
     });
 
-    it('pro plan should cost $29/month', () => {
-      expect(PLAN_DETAILS.pro.priceUSD).toBe(29);
+    it('pro plan should cost $19/month', () => {
+      expect(PLAN_DETAILS.pro.priceUSD).toBe(19);
     });
 
-    it('elite plan should cost $89/month', () => {
-      expect(PLAN_DETAILS.elite.priceUSD).toBe(89);
+    it('elite plan should cost $63/month', () => {
+      expect(PLAN_DETAILS.elite.priceUSD).toBe(63);
+    });
+
+    it('starter plan should cost $5/month and ₹399/month (reduced from $6/₹499, Sep 2026)', () => {
+      expect(PLAN_DETAILS.starter.priceUSD).toBe(5);
+      expect(PLAN_DETAILS.starter.priceINR).toBe(399);
+      expect(PLAN_DETAILS.starter.maxLeads).toBe(25);
+    });
+
+    it('pro yearly should cost ₹14,999 and elite yearly ₹44,999', () => {
+      expect(PLAN_DETAILS.pro.yearlyINR).toBe(14999);
+      expect(PLAN_DETAILS.elite.yearlyINR).toBe(44999);
     });
 
     it('free plan should have disabled features including deep_analysis', () => {
@@ -219,7 +234,7 @@ describe('subscription-store', () => {
     it('should update plan and associated details', () => {
       useSubscriptionStore.getState().setPlan('pro');
       expect(useSubscriptionStore.getState().currentPlan).toBe('pro');
-      expect(useSubscriptionStore.getState().creditsMonthly).toBe(500);
+      expect(useSubscriptionStore.getState().creditsMonthly).toBe(750);
       expect(useSubscriptionStore.getState().disabledFeatures).toEqual(PLAN_DETAILS.pro.disabledFeatures);
     });
   });

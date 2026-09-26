@@ -68,8 +68,8 @@ export function createMockRequest(body?: Record<string, unknown>, opts?: {
 export function createTestUser(overrides?: Record<string, unknown>) {
   return {
     id: 'user_test123', email: 'test@acquisitionos.com', name: 'Test User',
-    passwordHash: '$2b$10$hashedpassword123', plan: 'pro', credits: 500,
-    creditsMonthly: 500, rolloverCredits: 50, emailVerified: true,
+    passwordHash: '$2b$10$hashedpassword123', plan: 'pro', credits: 750,
+    creditsMonthly: 750, rolloverCredits: 50, emailVerified: true,
     isActive: true, isTrial: false, role: 'owner', orgId: null,
     ...overrides,
   };

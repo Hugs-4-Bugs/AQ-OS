@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, CreditCard, AlertTriangle, Sparkles } from 'lucide-react';
+import { Zap, CreditCard, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,11 +34,46 @@ function CreditPurchaseDialog({
   const credits = useSubscriptionStore((s) => s.credits);
   const creditsMonthly = useSubscriptionStore((s) => s.creditsMonthly);
 
+  // Credit add-on packs — final add-on pricing update, Sep 2026.
+  // Must mirror the canonical catalog (src/app/api/payments/credit-addons).
+  // Stripe one-time Price IDs are resolved server-side from env
+  // (STRIPE_PRICE_CREDITS_250/500/1000/2500_ID) — never hardcoded here.
   const ADDON_PACKS = [
-    { credits: 100, priceINR: 499, priceUSD: 6, label: '100 Credits' },
-    { credits: 500, priceINR: 1999, priceUSD: 24, label: '500 Credits' },
-    { credits: 1000, priceINR: 3499, priceUSD: 42, label: '1,000 Credits' },
+    { credits: 250, priceINR: 599, priceUSD: 7, label: 'Starter Pack' },
+    { credits: 500, priceINR: 999, priceUSD: 12, label: 'Growth Pack' },
+    { credits: 1000, priceINR: 1799, priceUSD: 22, label: 'Pro Pack' },
+    { credits: 2500, priceINR: 3999, priceUSD: 48, label: 'Power Pack' },
   ];
+
+  // Canonical credit add-on checkout (Branch B of
+  // POST /api/payments/create-checkout-session — the same single flow
+  // used by the pricing page and the upgrade modal). Default gateway is
+  // Stripe hosted checkout; the server validates the credit amount.
+  const [buyingCredits, setBuyingCredits] = useState<number | null>(null);
+  const handleBuyPack = async (creditAmount: number) => {
+    if (buyingCredits !== null) return;
+    setBuyingCredits(creditAmount);
+    try {
+      const res = await fetch('/api/payments/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'credits', creditAmount }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create add-on checkout');
+      }
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error('No checkout URL returned');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
+      setBuyingCredits(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,26 +89,42 @@ function CreditPurchaseDialog({
         </DialogHeader>
 
         <div className="space-y-3 mt-2">
-          {ADDON_PACKS.map((pack) => (
-            <button
-              key={pack.credits}
-              onClick={() => onOpenChange(false)}
-              className={cn(
-                'w-full flex items-center justify-between p-3 rounded-xl border',
-                'border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10',
-                'transition-all duration-200 cursor-pointer'
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold">{pack.label}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-semibold">₹{pack.priceINR.toLocaleString('en-IN')}</span>
-                <span className="text-[10px] text-muted-foreground block">${pack.priceUSD}</span>
-              </div>
-            </button>
-          ))}
+          {ADDON_PACKS.map((pack) => {
+            const gst = Math.round(pack.priceINR * 0.18);
+            const isBuying = buyingCredits === pack.credits;
+            return (
+              <button
+                key={pack.credits}
+                onClick={() => handleBuyPack(pack.credits)}
+                disabled={buyingCredits !== null}
+                className={cn(
+                  'w-full flex items-center justify-between p-3 rounded-xl border min-w-0',
+                  'border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10',
+                  'transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed'
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {isBuying ? (
+                    <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+                  ) : (
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                  )}
+                  <span className="text-sm font-semibold text-left">
+                    {pack.label}
+                    <span className="block text-[11px] font-normal text-muted-foreground">
+                      {pack.credits.toLocaleString('en-IN')} credits
+                    </span>
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold">₹{pack.priceINR.toLocaleString('en-IN')}</span>
+                  <span className="text-[10px] text-muted-foreground block">
+                    +₹{gst.toLocaleString('en-IN')} GST · ~${pack.priceUSD}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="text-center pt-2">

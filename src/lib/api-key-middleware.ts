@@ -106,7 +106,7 @@ export async function withApiKeyAuth(
 
   // Check if the user's plan allows API access
   const { hasFeatureAccess } = await import('@/lib/entitlement-service');
-  if (!hasFeatureAccess(resolvedPlan as 'free' | 'pro' | 'elite', 'api_access')) {
+  if (!hasFeatureAccess(resolvedPlan as 'free' | 'starter' | 'pro' | 'elite', 'api_access')) {
     return {
       authenticated: false,
       error: NextResponse.json(

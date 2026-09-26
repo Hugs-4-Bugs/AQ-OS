@@ -16,6 +16,24 @@
 const fs = require('fs');
 const path = require('path');
 
+// 0. Boot-time recovery (P1 fix, root-cause report Sep 2026):
+//    restore credentials/db BEFORE the server needs them. Idempotent,
+//    non-fatal: if recovery cannot run the server still boots and reports
+//    via /api/health. Covers supervisors that invoke `node start.js`
+//    directly (npm start is additionally covered via package.json).
+try {
+  const bootRecoveryPath = path.join(__dirname, 'scripts', 'boot-recovery.mjs');
+  if (fs.existsSync(bootRecoveryPath)) {
+    // spawnSync (not require) — .mjs cannot be require()d from CJS on all
+    // Node versions; a subprocess is universally safe and still fast.
+    const { spawnSync } = require('child_process');
+    const r = spawnSync('node', [bootRecoveryPath], { stdio: 'inherit' });
+    if (r.error) throw r.error;
+  }
+} catch (err) {
+  console.warn('⚠ boot-recovery failed (non-fatal):', err && err.message);
+}
+
 const standaloneDir = path.join(__dirname, '.next', 'standalone');
 const staticSrc = path.join(__dirname, '.next', 'static');
 const staticDest = path.join(standaloneDir, '.next', 'static');

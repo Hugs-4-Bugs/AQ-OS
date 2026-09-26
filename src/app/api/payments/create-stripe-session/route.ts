@@ -15,7 +15,7 @@ import { getClientIp, getUserAgent } from '@/lib/auth';
 import type { PlanType } from '@/lib/entitlement-service';
 
 interface CreateStripeSessionBody {
-  plan: 'pro' | 'elite';
+  plan: 'pro' | 'elite' | 'starter';
   billingCycle: 'monthly' | 'yearly';
   couponCode?: string;
   successUrl?: string;
@@ -40,9 +40,9 @@ export async function POST(request: NextRequest) {
       const { plan, billingCycle, couponCode, successUrl, cancelUrl } = body;
 
       // Validate required fields
-      if (!plan || !['pro', 'elite'].includes(plan)) {
+      if (!plan || !['pro', 'elite', 'starter'].includes(plan)) {
         return NextResponse.json(
-          { error: 'Invalid plan. Must be "pro" or "elite".' },
+          { error: 'Invalid plan. Must be "starter", "pro", or "elite".' },
           { status: 400 }
         );
       }

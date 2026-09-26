@@ -8,6 +8,33 @@
 
 import { spawn, type Subprocess } from "bun";
 
+// ─── Boot-time recovery (ACCOUNT-CONSISTENCY FIX, 2026-09-24) ──────
+// The watchdog spawns `next dev` DIRECTLY — NOT via `npm run dev` or
+// `start.js` — which silently bypassed scripts/boot-recovery.mjs. After a
+// workspace restore this meant: no .env restoration (Google/SMTP creds
+// gone → simulated-consent fallback, OTP/magic-link 503s) and no database
+// recovery (users gone → a fresh account per auth method). The watchdog is
+// the platform's ACTUAL supervisor, so it now executes the SAME existing
+// recovery gate as the other entrypoints, BEFORE auth services initialize.
+// Reuses the existing mechanism (no parallel system): boot-recovery.mjs is
+// idempotent, forward-only, data-preserving, and a fast no-op when healthy.
+async function runBootRecovery(): Promise<void> {
+  try {
+    console.log("[watchdog] Running scripts/boot-recovery.mjs before server start...");
+    const rec = spawn({
+      cmd: ["node", "scripts/boot-recovery.mjs"],
+      cwd: PROJECT_DIR,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    await rec.exited;
+    console.log("[watchdog] Boot recovery finished (exit code " + (await rec.exited) + ")");
+  } catch (err) {
+    // Non-fatal: the server must still boot so /api/health can report.
+    console.error("[watchdog] boot-recovery failed (non-fatal):", err);
+  }
+}
+
 const PORT = 3000;
 const WATCHDOG_PORT = 3001;
 const PROJECT_DIR = "/home/z/my-project";
@@ -18,7 +45,7 @@ let child: Subprocess | null = null;
 let restartCount = 0;
 let lastRestartTime = 0;
 
-function startServer(): void {
+async function startServer(): Promise<void> {
   if (restartCount >= MAX_RESTARTS) {
     console.error(`[watchdog] Max restarts (${MAX_RESTARTS}) reached. Giving up.`);
     return;
@@ -34,6 +61,11 @@ function startServer(): void {
   lastRestartTime = now;
   restartCount++;
   console.log(`[watchdog] Starting Next.js dev server (attempt ${restartCount}/${MAX_RESTARTS})...`);
+
+  // Execute the SAME boot-time recovery gate as npm run dev / start.js
+  // BEFORE spawning the server (credentials + database must exist before
+  // authentication services initialize — see runBootRecovery above).
+  await runBootRecovery();
 
   // Spawn the dev server under NODE, not bun.
   // FIX 20260920 (runtime): `bun --bun next dev` breaks Turbopack's

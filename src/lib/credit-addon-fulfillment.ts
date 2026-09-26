@@ -12,7 +12,7 @@
 import { db } from '@/lib/db';
 import { addCreditAddon } from '@/lib/credit-service';
 import { logPaymentEvent, logCreditEvent } from '@/lib/billing-audit';
-import { CREDIT_ADDONS } from '@/app/api/payments/credit-addons/route';
+import { CREDIT_ADDONS, LEGACY_CREDIT_ADDONS } from '@/app/api/payments/credit-addons/route';
 
 interface CreditAddonFulfillmentResult {
   success: boolean;
@@ -75,31 +75,35 @@ export async function fulfillCreditAddon(
       return { success: false, error: 'Cannot determine addon ID from order' };
     }
 
-    const addon = CREDIT_ADDONS.find(a => a.id === addonId);
+    // Look up the addon by ID. Active packs first; then the legacy map so
+    // in-flight orders created before a pack retirement (e.g. "addon:credits_100")
+    // still fulfill with their original credit amount. Payment safety: a
+    // customer who already paid must always receive their credits.
+    const addon =
+      CREDIT_ADDONS.find(a => a.id === addonId) ??
+      LEGACY_CREDIT_ADDONS.find(a => a.id === addonId);
     if (!addon) {
       return { success: false, error: `Unknown addon ID: ${addonId}` };
     }
 
-    // Atomic: mark order as completed inside a transaction
-    await db.$transaction(async (tx) => {
-      // Check status inside tx for race condition protection
-      const txOrder = await tx.paymentOrder.findFirst({
-        where: { id: paymentOrderId, status: 'pending' },
-      });
-
-      if (!txOrder) {
-        // Already processed by another concurrent call — idempotent
-        return;
-      }
-
-      await tx.paymentOrder.update({
-        where: { id: paymentOrderId },
-        data: {
-          status: 'completed',
-          providerPaymentId,
-        },
-      });
+    // Atomic: claim the pending→completed transition. SECURITY/CONSISTENCY
+    // HARDENING: updateMany with a status guard returns the number of rows
+    // actually updated, so exactly ONE concurrent caller wins the claim.
+    // (The previous transaction version flipped the status but still ran
+    // addCreditAddon unconditionally afterwards — N concurrent calls could
+    // grant credits N times for one payment.)
+    const claimed = await db.paymentOrder.updateMany({
+      where: { id: paymentOrderId, status: 'pending' },
+      data: {
+        status: 'completed',
+        providerPaymentId,
+      },
     });
+
+    if (claimed.count === 0) {
+      // Another concurrent call already fulfilled this order — idempotent no-op
+      return { success: true, creditsAdded: 0 };
+    }
 
     // Add credits via the credit service (creates CreditAddon record + CreditsLedger entry)
     const addonResult = await addCreditAddon({

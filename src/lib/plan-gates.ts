@@ -40,7 +40,7 @@ export interface BillingGateContext {
   feature?: FeatureKey;
 }
 
-type PlanLevel = 'free' | 'pro' | 'elite';
+type PlanLevel = 'free' | 'starter' | 'pro' | 'elite';
 
 // ===== HELPER: STRUCTURED ERROR RESPONSES =====
 

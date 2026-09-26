@@ -91,8 +91,12 @@ describe('credit-costs', () => {
       expect(PLAN_CREDITS.free).toBe(50);
     });
 
-    it('should have pro = 500', () => {
-      expect(PLAN_CREDITS.pro).toBe(500);
+    it('should have pro = 750', () => {
+      expect(PLAN_CREDITS.pro).toBe(750);
+    });
+
+    it('should have starter = 150', () => {
+      expect(PLAN_CREDITS.starter).toBe(150);
     });
 
     it('should have elite = 2000', () => {

@@ -49,6 +49,8 @@ interface RawLead {
   googleMapsListing?: string | null;
   reviews?: string | null;
   rating?: number | null;
+  employeeCount?: number | null;
+  employeeRange?: string | null;
   estimatedQuality?: string | null;
   estimatedRevenue?: string | null;
   city?: string | null;
@@ -151,6 +153,8 @@ function transformLead(raw: RawLead): Lead {
     facebook: raw.facebook || undefined,
     googleMapsListing: raw.googleMapsListing || undefined,
     rating: raw.rating ?? undefined,
+    employeeCount: typeof raw.employeeCount === 'number' ? raw.employeeCount : undefined,
+    employeeRange: raw.employeeRange || undefined,
     niche: raw.niche || undefined,
     country: raw.country || undefined,
     city: raw.city || undefined,

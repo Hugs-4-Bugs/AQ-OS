@@ -72,8 +72,13 @@ function isPublicOrigin(origin: string): boolean {
 // work automatically. `localhost` / internal cloud hostnames /
 // accounts.google.com are ALWAYS rejected.
 // ───────────────────────────────────────────────────────────────────
-function getDynamicOrigin(request: NextRequest): string {
-  const isBadHost = (h: string): boolean =>
+// ───────────────────────────────────────────────────────────────────
+// Hosts that can never be trusted as the app's public origin.
+// (Module-level so both getDynamicOrigin and hasConfidentRequestOrigin
+// share the exact same rejection rules.)
+// ───────────────────────────────────────────────────────────────────
+function isBadOAuthHost(h: string | null | undefined): boolean {
+  return (
     !h ||
     h === 'localhost' ||
     h.startsWith('0.0.0.0') ||
@@ -86,7 +91,12 @@ function getDynamicOrigin(request: NextRequest): string {
     h.includes('.functioncompute.com') ||
     h.includes('.glm.run') ||
     h === 'accounts.google.com' ||
-    h.endsWith('.google.com');
+    h.endsWith('.google.com')
+  );
+}
+
+function getDynamicOrigin(request: NextRequest): string {
+  const isBadHost = isBadOAuthHost;
 
   // 1. x-forwarded-host + x-forwarded-proto (proxy/gateway headers)
   const forwardedHost = request.headers.get('x-forwarded-host');
@@ -168,6 +178,39 @@ function dynamicRedirect(path: string, request: NextRequest): URL {
   } catch {
     return new URL(path, 'https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai');
   }
+}
+
+/**
+ * TRUE only when the request's own public origin can be CONFIDENTLY derived
+ * from genuine request headers (x-forwarded-host / host / request.url with a
+ * public, non-internal hostname).
+ *
+ * On gateways that strip or rewrite the Host header (the Aliyun-FC-style
+ * preview gateway does), getDynamicOrigin falls through to env vars / a
+ * hardcoded fallback domain that may be STALE (a previous preview URL).
+ * Comparing stateOrigin against such a fallback wrongly classifies a
+ * same-domain callback as cross-domain, which engaged the relay endpoint
+ * and — before the relay's loop-safety fix — caused ERR_TOO_MANY_REDIRECTS.
+ *
+ * When this returns false, the callback must treat the request as
+ * same-origin and finish with direct cookies (the browser is, by
+ * construction of the dynamic redirect_uri, on the state's origin).
+ */
+function hasConfidentRequestOrigin(request: NextRequest): boolean {
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost && !isBadOAuthHost(forwardedHost.toLowerCase())) return true;
+
+  const hostHeader = request.headers.get('host');
+  if (hostHeader && !isBadOAuthHost(hostHeader.toLowerCase()) && hostHeader.includes('.')) return true;
+
+  try {
+    const url = new URL(request.url);
+    if (!isBadOAuthHost(url.hostname.toLowerCase())) return true;
+  } catch {
+    // fall through
+  }
+
+  return false;
 }
 
 interface GoogleTokenResponse {
@@ -264,7 +307,7 @@ async function handleGoogleOAuth(
   requestId: string,
   devProfile?: GoogleUserInfo
 ): Promise<
-  | { accessToken: string; refreshToken: string; user: any; stateOrigin?: string }
+  | { accessToken: string; refreshToken: string; user: any; stateOrigin?: string; rememberMe?: boolean }
   | { failureCode: GoogleFailureCode }
   | null
 > {
@@ -291,6 +334,7 @@ async function handleGoogleOAuth(
   // ── CAUSE A: State parameter decoding ────────────────────────
   let redirectUri: string;
   let stateOrigin: string | undefined;
+  let rememberMeOut: boolean | undefined;
   try {
     if (stateFromQuery) {
       const decoded = JSON.parse(
@@ -399,7 +443,8 @@ async function handleGoogleOAuth(
   if (devProfile) {
     // DEV-ONLY: use the simulated profile from the in-app consent page.
     googleUser = devProfile;
-    console.log(`[Google Callback ${requestId}] ✓ DEV profile used: email=${googleUser.email}, name=${googleUser.name}`);
+    // Mask PII (email) in server logs.
+    console.log(`[Google Callback ${requestId}] ✓ DEV profile used: email=${googleUser.email ? googleUser.email.slice(0, 2) + '***' : 'MISSING'}, name=${googleUser.name}`);
   } else {
     try {
       // [G-CB] Step 4: userinfo fetch starting
@@ -415,8 +460,8 @@ async function handleGoogleOAuth(
 
       googleUser = await profileResponse.json();
       // [G-CB] Step 5: google email
-      console.log(`[G-CB] Step 5: google email: ${googleUser.email}, name: ${googleUser.name || 'n/a'}`);
-      console.log(`[Google Callback ${requestId}] ✓ User profile fetched: email=${googleUser.email}, name=${googleUser.name}`);
+      console.log(`[G-CB] Step 5: google profile fetched (email=${googleUser.email ? googleUser.email.slice(0, 2) + '***' : 'MISSING'}, name: ${googleUser.name || 'n/a'})`);
+      console.log(`[Google Callback ${requestId}] ✓ User profile fetched`);
     } catch (profileErr) {
       console.error(`[Google Callback ${requestId}] Profile fetch crashed:`, profileErr instanceof Error ? profileErr.message : profileErr);
       return null;
@@ -428,13 +473,23 @@ async function handleGoogleOAuth(
     return null;
   }
 
+  // ── SECURITY HARDENING: verified-email enforcement ──────────
+  // Google must assert the email is verified before we allow it to
+  // match or create a local account. Without this check, an attacker
+  // controlling an UNVERIFIED Google address could take over the
+  // existing local account with the same email.
+  if (googleUser.email_verified !== true) {
+    console.error(`[Google Callback ${requestId}] Google email is not verified — rejecting sign-in`);
+    return null;
+  }
+
   const normalizedEmail = googleUser.email.toLowerCase().trim();
 
   // ── CAUSE E: Database find/create user ───────────────────────
   let user: any;
   try {
     // [G-CB] Step 6: DB upsert starting
-    console.log(`[G-CB] Step 6: DB upsert starting for email: ${normalizedEmail}`);
+    console.log(`[G-CB] Step 6: DB upsert starting (email masked: ${normalizedEmail.slice(0, 2)}***)`);
     user = await db.user.findFirst({
       where: {
         OR: [
@@ -447,23 +502,36 @@ async function handleGoogleOAuth(
 
     if (user) {
       console.log(`[Google Callback ${requestId}] Existing user found: id=${user.id}, active=${user.isActive}, authProvider=${user.authProvider}, plan=${user.plan}, role=${user.role}`);
-      if (!user.googleId && googleUser.sub) {
-        await db.user.update({
-          where: { id: user.id },
-          data: { googleId: googleUser.sub },
-        });
+      // ACCOUNT-CONSISTENCY FIX (2026-09-24): link the real Google sub when
+      // the record has none, AND replace a synthetic dev-consent sub
+      // ('dev-google-…') with the real identity. A user first created via
+      // the DEV simulated consent (sandbox without GOOGLE_CLIENT_ID) used
+      // to keep the fake sub forever after real credentials returned, so
+      // the account carried a wrong Google identity. Same account, same
+      // email → same canonical User record with its TRUE Google identity.
+      if (googleUser.sub && (!user.googleId || user.googleId.startsWith('dev-google-'))) {
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: { googleId: googleUser.sub },
+          });
+          user = { ...user, googleId: googleUser.sub };
+          console.log(`[Google Callback ${requestId}] ✓ Google identity linked to existing user`);
+        } catch (linkErr) {
+          // Non-fatal: login continues resolved by email. (googleId is
+          // @unique — a conflict means another record holds this sub.)
+          console.warn(`[Google Callback ${requestId}] googleId link failed (non-fatal):`, linkErr instanceof Error ? linkErr.message : linkErr);
+        }
       }
-      // FIX (2026-09-09): Previously, an existing user with isActive=false
-      // was hard-blocked (return null → "Google sign-in failed"). This
-      // broke Google login for already-registered email/password users
-      // whose accounts were deactivated, and also for legacy users
-      // missing required fields (plan/role/trial) that the new-user
-      // path populates. We now REACTIVATE the account and backfill any
-      // missing fields so Google sign-in works for all registered emails.
+      // FIX (2026-09-22, security hardening): admin-deactivated accounts
+      // are NEVER auto-reactivated via Google sign-in. Reactivation used
+      // to let banned users un-ban themselves by pressing "Sign in with
+      // Google". Missing legacy fields (plan/role/trial) are still
+      // backfilled so legitimate legacy accounts keep working.
       const backfillData: Record<string, unknown> = {};
       if (!user.isActive) {
-        console.warn(`[Google Callback ${requestId}] User inactive — reactivating for Google sign-in`);
-        backfillData.isActive = true;
+        console.warn(`[Google Callback ${requestId}] User inactive — denying Google sign-in (account deactivated by admin)`);
+        return null;
       }
       if (!user.plan) backfillData.plan = 'free';
       if (!user.role) backfillData.role = 'owner';
@@ -596,13 +664,18 @@ async function handleGoogleOAuth(
   try {
     // [G-CB] Step 7: session creation starting
     console.log(`[G-CB] Step 7: session creation starting (userId=${user.id})`);
+    // P5: honor the "Remember me for 30 days" choice (short-lived cookie
+    // set by the sign-in page before the OAuth redirect).
+    const rememberMe = authLib.readRememberMeCookie(request);
     await createSession({
       userId: user.id,
       refreshToken,
       deviceInfo: ua.substring(0, 255),
       ipAddress: ip,
       userAgent: ua,
+      rememberMe,
     });
+    rememberMeOut = rememberMe;
     console.log(`[Google Callback ${requestId}] ✓ Session created`);
   } catch (sessionErr) {
     console.error(`[Google Callback ${requestId}] Session creation failed:`, sessionErr instanceof Error ? sessionErr.message : sessionErr);
@@ -651,7 +724,7 @@ async function handleGoogleOAuth(
   }
 
   console.log(`[Google Callback ${requestId}] ✓ All steps complete — returning tokens (stateOrigin: ${stateOrigin || 'none'})`);
-  return { accessToken, refreshToken, user, stateOrigin };
+  return { accessToken, refreshToken, user, stateOrigin, rememberMe: rememberMeOut };
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -789,6 +862,7 @@ export async function GET(request: NextRequest) {
     if (
       stateOrigin &&
       isPublicOrigin(stateOrigin) &&
+      hasConfidentRequestOrigin(request) &&
       !isSameOrigin(stateOrigin, canonicalOrigin)
     ) {
       try {
@@ -814,7 +888,10 @@ export async function GET(request: NextRequest) {
     // ── Set auth cookies ──────────────────────────────────────
     try {
       const authLib = await import('@/lib/auth');
-      return authLib.setAuthCookies(response, accessToken, refreshToken);
+      // P5: non-remembered Google sessions get a browser-session cookie.
+      return authLib.setAuthCookies(response, accessToken, refreshToken, {
+        persist: result.rememberMe !== false,
+      });
     } catch (cookieErr) {
       console.error(`[Google Callback ${requestId}] setAuthCookies failed:`, cookieErr);
       // Return the redirect without cookies — user will need to sign in again
@@ -887,7 +964,10 @@ export async function POST(request: NextRequest) {
 
     try {
       const authLib = await import('@/lib/auth');
-      return authLib.setAuthCookies(response, accessToken, refreshToken);
+      // P5: non-remembered Google sessions get a browser-session cookie.
+      return authLib.setAuthCookies(response, accessToken, refreshToken, {
+        persist: result.rememberMe !== false,
+      });
     } catch {
       return response;
     }

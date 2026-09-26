@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 // ===== Plan Types =====
-export type PlanType = "free" | "pro" | "elite";
+export type PlanType = "free" | "starter" | "pro" | "elite";
 
 export type CreditAction =
   | "lead_discovery"
@@ -78,20 +78,50 @@ export const PLAN_DETAILS: Record<PlanType, PlanDetails> = {
       "Team collaboration",
     ],
   },
+  starter: {
+    name: "Starter",
+    plan: "starter",
+    // AcquisitionOS subscription pricing (Starter monthly price update, Sep 2026).
+    //   Starter Monthly: ₹399/month (reduced from ₹499; ₹471 incl. 18% GST)
+    //   Starter Yearly:  ₹4,999/year (unchanged; ≈ ₹416/month billed annually)
+    priceINR: 399,
+    priceUSD: 5,
+    yearlyINR: 4999,
+    yearlyUSD: 60,
+    creditsMonthly: 150,
+    maxLeads: 25,
+    features: [
+      "150 credits per month",
+      "Up to 25 leads",
+      "Basic lead discovery",
+      "Simple outreach messages",
+      "Email support",
+      "Basic dashboard",
+    ],
+    disabledFeatures: [
+      "Deep lead analysis",
+      "Outreach sequences",
+      "Sales coaching",
+      "Proposal generation",
+      "Competitor analysis",
+      "White-label reports",
+      "Team collaboration",
+    ],
+  },
   pro: {
     name: "Pro",
     plan: "pro",
-    // AcquisitionOS subscription pricing (Sep 2026).
+    // AcquisitionOS subscription pricing (final plan update, Sep 2026).
     //   Pro Monthly:  ₹1,599/month
-    //   Pro Yearly:   ₹11,999/year  (≈ ₹999/month billed annually — Save ₹7,189/year vs monthly)
+    //   Pro Yearly:   ₹14,999/year  (≈ ₹1,249/month billed annually — Save ₹4,189/year vs monthly)
     priceINR: 1599,
     priceUSD: 19,
-    yearlyINR: 11999,
-    yearlyUSD: 144,
-    creditsMonthly: 500,
+    yearlyINR: 14999,
+    yearlyUSD: 180,
+    creditsMonthly: 750,
     maxLeads: null,
     features: [
-      "500 credits per month",
+      "750 credits per month",
       "Unlimited leads",
       "All AI-powered features",
       "Deep lead analysis",
@@ -111,13 +141,13 @@ export const PLAN_DETAILS: Record<PlanType, PlanDetails> = {
   elite: {
     name: "Elite",
     plan: "elite",
-    // AcquisitionOS subscription pricing (Sep 2026).
+    // AcquisitionOS subscription pricing (final plan update, Sep 2026).
     //   Elite Monthly: ₹5,199/month
-    //   Elite Yearly:  ₹37,999/year (≈ ₹3,166/month billed annually — Save ₹24,389/year vs monthly)
+    //   Elite Yearly:  ₹44,999/year (≈ ₹3,749/month billed annually — Save ₹17,389/year vs monthly)
     priceINR: 5199,
     priceUSD: 63,
-    yearlyINR: 37999,
-    yearlyUSD: 456,
+    yearlyINR: 44999,
+    yearlyUSD: 540,
     creditsMonthly: 2000,
     maxLeads: null,
     features: [
@@ -139,8 +169,9 @@ export const PLAN_DETAILS: Record<PlanType, PlanDetails> = {
 // ===== Plan level hierarchy for upgrade checks =====
 const PLAN_LEVELS: Record<PlanType, number> = {
   free: 0,
-  pro: 1,
-  elite: 2,
+  starter: 1,
+  pro: 2,
+  elite: 3,
 };
 
 // ===== Backend Subscription Data (from /api/subscriptions/current) =====
@@ -183,6 +214,17 @@ export interface BackendEntitlementsData {
   disabledFeaturesCount: number;
 }
 
+// ===== Subscription sync state (P3, permanent fix Sep 2026) =====
+// The client NEVER treats "loading / never verified / temporarily
+// unavailable" as a Free entitlement:
+//   idle        — no authoritative data yet (initial state)
+//   loading     — a sync is in flight
+//   verified    — at least one authoritative lookup succeeded
+//   unavailable — the latest sync failed with an infrastructure error;
+//                 the last-KNOWN-GOOD plan is PRESERVED (never reset to free)
+// Only an authoritative backend response may change currentPlan.
+export type SubscriptionSyncState = 'idle' | 'loading' | 'verified' | 'unavailable';
+
 // ===== Store Interface =====
 interface SubscriptionState {
   // Plan info
@@ -207,6 +249,10 @@ interface SubscriptionState {
 
   // Credit warning
   creditWarningStatus: "ok" | "low" | "zero";
+
+  // Sync state (P3) — see SubscriptionSyncState above
+  syncState: SubscriptionSyncState;
+  hasEverVerified: boolean;
 
   // Loading state
   isLoading: boolean;
@@ -233,6 +279,7 @@ interface SubscriptionState {
   setAddonCredits: (amount: number) => void;
   setCreditWarningStatus: (status: "ok" | "low" | "zero") => void;
   setLoading: (loading: boolean) => void;
+  markUnavailable: () => void;
   syncFromBackend: (data: BackendSubscriptionData) => void;
   syncEntitlements: (data: BackendEntitlementsData) => void;
   reset: () => void;
@@ -253,6 +300,8 @@ const DEFAULT_STATE = {
   entitlements: null as Record<string, { limit: number | null; enabled: boolean }> | null,
   disabledFeatures: PLAN_DETAILS.free.disabledFeatures,
   creditWarningStatus: "ok" as const,
+  syncState: "idle" as SubscriptionSyncState,
+  hasEverVerified: false,
   isLoading: false,
   lastFetchedAt: null as number | null,
 };
@@ -349,7 +398,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     if (entitlement && entitlement.enabled) return null;
 
     // Check plans in ascending order to find the first that enables the feature
-    const planOrder: PlanType[] = ["free", "pro", "elite"];
+    const planOrder: PlanType[] = ["free", "starter", "pro", "elite"];
     const currentLevel = PLAN_LEVELS[get().currentPlan];
 
     for (const plan of planOrder) {
@@ -426,6 +475,19 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     set({ isLoading: loading });
   },
 
+  // ── markUnavailable (P3) ─────────────────────────────────────
+  // Infrastructure failure during sync. The plan is NEVER overwritten —
+  // the last-known-good plan stays authoritative until the backend can
+  // verify again. A "temporarily unavailable" state is distinguishable
+  // from Free in the UI (gates must not show false upgrade prompts).
+  markUnavailable: () => {
+    set({
+      syncState: "unavailable",
+      isLoading: false,
+      lastFetchedAt: Date.now(),
+    });
+  },
+
   // ── syncFromBackend ──────────────────────────────────────────
   // Updates ALL store fields from a single /api/subscriptions/current response
   syncFromBackend: (data: BackendSubscriptionData) => {
@@ -478,6 +540,9 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       trialDaysRemaining: trial.daysRemaining ?? trialDaysRemaining,
       disabledFeatures: data.planDetails?.disabledFeatures ?? PLAN_DETAILS[currentPlan].disabledFeatures,
       creditWarningStatus,
+      // P3: this IS the authoritative verification
+      syncState: "verified",
+      hasEverVerified: true,
       lastFetchedAt: Date.now(),
       isLoading: false,
     });

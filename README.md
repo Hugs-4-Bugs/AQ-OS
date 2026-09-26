@@ -8,6 +8,8 @@
 
 **See Everything. Close Anyone. Dominate Every Market.**
 
+> ⚠️ **DOCUMENTATION STATUS (2026-09-21):** this README still describes the early "Vantage"-era product (6-table schema). The current system is far larger — **505 API route files, 105 Prisma models, ~258 service modules** — and is documented in [`docs/01-overview/PRODUCT-OVERVIEW.md`](docs/01-overview/PRODUCT-OVERVIEW.md) and [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md). The architecture/production statements below are corrected; feature descriptions reflect the original core loop.
+
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
@@ -85,28 +87,33 @@ Built for agencies, consultancies, and sales teams who need to **find, qualify, 
 
 ## Architecture
 
+**Current architecture (verified): Modular Monolith — a single Next.js 16 application serving UI, API, and business logic from one process with one database.** See [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md) for the verified classification and [`docs/02-architecture/ARCHITECTURE-DIAGRAM.md`](docs/02-architecture/ARCHITECTURE-DIAGRAM.md) for the full diagram.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                       AcquisitionOS Platform                     │
 ├──────────────┬───────────────┬───────────────────────────────────┤
 │   Frontend   │    Backend    │          AI Engine                 │
-│   (Next.js)  │  (API Routes) │     (z-ai-web-dev-sdk)            │
+│   (Next.js)  │  (API Routes) │     (z-ai-web-dev-sdk primary,     │
+│              │               │      OpenAI-compatible fallback)   │
 ├──────────────┼───────────────┼───────────────────────────────────┤
-│ React 19     │ REST APIs     │ Lead Scoring                      │
-│ TypeScript   │ Prisma ORM    │ Proposal Generation                │
-│ Tailwind 4   │ PostgreSQL    │ Outreach Generation                │
-│ shadcn/ui    │ (Supabase)    │ Sales Assistant                    │
-│ Recharts     │ or SQLite     │ Website Analysis                   │
-│ Framer       │ (local dev)   │ Score Explanation                  │
-│ Motion       │               │ Market Discovery                   │
+│ React 19     │ 505 REST      │ Lead Scoring (4 composite scores)  │
+│ TypeScript   │ route files   │ Proposal Generation                │
+│ Tailwind 4   │ Prisma ORM    │ Outreach Generation                │
+│ shadcn/ui    │ SQLite today; │ Sales Assistant                    │
+│ Recharts     │ PostgreSQL    │ Website Analysis                   │
+│ Framer       │ migration     │ Score Explanation                  │
+│ Motion       │ prepared      │ Market Discovery                   │
 ├──────────────┴───────────────┴───────────────────────────────────┤
 │                      State Management                             │
 │           TanStack Query + Zustand + React Context                │
 ├──────────────────────────────────────────────────────────────────┤
 │                         Database                                  │
-│            Production: Supabase PostgreSQL                        │
-│            Local Dev:  SQLite via Prisma ORM                      │
-│      Lead │ Communication │ Deal │ Activity │ Reminder │ Insight │
+│      Dev (current runtime): SQLite via Prisma ORM                 │
+│      Production deploy: NOT currently running; a reduced          │
+│      6-model PostgreSQL variant exists at                         │
+│      prisma/schema.production.prisma (Supabase-oriented) —        │
+│      it does NOT cover the full 105-model schema                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -193,8 +200,8 @@ src/
 | **Language** | TypeScript 5 | Type-safe development |
 | **Styling** | Tailwind CSS 4 | Utility-first CSS |
 | **UI Library** | shadcn/ui (New York) | Accessible component primitives |
-| **Database (Local)** | SQLite via Prisma ORM | Local development database |
-| **Database (Prod)** | Supabase PostgreSQL via Prisma ORM | Production cloud database |
+| **Database (Local)** | SQLite via Prisma ORM | Current runtime database |
+| **Database (Prod)** | PostgreSQL migration prepared (`schema.production.prisma`) | **Not currently deployed**; production variant covers 6 of 105 models |
 | **State** | TanStack Query + Zustand | Server + client state management |
 | **Animations** | Framer Motion | Smooth transitions and gestures |
 | **Charts** | Recharts | Data visualization |
@@ -459,6 +466,8 @@ The **Insights** tab provides conversion funnels, score distributions, performan
 
 ## Database Schema
 
+> The diagram below shows only the original Vantage-era core. The current schema has **105 models** — see [`docs/02-architecture/DATABASE-SCHEMA.md`](docs/02-architecture/DATABASE-SCHEMA.md).
+
 ```
 ┌──────────┐     ┌────────────────┐     ┌──────────┐
 │   Lead   │────<│  Communication │     │   Deal   │
@@ -503,29 +512,27 @@ The **Insights** tab provides conversion funnels, score distributions, performan
 - [x] Lead comparison tool
 - [x] Follow-up reminders
 - [x] Vercel deployment support
-- [x] Supabase PostgreSQL integration
+- [ ] Supabase PostgreSQL integration — migration prepared (`schema.production.prisma`), **not currently deployed**
 
-### v1.1 — Collaboration (Planned)
-- [ ] Multi-tenant organization support
-- [ ] Role-based access control (RBAC)
-- [ ] Team activity feed
-- [ ] Shared pipeline views
-- [ ] Assignment and ownership
+### v1.1 — Collaboration (Planned → **shipped since**) 
+- [x] Multi-tenant organization support (`Organization`/`OrgMember` models + settings/org APIs)
+- [x] Role-based access control (RBAC: owner/admin/member/viewer — `src/lib/rbac.ts`)
+- [x] Team activity feed / audit (`AuditLog`, `LeadActivity`)
+- [x] Assignment and ownership (lead ownership model)
 
-### v1.2 — Integrations (Planned)
-- [ ] Email integration (Gmail/Outlook)
-- [ ] CRM sync (HubSpot, Salesforce)
-- [ ] Calendar integration
-- [ ] Slack notifications
-- [ ] Webhook API
+### v1.2 — Integrations (Planned → **shipped since**)
+- [x] Email integration (Gmail OAuth + inbox sync + Pub/Sub)
+- [x] Calendar integration (Google Calendar OAuth, free/busy, watch)
+- [x] Webhook API (workflow webhooks + payment webhooks)
+- [ ] CRM sync (HubSpot, Salesforce) — `meeting/crm-sync.ts` scaffold only
+- [x] Telegram + WhatsApp notification channels (credential-gated)
 
-### v2.0 — Intelligence (Planned)
-- [ ] Competitor intelligence tracking
-- [ ] Market trend analysis
-- [ ] Predictive deal closure forecasting
-- [ ] Automated A/B testing for outreach
-- [ ] Real-time WebSocket updates
-- [ ] Custom workflow automation builder
+### v2.0 — Intelligence (Planned → **shipped since**)
+- [x] Competitor intelligence tracking (`competitor-intelligence-service.ts`, `/api/competitors/*`)
+- [x] Predictive analytics / anomaly detection engines
+- [x] Real-time WebSocket + SSE updates (`/api/ws`, `/api/events/*`)
+- [x] Custom workflow automation builder (definitions/executor/DLQ)
+- [ ] Automated A/B testing for outreach — not implemented
 
 ---
 
@@ -554,14 +561,13 @@ We welcome contributions! Please follow these steps:
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+> ⚠️ **No LICENSE file is currently present in the repository**, although a MIT badge appears at the top of this file. Licensing and IP ownership status must be established and a LICENSE file added before any commercial distribution or acquisition transfer.
 
 ---
 
 <div align="center">
 
-### Crafted with ❤️ by <a href="https://quantumfusion-solutions.vercel.app/" target="_blank" rel="noopener noreferrer">QuantumFusion Solutions</a>. Designed for closers.
-
+### Built with AI. Designed for closers.
 
 **AcquisitionOS** — Where intelligence meets execution.
 

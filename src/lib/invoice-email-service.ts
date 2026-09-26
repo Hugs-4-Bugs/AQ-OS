@@ -27,7 +27,8 @@ export interface SendInvoiceEmailResult {
 
 const PLAN_CREDITS: Record<string, number> = {
   free: 50,
-  pro: 500,
+  starter: 150,
+  pro: 750,
   elite: 2000,
 };
 

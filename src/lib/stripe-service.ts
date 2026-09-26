@@ -108,14 +108,16 @@ interface PlanPrice {
 
 /** Prices in USD (cents are handled by Stripe) */
 const PLAN_PRICES_USD: Record<Exclude<PlanType, 'free'>, PlanPrice> = {
-  pro: { monthly: 29, yearly: 279 },
-  elite: { monthly: 89, yearly: 849 },
+  starter: { monthly: 5, yearly: 60 },
+  pro: { monthly: 19, yearly: 180 },
+  elite: { monthly: 63, yearly: 540 },
 };
 
 /** Prices in INR (whole rupees, Stripe handles sub-unit) */
 const PLAN_PRICES_INR: Record<Exclude<PlanType, 'free'>, PlanPrice> = {
-  pro: { monthly: 2299, yearly: 22499 },
-  elite: { monthly: 6999, yearly: 67499 },
+  starter: { monthly: 399, yearly: 4999 },
+  pro: { monthly: 1599, yearly: 14999 },
+  elite: { monthly: 5199, yearly: 44999 },
 };
 
 /**

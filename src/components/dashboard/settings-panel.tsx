@@ -117,7 +117,7 @@ import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
 
 // ─── Types & Mock Data ───────────────────────────────────────────────────────
 
-type PlanType = 'free' | 'pro' | 'elite';
+type PlanType = 'free' | 'starter' | 'pro' | 'elite';
 
 interface SettingsPanelProps {
   open: boolean;
@@ -131,11 +131,15 @@ const TIMEZONES = [
   'Asia/Shanghai', 'Asia/Dubai', 'Australia/Sydney', 'Pacific/Auckland',
 ];
 
-// Credit add-on packs (matching backend)
+// Credit add-on packs — final add-on pricing update, Sep 2026.
+// Must mirror the canonical catalog (src/app/api/payments/credit-addons).
+// Stripe one-time Price IDs are resolved server-side from env
+// (STRIPE_PRICE_CREDITS_250/500/1000/2500_ID) — never hardcoded here.
 const CREDIT_ADDON_PACKS = [
-  { addonId: 'credits_100', credits: 100, priceINR: 199, priceUSD: 2.49 },
-  { addonId: 'credits_500', credits: 500, priceINR: 799, priceUSD: 9.99 },
-  { addonId: 'credits_1000', credits: 1000, priceINR: 1299, priceUSD: 15.99 },
+  { addonId: 'credits_250', credits: 250, priceINR: 599, priceUSD: 7, label: 'Starter Pack' },
+  { addonId: 'credits_500', credits: 500, priceINR: 999, priceUSD: 12, label: 'Growth Pack' },
+  { addonId: 'credits_1000', credits: 1000, priceINR: 1799, priceUSD: 22, label: 'Pro Pack' },
+  { addonId: 'credits_2500', credits: 2500, priceINR: 3999, priceUSD: 48, label: 'Power Pack' },
 ];
 
 // Login history loaded from API
@@ -303,26 +307,34 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
   });
 
   // ── Credit addon purchase mutation ──
+  // Uses the canonical credit add-on checkout (Branch B of
+  // POST /api/payments/create-checkout-session — the same single flow the
+  // pricing page and upgrade modal use). The server validates the credit
+  // amount and returns a Stripe hosted-checkout URL to redirect to.
   const addonMutation = useMutation({
-    mutationFn: async (addonId: string) => {
-      const res = await fetch('/api/payments/credit-addons', {
+    mutationFn: async (creditAmount: number) => {
+      const res = await fetch('/api/payments/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ addonId, currency: 'INR' }),
+        body: JSON.stringify({ type: 'credits', creditAmount }),
       });
+      const data = await res.json().catch(() => ({ error: 'Failed to start addon checkout' }));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Failed to purchase addon' }));
-        throw new Error(data.error || 'Failed to purchase addon');
+        throw new Error(data.error || 'Failed to start addon checkout');
       }
-      return res.json();
+      return data;
     },
-    onSuccess: () => {
-      toast.success('Credit addon purchased successfully!');
-      refetchCredits();
+    onSuccess: (data: { url?: string }) => {
+      if (data.url) {
+        // Real hosted checkout — the webhook fulfills credits after payment.
+        window.location.href = data.url;
+        return;
+      }
+      toast.error('No checkout URL returned. Please try again.');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to purchase addon');
+      toast.error(error.message || 'Failed to start addon checkout');
     },
   });
 
@@ -1036,18 +1048,19 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                   {/* Credit Add-ons */}
                   <div id="credit-addons-section">
                     <Label className="text-xs text-muted-foreground mb-3 block">Quick Credit Add-ons</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {CREDIT_ADDON_PACKS.map((addon) => {
+                        const gst = Math.round(addon.priceINR * 0.18);
                         const isProcessing = processingAddonId === addon.addonId || addonMutation.isPending;
                         return (
                           <Button
                             key={addon.addonId}
                             variant="outline"
-                            className="h-auto py-3 flex-col gap-1 border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5 relative"
+                            className="h-auto py-3 flex-col gap-1 border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5 relative min-w-0"
                             disabled={isProcessing}
                             onClick={async () => {
                               setProcessingAddonId(addon.addonId);
-                              addonMutation.mutate(addon.addonId, {
+                              addonMutation.mutate(addon.credits, {
                                 onSettled: () => setProcessingAddonId(null),
                               });
                             }}
@@ -1055,15 +1068,16 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                             {isProcessing ? (
                               <Loader2 className="h-5 w-5 text-purple-500 animate-spin" />
                             ) : (
-                              <span className="text-lg font-bold text-purple-600 dark:text-purple-400">{addon.credits}</span>
+                              <span className="text-lg font-bold text-purple-600 dark:text-purple-400">{addon.credits.toLocaleString('en-IN')}</span>
                             )}
-                            <span className="text-xs text-muted-foreground">credits</span>
-                            <span className="text-sm font-medium">₹{addon.priceINR}</span>
-                            <span className="text-[10px] text-muted-foreground">${addon.priceUSD}</span>
+                            <span className="text-xs text-muted-foreground">credits · {addon.label}</span>
+                            <span className="text-sm font-medium">₹{addon.priceINR.toLocaleString('en-IN')}</span>
+                            <span className="text-[10px] text-muted-foreground">+₹{gst.toLocaleString('en-IN')} GST · ~${addon.priceUSD}</span>
                           </Button>
                         );
                       })}
                     </div>
+                    <p className="text-[11px] text-muted-foreground mt-2">Credits never expire and work across all features.</p>
                   </div>
                 </TabsContent>
 
@@ -1136,13 +1150,13 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-medium text-sm">Gmail</p>
-                                {currentPlan === 'free' && (
+                                {(currentPlan === 'free' || currentPlan === 'starter') && (
                                   <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] px-1.5 py-0">
                                     <Crown className="h-2.5 w-2.5 mr-0.5" />
                                     Pro+
                                   </Badge>
                                 )}
-                                {currentPlan !== 'free' && (
+                                {currentPlan !== 'free' && currentPlan !== 'starter' && (
                                   <Badge
                                     className={gmailConnected
                                       ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5'
@@ -1159,7 +1173,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                               )}
                             </div>
                           </div>
-                          {currentPlan === 'free' ? (
+                          {(currentPlan === 'free' || currentPlan === 'starter') ? (
                             <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
                               <Lock className="h-3 w-3 mr-1" />
                               Pro+ feature
@@ -1253,7 +1267,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-medium text-sm">Telegram</p>
-                                {currentPlan === 'free' ? (
+                                {(currentPlan === 'free' || currentPlan === 'starter') ? (
                                   <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] px-1.5 py-0">
                                     <Crown className="h-2.5 w-2.5 mr-0.5" />
                                     Pro+
@@ -1275,7 +1289,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                               </p>
                             </div>
                           </div>
-                          {currentPlan === 'free' ? (
+                          {(currentPlan === 'free' || currentPlan === 'starter') ? (
                             <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
                               <Lock className="h-3 w-3 mr-1" />
                               Pro+ feature
@@ -1293,7 +1307,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                           ) : null}
                         </div>
 
-                        {currentPlan !== 'free' && !telegramConnected && (
+                        {currentPlan !== 'free' && currentPlan !== 'starter' && !telegramConnected && (
                           <div className="space-y-3 ml-13">
                             <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
                               <p className="font-medium text-foreground mb-1">Setup Instructions:</p>
@@ -1339,7 +1353,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                           </div>
                         )}
 
-                        {currentPlan === 'free' && (
+                        {(currentPlan === 'free' || currentPlan === 'starter') && (
                           <div className="mt-3">
                             <PlanGate requiredPlan="pro" featureName="Telegram Integration">{null}</PlanGate>
                           </div>
@@ -1358,7 +1372,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-medium text-sm">WhatsApp</p>
-                                {currentPlan === 'free' ? (
+                                {(currentPlan === 'free' || currentPlan === 'starter') ? (
                                   <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] px-1.5 py-0">
                                     <Crown className="h-2.5 w-2.5 mr-0.5" />
                                     Pro+
@@ -1385,7 +1399,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                               </p>
                             </div>
                           </div>
-                          {currentPlan === 'free' ? (
+                          {(currentPlan === 'free' || currentPlan === 'starter') ? (
                             <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
                               <Lock className="h-3 w-3 mr-1" />
                               Pro+ feature
@@ -1448,7 +1462,7 @@ export default function SettingsPanel({ open, onOpenChange, onShowOnboarding }: 
                           </div>
                         )}
 
-                        {currentPlan === 'free' && (
+                        {(currentPlan === 'free' || currentPlan === 'starter') && (
                           <div className="mt-3">
                             <PlanGate requiredPlan="pro" featureName="WhatsApp Integration">{null}</PlanGate>
                           </div>

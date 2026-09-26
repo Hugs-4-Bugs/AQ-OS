@@ -76,15 +76,18 @@ const PLAN_DISPLAY_NAMES: Record<string, string> = {
   elite: 'Elite',
 };
 
-// Plan pricing for invoice line items
+// Plan pricing for invoice line items — synced with the central plan catalog
+// (src/lib/payments/plan-config.ts — final pricing/plan update, Sep 2026).
 const PLAN_PRICING_INR: Record<string, { monthly: number; yearly: number }> = {
-  pro: { monthly: 2499, yearly: 23990 },
-  elite: { monthly: 7999, yearly: 76790 },
+  starter: { monthly: 399, yearly: 4999 },
+  pro: { monthly: 1599, yearly: 14999 },
+  elite: { monthly: 5199, yearly: 44999 },
 };
 
 const PLAN_PRICING_USD: Record<string, { monthly: number; yearly: number }> = {
-  pro: { monthly: 29, yearly: 279 },
-  elite: { monthly: 89, yearly: 849 },
+  starter: { monthly: 5, yearly: 60 },
+  pro: { monthly: 19, yearly: 180 },
+  elite: { monthly: 63, yearly: 540 },
 };
 
 // ===== INVOICE NUMBER GENERATION =====

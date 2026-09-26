@@ -41,12 +41,12 @@ interface DowngradeModalProps {
   onConfirm: () => void;
 }
 
-const PLAN_LEVELS: Record<PlanType, number> = { free: 0, pro: 1, elite: 2 };
+const PLAN_LEVELS: Record<PlanType, number> = { free: 0, starter: 1, pro: 2, elite: 3 };
 
 // Features that would be lost per downgrade path
 const DOWNGRADE_FEATURES: Record<string, { icon: React.ElementType; label: string }[]> = {
   'pro->free': [
-    { icon: Zap, label: '500 monthly credits → 50 credits' },
+    { icon: Zap, label: '750 monthly credits → 50 credits' },
     { icon: Database, label: 'Unlimited leads → 10 leads max' },
     { icon: BarChart3, label: 'Deep lead analysis' },
     { icon: Sparkles, label: 'Outreach sequences' },

@@ -165,7 +165,9 @@ export async function sendInviteEmail(invitationId: string): Promise<{ sent: boo
 
   // In production: send email via email service
   // For now, we log it and return the link for dev purposes
-  console.log(`[Invite Email] To: ${invitation.email}, Link: ${magicLink}, Role: ${invitation.role}`);
+  // PRODUCTION: never log the magic link (contains the invite token — anyone
+  // with log access could accept the invite). Log only non-secret metadata.
+  console.log(`[Invite Email] Sent to user id: ${invitation.id ?? 'n/a'}, Role: ${invitation.role}`);
 
   return { sent: true, magicLink };
 }

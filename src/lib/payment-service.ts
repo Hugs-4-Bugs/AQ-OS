@@ -36,12 +36,14 @@ import { getAppUrl } from '@/lib/app-url';
 const paymentLogger = createModuleLogger({ module: 'payment-service' });
 
 // ===== PLAN PRICING =====
-// Synced with src/lib/subscription-store.ts — keep both files in lockstep
-// when prices change.
+// Synced with src/lib/payments/plan-config.ts + src/lib/subscription-store.ts
+// — Starter monthly price update, Sep 2026 (Starter ₹399/₹4,999, Pro ₹1,599/₹14,999,
+// Elite ₹5,199/₹44,999; USD display $5/$60, $19/$180, $63/$540).
 const PLAN_PRICING: Record<PlanType, Record<string, { monthly: number; yearly: number }>> = {
   free: { INR: { monthly: 0, yearly: 0 }, USD: { monthly: 0, yearly: 0 } },
-  pro: { INR: { monthly: 1599, yearly: 11999 }, USD: { monthly: 19, yearly: 144 } },
-  elite: { INR: { monthly: 5199, yearly: 37999 }, USD: { monthly: 63, yearly: 456 } },
+  starter: { INR: { monthly: 399, yearly: 4999 }, USD: { monthly: 5, yearly: 60 } },
+  pro: { INR: { monthly: 1599, yearly: 14999 }, USD: { monthly: 19, yearly: 180 } },
+  elite: { INR: { monthly: 5199, yearly: 44999 }, USD: { monthly: 63, yearly: 540 } },
 };
 
 // ===== INTERFACES =====
@@ -397,8 +399,8 @@ export async function createPaymentOrder(params: {
   try {
     const { userId, plan, billingCycle, couponCode, idempotencyKey, ipAddress, userAgent } = params;
 
-    // 1. Validate plan — must be pro or elite
-    if (plan !== 'pro' && plan !== 'elite') {
+    // 1. Validate plan — must be starter, pro or elite
+    if (plan !== 'pro' && plan !== 'elite' && plan !== 'starter') {
       return {
         success: false,
         amount: 0,
@@ -410,7 +412,7 @@ export async function createPaymentOrder(params: {
         plan,
         billingCycle,
         creditsAllocated: 0,
-        error: 'Invalid plan. Only Pro and Elite plans require payment.',
+        error: 'Invalid plan. Only Starter, Pro and Elite plans require payment.',
       };
     }
 
@@ -651,11 +653,18 @@ export async function createPaymentOrder(params: {
 //   STRIPE_PRICE_PRO_MONTHLY_ID
 //   STRIPE_PRICE_PRO_MONTHLY
 //
+// The canonical deployment variables (final pricing/plan update, Sep 2026)
+// use convention #3, e.g. STRIPE_PRICE_STARTER_MONTHLY_ID,
+// STRIPE_PRICE_STARTER_YEARLY_ID, STRIPE_PRICE_PRO_YEARLY_ID,
+// STRIPE_PRICE_ELITE_YEARLY_ID — all read from process.env, never
+// hardcoded. A missing Price ID means that plan/cycle is NOT purchasable
+// via Stripe (the UI shows "Coming Soon"); it never throws.
+//
 // Credit add-on price IDs use their own dedicated variables:
 //   STRIPE_PRICE_CREDITS_100_ID / STRIPE_PRICE_CREDITS_500_ID /
 //   STRIPE_PRICE_CREDITS_1000_ID (see createStripeCreditAddonCheckoutSession)
 export function resolvePlanPriceId(
-  plan: 'pro' | 'elite',
+  plan: 'pro' | 'elite' | 'starter',
   billingCycle: 'monthly' | 'yearly',
 ): { priceId: string | null; envVarNamesTried: string[] } {
   const P = plan.toUpperCase();
@@ -713,7 +722,7 @@ export async function createStripeCheckoutSession(params: {
     const { userId, plan, billingCycle, couponCode, successUrl, cancelUrl, ipAddress, userAgent } = params;
 
     // 1. Validate plan
-    if (plan !== 'pro' && plan !== 'elite') {
+    if (plan !== 'pro' && plan !== 'elite' && plan !== 'starter') {
       return {
         success: false,
         amount: 0,
@@ -725,7 +734,7 @@ export async function createStripeCheckoutSession(params: {
         plan,
         billingCycle,
         creditsAllocated: 0,
-        error: 'Invalid plan. Only Pro and Elite plans require payment.',
+        error: 'Invalid plan. Only Starter, Pro and Elite plans require payment.',
       };
     }
 
@@ -990,9 +999,10 @@ export async function createStripeCheckoutSession(params: {
 //
 // The credit add-on Stripe Price IDs are read at runtime from the
 // environment (NEVER hardcoded):
-//   - STRIPE_PRICE_CREDITS_100_ID   (100 credits)
-//   - STRIPE_PRICE_CREDITS_500_ID   (500 credits)
-//   - STRIPE_PRICE_CREDITS_1000_ID  (1,000 credits)
+//   - STRIPE_PRICE_CREDITS_250_ID   (250 credits — Starter Pack)
+//   - STRIPE_PRICE_CREDITS_500_ID   (500 credits — Growth Pack)
+//   - STRIPE_PRICE_CREDITS_1000_ID  (1,000 credits — Pro Pack)
+//   - STRIPE_PRICE_CREDITS_2500_ID  (2,500 credits — Power Pack)
 //
 // The Stripe Price object on the dashboard already includes the GST-aware
 // amount for Indian users, so we pass the priceId directly (no price_data).
@@ -1004,9 +1014,10 @@ export async function createStripeCheckoutSession(params: {
 // ═════════════════════════════════════════════════════════════════════
 
 const CREDIT_ADDON_PRICE_IDS: Record<number, string | undefined> = {
-  100: process.env.STRIPE_PRICE_CREDITS_100_ID,
+  250: process.env.STRIPE_PRICE_CREDITS_250_ID,
   500: process.env.STRIPE_PRICE_CREDITS_500_ID,
   1000: process.env.STRIPE_PRICE_CREDITS_1000_ID,
+  2500: process.env.STRIPE_PRICE_CREDITS_2500_ID,
 };
 
 export interface CreateCreditAddonCheckoutResult {
@@ -1022,7 +1033,7 @@ export interface CreateCreditAddonCheckoutResult {
 
 export async function createStripeCreditAddonCheckoutSession(params: {
   userId: string;
-  creditAmount: 100 | 500 | 1000;
+  creditAmount: 250 | 500 | 1000 | 2500;
   successUrl?: string;
   cancelUrl?: string;
   ipAddress?: string;
@@ -1032,10 +1043,10 @@ export async function createStripeCreditAddonCheckoutSession(params: {
     const { userId, creditAmount, successUrl, cancelUrl, ipAddress, userAgent } = params;
 
     // 1. Validate the credit amount against the known packs
-    if (creditAmount !== 100 && creditAmount !== 500 && creditAmount !== 1000) {
+    if (creditAmount !== 250 && creditAmount !== 500 && creditAmount !== 1000 && creditAmount !== 2500) {
       return {
         success: false,
-        error: `Invalid credit add-on amount: ${creditAmount}. Must be 100, 500, or 1000.`,
+        error: `Invalid credit add-on amount: ${creditAmount}. Must be 250, 500, 1000, or 2500.`,
       };
     }
 

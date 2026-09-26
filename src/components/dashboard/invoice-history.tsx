@@ -187,7 +187,10 @@ function InvoiceRow({ invoice, isExpanded, onToggle }: {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (invoice.pdfUrl) {
-                          window.open(invoice.pdfUrl, '_blank');
+                          // SECURITY: download via the authenticated API —
+                          // pdfUrl may be an internal storage marker and
+                          // must never be opened as a public static URL.
+                          window.open(`/api/billing/invoices/${invoice.id}/download`, '_blank');
                         } else {
                           toast.info('Invoice PDF generation is coming soon.');
                         }
@@ -295,7 +298,8 @@ function InvoiceCard({ invoice, isExpanded, onToggle }: {
                   onClick={(e) => {
                     e.stopPropagation();
                     if (invoice.pdfUrl) {
-                      window.open(invoice.pdfUrl, '_blank');
+                      // SECURITY: authenticated download API (see above)
+                      window.open(`/api/billing/invoices/${invoice.id}/download`, '_blank');
                     } else {
                       toast.info('Invoice PDF generation is coming soon.');
                     }

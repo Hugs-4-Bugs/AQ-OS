@@ -94,7 +94,7 @@ export function useSubscriptionSync() {
               syncFromBackend({
                 subscription: {
                   id: '',
-                  plan: creditsData.plan as 'free' | 'pro' | 'elite',
+                  plan: creditsData.plan as 'free' | 'starter' | 'pro' | 'elite',
                   status: creditsData.isTrial ? 'trialing' : 'active',
                   currentPeriodStart: null,
                   currentPeriodEnd: null,
@@ -103,7 +103,7 @@ export function useSubscriptionSync() {
                 },
                 planDetails: {
                   name: creditsData.plan.charAt(0).toUpperCase() + creditsData.plan.slice(1),
-                  plan: creditsData.plan as 'free' | 'pro' | 'elite',
+                  plan: creditsData.plan as 'free' | 'starter' | 'pro' | 'elite',
                   priceINR: 0,
                   priceUSD: 0,
                   yearlyINR: 0,
@@ -123,7 +123,7 @@ export function useSubscriptionSync() {
                   monthly: creditsData.creditsMonthly,
                   rollover: creditsData.rolloverCredits,
                   addons: creditsData.addonCredits,
-                  plan: creditsData.plan as 'free' | 'pro' | 'elite',
+                  plan: creditsData.plan as 'free' | 'starter' | 'pro' | 'elite',
                   percentage: creditsData.percentage,
                 },
               });
@@ -186,7 +186,7 @@ export function useCredits() {
   // Sync backend data to Zustand store
   useEffect(() => {
     if (data) {
-      setPlan(data.plan as 'free' | 'pro' | 'elite');
+      setPlan(data.plan as 'free' | 'starter' | 'pro' | 'elite');
       setCredits(data.credits, data.creditsMonthly);
       setTrial(data.isTrial, null);
       setRolloverCredits(data.rolloverCredits);

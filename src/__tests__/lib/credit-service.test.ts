@@ -12,7 +12,7 @@ vi.mock('@/lib/billing-audit', () => ({
 
 // Mock the entitlement-service module
 vi.mock('@/lib/entitlement-service', () => ({
-  PLAN_CREDITS: { free: 50, pro: 500, elite: 2000 },
+  PLAN_CREDITS: { free: 50, starter: 150, pro: 750, elite: 2000 },
 }));
 
 // Use vi.hoisted to create mockPrisma before vi.mock hoisting

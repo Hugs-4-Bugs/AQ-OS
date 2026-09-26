@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Payment Configuration Master — AcquisitionOS</title>
+<style>
+@page { size: 794px 1123px; margin: 0; }
+:root {
+  --accent: #334155;
+  --accent2: #64748b;
+  --ink: #17233b;
+  --muted: #55677d;
+  --line: #dbe3ee;
+  --soft: #f3f6fb;
+  --code-bg: #eef2f8;
+}
+html, body {
+  margin: 0; padding: 0; width: 794px;
+  background: #0b1220; /* darkest page color — prevents sub-pixel white edges on dark pages */
+  color: var(--ink);
+  font-family: 'Carlito', 'Liberation Sans', 'DejaVu Sans', sans-serif;
+  font-size: 12.5px; line-height: 1.62;
+}
+@media screen {
+  html { height: auto; display: flex; justify-content: center; background: #0b1220; }
+  body { transform-origin: top center; margin: 20px auto; box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+}
+p, td, li { overflow-wrap: break-word; }
+p { margin: 0 0 9px 0; text-align: left; }
+
+/* ── Cover ─────────────────────────────────────────── */
+.hero-page {
+  width: 794px; height: 1123px; box-sizing: border-box;
+  break-after: page; overflow: hidden; position: relative;
+  background: linear-gradient(160deg, #0b1220 0%, #101b33 58%, #0d1730 100%);
+  color: #eef2fa; display: flex; flex-direction: column; justify-content: center;
+  padding: 64px 62px;
+}
+.hero-page .blob { position: absolute; border-radius: 50%; }
+.hero-page .b1 { width: 330px; height: 330px; right: 30px; top: 40px; background: radial-gradient(circle at 38% 38%, rgba(255,255,255,.10), rgba(255,255,255,0) 66%); }
+.hero-page .b2 { width: 220px; height: 220px; right: 120px; top: 180px; background: radial-gradient(circle at 40% 40%, rgba(255,255,255,.06), rgba(0,0,0,0) 64%); }
+.hero-page .b3 { width: 260px; height: 260px; left: 40px; bottom: 60px; background: radial-gradient(circle at 45% 45%, rgba(255,255,255,.07), rgba(255,255,255,0) 62%); }
+.hero-page .series { font-size: 11.5px; letter-spacing: 3.5px; color: #64748b; font-weight: 700; margin-bottom: 22px; }
+.hero-page .docid { position: absolute; top: 58px; right: 62px; font-size: 10.5px; letter-spacing: 2.5px; color: #93a3bd; }
+.hero-page .title { font-size: 51px; line-height: 1.06; font-weight: 700; letter-spacing: -0.5px; margin: 0 0 24px 0; max-width: 620px; }
+.hero-page .title .t2 { color: #64748b; display: block; }
+.hero-page .subtitle { font-size: 14.5px; line-height: 1.65; color: #b9c6dc; max-width: 600px; margin-bottom: 32px; }
+.hero-page .chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 640px; margin-bottom: 34px; }
+.hero-page .chip { border: 1px solid rgba(255,255,255,.22); color: #d7e0f0; border-radius: 999px; padding: 4px 13px; font-size: 11px; letter-spacing: .3px; }
+.hero-page .meta-row { font-size: 11.5px; color: #8fa0bb; letter-spacing: .6px; }
+.hero-page .meta-row b { color: #d7e0f0; font-weight: 700; }
+.hero-page .foot { position: absolute; left: 62px; right: 62px; bottom: 54px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #93a3bd; letter-spacing: 1.2px; }
+
+/* ── Flowing content ───────────────────────────────── */
+.main-content {
+  background: #ffffff; width: 794px; box-sizing: border-box;
+  padding: 54px 58px 46px 58px; /* no fixed height, no overflow hidden */
+}
+h1, h2, h3, h4 { break-after: avoid; break-inside: avoid; color: var(--ink); }
+h2 {
+  font-size: 21px; line-height: 1.25; margin: 26px 0 12px 0; padding-top: 12px;
+  border-top: 1px solid var(--line); letter-spacing: -0.2px;
+}
+h2:first-of-type { margin-top: 4px; border-top: none; padding-top: 0; }
+h3 { font-size: 15px; margin: 18px 0 8px 0; color: #1d2b47; }
+h4 { font-size: 13px; margin: 14px 0 6px 0; }
+strong { color: #0f1a30; }
+hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+
+/* tables */
+table {
+  width: 100%; border-collapse: collapse; margin: 10px 0 14px 0;
+  font-size: 10.6px; line-height: 1.45;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; page-break-inside: avoid; }
+th {
+  background: var(--accent); color: #ffffff; text-align: left;
+  padding: 6px 7px; font-weight: 700; border: 1px solid var(--accent);
+  font-size: 10.2px;
+}
+td { border: 1px solid var(--line); padding: 5.5px 6px; vertical-align: top; overflow-wrap: anywhere; }
+td code, th code { font-size: 9.5px; }
+tbody tr:nth-child(even) td { background: var(--soft); }
+
+/* code */
+code {
+  font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  font-size: 10.3px; background: var(--code-bg); border: 1px solid #e2e8f2;
+  border-radius: 3px; padding: 0.5px 4px; color: #1f2d4d;
+}
+pre {
+  background: #0f1726; color: #dce6f5; border-radius: 8px;
+  padding: 14px 16px; margin: 10px 0 14px 0;
+  font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  font-size: 10.4px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: break-word;
+  break-inside: avoid;
+}
+pre code { background: transparent; border: none; color: inherit; padding: 0; font-size: inherit; }
+
+/* blockquote = callout */
+blockquote {
+  margin: 10px 0 14px 0; padding: 10px 14px;
+  background: var(--soft); border-left: 3.5px solid var(--accent);
+  border-radius: 0 6px 6px 0; color: #33455f;
+}
+blockquote p { margin: 0; }
+blockquote p + p { margin-top: 7px; }
+
+ul, ol { margin: 6px 0 10px 0; padding-left: 22px; }
+li { margin-bottom: 4px; text-align: left; }
+li > p { margin-bottom: 4px; }
+
+/* ── Ending ────────────────────────────────────────── */
+.ending {
+  width: 794px; height: 1123px; box-sizing: border-box;
+  break-before: page; overflow: hidden; position: relative;
+  background: linear-gradient(200deg, #101b33 0%, #0b1220 70%);
+  color: #eef2fa; display: flex; flex-direction: column; justify-content: center;
+  padding: 64px; text-align: center;
+}
+.ending .big { font-size: 30px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 16px; }
+.ending .small { font-size: 13px; color: #b9c6dc; max-width: 520px; margin: 0 auto 34px auto; line-height: 1.7; }
+.ending .companions { display: inline-block; border: 1px solid rgba(255,255,255,.22); color: #d7e0f0; border-radius: 999px; padding: 6px 18px; font-size: 11.5px; letter-spacing: .4px; }
+.ending .foot { position: absolute; left: 64px; right: 64px; bottom: 54px; font-size: 10.5px; color: #93a3bd; letter-spacing: 1.2px; }
+
+code.tbc { background: #fbf1dd; border: none; color: #6e4306; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="hero-page">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="docid">GUIDE 3 / 3</div>
+  <div class="series">ACQUISITIONOS · PAYMENT CONFIGURATION</div>
+  <div class="title">Payment Configuration<span class="t2">Master</span></div>
+  <div class="subtitle">Cross-provider reference for AcquisitionOS payments — category tables, Stripe Price ID master table, Razorpay Plan ID master table, webhook master tables, environment-variable inventory, and the single end-to-end setup checklist.</div>
+  <div class="chips"><span class="chip">Master tables</span><span class="chip">TO_BE_CREATED policy</span><span class="chip">Env inventory</span><span class="chip">Webhook maps</span><span class="chip">Setup flow</span></div>
+  <div class="meta-row"><b>Version 1.0</b> &nbsp;·&nbsp; September 23, 2026 &nbsp;·&nbsp; Documentation only — verified against the current codebase</div>
+  <div class="foot"><span>ACQUISITIONOS</span><span>PAYMENT CONFIGURATION · GUIDE 3 / 3</span></div>
+</div>
+
+<div class="main-content">
+<p><strong>Version:</strong> 1.0 · <strong>Date:</strong> 2026-09-23 · <strong>Scope:</strong> Documentation only — no application code changes</p>
+<p>The cross-provider reference for configuring payments in the current AcquisitionOS codebase. It consolidates: the payment category inventory, the Stripe Price ID master table, the Razorpay Plan ID master table, the webhook master tables, the full environment-variable inventory, and the single end-to-end setup checklist. Provider-specific step-by-step detail lives in <code>STRIPE-SETUP-GUIDE.md</code> and <code>RAZORPAY-SETUP-GUIDE.md</code>; this document never contradicts them.</p>
+<p><strong>Current configuration status (verified against the live workspace):</strong> no payment environment variables are set yet. Every paid plan/cycle therefore renders a <strong>"Coming Soon"</strong> button and checkout is never initiated — this is the codebase's designed, fail-safe behavior. The tables below use <code class="tbc">TO_BE_CREATED</code> wherever a dashboard object must be created manually. No IDs are fabricated.</p>
+
+<h2>1. Architecture Overview</h2>
+<p>AcquisitionOS routes all payments through a provider abstraction (<code>src/lib/payments/</code>) with two implementations — Stripe and Razorpay — behind one contract (<code>PaymentProvider</code>): <code>isConfigured / getMode / supportedCurrencies / canCheckout / createCheckout / verifyPayment</code>. Shared services own everything else so neither provider duplicates business logic:</p>
+<ul>
+<li><strong>Activation:</strong> <code>confirmPaymentAndActivate()</code> (subscription-service) — one atomic DB transaction: order → <code>completed</code>, subscription upsert (plan, status, period, provider IDs), user plan + credits update, <code>CreditsLedger</code> entry, invoice generation + email, audit logs, coupon usage increment. Idempotent by design (pending-order check inside the transaction + webhook dedup table).</li>
+<li><strong>Idempotency:</strong> every webhook/verification event is recorded in the <code>PaymentWebhook</code> table (<code>eventId</code> unique) before processing; duplicates return "Already processed".</li>
+<li><strong>Amount authority:</strong> Stripe — the Price object (created GST-inclusive); Razorpay — server-computed base + 18% GST from <code>PLAN_PRICING</code>. The browser never sets amounts.</li>
+<li><strong>UI gating:</strong> <code>GET /api/payments/provider-status</code> returns per-plan/cycle availability; the pricing/billing/upgrade UIs render "Coming Soon" (disabled, Clock icon) for anything unavailable, and never start checkout.</li>
+<li><strong>Plan source of truth:</strong> <code>PLAN_PRICING</code> (plan-config) ↔ entitlement-service credits — Free 50, Starter 150, Pro 750, Elite 2,000 credits/month; lead discovery limits 10 / 25 / unlimited / unlimited.</li>
+</ul>
+<pre><code class="language-text">Browser ──► POST /api/payments/create-checkout-session (gateway: stripe|razorpay)
+              │
+              ├─ Stripe  ─► Checkout Session (subscription|payment, Price ID from env)
+              │               └─ redirect ─► hosted page ─► /dashboard?payment=success
+              │                        webhook ─► POST /api/payments/webhook/stripe  ┐
+              │                        verify  ─► POST /api/payments/verify-session   ├─► confirmPaymentAndActivate
+              │                                                                    ┘
+              └─ Razorpay ─► orders.create (one-time) or subscriptions.create (recurring)
+                              └─ Checkout.js modal ─► POST /api/payments/razorpay/verify  ─► same activation
+                              webhook ─► POST /api/payments/webhook/razorpay ─► same activation
+</code></pre>
+<h2>2. Payment Category Master Table — Subscriptions</h2>
+<h3>2a. Commercial view (what the customer buys)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Provider</th>
+<th>Product · Plan</th>
+<th>Billing type</th>
+<th>Cycle</th>
+<th>Amount charged</th>
+<th>GST</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Stripe</td>
+<td>AcquisitionOS Starter</td>
+<td>Recurring</td>
+<td>Monthly</td>
+<td>₹471 (base 399 + 72 GST)</td>
+<td>18% in Price</td>
+<td>Sell Starter monthly</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Stripe</td>
+<td>AcquisitionOS Starter</td>
+<td>Recurring</td>
+<td>Yearly</td>
+<td>₹5,899 (base 4,999 + 900)</td>
+<td>18% in Price</td>
+<td>Sell Starter yearly (Save ₹989/yr)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Stripe</td>
+<td>AcquisitionOS Pro</td>
+<td>Recurring</td>
+<td>Monthly</td>
+<td>₹1,887 (base 1,599 + 288)</td>
+<td>18% in Price</td>
+<td>Sell Pro monthly</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Stripe</td>
+<td>AcquisitionOS Pro</td>
+<td>Recurring</td>
+<td>Yearly</td>
+<td>₹17,699 (base 14,999 + 2,700)</td>
+<td>18% in Price</td>
+<td>Sell Pro yearly (Save ₹4,189/yr)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Stripe</td>
+<td>AcquisitionOS Elite</td>
+<td>Recurring</td>
+<td>Monthly</td>
+<td>₹6,135 (base 5,199 + 936)</td>
+<td>18% in Price</td>
+<td>Sell Elite monthly</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Stripe</td>
+<td>AcquisitionOS Elite</td>
+<td>Recurring</td>
+<td>Yearly</td>
+<td>₹53,099 (base 44,999 + 8,100)</td>
+<td>18% in Price</td>
+<td>Sell Elite yearly (Save ₹17,389/yr)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Razorpay</td>
+<td>AcquisitionOS Pro</td>
+<td>One-time order (default) or Recurring (if Plan set)</td>
+<td>Monthly</td>
+<td>₹1,887 (server-computed, paise 188700)</td>
+<td>18% server-side</td>
+<td>Sell Pro monthly in India (UPI/cards/netbanking)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Razorpay</td>
+<td>AcquisitionOS Pro</td>
+<td>One-time / Recurring</td>
+<td>Yearly</td>
+<td>₹17,699</td>
+<td>18% server-side</td>
+<td>Sell Pro yearly in India</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Razorpay</td>
+<td>AcquisitionOS Elite</td>
+<td>One-time / Recurring</td>
+<td>Monthly</td>
+<td>₹6,135</td>
+<td>18% server-side</td>
+<td>Sell Elite monthly in India</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Razorpay</td>
+<td>AcquisitionOS Elite</td>
+<td>One-time / Recurring</td>
+<td>Yearly</td>
+<td>₹53,099</td>
+<td>18% server-side</td>
+<td>Sell Elite yearly in India</td>
+</tr>
+<tr>
+<td>n/a</td>
+<td>n/a</td>
+<td><em>(no purchase)</em> Free</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>₹0</td>
+<td>n/a</td>
+<td>Free tier (50 credits/mo, 10 leads) granted in-app</td>
+</tr>
+</tbody>
+</table>
+<h3>2b. Configuration view (IDs, env vars, webhooks, surfaces)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Product ID</th>
+<th>Price ID / Plan ID</th>
+<th>Environment variable</th>
+<th>Key webhook events</th>
+<th>Where used in the app</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code> (price_...)</td>
+<td><code>STRIPE_PRICE_STARTER_MONTHLY_ID</code></td>
+<td>checkout.session.completed; invoice.paid; customer.subscription.*</td>
+<td>Pricing page; Settings → Billing; upgrade modal</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_STARTER_YEARLY_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_PRO_MONTHLY_ID</code> (aliases accepted — Stripe guide Pt 9)</td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_PRO_YEARLY_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_ELITE_MONTHLY_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_ELITE_YEARLY_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td>7</td>
+<td>n/a (order-based)</td>
+<td><code class="tbc">TO_BE_CREATED</code> only if recurring (<code>plan_...</code>)</td>
+<td><code>RAZORPAY_PLAN_PRO_MONTHLY</code> (optional)</td>
+<td>payment.captured; subscription.charged</td>
+<td>Pricing page; checkout modal</td>
+</tr>
+<tr>
+<td>8</td>
+<td>n/a</td>
+<td><code class="tbc">TO_BE_CREATED</code> (optional)</td>
+<td><code>RAZORPAY_PLAN_PRO_YEARLY</code></td>
+<td>payment.captured; subscription.charged</td>
+<td>same</td>
+</tr>
+<tr>
+<td>9</td>
+<td>n/a</td>
+<td><code class="tbc">TO_BE_CREATED</code> (optional)</td>
+<td><code>RAZORPAY_PLAN_ELITE_MONTHLY</code></td>
+<td>payment.captured; subscription.charged</td>
+<td>same</td>
+</tr>
+<tr>
+<td>10</td>
+<td>n/a</td>
+<td><code class="tbc">TO_BE_CREATED</code> (optional)</td>
+<td><code>RAZORPAY_PLAN_ELITE_YEARLY</code></td>
+<td>payment.captured; subscription.charged</td>
+<td>same</td>
+</tr>
+<tr>
+<td>n/a</td>
+<td>none</td>
+<td>none</td>
+<td>none</td>
+<td>none</td>
+<td>Signup; plan gating</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Starter via Razorpay is <strong>not purchasable in the current code</strong> (provider validates Pro/Elite only). Starter sells through Stripe rows 1–2.</p>
+</blockquote>
+<h2>3. Payment Category Master Table — Additional Credit Purchases</h2>
+<p>Credit packs are one-time purchases, fulfilled by <code>fulfillCreditAddon</code> (credits added atomically + ledger + email/notification). Catalog verified in <code>src/app/api/payments/credit-addons/route.ts</code> — these three packs are the <strong>only</strong> ones that exist; nothing else may be invented.</p>
+<h3>3a. Commercial view</h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Pack (in-app ID)</th>
+<th>Credits</th>
+<th>Billing type</th>
+<th>Amount charged</th>
+<th>GST</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stripe</td>
+<td><code>credits_250</code></td>
+<td>250</td>
+<td>One-time</td>
+<td>₹707 (base 599 + 108)</td>
+<td>18% in Price</td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>credits_500</code></td>
+<td>500</td>
+<td>One-time</td>
+<td>₹1,179 (base 999 + 180)</td>
+<td>18% in Price</td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>credits_1000</code></td>
+<td>1,000</td>
+<td>One-time</td>
+<td>₹2,123 (base 1,799 + 324)</td>
+<td>18% in Price</td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>credits_250</code></td>
+<td>250</td>
+<td>One-time order</td>
+<td>₹707 (server-computed)</td>
+<td>18% server-side</td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>credits_500</code></td>
+<td>500</td>
+<td>One-time order</td>
+<td>₹1,179</td>
+<td>18% server-side</td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>credits_1000</code></td>
+<td>1,000</td>
+<td>One-time order</td>
+<td>₹2,123</td>
+<td>18% server-side</td>
+</tr>
+</tbody>
+</table>
+<h3>3b. Configuration view</h3>
+<table>
+<thead>
+<tr>
+<th>Pack</th>
+<th>Provider</th>
+<th>Product ID</th>
+<th>Price ID / Plan ID</th>
+<th>Environment variable</th>
+<th>Webhook events</th>
+<th>Where used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>credits_250</code></td>
+<td>Stripe</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code> (price_...)</td>
+<td><code>STRIPE_PRICE_CREDITS_250_ID</code></td>
+<td>checkout.session.completed (type='credits')</td>
+<td>Billing page "Add credits"; checkout modal</td>
+</tr>
+<tr>
+<td><code>credits_500</code></td>
+<td>Stripe</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_500_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>credits_1000</code></td>
+<td>Stripe</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_1000_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>credits_2500</code></td>
+<td>Stripe</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_2500_ID</code></td>
+<td>same</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>credits_250</code></td>
+<td>Razorpay</td>
+<td>n/a (order-based)</td>
+<td>n/a</td>
+<td>none required</td>
+<td>payment.captured</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>credits_500</code></td>
+<td>Razorpay</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>none required</td>
+<td>payment.captured</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>credits_1000</code></td>
+<td>Razorpay</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>none required</td>
+<td>payment.captured</td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>credits_2500</code></td>
+<td>Razorpay</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>none required</td>
+<td>payment.captured</td>
+<td>same</td>
+</tr>
+</tbody>
+</table>
+<h2>4. Other Payment Types Present in the Implementation</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Provider</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Billing Portal session</td>
+<td>Stripe</td>
+<td>Implemented</td>
+<td><code>POST /api/payments/stripe-portal</code> → Stripe Billing Portal (<code>ensureStripeCustomer</code> creates the Customer); return URL <code>STRIPE_PORTAL_RETURN_URL</code> or <code>{APP_URL}/settings?tab=billing</code></td>
+</tr>
+<tr>
+<td>Refunds (full/partial)</td>
+<td>Both</td>
+<td>Implemented</td>
+<td>Dashboard refunds and super-admin <code>POST /api/admin/refund</code>; webhook-driven credit reversal + plan downgrade on full refund</td>
+</tr>
+<tr>
+<td>Coupons / promotion codes</td>
+<td>Both</td>
+<td>Implemented</td>
+<td>In-app <code>Coupon</code> table + <code>/api/payments/validate-coupon</code>; Stripe sessions enable <code>allow_promotion_codes</code> when a code is entered; Razorpay records the code for audit</td>
+</tr>
+<tr>
+<td>Trials</td>
+<td>In-app</td>
+<td>App-side only</td>
+<td><code>POST /api/subscriptions/trial</code>; no gateway billing object involved</td>
+</tr>
+<tr>
+<td>Payment recovery / dunning</td>
+<td>In-app</td>
+<td>Implemented</td>
+<td>past-due banner, <code>payment-failed-modal</code>, <code>POST /api/payments/retry</code>, <code>/api/cron/payment-reconciliation</code></td>
+</tr>
+<tr>
+<td>SSE payment status</td>
+<td>In-app</td>
+<td>Implemented</td>
+<td><code>GET /api/payments/sse</code> + <code>GET /api/events/payments</code> push live payment status to the dashboard</td>
+</tr>
+<tr>
+<td>Webhook replay (operator)</td>
+<td>In-app</td>
+<td>Implemented</td>
+<td><code>POST /api/payments/webhook-replay</code>; safe due to event dedup</td>
+</tr>
+</tbody>
+</table>
+<h2>5. Stripe Price ID Master Table (copy-paste friendly)</h2>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Billing</th>
+<th>Stripe Product ID</th>
+<th>Stripe Price ID</th>
+<th>Environment Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Starter</td>
+<td>Monthly</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_STARTER_MONTHLY_ID</code></td>
+</tr>
+<tr>
+<td>Starter</td>
+<td>Yearly</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_STARTER_YEARLY_ID</code></td>
+</tr>
+<tr>
+<td>Pro</td>
+<td>Monthly</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_PRO_MONTHLY_ID</code></td>
+</tr>
+<tr>
+<td>Pro</td>
+<td>Yearly</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_PRO_YEARLY_ID</code></td>
+</tr>
+<tr>
+<td>Elite</td>
+<td>Monthly</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_ELITE_MONTHLY_ID</code></td>
+</tr>
+<tr>
+<td>Elite</td>
+<td>Yearly</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_ELITE_YEARLY_ID</code></td>
+</tr>
+<tr>
+<td>Credit Pack 250 (Starter Pack)</td>
+<td>One-time</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_250_ID</code></td>
+</tr>
+<tr>
+<td>Credit Pack 500</td>
+<td>One-time</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_500_ID</code></td>
+</tr>
+<tr>
+<td>Credit Pack 1000 (Pro Pack)</td>
+<td>One-time</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_1000_ID</code></td>
+</tr>
+<tr>
+<td>Credit Pack 2500 (Power Pack)</td>
+<td>One-time</td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code class="tbc">TO_BE_CREATED</code></td>
+<td><code>STRIPE_PRICE_CREDITS_2500_ID</code></td>
+</tr>
+</tbody>
+</table>
+<p>Amounts for each row: Part 2/3 tables above (GST-inclusive). Legacy alias variable names accepted by the resolver are listed in the Stripe guide Part 9 — the canonical column above is the recommended set. <strong>Never invent or hand-type <code>price_</code> values; copy them from the Stripe Dashboard.</strong></p>
+<h2>6. Razorpay Plan/ID Master Table</h2>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Billing</th>
+<th>Razorpay Product/Plan ID</th>
+<th>Environment Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pro</td>
+<td>Monthly</td>
+<td><code class="tbc">TO_BE_CREATED</code> (only if recurring desired; one-time orders need nothing)</td>
+<td><code>RAZORPAY_PLAN_PRO_MONTHLY</code></td>
+</tr>
+<tr>
+<td>Pro</td>
+<td>Yearly</td>
+<td><code class="tbc">TO_BE_CREATED</code> (optional)</td>
+<td><code>RAZORPAY_PLAN_PRO_YEARLY</code></td>
+</tr>
+<tr>
+<td>Elite</td>
+<td>Monthly</td>
+<td><code class="tbc">TO_BE_CREATED</code> (optional)</td>
+<td><code>RAZORPAY_PLAN_ELITE_MONTHLY</code></td>
+</tr>
+<tr>
+<td>Elite</td>
+<td>Yearly</td>
+<td><code class="tbc">TO_BE_CREATED</code> (optional)</td>
+<td><code>RAZORPAY_PLAN_ELITE_YEARLY</code></td>
+</tr>
+<tr>
+<td>Starter</td>
+<td>Monthly/Yearly</td>
+<td>n/a (not supported via Razorpay in current code)</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>Credit packs</td>
+<td>One-time</td>
+<td>n/a (order-based; no Plan objects)</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>Webhook secret</td>
+<td>n/a</td>
+<td>self-chosen value (same on both sides)</td>
+<td><code>RAZORPAY_WEBHOOK_SECRET</code></td>
+</tr>
+</tbody>
+</table>
+<h2>7. Webhook Master Tables</h2>
+<h3>Stripe — endpoint <code>POST /api/payments/webhook/stripe</code></h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Event</th>
+<th>Endpoint</th>
+<th>Purpose</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stripe</td>
+<td><code>checkout.session.completed</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Activate subscription / fulfill credit pack; generate invoice</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>checkout.session.expired</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Mark abandoned order failed</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>charge.refunded</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Credit reversal; plan downgrade on full refund</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>charge.dispute.created</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Chargeback alerting</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>customer.subscription.created</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Recorded; no dedicated logic</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>customer.subscription.updated</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Status/period/cancel-flag sync</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>customer.subscription.deleted</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Cancellation handling</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>invoice.payment_succeeded</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Renewal: extend period + reset credits</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>invoice.paid</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Renewal duplicate-safety net</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>invoice.payment_failed</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>past_due + recovery flow</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Stripe</td>
+<td><code>payment_intent.succeeded</code></td>
+<td>/api/payments/webhook/stripe</td>
+<td>Fallback activation by PaymentIntent ID</td>
+<td><strong>Yes</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Secret env var: <code>STRIPE_WEBHOOK_SECRET</code> (per mode). Test + Live endpoints are configured separately in each mode.</p>
+<h3>Razorpay — endpoint <code>POST /api/payments/webhook/razorpay</code></h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Event</th>
+<th>Endpoint</th>
+<th>Purpose</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Razorpay</td>
+<td><code>payment.captured</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Activate subscription / fulfill credit pack</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>payment.failed</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Mark order failed + logging</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>refund.created</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Refund initiated tracking</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>refund.processed</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Credit reversal; downgrade on full refund</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>subscription.cancelled</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Cancel sync (recurring mode)</td>
+<td>With recurring</td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>subscription.charged</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Renewal: extend + reset credits</td>
+<td>With recurring</td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>subscription.halted</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Past-due / dunning state</td>
+<td>With recurring</td>
+</tr>
+<tr>
+<td>Razorpay</td>
+<td><code>subscription.completed</code></td>
+<td>/api/payments/webhook/razorpay</td>
+<td>Tenure finished handling</td>
+<td>With recurring</td>
+</tr>
+</tbody>
+</table>
+<p>Secret env var: <code>RAZORPAY_WEBHOOK_SECRET</code> (value you choose; identical in Dashboard and env; <strong>mandatory in production</strong> — unsigned webhooks are rejected).</p>
+<h2>8. Environment Variable Master (Safe Inventory — No Secret Values)</h2>
+<p>Placeholder convention: values shown as <code>&lt;...&gt;</code> must be filled from the provider dashboards. <strong>Never commit real values</strong>; <code>.env</code> is gitignored — keep it that way.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Provider</th>
+<th>Purpose</th>
+<th>Test/Live</th>
+<th>Where used (verified)</th>
+<th>Required/Optional</th>
+<th>Where to obtain</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STRIPE_SECRET_KEY</code></td>
+<td>Stripe</td>
+<td>Server SDK auth for checkout, portal, refunds, invoices, webhook client</td>
+<td><code>sk_test_...</code> / <code>sk_live_...</code> (prefix sets reported mode)</td>
+<td>payment-service, stripe-portal-service, refund-service, invoice-pdf-service, webhook route, provider checks</td>
+<td><strong>Required for Stripe</strong></td>
+<td>Stripe → Developers → API keys</td>
+</tr>
+<tr>
+<td><code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code></td>
+<td>Stripe</td>
+<td>Browser-safe publishable key surfaced by provider-status</td>
+<td><code>pk_test_...</code> / <code>pk_live_...</code></td>
+<td>provider-status; env-validation</td>
+<td>Optional but recommended</td>
+<td>Stripe → Developers → API keys → Publishable</td>
+</tr>
+<tr>
+<td><code>STRIPE_PUBLISHABLE_KEY</code></td>
+<td>Stripe</td>
+<td>Server-side alias of the publishable key</td>
+<td>public-safe</td>
+<td>env-validation</td>
+<td>Optional</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>STRIPE_WEBHOOK_SECRET</code></td>
+<td>Stripe</td>
+<td>Webhook signature verification</td>
+<td><code>whsec_...</code> per mode</td>
+<td>webhook route (constructEvent; placeholders rejected)</td>
+<td><strong>Required in production</strong></td>
+<td>Stripe → Developers → Webhooks → endpoint signing secret</td>
+</tr>
+<tr>
+<td><code>STRIPE_PRICE_{PLAN}_{CYCLE}_ID</code> ×6</td>
+<td>Stripe</td>
+<td>Plan Price IDs (canonical convention; 3 alias conventions auto-resolved)</td>
+<td><code>price_...</code> per mode</td>
+<td>resolvePlanPriceId → checkout line_items; KNOWN_PRICE_IDS validation</td>
+<td><strong>Required per sold plan/cycle</strong></td>
+<td>Stripe → Products → Price ID</td>
+</tr>
+<tr>
+<td><code>STRIPE_PRICE_CREDITS_{100,500,1000}_ID</code></td>
+<td>Stripe</td>
+<td>Credit pack one-time Price IDs</td>
+<td><code>price_...</code></td>
+<td>CREDIT_ADDON_PRICE_IDS → mode:'payment' checkout</td>
+<td>Required for Stripe credit packs</td>
+<td>Stripe → Products</td>
+</tr>
+<tr>
+<td><code>STRIPE_SUCCESS_URL</code> / <code>STRIPE_CANCEL_URL</code></td>
+<td>Stripe</td>
+<td>Checkout redirect overrides</td>
+<td>URLs</td>
+<td>createStripeCheckoutSession defaults</td>
+<td>Optional (defaults exist)</td>
+<td>Your URLs</td>
+</tr>
+<tr>
+<td><code>STRIPE_PORTAL_RETURN_URL</code></td>
+<td>Stripe</td>
+<td>Billing Portal return URL</td>
+<td>URL</td>
+<td>stripe-portal-service (default <code>{APP_URL}/settings?tab=billing</code>)</td>
+<td>Optional</td>
+<td>Your URL</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_KEY_ID</code></td>
+<td>Razorpay</td>
+<td>Server SDK auth + fallback public key for Checkout.js</td>
+<td><code>rzp_test_...</code> / <code>rzp_live_...</code></td>
+<td>razorpay-provider, payment-service, razorpay-service, refund-service</td>
+<td><strong>Required for Razorpay</strong></td>
+<td>Razorpay → Account &amp; Settings → API Keys</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_KEY_SECRET</code></td>
+<td>Razorpay</td>
+<td>Payment signature verification + refund API + gateway fetch</td>
+<td>secret</td>
+<td>razorpay verify route, razorpay-service, refund-service</td>
+<td><strong>Required with key ID</strong></td>
+<td>Same (shown once)</td>
+</tr>
+<tr>
+<td><code>NEXT_PUBLIC_RAZORPAY_KEY_ID</code></td>
+<td>Razorpay</td>
+<td>Public Key ID for the browser modal</td>
+<td>public-safe</td>
+<td>getPublicKeyId() → checkout response</td>
+<td>Optional</td>
+<td>Same as Key ID</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_WEBHOOK_SECRET</code></td>
+<td>Razorpay</td>
+<td>Webhook HMAC-SHA256 verification</td>
+<td>secret</td>
+<td>webhook route (constant-time compare; mandatory outside dev)</td>
+<td><strong>Required in production</strong></td>
+<td>Your chosen value, set in Dashboard → Webhooks</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_PLAN_{PRO,ELITE}_{MONTHLY,YEARLY}</code></td>
+<td>Razorpay</td>
+<td>Recurring Plan IDs (one-time fallback without them)</td>
+<td><code>plan_...</code></td>
+<td>plan-config getRazorpayPlanId (must start with <code>plan_</code>)</td>
+<td>Optional</td>
+<td>Razorpay → Subscriptions → Plans</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_SUBSCRIPTION_TOTAL_COUNT_MONTHLY</code> / <code>_YEARLY</code></td>
+<td>Razorpay</td>
+<td>Mandate tenure (defaults 12 / 5)</td>
+<td>config</td>
+<td>razorpay-provider getSubscriptionTotalCount</td>
+<td>Optional</td>
+<td>Your choice</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_SUPPORTED_CURRENCIES</code></td>
+<td>Razorpay</td>
+<td>Advertised currencies (default <code>INR</code>)</td>
+<td>config</td>
+<td>razorpay-provider supportedCurrencies</td>
+<td>Optional</td>
+<td>Set only if international enabled</td>
+</tr>
+<tr>
+<td><code>APP_URL</code> / <code>NEXT_PUBLIC_APP_URL</code> / <code>NEXTAUTH_URL</code></td>
+<td>App</td>
+<td>Public origin for success/cancel/portal redirect URLs</td>
+<td>URL</td>
+<td>app-url.ts; checkout redirect builders</td>
+<td>Required in production</td>
+<td>Your domain</td>
+</tr>
+<tr>
+<td><code>CRON_SECRET</code></td>
+<td>App</td>
+<td>Bearer auth for cron/diagnostic routes (renewals, reconciliation)</td>
+<td>secret</td>
+<td>cron routes; email-diagnostic</td>
+<td>Required for cron operations</td>
+<td>Self-generated strong random</td>
+</tr>
+</tbody>
+</table>
+<h2>9. Beginner Setup Flow (Single End-to-End Checklist)</h2>
+<pre><code class="language-text">Create Stripe/Razorpay account
+        ↓
+Activate business/account (KYC)
+        ↓
+Enable Test Mode
+        ↓
+Create products
+        ↓
+Create monthly prices/plans  (GST-inclusive amounts)
+        ↓
+Create yearly prices/plans   (GST-inclusive amounts)
+        ↓
+Create additional-credit products
+        ↓
+Copy Product/Price/Plan IDs
+        ↓
+Configure environment variables  (exact names from §8)
+        ↓
+Create webhook  (both providers)
+        ↓
+Configure webhook secret
+        ↓
+Run test payment
+        ↓
+Verify webhook  (PaymentWebhook table + provider deliveries)
+        ↓
+Verify subscription  (plan + period + provider IDs)
+        ↓
+Verify credits  (PLAN_CREDITS + CreditsLedger)
+        ↓
+Verify payment history  (/api/payments/history + invoices)
+        ↓
+Verify refund  (credits reversed; full refund downgrades)
+        ↓
+Repeat in Live Mode  (new objects, new keys, new webhook secret)
+</code></pre>
+<h2>10. What the Current Codebase Does NOT Use (Avoid Ghost Configuration)</h2>
+<ul>
+<li><strong>Free plan:</strong> no product, no price, no gateway object — granted in-app (50 credits/month, 10 lead discoveries).</li>
+<li><strong>Stripe PaymentIntents:</strong> never created directly by the app (Checkout creates them internally; only the fallback webhook listens).</li>
+<li><strong>Stripe Tax / automatic_tax:</strong> not enabled in session creation — tax must be baked into Price amounts (GST-inclusive).</li>
+<li><strong>Razorpay Invoices / Invoice IDs:</strong> not used — the app generates its own numbered GST invoices (PDF + email) from the <code>Invoice</code> table.</li>
+<li><strong>Razorpay Merchant ID:</strong> not referenced anywhere in the integration.</li>
+<li><strong>Embedded card fields / tokenization:</strong> not used — hosted Checkout (Stripe) and Checkout.js modal (Razorpay) only.</li>
+<li><strong>Starter on Razorpay:</strong> rejected by the provider's plan validation in the current code — Stripe only.</li>
+</ul>
+<h2>11. Verification &amp; Admin Endpoints Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Auth</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /api/payments/provider-status</code></td>
+<td>Public</td>
+<td>Gateway availability + mode + per-plan/cycle availability (drives "Coming Soon")</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/create-checkout-session</code></td>
+<td>Session</td>
+<td>Canonical checkout entry (both gateways; plans + credit packs)</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/create-order</code> · <code>POST /api/payments/create-stripe-session</code></td>
+<td>Session</td>
+<td>Legacy/alias checkout entries (same underlying services)</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/razorpay/verify</code></td>
+<td>Session</td>
+<td>Razorpay signature + gateway + amount verification → activation</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/verify-session</code></td>
+<td>Session</td>
+<td>Stripe post-redirect session reconciliation → activation</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/webhook/stripe</code> · <code>/razorpay</code></td>
+<td>Signature</td>
+<td>Provider webhooks (activation source of truth)</td>
+</tr>
+<tr>
+<td><code>GET /api/payments/history</code></td>
+<td>Session</td>
+<td>User's payment orders + invoice info (billing UI)</td>
+</tr>
+<tr>
+<td><code>GET /api/payments/invoices</code> · <code>/api/billing/invoices/{id}/download</code></td>
+<td>Session</td>
+<td>Invoice list + PDF download</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/stripe-portal</code></td>
+<td>Session</td>
+<td>Stripe Billing Portal session</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/cancel</code> · <code>/api/subscriptions/cancel</code></td>
+<td>Session</td>
+<td>Cancel (cancelAtPeriodEnd=true)</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/retry</code> · <code>GET /api/payments/status</code></td>
+<td>Session</td>
+<td>Retry / poll a pending order</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/refund</code></td>
+<td>Super-admin</td>
+<td>Initiate full/partial refund via provider API</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/billing/webhooks</code></td>
+<td>Admin</td>
+<td>Inspect webhook records (<code>PaymentWebhook</code>)</td>
+</tr>
+<tr>
+<td><code>POST /api/payments/webhook-replay</code></td>
+<td>Internal</td>
+<td>Safe event replay (dedup-protected)</td>
+</tr>
+<tr>
+<td><code>GET /api/cron/renew-subscriptions</code> · <code>/api/cron/payment-reconciliation</code></td>
+<td>CRON_SECRET</td>
+<td>Periodic credit resets / renewal + stale-payment reconciliation</td>
+</tr>
+</tbody>
+</table>
+<h2>12. Immediate Next Actions (Operator)</h2>
+<ol>
+<li>Choose gateway per market: <strong>Stripe</strong> (cards; all four plans + packs) and/or <strong>Razorpay</strong> (India: UPI/netbanking; Pro/Elite + packs).</li>
+<li>Create the dashboard objects from §5 and §6 in Test Mode; copy IDs into the §8 env vars.</li>
+<li>Register both webhook endpoints (§7) and set the secrets.</li>
+<li>Set <code>APP_URL</code> / <code>NEXT_PUBLIC_APP_URL</code> to the public domain so redirect URLs are correct.</li>
+<li>Walk the §9 checklist once in Test Mode; then repeat in Live Mode.</li>
+<li>Verify with <code>GET /api/payments/provider-status</code>: every sold plan/cycle should report <code>available: true</code> before announcing pricing.</li>
+</ol>
+
+<p><em>End of Payment Configuration Master Guide. See <code>STRIPE-SETUP-GUIDE.md</code> and <code>RAZORPAY-SETUP-GUIDE.md</code> for step-by-step dashboard walkthroughs.</em></p>
+</div>
+
+<div class="ending">
+  <div class="big">Configuration complete.</div>
+  <div class="small">Every environment variable name, endpoint, webhook event, and amount in this guide was verified against the current AcquisitionOS source code. Configure objects in Test Mode first, verify the full checklist, then repeat in Live Mode.</div>
+  <div class="companions">Companion guides: Stripe Setup Guide · Razorpay Setup Guide</div>
+  <div class="foot">ACQUISITIONOS · PAYMENT CONFIGURATION · 2026</div>
+</div>
+
+</body>
+</html>

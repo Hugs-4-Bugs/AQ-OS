@@ -8,7 +8,7 @@
 
 ## 1. What the product is
 
-**AcquisitionOS** (package name is still `vantage` — a leftover from the previous product iteration; the README.md also still describes the older "Vantage" feature set, treat it as partially stale) is an **AI-powered B2B client-acquisition SaaS**. It runs the whole acquisition lifecycle in one Next.js app: **lead discovery** (Google Custom Search API → website scraping/scoring with Cheerio heuristics → Z-AI company research and 4-factor predictive scoring), **AI outreach** (LLM-generated personalized messages sent over Email/WhatsApp/LinkedIn/Instagram, with sequences, open/click/reply tracking and Gmail inbox sync for replies), a **visual pipeline/deals** board with AI proposal generation, **meetings** (Google Calendar OAuth, free/busy availability checks, autonomous slot proposals with human approval, Google Meet links via `conferenceData`, reminders and post-meeting AI notes), an **inbox** (Gmail OAuth + Pub/Sub sync), **workflow automation** (trigger/step/action engine), **competitor intelligence**, and **billing** (Stripe + Razorpay, a credits system metered per AI action, and Free/Pro/Elite plans). Everything is served by ~485+ API route files under `src/app/api` with the real business logic in ~200 service modules under `src/lib`, backed by Prisma 6 over a local SQLite file (`db/custom.db`).
+**AcquisitionOS** (package name is still `vantage` — a leftover from the previous product iteration; the README.md also still describes the older "Vantage" feature set, treat it as partially stale) is an **AI-powered B2B client-acquisition SaaS**. It runs the whole acquisition lifecycle in one Next.js app: **lead discovery** (Google Custom Search API → website scraping/scoring with Cheerio heuristics → Z-AI company research and 4-factor predictive scoring), **AI outreach** (LLM-generated personalized messages sent over Email/WhatsApp/LinkedIn/Instagram, with sequences, open/click/reply tracking and Gmail inbox sync for replies), a **visual pipeline/deals** board with AI proposal generation, **meetings** (Google Calendar OAuth, free/busy availability checks, autonomous slot proposals with human approval, Google Meet links via `conferenceData`, reminders and post-meeting AI notes), an **inbox** (Gmail OAuth + Pub/Sub sync), **workflow automation** (trigger/step/action engine), **competitor intelligence**, and **billing** (Stripe + Razorpay, a credits system metered per AI action, and Free/Pro/Elite plans). Everything is served by ~505 API route files under `src/app/api` with the real business logic in ~258 service modules under `src/lib`, backed by Prisma 6 over a local SQLite file (`db/custom.db`).
 
 ---
 
@@ -31,7 +31,7 @@
 /home/z/my-project
 ├── src/
 │   ├── app/                     # Next.js 16 App Router
-│   │   ├── api/                 # ~485 API route files (489 route.ts at last count)
+│   │   ├── api/                 # ~505 API route files (verified 2026-09-21)
 │   │   │   ├── auth/            # signup, signin, otp/, magic-link/, google/, callback/, 2fa
 │   │   │   ├── leads/           # CRUD, [id]/analyze, communications, outreach
 │   │   │   ├── discovery/       # POST /api/discovery/start → DiscoveryJob
@@ -55,9 +55,9 @@
 │   │   ├── feedback/            # feedback widget + crash reporter
 │   │   └── providers.tsx        # theme + TanStack Query providers
 │   ├── hooks/                   # use-mobile, use-toast, use-keyboard-shortcuts, use-payment…
-│   ├── lib/                     # ~200 libs — the real business logic (168 top-level .ts files)
+│   ├── lib/                     # ~258 libs — the real business logic
 │   └── proxy.ts                 # Next 16 proxy (replaces middleware.ts — see §7)
-├── prisma/schema.prisma         # 2,831 lines, 104 models, [MIGRATE-SAFE] annotations
+├── prisma/schema.prisma         # 2,831+ lines, 105 models, [MIGRATE-SAFE] annotations
 ├── db/custom.db                 # SQLite file DB (per-deployment!)
 ├── scripts/                     # ops + self-heal scripts (see §9)
 ├── mini-services/               # independent Bun services: email-service, proxy,
@@ -110,7 +110,7 @@ Similarly `lib/calendar/` holds both `calendar-service.ts` and `calendar-intelli
 | 1 | `src/lib/auth.ts` | Every request's identity: JWT sign/verify, refresh rotation, cookie names, TOTP. Break this and nothing logs in. |
 | 2 | `src/lib/auth-middleware.ts` | The `withAuth` / `withDualAuth` wrappers you'll copy for any new route. |
 | 3 | `src/lib/db.ts` | Prisma singleton — the only sanctioned DB entrypoint. |
-| 4 | `prisma/schema.prisma` | 2,831 lines, 104 models. Read the header ([MIGRATE-SAFE] tags) before touching. |
+| 4 | `prisma/schema.prisma` | 2,831+ lines, 105 models. Read the header ([MIGRATE-SAFE] tags) before touching. |
 | 5 | `src/lib/app-url.ts` | Origin resolution (headers → env → production fallback). Root cause of ~3 historical outage classes. |
 | 6 | `src/lib/email-ethereal.ts` | SMTP/Resend config detection + alias helpers + startup diagnostics. |
 | 7 | `src/lib/meeting-orchestration-service.ts` | Meetings engine: freeBusy availability, Meet links, 409 busy-slot mapping. |
@@ -283,7 +283,7 @@ Browser
 
 ## 13. Data model cheat sheet (the 10 models you'll touch weekly)
 
-Full field-level reference: `docs/02-architecture/DATABASE-SCHEMA.md` (all 104 models). The daily drivers:
+Full field-level reference: `docs/02-architecture/DATABASE-SCHEMA.md` (all 105 models). The daily drivers:
 
 | Model | Notes |
 |---|---|
@@ -316,7 +316,7 @@ Inside the Next process, realtime is served by `/api/ws` + SSE streams (`/api/ev
 
 ---
 
-## 15. API surface at a glance (~485 route files; full inventory in `docs/06-api-reference/API-ROUTES.md`)
+## 15. API surface at a glance (~505 route files; full inventory in `docs/06-api-reference/API-ROUTES.md`)
 
 | Group | Representative routes |
 |---|---|

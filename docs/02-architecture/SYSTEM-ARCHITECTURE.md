@@ -1,6 +1,29 @@
 # AcquisitionOS — System Architecture
 
-> Sources: `src/` tree, `prisma/schema.prisma`, `src/lib/*` services, `worklog.md`. Route counts are real (485 route files inventoried).
+> Sources: `src/` tree, `prisma/schema.prisma`, `src/lib/*` services, `worklog.md`. Counts re-verified against the working tree on 2026-09-21: **505 API route files**, **105 Prisma models**, **~258 service modules** under `src/lib`, **247 components** (185 dashboard + 50 UI primitives + 12 other), **23 client hooks**, **12 cron endpoints**.
+
+## 0. Architecture Classification (verified)
+
+**Current Architecture: Modular Monolith / Full-Stack Monolithic Application with Internal Domain Modules.**
+
+This classification is evidence-based, not aspirational:
+
+| Property | Verified state | Evidence |
+|---|---|---|
+| Runtime processes | **One** Node.js process serves UI, API, business logic, SSE, WebSocket | `package.json` single `next` app; `src/app/api/**/route.ts` in-process |
+| Independent deployment | **None** — the whole system ships as one Next.js build | `next.config.ts` standalone output; no service-level build/deploy units |
+| Independent scaling | **None** — scale = more replicas of the same app | No per-domain scaling mechanism in code |
+| Network contracts between services | **None** between domain modules — direct TS imports | `src/lib/*` imported directly by routes |
+| Separate persistence | **None** — single Prisma schema, one SQLite file | `prisma/schema.prisma` (105 models), `src/lib/db.ts` singleton |
+| Failure boundaries | **Shared** — one process crash takes down all domains | Single `next start` process |
+| Background jobs | **No queue/worker** — in-process execution + 12 HTTP cron endpoints called by an external scheduler | `src/app/api/cron/*` (Bearer `CRON_SECRET`); ADR-011 (queue planned, not shipped) |
+| Realtime | In-process event bus + SSE + WebSocket upgrade route; optional Redis pub/sub (not configured in current deployment) | `realtime-event-bus.ts`, `/api/events/*`, `/api/ws`, `redis-pubsub-service.ts` |
+
+What makes it **modular**: business logic is organized into ~258 domain service modules (`src/lib/` — auth, leads, discovery, outreach, meetings, payments, credits, workflows, notifications, competitors, RAG…), routes stay thin, and domain boundaries are visible in the tree (`src/lib/ai/`, `src/lib/lead-discovery/`, `src/lib/meeting/`, `src/lib/notification-channels/`, `src/lib/payments/`, `src/lib/security/`).
+
+What prevents it from being **microservices**: no independent runtime processes, no independently deployable units, no network/API contracts between domains, no separate databases or persistence ownership, shared failure boundary. The historical `backend/` (FastAPI) and `mini-services/` directories and the `deploy/k8s` Celery/Redis templates belong to an **abandoned earlier architecture** and do not run in the current deployment — treat them as historical reference only (`docs/deployment/01-architecture.md` reaches the same verdict: "ONE container: UI + API together").
+
+Verified architecture diagram: **[ARCHITECTURE-DIAGRAM.md](ARCHITECTURE-DIAGRAM.md)**. Future decomposition path: see §11 below.
 
 ## 1. Application Structure (Next.js App Router)
 
@@ -20,13 +43,13 @@ Browser
 ```
 
 - **Rendering model:** the dashboard is client-side (`'use client'` at `src/app/page.tsx`); API routes are server-side Node handlers under `src/app/api/**/route.ts`.
-- **API layer:** 485 route files grouped by domain (auth, leads, discovery, outreach, meetings, payments, notifications, workflows, admin…). Full inventory: `06-api-reference/API-ROUTES.md`.
-- **Service layer:** `src/lib/` contains 180+ service modules — the real business logic lives there, routes stay thin.
+- **API layer:** 505 route files (verified 2026-09-21) grouped by domain (auth, leads, discovery, outreach, meetings, payments, notifications, workflows, admin…). Full inventory: `06-api-reference/API-ROUTES.md`.
+- **Service layer:** `src/lib/` contains ~258 service modules — the real business logic lives there, routes stay thin.
 - **Middleware:** `src/middleware.ts` is DISABLED in this deployment (`middleware.ts.disabled`) — the GLM sandbox cannot run it reliably; edge-level checks are compensated by per-route auth.
 - **Realtime:** a WebSocket endpoint (`/api/ws`) plus Server-Sent-Events (`/api/events/*`) feed live updates; `realtime-event-bus.ts` fans out events; optional Redis pub/sub (`redis-pubsub-service.ts`) when `REDIS_URL` is set.
 - **Startup:** `instrumentation.ts` runs on server boot (env validation, OTel hooks); `src/lib/env-validation.ts` + `env-safeguard.ts` guard configuration.
 
-## 2. Database Schema Overview (all 104 Prisma models)
+## 2. Database Schema Overview (all 105 Prisma models)
 
 Full field-level documentation: **[DATABASE-SCHEMA.md](DATABASE-SCHEMA.md)**. Datasource is **SQLite** today (`DATABASE_URL=file:...`) with annotated migration path to PostgreSQL. Relationship map (only principal edges shown; every model has a `user FK` unless noted):
 
@@ -221,3 +244,18 @@ Event (lead replied, meeting booked, payment failed, digest…)
 ```
 
 Cross-channel deliveries are tracked in `MessageDelivery` (pending→queued→sent→delivered→read / failed→bounced) with `DeliveryDeadLetter` for poison messages. Broadcasting (bulk campaigns) reuses the same delivery plumbing (`MessageBroadcast`/`BroadcastTarget`). Realtime: `realtime-event-bus.ts` publishes to `/api/events/{notifications,payments,workflows,messages,ai}` SSE streams and the `/api/ws` socket.
+
+## 11. Future Architecture Evolution Path (documented, NOT implemented)
+
+The following is a **target/future** decomposition plan based on the verified domain boundaries above. None of it exists today; any document describing these as running services is inaccurate. Decomposition should follow business subdomains and real scaling pain, not architecture fashion — as a single-process modular monolith, the current design is the cheapest to operate at low scale and its internal modularity is the basis for any future extraction.
+
+| Candidate future service | Current location in monolith | Major dependencies | Data ownership today | Extraction complexity | Justified only when |
+|---|---|---|---|---|---|
+| **Discovery / Research worker** | `src/lib/lead-discovery/*`, `src/lib/prospecting/*` | Google Search API, SerpAPI, AI provider, proxy rotation | `DiscoveryJob`, `Lead` (write path) | Medium — CPU/network bound, already batch-shaped | Discovery volume makes long-running jobs block the web process or API rate limits dominate |
+| **AI engine** | `src/lib/ai/*`, `src/lib/rag-*`, `vector-search-service.ts` | Z-AI SDK / OpenAI-compatible fallback, `RagDocument` store | `AiCostRecord`, `AiChatSession`, `RagDocument` | Medium — clean provider interface (`ai-provider.ts`) exists | AI cost/cost-metering or model routing needs independent scaling/cost isolation |
+| **Outreach / messaging delivery** | `src/lib/lead-discovery/outreach-sender.ts`, `gmail-*`, `whatsapp-service.ts`, `telegram-service.ts`, `sequence-*` | Gmail API, SMTP, Twilio/Meta, Telegram bot API | `OutreachMessage`, `EmailMessage`, `MessageDelivery` | Medium-High — many channel adapters, delivery state machines | Send volume or provider webhooks require isolation from web traffic |
+| **Workflow engine** | `src/lib/workflow-*.ts` (engine, executor, triggers, DLQ) | All action types; credits | `WorkflowDefinition`, `WorkflowExecution`, `WorkflowLog` | Medium — already has execution/DLQ concepts | Long-running executions need a durable queue (ADR-011 prerequisite) |
+| **Billing / credits** | `src/lib/payments/*`, `stripe-*`, `razorpay-*`, `credit-service.ts` | Stripe, Razorpay webhooks | `PaymentOrder`, `Invoice`, `CreditsLedger` | High — strong transactional coupling to every metered action | Payment throughput or compliance isolation demands it; usually last to split |
+| **Realtime fan-out** | `realtime-event-bus.ts`, `sse-manager.ts`, `/api/ws` | Redis pub/sub (optional today) | none (ephemeral) | Low-Medium — natural first extraction | Horizontal scaling breaks in-process SSE/WS affinity |
+
+Prerequisites before any decomposition: PostgreSQL migration (ADR-012), a real job queue (ADR-011), centralized config/secrets, and observability outside the process (Sentry/OTLP currently unconfigured).

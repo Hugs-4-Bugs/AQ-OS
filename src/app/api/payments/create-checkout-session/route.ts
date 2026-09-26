@@ -18,11 +18,11 @@
 //
 // TWO REQUEST SHAPES:
 //   A) Subscription upgrade/switch (default):
-//        body: { plan: 'pro'|'elite', billingCycle: 'monthly'|'yearly',
+//        body: { plan: 'pro'|'elite'|'starter', billingCycle: 'monthly'|'yearly',
 //                couponCode?, successUrl?, cancelUrl? }
 //      → calls createStripeCheckoutSession (mode: 'payment' with price_data)
 //   B) Credit add-on one-time purchase:
-//        body: { type: 'credits', creditAmount: 100|500|1000,
+//        body: { type: 'credits', creditAmount: 250|500|1000|2500,
 //                successUrl?, cancelUrl? }
 //      → calls createStripeCreditAddonCheckoutSession (mode: 'payment'
 //        with line_items: [{ price: <priceId from env>, quantity: 1 }])
@@ -47,7 +47,7 @@ interface CreateCheckoutSessionBody {
   // Checkout payload (order or subscription) instead of a redirect URL.
   gateway?: PaymentGateway;
   // Subscription shape
-  plan?: 'pro' | 'elite';
+  plan?: 'pro' | 'elite' | 'starter';
   billingCycle?: 'monthly' | 'yearly';
   // Accepted for contract compatibility. The app's plan catalog maps
   // plans to Stripe Prices server-side; a client-supplied priceId is
@@ -70,6 +70,12 @@ const KNOWN_PRICE_IDS = new Set(
     process.env.STRIPE_PRICE_ID_PRO_YEARLY,
     process.env.STRIPE_PRICE_ID_ELITE_MONTHLY,
     process.env.STRIPE_PRICE_ID_ELITE_YEARLY,
+    // Canonical price-ID variables (final pricing/plan update, Sep 2026).
+    // Read from env, never hardcoded, never invented.
+    process.env.STRIPE_PRICE_STARTER_MONTHLY_ID,
+    process.env.STRIPE_PRICE_STARTER_YEARLY_ID,
+    process.env.STRIPE_PRICE_PRO_YEARLY_ID,
+    process.env.STRIPE_PRICE_ELITE_YEARLY_ID,
     // Credit add-on price IDs (read from env, never hardcoded). When the
     // client requests type='credits', the server looks up the correct
     // priceId from STRIPE_PRICE_CREDITS_<amount>_ID and ignores any
@@ -114,21 +120,43 @@ export async function POST(request: NextRequest) {
       // BRANCH B — Credit add-on one-time purchase
       // ═════════════════════════════════════════════════════════════
       if (type === 'credits') {
-        if (creditAmount !== 100 && creditAmount !== 500 && creditAmount !== 1000) {
+        if (creditAmount !== 250 && creditAmount !== 500 && creditAmount !== 1000 && creditAmount !== 2500) {
           return NextResponse.json(
-            { error: 'Invalid creditAmount. Must be 100, 500, or 1000.' },
+            { error: 'Invalid creditAmount. Must be 250, 500, 1000, or 2500.' },
             { status: 400 }
           );
         }
 
+        // SECURITY HARDENING: restrict post-payment redirect URLs to
+        // same-origin. Arbitrary absolute URLs previously made Stripe a
+        // redirect relay after successful payment.
+        const isSameOriginUrl = (raw: string): boolean => {
+          try {
+            const u = new URL(raw);
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '';
+            const allowed = new Set<string>();
+            if (appUrl) allowed.add(new URL(appUrl).origin);
+            const origin = request.headers.get('origin');
+            if (origin) allowed.add(new URL(origin).origin);
+            const host = request.headers.get('host');
+            if (host) { allowed.add(`http://${host}`); allowed.add(`https://${host}`); }
+            return allowed.has(u.origin);
+          } catch { return false; }
+        };
         if (successUrl) {
           try { new URL(successUrl); } catch {
             return NextResponse.json({ error: 'Invalid successUrl format.' }, { status: 400 });
+          }
+          if (!isSameOriginUrl(successUrl)) {
+            return NextResponse.json({ error: 'successUrl must point to this application.' }, { status: 400 });
           }
         }
         if (cancelUrl) {
           try { new URL(cancelUrl); } catch {
             return NextResponse.json({ error: 'Invalid cancelUrl format.' }, { status: 400 });
+          }
+          if (!isSameOriginUrl(cancelUrl)) {
+            return NextResponse.json({ error: 'cancelUrl must point to this application.' }, { status: 400 });
           }
         }
 
@@ -233,9 +261,9 @@ export async function POST(request: NextRequest) {
       // ═════════════════════════════════════════════════════════════
       // BRANCH A — Subscription upgrade / billing-cycle switch
       // ═════════════════════════════════════════════════════════════
-      if (!plan || !['pro', 'elite'].includes(plan)) {
+      if (!plan || !['pro', 'elite', 'starter'].includes(plan)) {
         return NextResponse.json(
-          { error: 'Invalid plan. Must be "pro" or "elite".' },
+          { error: 'Invalid plan. Must be "starter", "pro", or "elite".' },
           { status: 400 }
         );
       }
@@ -276,7 +304,7 @@ export async function POST(request: NextRequest) {
         const result = await provider.createCheckout({
           userId: user.id,
           kind: 'subscription',
-          plan: plan as 'pro' | 'elite',
+          plan: plan as 'pro' | 'elite' | 'starter',
           billingCycle,
           couponCode,
           ipAddress,

@@ -5,9 +5,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 import { ingestFromCsv } from '@/lib/rag-service';
 
 export async function POST(request: NextRequest) {
+  // SECURITY HARDENING: RAG ingestion is expensive (parsing + embeddings).
+  // The 'ai' limiter was defined but never wired up.
+  const rateLimitResult = withRateLimit(request, 'ai');
+  if (rateLimitResult) return rateLimitResult;
+
   return withAuth(request, async (user) => {
     try {
       const body = await request.json();

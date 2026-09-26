@@ -53,6 +53,22 @@ function ensureWritableDatabasePath(): void {
 
   const dbDir = path.dirname(dbPath);
 
+  // ROOT-CAUSE FIX (Sep 2026): a missing db/ DIRECTORY (workspace restore
+  // artifact) used to be treated as "read-only filesystem" and silently
+  // redirected the app to an empty /tmp/custom.db → Prisma P2021 → OTP 500,
+  // sessions invalidated, subscription "Free". Only fall back to /tmp when
+  // the filesystem is GENUINELY read-only; if the directory is merely
+  // missing on a writable FS, recreate it and keep the real DB path.
+  try {
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+      console.log(`[DB] Recreated missing database directory: ${dbDir}`);
+    }
+  } catch {
+    // Directory creation failed — likely a genuinely read-only filesystem
+    // (e.g. Aliyun FC). The probe below will redirect to /tmp as before.
+  }
+
   // Check if the DB directory is writable by trying to write a temp file
   let dirWritable = false;
   try {

@@ -29,6 +29,7 @@ import {
   CreditCard,
   LogOut,
   ChevronDown,
+  LifeBuoy,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuShortcut } from '@/components/ui/dropdown-menu';
@@ -580,6 +581,12 @@ export default function DashboardLayout({
               <DropdownMenuItem onClick={() => setUpgradeModalOpen(true)} className="cursor-pointer">
                 <CreditCard className="mr-2 h-4 w-4" /> Billing
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => window.open('/support', '_self')}
+                className="cursor-pointer"
+              >
+                <LifeBuoy className="mr-2 h-4 w-4" /> Support
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={async () => { await signOut(); }} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20">
                 <LogOut className="mr-2 h-4 w-4" /> Log out
@@ -717,6 +724,13 @@ export default function DashboardLayout({
                   <DropdownMenuItem onClick={() => setUpgradeModalOpen(true)} className="cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Billing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => window.open('/support', '_self')}
+                    className="cursor-pointer"
+                  >
+                    <LifeBuoy className="mr-2 h-4 w-4" />
+                    Support
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

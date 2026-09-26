@@ -137,3 +137,16 @@ export const PIPELINE_STEP_LABELS: Record<number, string> = {
 
 /** Total credits charged for one full pipeline run (5 credits analysis + 2 credits email). */
 export const PIPELINE_CREDIT_COST = 7;
+
+/** Research depth for batch deep-research jobs (single-lead research or full pipeline). */
+export type ResearchDepth = 'quick' | 'deep';
+
+/**
+ * Per-lead credit cost by research depth.
+ * MUST stay in sync with the credit gate in batch-research.ts (single source of truth):
+ *   quick → analysis-only pipeline (5 credits), deep → full pipeline (7 credits).
+ */
+export const PIPELINE_CREDIT_COSTS: Record<ResearchDepth, number> = {
+  quick: 5,
+  deep: 7,
+};

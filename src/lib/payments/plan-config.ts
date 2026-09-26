@@ -26,7 +26,7 @@ import type { BillingCycle, PaymentGateway } from './types';
 import { PLAN_CREDITS, type PlanType } from '@/lib/entitlement-service';
 import { resolvePlanPriceId } from '@/lib/payment-service';
 
-export type PaidPlan = 'pro' | 'elite';
+export type PaidPlan = 'pro' | 'elite' | 'starter';
 
 export interface PlanPrice {
   monthly: number;
@@ -35,10 +35,20 @@ export interface PlanPrice {
 
 /** Display prices in minor-unit-free major units (₹ / $). Server-side
  * amounts for Razorpay orders are derived from this table; Stripe amounts
- * always come from the Stripe Price object itself. */
+ * always come from the Stripe Price object itself.
+ *
+ * Final pricing/plan update (Sep 2026) — order in the pricing UI:
+ *   Free → Starter → Pro → Elite
+ *   Starter: ₹399/mo · ₹4,999/yr   (USD display: $5/mo · $60/yr) — monthly
+ *     price reduced from ₹499 to ₹399; yearly unchanged
+ *   Pro:     ₹1,599/mo · ₹14,999/yr (USD display: $19/mo · $180/yr)
+ *   Elite:   ₹5,199/mo · ₹44,999/yr (USD display: $63/mo · $540/yr)
+ * USD values are display-only (app's existing ≈₹83.3/$ mapping); Stripe
+ * charges always use the Price object amount. */
 export const PLAN_PRICING: Record<PaidPlan, Record<'INR' | 'USD', PlanPrice>> = {
-  pro: { INR: { monthly: 1599, yearly: 11999 }, USD: { monthly: 19, yearly: 144 } },
-  elite: { INR: { monthly: 5199, yearly: 37999 }, USD: { monthly: 63, yearly: 456 } },
+  starter: { INR: { monthly: 399, yearly: 4999 }, USD: { monthly: 5, yearly: 60 } },
+  pro: { INR: { monthly: 1599, yearly: 14999 }, USD: { monthly: 19, yearly: 180 } },
+  elite: { INR: { monthly: 5199, yearly: 44999 }, USD: { monthly: 63, yearly: 540 } },
 };
 
 /** Authoritative amount for a plan/cycle/currency (major units). */
@@ -99,7 +109,7 @@ export function getCreditAddonGatewayAvailability(): Record<PaymentGateway, bool
   return {
     stripe:
       !!process.env.STRIPE_SECRET_KEY &&
-      [100, 500, 1000].some((n) => !!process.env[`STRIPE_PRICE_CREDITS_${n}_ID`]),
+      [250, 500, 1000, 2500].some((n) => !!process.env[`STRIPE_PRICE_CREDITS_${n}_ID`]),
     razorpay: !!process.env.RAZORPAY_KEY_ID && !!process.env.RAZORPAY_KEY_SECRET,
   };
 }
@@ -116,7 +126,7 @@ export function getPlanCatalog() {
     razorpay: { configured: boolean; recurring: boolean; envVar: string };
   }> = [];
 
-  for (const plan of ['pro', 'elite'] as PaidPlan[]) {
+  for (const plan of ['starter', 'pro', 'elite'] as PaidPlan[]) {
     for (const cycle of ['monthly', 'yearly'] as BillingCycle[]) {
       const { envVarNamesTried } = { envVarNamesTried: stripeEnvNames(plan, cycle) };
       plans.push({

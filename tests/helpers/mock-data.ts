@@ -57,8 +57,8 @@ export function createMockTrialUser(overrides: Record<string, unknown> = {}) {
     plan: 'pro',
     isTrial: true,
     trialEndsAt: daysFromNow(14),
-    credits: 500,
-    creditsMonthly: 500,
+    credits: 750,
+    creditsMonthly: 750,
     ...overrides,
   });
 }

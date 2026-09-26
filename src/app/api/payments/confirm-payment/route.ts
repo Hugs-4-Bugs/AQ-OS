@@ -27,7 +27,8 @@ import { PLAN_CREDITS, type PlanType } from '@/lib/entitlement-service';
 function getCreditsForPlan(plan: string): number {
   const planCredits: Record<string, number> = {
     free: 50,
-    pro: 500,
+    starter: 150,
+    pro: 750,
     elite: 2000,
     enterprise: 10000,
   };

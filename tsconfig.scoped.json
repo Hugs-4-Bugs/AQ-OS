@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "skipLibCheck": true
+  },
+  "files": [
+    "src/lib/payment-config-validator.ts",
+    "src/app/api/payments/config-status/route.ts",
+    "src/app/api/payments/provider-status/route.ts",
+    "src/app/api/payments/create-order/route.ts",
+    "src/hooks/use-plan-availability.ts",
+    "src/components/dashboard/upgrade-modal.tsx",
+    "src/components/dashboard/pricing-page.tsx",
+    "src/components/dashboard/billing-page.tsx",
+    "src/__tests__/lib/payment-activation.test.ts",
+    "src/__tests__/lib/starter-plan.test.ts",
+    "src/__tests__/lib/starter-checkout-providers.test.ts"
+  ]
+}

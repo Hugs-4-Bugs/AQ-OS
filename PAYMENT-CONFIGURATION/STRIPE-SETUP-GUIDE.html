@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stripe Setup Guide — AcquisitionOS</title>
+<style>
+@page { size: 794px 1123px; margin: 0; }
+:root {
+  --accent: #4f46e5;
+  --accent2: #818cf8;
+  --ink: #17233b;
+  --muted: #55677d;
+  --line: #dbe3ee;
+  --soft: #f3f6fb;
+  --code-bg: #eef2f8;
+}
+html, body {
+  margin: 0; padding: 0; width: 794px;
+  background: #0b1220; /* darkest page color — prevents sub-pixel white edges on dark pages */
+  color: var(--ink);
+  font-family: 'Carlito', 'Liberation Sans', 'DejaVu Sans', sans-serif;
+  font-size: 12.5px; line-height: 1.62;
+}
+@media screen {
+  html { height: auto; display: flex; justify-content: center; background: #0b1220; }
+  body { transform-origin: top center; margin: 20px auto; box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+}
+p, td, li { overflow-wrap: break-word; }
+p { margin: 0 0 9px 0; text-align: left; }
+
+/* ── Cover ─────────────────────────────────────────── */
+.hero-page {
+  width: 794px; height: 1123px; box-sizing: border-box;
+  break-after: page; overflow: hidden; position: relative;
+  background: linear-gradient(160deg, #0b1220 0%, #101b33 58%, #0d1730 100%);
+  color: #eef2fa; display: flex; flex-direction: column; justify-content: center;
+  padding: 64px 62px;
+}
+.hero-page .blob { position: absolute; border-radius: 50%; }
+.hero-page .b1 { width: 330px; height: 330px; right: 30px; top: 40px; background: radial-gradient(circle at 38% 38%, rgba(255,255,255,.10), rgba(255,255,255,0) 66%); }
+.hero-page .b2 { width: 220px; height: 220px; right: 120px; top: 180px; background: radial-gradient(circle at 40% 40%, rgba(255,255,255,.06), rgba(0,0,0,0) 64%); }
+.hero-page .b3 { width: 260px; height: 260px; left: 40px; bottom: 60px; background: radial-gradient(circle at 45% 45%, rgba(255,255,255,.07), rgba(255,255,255,0) 62%); }
+.hero-page .series { font-size: 11.5px; letter-spacing: 3.5px; color: #818cf8; font-weight: 700; margin-bottom: 22px; }
+.hero-page .docid { position: absolute; top: 58px; right: 62px; font-size: 10.5px; letter-spacing: 2.5px; color: #93a3bd; }
+.hero-page .title { font-size: 51px; line-height: 1.06; font-weight: 700; letter-spacing: -0.5px; margin: 0 0 24px 0; max-width: 620px; }
+.hero-page .title .t2 { color: #818cf8; display: block; }
+.hero-page .subtitle { font-size: 14.5px; line-height: 1.65; color: #b9c6dc; max-width: 600px; margin-bottom: 32px; }
+.hero-page .chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 640px; margin-bottom: 34px; }
+.hero-page .chip { border: 1px solid rgba(255,255,255,.22); color: #d7e0f0; border-radius: 999px; padding: 4px 13px; font-size: 11px; letter-spacing: .3px; }
+.hero-page .meta-row { font-size: 11.5px; color: #8fa0bb; letter-spacing: .6px; }
+.hero-page .meta-row b { color: #d7e0f0; font-weight: 700; }
+.hero-page .foot { position: absolute; left: 62px; right: 62px; bottom: 54px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #93a3bd; letter-spacing: 1.2px; }
+
+/* ── Flowing content ───────────────────────────────── */
+.main-content {
+  background: #ffffff; width: 794px; box-sizing: border-box;
+  padding: 54px 58px 46px 58px; /* no fixed height, no overflow hidden */
+}
+h1, h2, h3, h4 { break-after: avoid; break-inside: avoid; color: var(--ink); }
+h2 {
+  font-size: 21px; line-height: 1.25; margin: 26px 0 12px 0; padding-top: 12px;
+  border-top: 1px solid var(--line); letter-spacing: -0.2px;
+}
+h2:first-of-type { margin-top: 4px; border-top: none; padding-top: 0; }
+h3 { font-size: 15px; margin: 18px 0 8px 0; color: #1d2b47; }
+h4 { font-size: 13px; margin: 14px 0 6px 0; }
+strong { color: #0f1a30; }
+hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+
+/* tables */
+table {
+  width: 100%; border-collapse: collapse; margin: 10px 0 14px 0;
+  font-size: 10.6px; line-height: 1.45;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; page-break-inside: avoid; }
+th {
+  background: var(--accent); color: #ffffff; text-align: left;
+  padding: 6px 7px; font-weight: 700; border: 1px solid var(--accent);
+  font-size: 10.2px;
+}
+td { border: 1px solid var(--line); padding: 5.5px 6px; vertical-align: top; overflow-wrap: anywhere; }
+td code, th code { font-size: 9.5px; }
+tbody tr:nth-child(even) td { background: var(--soft); }
+
+/* code */
+code {
+  font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  font-size: 10.3px; background: var(--code-bg); border: 1px solid #e2e8f2;
+  border-radius: 3px; padding: 0.5px 4px; color: #1f2d4d;
+}
+pre {
+  background: #0f1726; color: #dce6f5; border-radius: 8px;
+  padding: 14px 16px; margin: 10px 0 14px 0;
+  font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  font-size: 10.4px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: break-word;
+  break-inside: avoid;
+}
+pre code { background: transparent; border: none; color: inherit; padding: 0; font-size: inherit; }
+
+/* blockquote = callout */
+blockquote {
+  margin: 10px 0 14px 0; padding: 10px 14px;
+  background: var(--soft); border-left: 3.5px solid var(--accent);
+  border-radius: 0 6px 6px 0; color: #33455f;
+}
+blockquote p { margin: 0; }
+blockquote p + p { margin-top: 7px; }
+
+ul, ol { margin: 6px 0 10px 0; padding-left: 22px; }
+li { margin-bottom: 4px; text-align: left; }
+li > p { margin-bottom: 4px; }
+
+/* ── Ending ────────────────────────────────────────── */
+.ending {
+  width: 794px; height: 1123px; box-sizing: border-box;
+  break-before: page; overflow: hidden; position: relative;
+  background: linear-gradient(200deg, #101b33 0%, #0b1220 70%);
+  color: #eef2fa; display: flex; flex-direction: column; justify-content: center;
+  padding: 64px; text-align: center;
+}
+.ending .big { font-size: 30px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 16px; }
+.ending .small { font-size: 13px; color: #b9c6dc; max-width: 520px; margin: 0 auto 34px auto; line-height: 1.7; }
+.ending .companions { display: inline-block; border: 1px solid rgba(255,255,255,.22); color: #d7e0f0; border-radius: 999px; padding: 6px 18px; font-size: 11.5px; letter-spacing: .4px; }
+.ending .foot { position: absolute; left: 64px; right: 64px; bottom: 54px; font-size: 10.5px; color: #93a3bd; letter-spacing: 1.2px; }
+
+code.tbc { background: #fbf1dd; border: none; color: #6e4306; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="hero-page">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="docid">GUIDE 1 / 3</div>
+  <div class="series">ACQUISITIONOS · PAYMENT CONFIGURATION</div>
+  <div class="title">Stripe Setup<span class="t2">Guide</span></div>
+  <div class="subtitle">Complete beginner-to-production walkthrough for Stripe in AcquisitionOS — account, products, recurring prices, GST-inclusive amounts, checkout, webhooks, verification, and Test → Live migration.</div>
+  <div class="chips"><span class="chip">Hosted Checkout</span><span class="chip">Recurring Prices</span><span class="chip">Webhooks</span><span class="chip">GST-inclusive amounts</span><span class="chip">Billing Portal</span></div>
+  <div class="meta-row"><b>Version 1.0</b> &nbsp;·&nbsp; September 23, 2026 &nbsp;·&nbsp; Documentation only — verified against the current codebase</div>
+  <div class="foot"><span>ACQUISITIONOS</span><span>PAYMENT CONFIGURATION · GUIDE 1 / 3</span></div>
+</div>
+
+<div class="main-content">
+<p><strong>Version:</strong> 1.0 · <strong>Date:</strong> 2026-09-23 · <strong>Scope:</strong> Documentation only — no application code changes</p>
+<p>This guide is a complete, beginner-to-production walkthrough for configuring Stripe for the <strong>current</strong> AcquisitionOS codebase. Every environment variable name, endpoint URL, webhook event, and amount documented here was verified directly against the source code (<code>src/lib/payment-service.ts</code>, <code>src/lib/payments/*</code>, <code>src/app/api/payments/webhook/stripe/route.ts</code>, and related files). Where the Stripe Dashboard UI may differ across versions, instructions are marked <strong><code>UI may vary by provider dashboard version</code></strong> and the conceptual navigation is also given.</p>
+
+<h2>Part 1 — How AcquisitionOS Uses Stripe (Read This First)</h2>
+<p>Before touching the Stripe Dashboard, understand exactly what the application expects. AcquisitionOS integrates Stripe through <strong>hosted Stripe Checkout</strong> (not embedded forms, not raw PaymentIntents created by the app). The flow is:</p>
+<ol>
+<li>The user clicks a plan button in the app (Pricing page or Settings → Billing).</li>
+<li>The app calls <code>POST /api/payments/create-checkout-session</code>, which creates a real Stripe Checkout Session with <code>mode: 'subscription'</code> (plans) or <code>mode: 'payment'</code> (credit add-ons) and <strong>one line item referencing an env-configured Stripe Price ID</strong>. No amount is ever hardcoded — the Stripe Price object is the single source of truth for the charged amount.</li>
+<li>The browser redirects to Stripe's hosted payment page (<code>window.location.href = data.url</code>).</li>
+<li>After payment, Stripe redirects back to <code>/dashboard?payment=success&amp;session_id={CHECKOUT_SESSION_ID}</code>.</li>
+<li><strong>The Stripe webhook (<code>/api/payments/webhook/stripe</code>) is the ONLY path that activates the subscription and grants credits in the database.</strong> A secondary reconciliation route (<code>/api/payments/verify-session</code>) confirms the session after redirect and activates if the webhook has not yet arrived.</li>
+<li>The app generates its <strong>own</strong> invoice (numbered, GST-itemized, PDF + email) on every activation — it does not depend on Stripe Invoices for receipts.</li>
+</ol>
+<p>Key architectural facts that drive every configuration step in this guide:</p>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Consequence for setup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Checkout uses <code>line_items: [{ price: &lt;Price ID&gt;, quantity: 1 }]</code></td>
+<td>You MUST create real recurring Prices and copy their IDs into env vars</td>
+</tr>
+<tr>
+<td>The Price object amount is authoritative</td>
+<td>Create each Price at the <strong>GST-inclusive amount</strong> so the charge matches the app's displayed total (base + 18% GST)</td>
+</tr>
+<tr>
+<td>Webhook drives activation</td>
+<td>The webhook endpoint and signing secret are mandatory; production rejects unsigned/placeholder secrets</td>
+</tr>
+<tr>
+<td>Idempotency via the <code>PaymentWebhook</code> table</td>
+<td>Replaying/duplicating webhooks is safe — events are deduplicated by event ID</td>
+</tr>
+<tr>
+<td>Currency</td>
+<td>Stripe checkout in this app is USD-typed by the provider adapter; create Prices in <strong>INR</strong> for Indian users (GST math) and/or USD for international. Whatever currency the Price carries is what the session charges</td>
+</tr>
+<tr>
+<td>Missing Price ID env var</td>
+<td>The plan/cycle button shows <strong>"Coming Soon"</strong> in the UI and checkout is never initiated (no error shown to users)</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Part 2 — Create / Log In to Your Stripe Account</h2>
+<ol>
+<li>Go to <a href="https://dashboard.stripe.com/register">https://dashboard.stripe.com/register</a>.</li>
+<li>Sign up with your business email (the same identity you use for AcquisitionOS administration is recommended).</li>
+<li>Verify your email address and enable two-factor authentication (recommended).</li>
+<li>If you already have a Stripe account, log in at <a href="https://dashboard.stripe.com/login">https://dashboard.stripe.com/login</a> and decide whether to use the existing account or create a <strong>new account</strong> inside it for AcquisitionOS (Accounts menu → <em>New account</em>). Keeping AcquisitionOS in its own Stripe account simplifies keys, webhooks, and reporting.</li>
+</ol>
+<p><code>UI may vary by provider dashboard version</code> — conceptual navigation: <strong>Dashboard home → account menu (top-right) → Create account.</strong></p>
+<h2>Part 3 — Create / Configure the Business Profile</h2>
+<p>Stripe requires business details before you can go live (and to accept real payments in Test Mode you can skip most of this).</p>
+<ol>
+<li>Open <strong>Settings → Account settings → Business details</strong> (<code>UI may vary</code>).</li>
+<li>Fill in: legal business name, business structure (individual/LLC/Pvt Ltd), registered address, phone, and industry (SaaS / Software).</li>
+<li>Add a payout bank account: <strong>Settings → Bank accounts and schedules</strong>. Payouts cannot be enabled without it.</li>
+<li>Add public business details shown to customers: <strong>Settings → Public details</strong> (statement descriptor — e.g. <code>ACQUISITIONOS</code>, customer support email, and logo). The statement descriptor appears on the customer's card statement.</li>
+<li>For India-based businesses, also review <strong>Settings → Tax details</strong> (GSTIN registration affects how Stripe reports your payouts; this is separate from the app's own GST-invoicing, which is computed in-app).</li>
+</ol>
+<h2>Part 4 — Test Mode vs Live Mode</h2>
+<p>Stripe has two isolated environments, toggled from the Dashboard top bar:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Key prefixes</th>
+<th>What works</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Test</strong></td>
+<td><code>sk_test_...</code>, <code>pk_test_...</code>, <code>price_...</code> (test objects)</td>
+<td>Simulated payments with test cards (e.g. <code>4242 4242 4242 4242</code>), fake webhooks</td>
+<td>All setup, integration verification, rehearsal</td>
+</tr>
+<tr>
+<td><strong>Live</strong></td>
+<td><code>sk_live_...</code>, <code>pk_live_...</code></td>
+<td>Real cards, real money</td>
+<td>Only after the Test checklist passes</td>
+</tr>
+</tbody>
+</table>
+<p>AcquisitionOS <strong>auto-detects the mode from the key prefix</strong>. <code>src/lib/payment-service.ts</code> and <code>src/lib/payments/provider-status</code> route report <code>mode: 'test'</code> when <code>STRIPE_SECRET_KEY</code> starts with <code>sk_test_</code>, and <code>mode: 'live'</code> otherwise. You do not need to configure the mode anywhere — the prefix is the switch.</p>
+<blockquote>
+<p><strong>Rule:</strong> products/prices/webhooks are separate objects per mode. Everything you create in Test Mode must be re-created in Live Mode, and each mode has its <strong>own</strong> Price IDs and webhook signing secret.</p>
+</blockquote>
+<h2>Part 5 — API Keys</h2>
+<p>Location: <strong>Developers → API keys</strong> (<code>UI may vary</code>; conceptual path: Dashboard home → gear/Developers → API keys).</p>
+<h3>5.1 Publishable key</h3>
+<ul>
+<li>Identifier starts with <code>pk_test_</code> / <code>pk_live_</code>. Safe to expose in the browser.</li>
+<li>AcquisitionOS env var (client-facing): <strong><code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code></strong></li>
+<li>A server-side alias <strong><code>STRIPE_PUBLISHABLE_KEY</code></strong> is also recognized by configuration validation (<code>src/lib/env-validation.ts</code>). Set at least one; the <code>NEXT_PUBLIC_</code> one is what <code>provider-status</code> surfaces to the UI.</li>
+<li>This key is displayed by <code>GET /api/payments/provider-status</code> (public endpoint) — it is designed to be public.</li>
+</ul>
+<h3>5.2 Secret key</h3>
+<ul>
+<li>Identifier starts with <code>sk_test_</code> / <code>sk_live_</code>. <strong>Never expose it</strong> in the browser, git, logs, or client bundles.</li>
+<li>AcquisitionOS env var: <strong><code>STRIPE_SECRET_KEY</code></strong></li>
+<li>Where it is consumed (verified in code): every Stripe SDK instantiation — <code>payment-service.ts</code> (<code>getStripeInstance()</code>), <code>stripe-portal-service.ts</code>, <code>refund-service.ts</code>, <code>invoice-pdf-service.ts</code>, the webhook route, and provider availability checks (<code>!!process.env.STRIPE_SECRET_KEY</code> gates all Stripe checkout).</li>
+</ul>
+<p><strong>Copy the keys now</strong> (reveal + copy button next to each). You will paste them into your environment/secrets store in Part 9.</p>
+<h2>Part 6 — Product &amp; Price Model Used by AcquisitionOS</h2>
+<p>Stripe objects map to AcquisitionOS plans like this:</p>
+<table>
+<thead>
+<tr>
+<th>AcquisitionOS plan</th>
+<th>Stripe Product you create</th>
+<th>Stripe Prices you create</th>
+<th>Charged amount to enter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Free</td>
+<td><em>(none — never charged)</em></td>
+<td><em>(none)</em></td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>Starter</td>
+<td><code>AcquisitionOS Starter</code></td>
+<td>Starter Monthly + Starter Yearly (recurring)</td>
+<td>see Part 7</td>
+</tr>
+<tr>
+<td>Pro</td>
+<td><code>AcquisitionOS Pro</code></td>
+<td>Pro Monthly + Pro Yearly (recurring)</td>
+<td>see Part 7</td>
+</tr>
+<tr>
+<td>Elite</td>
+<td><code>AcquisitionOS Elite</code></td>
+<td>Elite Monthly + Elite Yearly (recurring)</td>
+<td>see Part 7</td>
+</tr>
+<tr>
+<td>Credit add-on 100 / 500 / 1000</td>
+<td><code>AcquisitionOS Credit Pack 100/500/1000</code></td>
+<td>One-time Price each</td>
+<td>see Part 8</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>The Free plan needs no Stripe object.</strong> It is granted in-app (50 credits/month) and never touches a gateway.</li>
+<li>Coupons: the app has its own coupon system (<code>Coupon</code> table, <code>/api/payments/validate-coupon</code>). On Stripe checkout a user-entered coupon code simply enables <code>allow_promotion_codes: true</code> on the session, so you may <em>optionally</em> also create Stripe Promotion Codes; the webhook reconciles the final amount either way.</li>
+</ul>
+<h2>Part 7 — Create Products &amp; Recurring Prices (Plans)</h2>
+<p><code>UI may vary by provider dashboard version</code> — conceptual navigation: <strong>Dashboard → Product catalog → Add product.</strong></p>
+<p>For <strong>each</strong> product below, repeat these steps:</p>
+<ol>
+<li><strong>Product name / description</strong> (exact values recommended):</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Product name</th>
+<th>Product description (recommended)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AcquisitionOS Starter</code></td>
+<td>Starter plan: 150 credits/month, 25 lead discoveries/month</td>
+</tr>
+<tr>
+<td><code>AcquisitionOS Pro</code></td>
+<td>Pro plan: 750 credits/month, unlimited lead discovery</td>
+</tr>
+<tr>
+<td><code>AcquisitionOS Elite</code></td>
+<td>Elite plan: 2,000 credits/month, unlimited lead discovery, all features</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>Add <strong>two recurring prices</strong> to each product — one monthly, one yearly:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Price</th>
+<th>Amount to enter</th>
+<th>Currency</th>
+<th>Billing interval</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Starter Monthly</td>
+<td><strong>₹589</strong></td>
+<td>INR</td>
+<td>Every 1 month</td>
+</tr>
+<tr>
+<td>Starter Yearly</td>
+<td><strong>₹5,899</strong></td>
+<td>INR</td>
+<td>Every 1 year</td>
+</tr>
+<tr>
+<td>Pro Monthly</td>
+<td><strong>₹1,887</strong></td>
+<td>INR</td>
+<td>Every 1 month</td>
+</tr>
+<tr>
+<td>Pro Yearly</td>
+<td><strong>₹17,699</strong></td>
+<td>INR</td>
+<td>Every 1 year</td>
+</tr>
+<tr>
+<td>Elite Monthly</td>
+<td><strong>₹6,135</strong></td>
+<td>INR</td>
+<td>Every 1 month</td>
+</tr>
+<tr>
+<td>Elite Yearly</td>
+<td><strong>₹53,099</strong></td>
+<td>INR</td>
+<td>Every 1 year</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>Why these amounts (GST):</strong> the app prices plans in base amounts and displays 18% GST on top — e.g. Pro Monthly shows base ₹1,599 + GST ₹288 = <strong>total ₹1,887</strong>. Because the Stripe Price is the authoritative charged amount, create each Price at the <strong>GST-inclusive total</strong> above so the card charge equals the app's displayed total. The full base/GST/total table:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Cycle</th>
+<th>Base (₹)</th>
+<th>GST 18% (₹)</th>
+<th>Total = Price amount (₹)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Starter</td>
+<td>Monthly</td>
+<td>499</td>
+<td>90</td>
+<td><strong>589</strong></td>
+</tr>
+<tr>
+<td>Starter</td>
+<td>Yearly</td>
+<td>4,999</td>
+<td>900</td>
+<td><strong>5,899</strong></td>
+</tr>
+<tr>
+<td>Pro</td>
+<td>Monthly</td>
+<td>1,599</td>
+<td>288</td>
+<td><strong>1,887</strong></td>
+</tr>
+<tr>
+<td>Pro</td>
+<td>Yearly</td>
+<td>14,999</td>
+<td>2,700</td>
+<td><strong>17,699</strong></td>
+</tr>
+<tr>
+<td>Elite</td>
+<td>Monthly</td>
+<td>5,199</td>
+<td>936</td>
+<td><strong>6,135</strong></td>
+</tr>
+<tr>
+<td>Elite</td>
+<td>Yearly</td>
+<td>44,999</td>
+<td>8,100</td>
+<td><strong>53,099</strong></td>
+</tr>
+</tbody>
+</table>
+<p>If you prefer USD pricing for international customers, create equivalent USD Prices (app display values: $6 / $60 Starter, $19 / $180 Pro, $63 / $540 Elite) and note that the session will charge in whatever currency the referenced Price carries.</p>
+<ol>
+<li>After creating each Price, open it and copy the <strong>Price ID</strong> (<code>price_...</code>). You will map six recurring Price IDs in Part 9.</li>
+</ol>
+<blockquote>
+<p><strong>Do not</strong> enable per-Price "automatic tax" (Stripe Tax) unless you also add <code>automatic_tax</code> to the app's session creation (it is not in the current code). Tax is already baked into the amounts above.</p>
+</blockquote>
+<h2>Part 8 — Credit Add-On Products (One-Time Prices)</h2>
+<p>AcquisitionOS sells three one-time credit packs (catalog verified in <code>src/app/api/payments/credit-addons/route.ts</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Pack ID (in-app)</th>
+<th>Credits</th>
+<th>Base (₹)</th>
+<th>GST 18% (₹)</th>
+<th>Total = Price amount (₹)</th>
+<th>Price type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>credits_100</code></td>
+<td>100</td>
+<td>499</td>
+<td>90</td>
+<td><strong>589</strong></td>
+<td>One time</td>
+</tr>
+<tr>
+<td><code>credits_500</code></td>
+<td>500</td>
+<td>1,999</td>
+<td>360</td>
+<td><strong>2,359</strong></td>
+<td>One time</td>
+</tr>
+<tr>
+<td><code>credits_1000</code></td>
+<td>1,000</td>
+<td>3,499</td>
+<td>630</td>
+<td><strong>4,129</strong></td>
+<td>One time</td>
+</tr>
+</tbody>
+</table>
+<p>Steps (per pack): <strong>Product catalog → Add product</strong> → name <code>AcquisitionOS Credit Pack 100</code> (and 500 / 1,000) → description "One-time top-up of N lead-generation credits (never expires)" → add a <strong>one-time</strong> Price with the amount above, currency INR → copy each <code>price_...</code> ID. No billing interval. These checkouts are created with <code>mode: 'payment'</code> and metadata <code>type: 'credits'</code>, and fulfillment routes through the app's credit-addon logic — nothing else to configure on Stripe's side.</p>
+<h2>Part 9 — Copy Each Price ID Into the Exact Environment Variables</h2>
+<p>AcquisitionOS resolves plan Price IDs <strong>only from environment variables</strong> (never hardcoded). The resolver (<code>resolvePlanPriceId</code> in <code>src/lib/payment-service.ts</code>) accepts four naming conventions <strong>in this order</strong> and uses the first real value (must start with <code>price_</code>):</p>
+<ol>
+<li><code>STRIPE_{PLAN}_{CYCLE}_PRICE_ID</code></li>
+<li><code>STRIPE_PRICE_ID_{PLAN}_{CYCLE}</code></li>
+<li><code>STRIPE_PRICE_{PLAN}_{CYCLE}_ID</code>  ← <strong>canonical (recommended)</strong></li>
+<li><code>STRIPE_PRICE_{PLAN}_{CYCLE}</code></li>
+</ol>
+<p><strong>Recommended mapping (set all six):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Plan · Cycle</th>
+<th>Recommended env var (canonical)</th>
+<th>Also accepted (aliases)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Starter · Monthly</td>
+<td><code>STRIPE_PRICE_STARTER_MONTHLY_ID</code></td>
+<td><code>STRIPE_STARTER_MONTHLY_PRICE_ID</code>, <code>STRIPE_PRICE_ID_STARTER_MONTHLY</code>, <code>STRIPE_PRICE_STARTER_MONTHLY</code></td>
+</tr>
+<tr>
+<td>Starter · Yearly</td>
+<td><code>STRIPE_PRICE_STARTER_YEARLY_ID</code></td>
+<td><code>STRIPE_STARTER_YEARLY_PRICE_ID</code>, <code>STRIPE_PRICE_ID_STARTER_YEARLY</code>, <code>STRIPE_PRICE_STARTER_YEARLY</code></td>
+</tr>
+<tr>
+<td>Pro · Monthly</td>
+<td><code>STRIPE_PRICE_PRO_MONTHLY_ID</code></td>
+<td><code>STRIPE_PRO_MONTHLY_PRICE_ID</code>, <code>STRIPE_PRICE_ID_PRO_MONTHLY</code>, <code>STRIPE_PRICE_PRO_MONTHLY</code></td>
+</tr>
+<tr>
+<td>Pro · Yearly</td>
+<td><code>STRIPE_PRICE_PRO_YEARLY_ID</code></td>
+<td><code>STRIPE_PRO_YEARLY_PRICE_ID</code>, <code>STRIPE_PRICE_ID_PRO_YEARLY</code>, <code>STRIPE_PRICE_PRO_YEARLY</code></td>
+</tr>
+<tr>
+<td>Elite · Monthly</td>
+<td><code>STRIPE_PRICE_ELITE_MONTHLY_ID</code></td>
+<td><code>STRIPE_ELITE_MONTHLY_PRICE_ID</code>, <code>STRIPE_PRICE_ID_ELITE_MONTHLY</code>, <code>STRIPE_PRICE_ELITE_MONTHLY</code></td>
+</tr>
+<tr>
+<td>Elite · Yearly</td>
+<td><code>STRIPE_PRICE_ELITE_YEARLY_ID</code></td>
+<td><code>STRIPE_ELITE_YEARLY_PRICE_ID</code>, <code>STRIPE_PRICE_ID_ELITE_YEARLY</code>, <code>STRIPE_PRICE_ELITE_YEARLY</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Credit pack mapping (names are fixed — no aliases):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pack</th>
+<th>Env var (exact)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>250 credits (Starter Pack)</td>
+<td><code>STRIPE_PRICE_CREDITS_250_ID</code></td>
+</tr>
+<tr>
+<td>500 credits (Growth Pack)</td>
+<td><code>STRIPE_PRICE_CREDITS_500_ID</code></td>
+</tr>
+<tr>
+<td>1,000 credits (Pro Pack)</td>
+<td><code>STRIPE_PRICE_CREDITS_1000_ID</code></td>
+</tr>
+<tr>
+<td>2,500 credits (Power Pack)</td>
+<td><code>STRIPE_PRICE_CREDITS_2500_ID</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>The four canonical variables previously documented for the Sep-2026 pricing update (<code>STRIPE_PRICE_STARTER_MONTHLY_ID</code>, <code>STRIPE_PRICE_STARTER_YEARLY_ID</code>, <code>STRIPE_PRICE_PRO_YEARLY_ID</code>, <code>STRIPE_PRICE_ELITE_YEARLY_ID</code>) are exactly convention #3 above — the recommended names in this table are the same family, extended to all six plan/cycle combinations for consistency.</p>
+</blockquote>
+<h2>Part 10 — Checkout Configuration (What the App Creates)</h2>
+<p>For reference — and for verifying behavior — these are the exact Checkout Session parameters the app sends (from <code>createStripeCheckoutSession</code>):</p>
+<ul>
+<li><code>mode: 'subscription'</code> (plans) / <code>'payment'</code> (credit packs)</li>
+<li><code>payment_method_types: ['card']</code></li>
+<li><code>line_items: [{ price: &lt;env Price ID&gt;, quantity: 1 }]</code></li>
+<li><code>success_url</code>: <code>{APP_URL}/dashboard?payment=success&amp;session_id={CHECKOUT_SESSION_ID}</code> (overridable via <code>STRIPE_SUCCESS_URL</code>)</li>
+<li><code>cancel_url</code>: <code>{APP_URL}/dashboard?payment=cancelled</code> (overridable via <code>STRIPE_CANCEL_URL</code>)</li>
+<li><code>metadata</code>: <code>userId</code>, <code>user_id</code>, <code>planName</code>, <code>plan</code>, <code>billingCycle</code>, <code>order_id</code>, <code>orderId</code>, <code>couponCode</code> (credit packs: <code>userId</code>, <code>type: 'credits'</code>, <code>creditAmount</code>, <code>addonId</code>, <code>orderId</code>)</li>
+<li><code>subscription_data.metadata</code>: same plan context, so <code>customer.subscription.*</code> events can be attributed</li>
+<li><code>client_reference_id</code>: the app user ID</li>
+<li><code>allow_promotion_codes: true</code> (only when a coupon code was entered)</li>
+</ul>
+<p><strong>Nothing to configure in Stripe for this</strong> — hosted Checkout is enabled by default on every account. The only inputs are the Price IDs (Part 9) and redirect URLs (optional env overrides).</p>
+<h2>Part 11 — Customer Configuration</h2>
+<p>AcquisitionOS creates/reuses Stripe Customers via <code>ensureStripeCustomer()</code> in <code>src/lib/stripe-portal-service.ts</code> (email + name, idempotent per user). The resulting <code>stripeCustomerId</code> is stored on the app's <code>Subscription</code> record. This happens automatically (primarily for the Billing Portal) — <strong>no manual Stripe configuration is required.</strong> Optionally, in the Dashboard you can set customer-facing defaults under <strong>Settings → Public details</strong> (support email/logo shown on invoices/receipts).</p>
+<h2>Part 12 — Subscription Configuration</h2>
+<ul>
+<li>Subscriptions are created by Stripe automatically from <code>mode: 'subscription'</code> Checkout Sessions; the app stores <code>stripeSubscriptionId</code> + <code>stripeCustomerId</code> on its <code>Subscription</code> record and keeps <code>currentPeriodStart/End</code> in sync from webhook events (<code>customer.subscription.updated</code>, <code>invoice.paid</code>).</li>
+<li>Cancellation is app-initiated (<code>POST /api/payments/cancel</code> → <code>cancelAtPeriodEnd: true</code> on the app record; the Stripe-side cancellation is confirmed via <code>customer.subscription.updated/deleted</code> webhooks).</li>
+<li><strong>No billing-cycle automation to configure in Stripe.</strong> Renewal handling in the app: for Stripe subscriptions, renewals arrive as <code>invoice.paid</code> / <code>invoice.payment_succeeded</code> and reset monthly credits with period-idempotency (a <code>period_start</code> match check prevents double resets). (For the Razorpay one-time-order model, an end-of-period cron does the equivalent.)</li>
+</ul>
+<h2>Part 13 — PaymentIntent, Invoice, and Refund Notes</h2>
+<ul>
+<li><strong>PaymentIntent:</strong> the app never creates PaymentIntents directly; Checkout creates them under the hood. The webhook handles <code>payment_intent.succeeded</code> as a fallback activator for orders found by <code>providerPaymentId</code> — informational only.</li>
+<li><strong>Stripe Invoices:</strong> for subscriptions Stripe generates its own invoices, and the app listens to <code>invoice.paid</code> / <code>invoice.payment_succeeded</code> for renewals. However, the customer-facing invoice/receipt in AcquisitionOS is the app's <strong>own</strong> numbered GST invoice (PDF + email), generated on every activation — you do not need to configure Stripe Invoicing settings beyond defaults.</li>
+<li><strong>Refunds:</strong> issue refunds from the Stripe Dashboard (<strong>Payments → click payment → Refund</strong>) or via the app's super-admin endpoint <code>POST /api/admin/refund</code> (which calls Stripe's Refund API). The <code>charge.refunded</code> webhook reverses credits and downgrades the plan on full refunds. Partial refunds are supported. No Stripe-side configuration needed.</li>
+</ul>
+<h2>Part 14 — Create the Webhook Endpoint</h2>
+<p>The webhook is <strong>mandatory</strong> — without it no subscription activates.</p>
+<ol>
+<li><strong>Endpoint URL (exact):</strong> <code>https://&lt;your-domain&gt;/api/payments/webhook/stripe</code></li>
+<li>For the current deployment that is: <code>https://acquisition.space-z.ai/api/payments/webhook/stripe</code></li>
+<li>Use your production domain in Live Mode and the same (or a tunnel/dev URL) in Test Mode.</li>
+<li>Navigation: <strong>Developers → Webhooks → Add endpoint</strong> (<code>UI may vary</code>; conceptual: Dashboard → Developers → Webhooks → <em>Add endpoint</em>).</li>
+<li>Paste the endpoint URL above.</li>
+<li>Select the events listed in Part 15.</li>
+<li>Click <strong>Add endpoint</strong>, then open the endpoint's detail page and click <strong>Reveal</strong> under <em>Signing secret</em>. Copy the <code>whsec_...</code> value → this is your <strong><code>STRIPE_WEBHOOK_SECRET</code></strong> env var. Test Mode and Live Mode each have their own secret.</li>
+</ol>
+<p><strong>Security behavior verified in code:</strong> the route validates every delivery's <code>stripe-signature</code> header via <code>constructEvent</code> using <code>STRIPE_WEBHOOK_SECRET</code>. Placeholder secrets (containing <code>YOUR_</code> or the literal <code>whsec_YOUR_STRIPE_WEBHOOK_SECRET</code>) are rejected, and production demands a valid signature.</p>
+<h2>Part 15 — Required Webhook Events (Exact List)</h2>
+<p>Subscribe the endpoint to exactly these events (all are handled by the current code):</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>What the app does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>checkout.session.completed</code></td>
+<td>Primary activation: marks the order completed, activates the subscription, grants plan credits (or fulfills a credit add-on), generates invoice + email</td>
+</tr>
+<tr>
+<td><code>checkout.session.expired</code></td>
+<td>Marks the pending order failed (user abandoned checkout)</td>
+</tr>
+<tr>
+<td><code>charge.refunded</code></td>
+<td>Reverses credits; downgrades plan on full refund</td>
+</tr>
+<tr>
+<td><code>charge.dispute.created</code></td>
+<td>Records a chargeback alert on the affected order</td>
+</tr>
+<tr>
+<td><code>customer.subscription.created</code></td>
+<td>Accepted and recorded; no dedicated logic</td>
+</tr>
+<tr>
+<td><code>customer.subscription.updated</code></td>
+<td>Syncs Stripe status → app status (<code>active</code>, <code>trialing</code>, <code>past_due</code>, <code>canceled</code>, <code>unpaid → expired</code>), period dates, <code>cancelAtPeriodEnd</code></td>
+</tr>
+<tr>
+<td><code>customer.subscription.deleted</code></td>
+<td>Marks the subscription canceled/expired in the app</td>
+</tr>
+<tr>
+<td><code>invoice.payment_succeeded</code></td>
+<td>Renewal payment: extends period, resets monthly credits (period-idempotent)</td>
+</tr>
+<tr>
+<td><code>invoice.paid</code></td>
+<td>Duplicate safety net for the same renewal (skips if already processed for the period)</td>
+</tr>
+<tr>
+<td><code>invoice.payment_failed</code></td>
+<td>Marks the subscription <code>past_due</code>, logs the failure, triggers recovery/dunning UI</td>
+</tr>
+<tr>
+<td><code>payment_intent.succeeded</code></td>
+<td>Fallback activation path for orders matched by PaymentIntent ID</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Unknown/other events are safely marked processed and ignored — subscribing to extra events is harmless.)</em></p>
+<h2>Part 16 — Test Webhook Delivery</h2>
+<p>Fastest end-to-end test (Stripe CLI, <code>UI may vary</code> — CLI works for both modes):</p>
+<pre><code class="language-bash">stripe login
+stripe listen --forward-to localhost:3000/api/payments/webhook/stripe
+stripe trigger checkout.session.completed
+</code></pre>
+<ul>
+<li><code>stripe listen</code> prints a temporary <code>whsec_...</code> — use it as <code>STRIPE_WEBHOOK_SECRET</code> while developing locally.</li>
+<li>To test a <em>real</em> checkout: create a Test-Mode Price (Part 7), run a checkout with card <code>4242 4242 4242 4242</code>, any future expiry, any CVC, and watch the forwarded event arrive.</li>
+<li>Dashboard-only alternative: <strong>Developers → Webhooks → your endpoint → Send test webhook</strong> and pick each event from Part 15.</li>
+</ul>
+<h2>Part 17 — Inspect Webhook Failures</h2>
+<ul>
+<li><strong>Stripe side:</strong> <strong>Developers → Webhooks → endpoint → deliveries tab</strong> — shows every attempt, response code, and the full request/response. A <code>400</code> from our endpoint means signature verification failed (wrong secret or modified body).</li>
+<li><strong>App side:</strong> every delivery is recorded in the <code>PaymentWebhook</code> table (<code>eventId</code>, <code>eventType</code>, <code>processed</code>, <code>processingError</code>) and surfaced in the admin UI via <code>GET /api/admin/billing/webhooks</code>. Failed events are also logged to the billing audit log.</li>
+<li>Quick app-side probe: <code>GET /api/payments/provider-status</code> (should show <code>stripe.available = true</code>), then attempt a Test-Mode checkout.</li>
+</ul>
+<h2>Part 18 — Replay a Webhook Safely</h2>
+<p>Replays are <strong>safe by design</strong>: the app deduplicates by event ID (<code>PaymentWebhook.eventId</code> unique) and re-checks that the order is still <code>pending</code> before acting, inside an atomic transaction.</p>
+<ol>
+<li>In the Dashboard, open the failed delivery → <strong>... → Resend</strong> (or select multiple → Resend). <code>UI may vary</code>.</li>
+<li>Or use the CLI: <code>stripe events resend evt_&lt;id&gt;</code>.</li>
+<li>The app also exposes an operator route, <code>POST /api/payments/webhook-replay</code>, for internal replay tooling.</li>
+<li>Re-verify the order reached <code>completed</code> in the admin payment history.</li>
+</ol>
+<h2>Part 19 — Verify Successful / Failed / Pending Payments</h2>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Stripe side</th>
+<th>App side (what to check)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Success</strong></td>
+<td>Payment shows <em>Succeeded</em>; Checkout session <code>complete</code></td>
+<td><code>PaymentOrder.status = completed</code>; <code>Subscription.status = active</code> with correct plan + period; user credits increased by plan amount (50/150/750/2000); invoice row + PDF created; success modal shown on <code>/dashboard?payment=success...</code></td>
+</tr>
+<tr>
+<td><strong>Failed</strong></td>
+<td>Checkout session <code>expired</code>, or card declined on the hosted page</td>
+<td><code>PaymentOrder.status = failed</code>; <code>checkout.session.expired</code> webhook recorded; failed-payment modal / banner shown to the user</td>
+</tr>
+<tr>
+<td><strong>Pending / processing</strong></td>
+<td>Payment <code>processing</code> (async methods) or session not yet complete</td>
+<td>Order stays <code>pending</code> — the webhook or <code>POST /api/payments/verify-session</code> (called after redirect) will resolve it; the cron job <code>/api/cron/payment-reconciliation</code> also reconciles stale pending orders; users see a "confirming payment" state</td>
+</tr>
+<tr>
+<td><strong>Refund</strong></td>
+<td>Refund row on the payment</td>
+<td><code>charge.refunded</code> webhook processed; credits reversed (<code>CreditsLedger</code> negative entry); full refund downgrades the plan</td>
+</tr>
+</tbody>
+</table>
+<h2>Part 20 — Verify Every Price ID Is Correctly Mapped</h2>
+<ol>
+<li><code>GET /api/payments/provider-status</code> (public, no auth) → check <code>planAvailability.&lt;plan&gt;.&lt;cycle&gt;.stripe = true</code> for all six plan/cycle combinations after configuring keys + Price IDs. Before Price IDs exist, <code>stripe</code> is <code>false</code> and the UI shows <strong>Coming Soon</strong> — this is the intended gate.</li>
+<li>Attempt a real Test-Mode checkout for each plan/cycle from Settings → Billing (use the test card above). The charged amount on the hosted page must equal the GST-inclusive total from Part 7.</li>
+<li>Buy each credit pack in Test Mode; verify the credit balance increases by exactly 100 / 500 / 1000.</li>
+<li>Server logs show the resolver's exact env-var names on failure: a missing ID produces the error <code>"Stripe price ID for &lt;plan&gt; (&lt;cycle&gt;) is not configured. Set one of: ..."</code> — the message lists every accepted variable name.</li>
+</ol>
+<h2>Part 21 — Test Mode → Live Mode Migration Checklist</h2>
+<ul>
+<li>[ ] Business profile activated; payouts enabled (no blocking requirements under <strong>Home</strong>)</li>
+<li>[ ] Toggle Dashboard to <strong>Live mode</strong></li>
+<li>[ ] Create all 3 plan products + 3 credit-pack products in Live Mode (Products are mode-scoped)</li>
+<li>[ ] Copy the <strong>Live</strong> Price IDs into the six plan env vars + three credit-pack env vars (Part 9)</li>
+<li>[ ] Replace <code>STRIPE_SECRET_KEY</code> with the <code>sk_live_...</code> key</li>
+<li>[ ] Replace <code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> with the <code>pk_live_...</code> key</li>
+<li>[ ] Create a <strong>Live-mode webhook endpoint</strong> (same URL) subscribed to the Part 15 events</li>
+<li>[ ] Set <code>STRIPE_WEBHOOK_SECRET</code> to the <strong>Live</strong> endpoint's <code>whsec_...</code></li>
+<li>[ ] <code>GET /api/payments/provider-status</code> shows <code>stripe.mode = 'live'</code> and all plan availability flags true</li>
+<li>[ ] Run one real live transaction end-to-end (then refund it if it was a self-test) and verify webhook activation</li>
+<li>[ ] Confirm statement descriptor and public support details are set</li>
+</ul>
+<h2>Part 22 — Production Verification Checklist</h2>
+<ul>
+<li>[ ] Webhook endpoint reachable over public HTTPS (no localhost) and returns 200 on test delivery</li>
+<li>[ ] <code>charge.refunded</code>, <code>invoice.paid</code>, and <code>customer.subscription.updated</code> observed at least once each (trigger in Test, or after first real events)</li>
+<li>[ ] Invoice PDF + email generated on a real activation (check the user's inbox and <code>/api/payments/invoices</code>)</li>
+<li>[ ] Billing Portal opens: Settings → Billing → <em>Manage billing</em> → <code>POST /api/payments/stripe-portal</code> (return URL defaults to <code>{APP_URL}/settings?tab=billing</code>, override via <code>STRIPE_PORTAL_RETURN_URL</code>)</li>
+<li>[ ] Cancellation path verified: cancel → <code>cancelAtPeriodEnd=true</code> → plan keeps working until period end</li>
+<li>[ ] Credits ledger (<code>CreditsLedger</code>) shows the correct positive entry on purchase and monthly reset behavior on renewal</li>
+<li>[ ] Cron routes reachable (with <code>CRON_SECRET</code>): <code>/api/cron/renew-subscriptions</code>, <code>/api/cron/payment-reconciliation</code></li>
+</ul>
+<h2>Part 23 — Common Mistakes &amp; Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plan buttons show <strong>"Coming Soon"</strong> even with keys set</td>
+<td>The plan/cycle's Price ID env var is missing (availability = secret key <strong>AND</strong> Price ID present)</td>
+<td>Set the exact env var(s) from Part 9; restart/redeploy</td>
+</tr>
+<tr>
+<td>Checkout returns 500: <code>"Stripe price ID for ... is not configured. Set one of: ..."</code></td>
+<td>Same as above, surfaced server-side</td>
+<td>The error lists every accepted variable name — set one</td>
+</tr>
+<tr>
+<td>Webhook returns 400 <code>Invalid signature</code></td>
+<td>Wrong <code>STRIPE_WEBHOOK_SECRET</code> for that mode, or secret from the other endpoint</td>
+<td>Copy the signing secret from the <em>correct</em> endpoint in the <em>correct</em> mode</td>
+</tr>
+<tr>
+<td>Webhook returns 500 <code>Webhook verification not configured</code></td>
+<td><code>STRIPE_WEBHOOK_SECRET</code> unset or still a placeholder in production</td>
+<td>Set the real <code>whsec_...</code>; placeholders are deliberately rejected</td>
+</tr>
+<tr>
+<td>Payment taken but plan not activated</td>
+<td>Webhook not configured / unreachable, or event not subscribed</td>
+<td>Configure Part 14–15; then <strong>replay</strong> the event (Part 18) — idempotency makes this safe</td>
+</tr>
+<tr>
+<td>Charged amount differs from the UI total</td>
+<td>Price created at base amount (e.g. ₹1,599) instead of the GST-inclusive total (₹1,887)</td>
+<td>Re-create the Price at the Part 7 amount (or enable Stripe Tax AND add <code>automatic_tax</code> in code — not currently implemented)</td>
+</tr>
+<tr>
+<td>Webhook amount-mismatch rejections</td>
+<td>Someone edited the Price after orders were created</td>
+<td>Keep one Price per plan/cycle; if you must change pricing, create a <em>new</em> Price and update the env var</td>
+</tr>
+<tr>
+<td><code>payment_method_types</code> errors for UPI/wallets</td>
+<td>App requests card-only Stripe sessions</td>
+<td>Use Razorpay for UPI/netbanking; Stripe path is card-first</td>
+</tr>
+<tr>
+<td>Double activation feared on retries</td>
+<td>Safe by design</td>
+<td>Not possible: <code>PaymentWebhook</code> dedup + atomic pending-check (documented behavior)</td>
+</tr>
+<tr>
+<td>Coupons don't discount the checkout</td>
+<td>Stripe-side promotion code doesn't exist for the entered code</td>
+<td>Create the matching Promotion Code in Stripe, or rely on the app's own coupon validation for Razorpay-only flows</td>
+</tr>
+<tr>
+<td>Test works, Live fails</td>
+<td>Live Price IDs / webhook secret not updated</td>
+<td>Redo Part 21 checklist</td>
+</tr>
+</tbody>
+</table>
+
+<p><em>End of Stripe Setup Guide. Companion documents: <code>RAZORPAY-SETUP-GUIDE.md</code> (India-first gateway) and <code>PAYMENT-CONFIGURATION-MASTER.md</code> (cross-provider tables, env inventory, and the end-to-end checklist).</em></p>
+</div>
+
+<div class="ending">
+  <div class="big">Configuration complete.</div>
+  <div class="small">Every environment variable name, endpoint, webhook event, and amount in this guide was verified against the current AcquisitionOS source code. Configure objects in Test Mode first, verify the full checklist, then repeat in Live Mode.</div>
+  <div class="companions">Companion guides: Razorpay Setup Guide · Payment Configuration Master</div>
+  <div class="foot">ACQUISITIONOS · PAYMENT CONFIGURATION · 2026</div>
+</div>
+
+</body>
+</html>

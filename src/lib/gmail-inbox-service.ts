@@ -7,7 +7,7 @@
 import { db } from '@/lib/db';
 import { getValidAccessToken } from './gmail-oauth-service';
 import { logInboxSynced } from './gmail-audit-service';
-import { cacheSet, cacheGet, CachePrefix, CacheTTL, getGmailCache } from './gmail-cache-service';
+import { cacheSet, cacheGet, cacheDelete, CachePrefix, CacheTTL, getGmailCache } from './gmail-cache-service';
 import { processNewReplies } from './gmail-reply-processor';
 
 // ===== TYPES =====

@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth-middleware';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 import { analyzeWebsite } from '@/lib/lead-discovery/website-scorer';
 
 /**
@@ -17,7 +19,13 @@ import { analyzeWebsite } from '@/lib/lead-discovery/website-scorer';
  * }
  */
 export async function POST(request: NextRequest) {
-  try {
+  // SECURITY HARDENING: this endpoint triggers web fetching + AI scoring.
+  // It was fully unauthenticated — an anonymous compute-cost sink.
+  const rateLimitResult = withRateLimit(request, 'ai');
+  if (rateLimitResult) return rateLimitResult;
+
+  return withAuth(request, async (user) => {
+    try {
     const body = await request.json();
 
     const { url, companyName, niche } = body as {
@@ -51,10 +59,10 @@ export async function POST(request: NextRequest) {
 
     const result = await analyzeWebsite(url.trim(), companyName.trim(), niche.trim());
 
-    return NextResponse.json(result, { status: 200 });
-  } catch (error) {
-    console.error('[WebsiteScoreAPI] POST error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+        return NextResponse.json(result, { status: 200 });
+      } catch (error) {
+        console.error('[WebsiteScoreAPI] POST error:', error);
+        return NextResponse.json({ error: 'Website analysis failed' }, { status: 500 });
+      }
+  });
 }

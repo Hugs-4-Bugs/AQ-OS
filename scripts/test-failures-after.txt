@@ -1,0 +1,31 @@
+ FAIL  src/__tests__/api/auth-routes.test.ts > GET /api/auth/config > should return correct structure with all fields
+ FAIL  src/__tests__/api/auth-routes.test.ts > GET /api/auth/config > should return devMode as boolean
+ FAIL  src/__tests__/api/auth-routes.test.ts > GET /api/auth/config > should return smtpConfigured as boolean
+ FAIL  src/__tests__/api/auth-routes.test.ts > GET /api/auth/config > should return smtpStatus with safe fields (no passwords)
+ FAIL  src/__tests__/api/auth-routes.test.ts > POST /api/auth/signin > should return 401 for wrong password
+ FAIL  src/__tests__/api/auth-routes.test.ts > POST /api/auth/signup > should create user with correct defaults (plan=free, credits=50)
+ FAIL  src/__tests__/api/health-credits-routes.test.ts > GET /api/health > should include services with db and redis status
+ FAIL  src/__tests__/api/health-credits-routes.test.ts > GET /api/health > should return 200 with correct structure
+ FAIL  src/__tests__/api/health-credits-routes.test.ts > GET /api/health > should return status as ok, degraded, or error
+ FAIL  src/__tests__/api/health-credits-routes.test.ts > GET /api/health/detailed > should require admin authentication
+ FAIL  src/__tests__/api/health-credits-routes.test.ts > GET /api/health/detailed > should return 403 for non-admin users
+ FAIL  src/__tests__/lib/credit-service.test.ts > credit-service > utility functions > getActionCost returns correct cost for known action
+ FAIL  src/__tests__/lib/email.test.ts > email-service > dev mode vs production behavior > should not return devMode in production without providers
+ FAIL  src/__tests__/lib/email.test.ts > email-service > dev mode vs production behavior > should return devMode: true only when AUTH_DEV_MODE is set and no provider
+ FAIL  src/__tests__/lib/email.test.ts > email-service > sendEmail > should return error when no provider configured in production
+ FAIL  src/__tests__/lib/email.test.ts > email-service > sendEmail > should use console fallback in dev mode without providers
+ FAIL  src/__tests__/lib/subscription-store.test.ts > subscription-store > CREDIT_COSTS consistency with credit-costs.ts > store CREDIT_COSTS should match credit-costs.ts values
+ FAIL  src/__tests__/lib/subscription-store.test.ts > subscription-store > default state > should start with isTrial = false
+ FAIL  src/__tests__/lib/subscription-store.test.ts > subscription-store > default state > should start with subscriptionStatus expired
+ FAIL  src/__tests__/lib/subscription-store.test.ts > subscription-store > default state > should start with trialDaysRemaining = 0
+ FAIL  src/__tests__/lib/subscription-store.test.ts > subscription-store > hasFeatureAccess > should return false when entitlements are not loaded
+ FAIL  src/__tests__/lib/subscription-store.test.ts > subscription-store > reset > should reset all state to defaults
+ FAIL  src/__tests__/security/jwt-security.test.ts > jwt-security > generateSecureAccessToken > should generate a valid access token
+ FAIL  tests/e2e/onboarding-flow.test.ts > E2E Spec: Onboarding Flow > Step 2-3: Onboarding progress initialization > should create onboarding progress for new user
+ FAIL  tests/e2e/onboarding-flow.test.ts > E2E Spec: Onboarding Flow > Step 4: Profile setup > should update user profile and mark step complete
+ FAIL  tests/e2e/onboarding-flow.test.ts > E2E Spec: Onboarding Flow > Step 5: Niche selection > should save user niche preference
+ FAIL  tests/e2e/onboarding-flow.test.ts > E2E Spec: Onboarding Flow > Step 8: Onboarding completion > should mark all steps as completed
+ FAIL  tests/integration/auth-api.test.ts > Server Health > should respond to /api/health
+ FAIL  tests/unit/api-key-service.test.ts > Key Verification > should reject expired keys
+ FAIL  tests/unit/api-key-service.test.ts > expireApiKeys > should count errors when individual key expiration fails
+ FAIL  tests/unit/api-key-service.test.ts > expireApiKeys > should expire keys with past expiration dates

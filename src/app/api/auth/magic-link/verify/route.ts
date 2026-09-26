@@ -23,6 +23,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getOriginFromRequest } from '@/lib/app-url';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -122,7 +123,13 @@ function getDynamicOrigin(request: NextRequest): string {
 
 /** Build a redirect URL using dynamic origin */
 function dynamicRedirect(path: string, request: NextRequest): URL {
-  const origin = getDynamicOrigin(request);
+  // ORIGIN-PRIORITY FIX (2026-09-23): prefer the canonical proxy-aware
+  // origin helper (x-forwarded-host / origin / referer / host — the same
+  // helper the relay + state routes use) BEFORE getDynamicOrigin, whose
+  // step 1 trusts raw request.url — unreliable behind the preview gateway
+  // (stripped/rewritten Host) and the cause of wrong-URL magic-link
+  // redirects. Legacy helper remains as fallback for header-less requests.
+  const origin = getOriginFromRequest(request) || getDynamicOrigin(request);
   try {
     return new URL(path, origin);
   } catch {
@@ -181,8 +188,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
     const email = searchParams.get('email');
+    // P5: Remember-me choice travels with the link (see request route)
+    const rememberMeFlag = searchParams.get('remember') === '1';
 
-    console.log(`[Magic Link Verify ${requestId}] token=${token ? token.slice(0, 8) + '...' : 'MISSING'}, email=${email || 'MISSING'}`);
+    // Never log token material — log presence only. Mask PII (email).
+    console.log(`[Magic Link Verify ${requestId}] token=${token ? 'PRESENT' : 'MISSING'}, email=${email ? email.slice(0, 2) + '***' : 'MISSING'}`);
 
     if (!token || !email) {
       console.warn(`[Magic Link Verify ${requestId}] Missing token or email — redirecting to missing_params`);
@@ -225,7 +235,7 @@ export async function GET(request: NextRequest) {
     // ── Step 4: Find user ────────────────────────────────────
     let user: any;
     try {
-      console.log(`[Magic Link Verify ${requestId}] Looking up user by email: ${normalizedEmail}`);
+      console.log(`[Magic Link Verify ${requestId}] Looking up user by email (masked: ${normalizedEmail.slice(0, 2)}***)`);
       user = await db.user.findUnique({
         where: { email: normalizedEmail },
         include: { mfaConfig: true },
@@ -242,7 +252,8 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Step 5: Verify token matches ─────────────────────────
-    console.log(`[Magic Link Verify ${requestId}] Stored token: ${user.magicLinkToken ? user.magicLinkToken.slice(0, 8) + '...' : 'NULL'}, Expiry: ${user.magicLinkTokenExpiry?.toISOString() || 'NULL'}`);
+    // Never log token material — log presence and expiry only.
+    console.log(`[Magic Link Verify ${requestId}] Stored token: ${user.magicLinkToken ? 'PRESENT' : 'NULL'}, Expiry: ${user.magicLinkTokenExpiry?.toISOString() || 'NULL'}`);
     try {
       if (!user.magicLinkToken || !secureCompare(user.magicLinkToken, token)) {
         console.warn(`[Magic Link Verify ${requestId}] Token mismatch — redirecting to invalid_link`);
@@ -333,6 +344,7 @@ export async function GET(request: NextRequest) {
         deviceInfo: ua.substring(0, 255),
         ipAddress: ip,
         userAgent: ua,
+        rememberMe: rememberMeFlag,
       });
     } catch (sessionErr) {
       console.error(`[Magic Link Verify ${requestId}] Session creation failed:`, sessionErr instanceof Error ? sessionErr.message : sessionErr);
@@ -383,7 +395,9 @@ export async function GET(request: NextRequest) {
     // ── Step 14: Redirect to home with auth cookies ──────────
     console.log(`[Magic Link Verify ${requestId}] ✓ Login successful — redirecting to home with auth cookies`);
     const response = NextResponse.redirect(dynamicRedirect('/', request));
-    return setAuthCookies(response, accessToken, refreshToken);
+    return setAuthCookies(response, accessToken, refreshToken, {
+      persist: rememberMeFlag,
+    });
   } catch (error) {
     // CRITICAL: This catch block must NEVER throw. We log the error
     // and return a redirect. If the redirect somehow fails, we return
@@ -424,7 +438,9 @@ export async function POST(request: NextRequest) {
   const requestId = `mlv-post-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   try {
     const body = await request.json();
-    const { email, token } = body;
+    const { email, token, rememberMe } = body;
+    // P5: Remember-me for the POST verification path
+    const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';
 
     // ── Validation ──────────────────────────────────────────────
     if (!email || !token) {
@@ -540,6 +556,7 @@ export async function POST(request: NextRequest) {
       deviceInfo: ua.substring(0, 255),
       ipAddress: ip,
       userAgent: ua,
+      rememberMe: rememberMeFlag,
     });
 
     // ── Update last login ───────────────────────────────────────
@@ -590,11 +607,31 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return setAuthCookies(response, accessToken, refreshToken);
+    return setAuthCookies(response, accessToken, refreshToken, {
+      persist: rememberMeFlag,
+    });
   } catch (error) {
-    console.warn(`[Magic Link Verify ${requestId}] POST error:`, error instanceof Error ? `${error.message}\n${error.stack}` : String(error));
+    // SAFE error handling: the browser gets a generic, non-sensitive message
+    // (the previous `detail: error.message` leak exposed internals — removed).
+    // The server log keeps full diagnostics: a stable category code + message.
+    // ERROR-SEMANTICS FIX (2026-09-24, account consistency): infrastructure
+    // failures (database unavailable, etc.) now return 503
+    // INFRASTRUCTURE_ERROR — consistent with the request routes' contract —
+    // so a transient DB outage is never indistinguishable from an
+    // authentication failure on the client.
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const category = /P1\d{3}|P2\d{3}|prisma|unable to open the database file|SQLITE_/i.test(errMsg)
+      ? 'database'
+      : 'unexpected';
+    console.warn(`[Magic Link Verify ${requestId}] error category=${category}:`, errMsg);
+    if (category === 'database') {
+      return NextResponse.json(
+        { error: 'Unable to verify the sign-in link right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { error: 'Internal server error', detail: error instanceof Error ? error.message : 'unknown' },
+      { error: 'Unable to verify the sign-in link right now. Please try again in a moment.' },
       { status: 500 }
     );
   }

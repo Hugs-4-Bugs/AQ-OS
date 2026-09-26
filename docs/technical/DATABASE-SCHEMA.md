@@ -1,7 +1,7 @@
 # Database Schema — AcquisitionOS
 
 > Owner: Engineering. Status: Living document. Last reviewed: 2026-09-09.
-> Source of truth: `prisma/schema.prisma` (2832 lines, 90+ models). The exhaustive per-field reference is in [`docs/02-architecture/DATABASE-SCHEMA.md`](../02-architecture/DATABASE-SCHEMA.md). This document is the navigable summary: every model, its purpose, key fields, relations, and indexes.
+> Source of truth: `prisma/schema.prisma` (2832 lines, 105 models). The exhaustive per-field reference is in [`docs/02-architecture/DATABASE-SCHEMA.md`](../02-architecture/DATABASE-SCHEMA.md). This document is the navigable summary: every model, its purpose, key fields, relations, and indexes.
 
 ## Provider
 
@@ -11,7 +11,7 @@
 - **Timestamps:** Prisma `DateTime` (ISO-8601).
 - **JSON fields:** stored as `String` in SQLite (Prisma limitation); parse on read. Will move to Prisma `Json` type on PostgreSQL.
 
-## Model Index (90+ models, grouped)
+## Model Index (105 models, grouped)
 
 ### User & Auth (12)
 | Model | Purpose | Key fields | Notable relations |

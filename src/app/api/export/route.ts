@@ -8,15 +8,22 @@ import { withAuth } from '@/lib/auth-middleware';
 import { withFeature, withCredits } from '@/lib/plan-gates';
 import { db } from '@/lib/db';
 import { deductCredits } from '@/lib/credit-service';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 import type { AuthUser } from '@/lib/auth';
 
 // ─── CSV Helpers ───────────────────────────────────────────
 
 function escapeCSV(value: unknown): string {
   if (value === null || value === undefined) return '';
-  const str = String(value);
+  let str = String(value);
+  // SECURITY (CSV formula injection): neutralize cells that spreadsheet
+  // apps interpret as formulas (=, +, -, @) so exported data (which may
+  // include externally sourced lead fields) cannot execute in Excel.
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'` + str;
+  }
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
+    return '"' + str.replace(/"/g, '""') + '"';
   }
   return str;
 }
@@ -190,6 +197,12 @@ async function getCommunicationsData(userId: string) {
 // ─── Route Handler ─────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  // SECURITY HARDENING: rate limit bulk exports (5/min) — previously the
+  // defined 'export' limiter existed but was never invoked, letting an
+  // authenticated client hammer the full-table export endpoint.
+  const rateLimitResult = withRateLimit(request, 'export');
+  if (rateLimitResult) return rateLimitResult;
+
   // Step 1: Authenticate + Feature gate + Credits gate
   return withFeature(request, 'data_export', async (user: AuthUser) => {
     return withCredits(request, 'data_export', async (_user: AuthUser, creditInfo) => {

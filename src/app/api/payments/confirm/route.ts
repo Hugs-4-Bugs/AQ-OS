@@ -12,13 +12,26 @@ import { logPaymentEvent } from '@/lib/billing-audit';
 import { db } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
+  // ═════════════════════════════════════════════════════════════
+  // SECURITY HARDENING (P0): this endpoint previously activated any
+  // pending order WITHOUT verifying payment with the provider — a
+  // free plan/credits backdoor. It is now:
+  //   1. Hard-disabled in production (404), and
+  //   2. Opt-in for local development via PAYMENTS_DEV_CONFIRM_ENABLED=true.
+  // Legitimate verification paths:
+  //   - Stripe:  POST /api/payments/confirm-payment (re-fetches session)
+  //   - Razorpay: POST /api/payments/razorpay/verify (HMAC + gateway check)
+  //   - Provider webhooks (signature-verified, idempotent)
+  // ═════════════════════════════════════════════════════════════
+  if (process.env.NODE_ENV === 'production' || process.env.PAYMENTS_DEV_CONFIRM_ENABLED !== 'true') {
+    return NextResponse.json(
+      { error: 'Direct payment confirmation is disabled. Payment state is verified via provider APIs and signed webhooks.' },
+      { status: 404 }
+    );
+  }
+
   return withAuth(request, async (user) => {
     try {
-      // Security: Only allow direct payment confirmation in development mode
-      // OR when a real Stripe/Razorpay payment has been made and the user
-      // returns from checkout. In production, webhooks handle this automatically,
-      // but we allow the confirm endpoint as a fallback for when webhooks are delayed.
-      // The webhook handler has idempotency checks so double-processing is safe.
 
       const body = await request.json();
       const { orderId, providerPaymentId } = body as {

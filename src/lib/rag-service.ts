@@ -365,14 +365,40 @@ export async function ingestFromUrl(
   userId: string,
   options?: { leadId?: string }
 ): Promise<IngestResult> {
-  // Fetch content from URL
-  const response = await fetch(url, {
+  // SECURITY HARDENING (SSRF): validate scheme/host/port and reject any
+  // URL that resolves to loopback/private/link-local/metadata ranges.
+  const { assertSafeExternalUrl, UnsafeUrlError } = await import('@/lib/security/url-guard');
+  const safeUrl = await assertSafeExternalUrl(url);
+
+  // Fetch content from URL (response capped at 5 MB to bound memory use)
+  const response = await fetch(safeUrl, {
     headers: { 'User-Agent': 'AcquisitionOS/1.0' },
     signal: AbortSignal.timeout(15000),
+    redirect: 'follow',
   });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+  }
+
+  // If the fetch redirected to an unsafe host (DNS rebinding / open
+  // redirect into private space), bail out before reading the body.
+  if (response.url) {
+    try {
+      const finalHost = new URL(response.url).hostname;
+      const originalHost = safeUrl.hostname;
+      if (finalHost !== originalHost) {
+        // Re-validate the host we actually ended up on
+        await assertSafeExternalUrl(response.url);
+      }
+    } catch (err) {
+      if (err instanceof UnsafeUrlError) throw err;
+    }
+  }
+
+  const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+  if (contentLength > 5 * 1024 * 1024) {
+    throw new Error('URL content exceeds the 5 MB limit');
   }
 
   const contentType = response.headers.get('content-type') || '';

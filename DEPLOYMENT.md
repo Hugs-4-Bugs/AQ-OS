@@ -3,7 +3,7 @@
 ## TL;DR — Will everything work on Vercel as-is?
 
 **NO — not as-is.** The app works on Vercel after 3 mandatory changes. Magic
-Link, OTP, and email/password auth will work. Google login will work **only
+Link, OTP, and email/passREDACTED-APP-PASSWORD-ROTATE-ME. Google login will work **only
 after** you add the new domain's redirect URI in Google Cloud Console.
 
 UPDATE 2026-09-09: The Google credentials (client ID `22873135381-…` + secret

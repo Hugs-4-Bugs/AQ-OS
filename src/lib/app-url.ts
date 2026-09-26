@@ -132,8 +132,15 @@ function originFromUrlString(urlStr: string | null | undefined): string | null {
  *   4. `host` header           — last proxy-derived source
  *
  * Returns null if no valid public origin can be determined.
+ *
+ * EXPORTED (2026-09-23): the Google OAuth relay route reuses this helper so
+ * its cross-domain origin check is based on the SAME proxy-aware detection
+ * as every other URL construction in the app. When it returns null, the
+ * caller knows the public origin could NOT be confidently determined
+ * (gateway stripped/rewrote the Host headers) and must not make
+ * origin-based redirect decisions on unreliable data.
  */
-function getOriginFromRequest(request?: NextRequest): string | null {
+export function getOriginFromRequest(request?: NextRequest): string | null {
   if (!request) return null;
 
   // 1. x-forwarded-host + x-forwarded-proto — set by the proxy/gateway

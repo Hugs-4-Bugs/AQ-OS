@@ -76,10 +76,11 @@ import InvoiceHistory from '@/components/dashboard/invoice-history';
 import PaymentHistory from '@/components/dashboard/payment-history';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { usePlanAvailability, isPlanCheckoutAvailable } from '@/hooks/use-plan-availability';
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
-const PLAN_ORDER: PlanType[] = ['free', 'pro', 'elite'];
+const PLAN_ORDER: PlanType[] = ['free', 'starter', 'pro', 'elite'];
 
 // ─── Plan card colors ───────────────────────────────────────────────────────────
 
@@ -89,6 +90,12 @@ const PLAN_COLORS: Record<PlanType, { bg: string; border: string; icon: string; 
     border: 'border-slate-500/20',
     icon: 'text-slate-400',
     text: 'text-slate-500',
+  },
+  starter: {
+    bg: 'bg-teal-500/5',
+    border: 'border-teal-400/30',
+    icon: 'text-teal-500',
+    text: 'text-teal-500',
   },
   pro: {
     bg: 'bg-primary/5',
@@ -128,6 +135,12 @@ export default function BillingPage() {
   const cancelAtPeriodEnd = useSubscriptionStore((s) => s.cancelAtPeriodEnd);
 
   const { cancelSubscription, paymentStatus } = usePayment();
+
+  // Per-plan/cycle provider configuration status — when false, the paid
+  // plan card shows the "checkout implemented — payment provider
+  // configuration required" notice under an ENABLED CTA. Paid plans are
+  // always ACTIVE; there is no "Coming Soon" state.
+  const planAvailability = usePlanAvailability();
 
   const planDetails = PLAN_DETAILS[currentPlan];
   const planColors = PLAN_COLORS[currentPlan];
@@ -501,14 +514,14 @@ export default function BillingPage() {
                         </span>
                         {isYearly && (
                           <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px]">
-                            Save up to ₹24,389/year
+                            Save up to ₹17,389/year
                           </Badge>
                         )}
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       {PLAN_ORDER.map((planType) => {
                         const details = PLAN_DETAILS[planType];
                         const price = isYearly ? details.yearlyINR : details.priceINR;
@@ -521,7 +534,19 @@ export default function BillingPage() {
                         const isUpgrade = thisIdx > currentIdx;
                         // PART 2 — no self-serve downgrade. Lower plans get
                         // a "Contact Support" mailto link instead of a button.
-                        const planName = planType === 'free' ? 'Free' : planType === 'pro' ? 'Pro' : 'Elite';
+                        const planName =
+                          planType === 'free'
+                            ? 'Free'
+                            : planType === 'starter'
+                            ? 'Starter'
+                            : planType === 'pro'
+                            ? 'Pro'
+                            : 'Elite';
+                        const planCheckoutAvailable = isPlanCheckoutAvailable(
+                          planAvailability,
+                          planType,
+                          isYearly ? 'yearly' : 'monthly'
+                        );
 
                         return (
                           <div
@@ -573,11 +598,11 @@ export default function BillingPage() {
                             {/* "₹X/month billed annually" sub-line for yearly plans */}
                             {isYearly && price > 0 && (
                               <p className="text-[10px] text-muted-foreground mb-1">
-                                ₹{planType === 'pro'
-                                  ? 999
-                                  : planType === 'elite'
-                                  ? 3166
-                                  : 0}/month billed annually
+                                ₹{planType === 'starter'
+                                  ? 416
+                                  : planType === 'pro'
+                                  ? 1249
+                                  : 3749}/month billed annually
                               </p>
                             )}
                             {priceUSD > 0 && (
@@ -593,7 +618,15 @@ export default function BillingPage() {
                               </span>
                             </div>
 
-                            {/* CTA — driven by the same state matrix as the upgrade modal. */}
+                            {/* CTA — driven by the same state matrix as the upgrade modal.
+                                FINAL PAYMENT ACTIVATION ARCHITECTURE: Starter, Pro and
+                                Elite are all ACTIVE paid plans — there is no "Coming
+                                Soon" state for any of them. When the provider
+                                configuration (Stripe Price ID env var / Razorpay keys)
+                                is missing the card keeps a real, enabled purchase
+                                action and shows the honest config-required notice; the
+                                server reports the missing configuration if checkout
+                                is attempted. No fake payment path exists. */}
                             {isDown ? (
                               <Button
                                 asChild
@@ -610,29 +643,48 @@ export default function BillingPage() {
                                 </a>
                               </Button>
                             ) : (
-                              <Button
-                                variant={isCurrent ? 'outline' : 'default'}
-                                size="sm"
-                                className={cn(
-                                  'w-full gap-1.5 text-xs',
-                                  planType === 'elite' && !isCurrent && 'bg-amber-600 hover:bg-amber-700 text-white',
-                                  isCurrent && 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-default',
+                              <>
+                                <Button
+                                  variant={isCurrent ? 'outline' : 'default'}
+                                  size="sm"
+                                  className={cn(
+                                    'w-full gap-1.5 text-xs',
+                                    planType === 'elite' && !isCurrent && 'bg-amber-600 hover:bg-amber-700 text-white',
+                                    isCurrent && 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-default',
+                                  )}
+                                  disabled={isCurrent}
+                                  onClick={() => handleSelectPlan(planType)}
+                                >
+                                  {isCurrent ? (
+                                    <>
+                                      <Shield className="h-3 w-3" />
+                                      Current Plan
+                                    </>
+                                  ) : isUpgrade ? (
+                                    <>
+                                      {/* Spec (Starter finalization, Sep 2026):
+                                          the Starter card's purchase action is
+                                          "Get Started". */}
+                                      {planType === 'starter'
+                                        ? 'Get Started'
+                                        : `Upgrade to ${planName}${isYearly && planType === 'elite' ? ' Annual' : ''}`}
+                                      <ArrowUpRight className="h-3 w-3" />
+                                    </>
+                                  ) : null}
+                                </Button>
+                                {/* Provider-configuration notice — all paid plans. */}
+                                {!isCurrent && planType !== 'free' && planCheckoutAvailable === false && (
+                                  <p
+                                    className="mt-2 text-[10px] leading-snug text-muted-foreground flex items-start gap-1"
+                                    role="note"
+                                  >
+                                    <Clock className="h-2.5 w-2.5 mt-0.5 shrink-0" />
+                                    <span>
+                                      {planName} checkout implemented — payment provider configuration required
+                                    </span>
+                                  </p>
                                 )}
-                                disabled={isCurrent}
-                                onClick={() => handleSelectPlan(planType)}
-                              >
-                                {isCurrent ? (
-                                  <>
-                                    <Shield className="h-3 w-3" />
-                                    Current Plan
-                                  </>
-                                ) : isUpgrade ? (
-                                  <>
-                                    Upgrade to {planName}{isYearly && planType === 'elite' ? ' Annual' : ''}
-                                    <ArrowUpRight className="h-3 w-3" />
-                                  </>
-                                ) : null}
-                              </Button>
+                              </>
                             )}
                           </div>
                         );

@@ -70,6 +70,15 @@ export interface SubscriptionStatusResult {
     trialEndsAt: Date | null;
     daysRemaining: number;
   };
+  /**
+   * P3 (permanent fix Sep 2026): when the subscription store/database is
+   * TEMPORARILY UNAVAILABLE, this flag is true and planDetails/subscription
+   * are NOT authoritative. Callers (API routes) must return 503 and clients
+   * must keep their last-known-good plan. A DB failure must NEVER be
+   * reported as plan "free" — that falsely locked paying users out of
+   * Pro/Elite features (root-cause report, problem 1).
+   */
+  unavailable?: boolean;
 }
 
 export interface UpgradeResult {
@@ -252,11 +261,17 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
       },
     };
   } catch (error) {
+    // ── P3 FIX (Sep 2026): a subscription/database failure must NOT ──
+    // produce plan "free" with HTTP 200. That converted every transient
+    // DB outage into "Workflows requires Pro" for paying users. Instead,
+    // mark the result UNAVAILABLE; the API route returns 503 and the
+    // client preserves its last-known-good plan.
     console.error('[SubscriptionService] Failed to get subscription status:', error);
     return {
       subscription: null,
       planDetails: { plan: 'free', creditsMonthly: PLAN_CREDITS.free, creditsRemaining: 0 },
       trialInfo: { isTrial: false, trialEndsAt: null, daysRemaining: 0 },
+      unavailable: true,
     };
   }
 }
@@ -768,8 +783,9 @@ function getPlanPricing(plan: PlanType, billingCycle: BillingCycle): {
 } {
   const PRICING: Record<PlanType, { monthly: number; yearly: number; currency: string }> = {
     free: { monthly: 0, yearly: 0, currency: 'USD' },
-    pro: { monthly: 29, yearly: 279, currency: 'USD' },
-    elite: { monthly: 89, yearly: 849, currency: 'USD' },
+    starter: { monthly: 6, yearly: 60, currency: 'USD' },
+    pro: { monthly: 19, yearly: 180, currency: 'USD' },
+    elite: { monthly: 63, yearly: 540, currency: 'USD' },
   };
 
   const planPricing = PRICING[plan] || PRICING.free;

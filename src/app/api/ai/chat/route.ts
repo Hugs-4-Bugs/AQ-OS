@@ -32,6 +32,10 @@ export async function POST(request: NextRequest) {
 
       // ─── Send Message (non-streaming) ───
       if (action === 'send_message' || (!action && sessionId && message)) {
+        // SECURITY: bound message size before DB write + LLM call
+        if (typeof message !== 'string' || message.length > 10000) {
+          return NextResponse.json({ error: 'Message must be a string of at most 10000 characters' }, { status: 400 });
+        }
         if (!sessionId || !message) {
           return NextResponse.json(
             { error: 'sessionId and message are required' },

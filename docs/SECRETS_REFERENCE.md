@@ -1,3 +1,7 @@
+> ⚠️ **HISTORICAL DOCUMENT — SUPERSEDED.** This file describes the *abandoned earlier multi-service architecture* (FastAPI + Celery + Redis + dedicated WebSocket service) or an earlier product generation. It is kept only for historical reference and does **not** describe the current system. The verified current architecture is a **single Next.js 16 modular monolith** — see [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](02-architecture/SYSTEM-ARCHITECTURE.md) and [`docs/deployment/01-architecture.md`](deployment/01-architecture.md). Do not use this document for onboarding, deployment, or due diligence.
+
+---
+
 # AcquisitionOS — Secrets Reference
 
 Complete reference for all secrets used across AcquisitionOS phases (1–12), including classification, rotation schedules, and emergency procedures.

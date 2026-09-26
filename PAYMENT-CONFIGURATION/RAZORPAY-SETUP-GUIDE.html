@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Razorpay Setup Guide — AcquisitionOS</title>
+<style>
+@page { size: 794px 1123px; margin: 0; }
+:root {
+  --accent: #0284c7;
+  --accent2: #38bdf8;
+  --ink: #17233b;
+  --muted: #55677d;
+  --line: #dbe3ee;
+  --soft: #f3f6fb;
+  --code-bg: #eef2f8;
+}
+html, body {
+  margin: 0; padding: 0; width: 794px;
+  background: #0b1220; /* darkest page color — prevents sub-pixel white edges on dark pages */
+  color: var(--ink);
+  font-family: 'Carlito', 'Liberation Sans', 'DejaVu Sans', sans-serif;
+  font-size: 12.5px; line-height: 1.62;
+}
+@media screen {
+  html { height: auto; display: flex; justify-content: center; background: #0b1220; }
+  body { transform-origin: top center; margin: 20px auto; box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+}
+p, td, li { overflow-wrap: break-word; }
+p { margin: 0 0 9px 0; text-align: left; }
+
+/* ── Cover ─────────────────────────────────────────── */
+.hero-page {
+  width: 794px; height: 1123px; box-sizing: border-box;
+  break-after: page; overflow: hidden; position: relative;
+  background: linear-gradient(160deg, #0b1220 0%, #101b33 58%, #0d1730 100%);
+  color: #eef2fa; display: flex; flex-direction: column; justify-content: center;
+  padding: 64px 62px;
+}
+.hero-page .blob { position: absolute; border-radius: 50%; }
+.hero-page .b1 { width: 330px; height: 330px; right: 30px; top: 40px; background: radial-gradient(circle at 38% 38%, rgba(255,255,255,.10), rgba(255,255,255,0) 66%); }
+.hero-page .b2 { width: 220px; height: 220px; right: 120px; top: 180px; background: radial-gradient(circle at 40% 40%, rgba(255,255,255,.06), rgba(0,0,0,0) 64%); }
+.hero-page .b3 { width: 260px; height: 260px; left: 40px; bottom: 60px; background: radial-gradient(circle at 45% 45%, rgba(255,255,255,.07), rgba(255,255,255,0) 62%); }
+.hero-page .series { font-size: 11.5px; letter-spacing: 3.5px; color: #38bdf8; font-weight: 700; margin-bottom: 22px; }
+.hero-page .docid { position: absolute; top: 58px; right: 62px; font-size: 10.5px; letter-spacing: 2.5px; color: #93a3bd; }
+.hero-page .title { font-size: 51px; line-height: 1.06; font-weight: 700; letter-spacing: -0.5px; margin: 0 0 24px 0; max-width: 620px; }
+.hero-page .title .t2 { color: #38bdf8; display: block; }
+.hero-page .subtitle { font-size: 14.5px; line-height: 1.65; color: #b9c6dc; max-width: 600px; margin-bottom: 32px; }
+.hero-page .chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 640px; margin-bottom: 34px; }
+.hero-page .chip { border: 1px solid rgba(255,255,255,.22); color: #d7e0f0; border-radius: 999px; padding: 4px 13px; font-size: 11px; letter-spacing: .3px; }
+.hero-page .meta-row { font-size: 11.5px; color: #8fa0bb; letter-spacing: .6px; }
+.hero-page .meta-row b { color: #d7e0f0; font-weight: 700; }
+.hero-page .foot { position: absolute; left: 62px; right: 62px; bottom: 54px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #93a3bd; letter-spacing: 1.2px; }
+
+/* ── Flowing content ───────────────────────────────── */
+.main-content {
+  background: #ffffff; width: 794px; box-sizing: border-box;
+  padding: 54px 58px 46px 58px; /* no fixed height, no overflow hidden */
+}
+h1, h2, h3, h4 { break-after: avoid; break-inside: avoid; color: var(--ink); }
+h2 {
+  font-size: 21px; line-height: 1.25; margin: 26px 0 12px 0; padding-top: 12px;
+  border-top: 1px solid var(--line); letter-spacing: -0.2px;
+}
+h2:first-of-type { margin-top: 4px; border-top: none; padding-top: 0; }
+h3 { font-size: 15px; margin: 18px 0 8px 0; color: #1d2b47; }
+h4 { font-size: 13px; margin: 14px 0 6px 0; }
+strong { color: #0f1a30; }
+hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+
+/* tables */
+table {
+  width: 100%; border-collapse: collapse; margin: 10px 0 14px 0;
+  font-size: 10.6px; line-height: 1.45;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; page-break-inside: avoid; }
+th {
+  background: var(--accent); color: #ffffff; text-align: left;
+  padding: 6px 7px; font-weight: 700; border: 1px solid var(--accent);
+  font-size: 10.2px;
+}
+td { border: 1px solid var(--line); padding: 5.5px 6px; vertical-align: top; overflow-wrap: anywhere; }
+td code, th code { font-size: 9.5px; }
+tbody tr:nth-child(even) td { background: var(--soft); }
+
+/* code */
+code {
+  font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  font-size: 10.3px; background: var(--code-bg); border: 1px solid #e2e8f2;
+  border-radius: 3px; padding: 0.5px 4px; color: #1f2d4d;
+}
+pre {
+  background: #0f1726; color: #dce6f5; border-radius: 8px;
+  padding: 14px 16px; margin: 10px 0 14px 0;
+  font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  font-size: 10.4px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: break-word;
+  break-inside: avoid;
+}
+pre code { background: transparent; border: none; color: inherit; padding: 0; font-size: inherit; }
+
+/* blockquote = callout */
+blockquote {
+  margin: 10px 0 14px 0; padding: 10px 14px;
+  background: var(--soft); border-left: 3.5px solid var(--accent);
+  border-radius: 0 6px 6px 0; color: #33455f;
+}
+blockquote p { margin: 0; }
+blockquote p + p { margin-top: 7px; }
+
+ul, ol { margin: 6px 0 10px 0; padding-left: 22px; }
+li { margin-bottom: 4px; text-align: left; }
+li > p { margin-bottom: 4px; }
+
+/* ── Ending ────────────────────────────────────────── */
+.ending {
+  width: 794px; height: 1123px; box-sizing: border-box;
+  break-before: page; overflow: hidden; position: relative;
+  background: linear-gradient(200deg, #101b33 0%, #0b1220 70%);
+  color: #eef2fa; display: flex; flex-direction: column; justify-content: center;
+  padding: 64px; text-align: center;
+}
+.ending .big { font-size: 30px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 16px; }
+.ending .small { font-size: 13px; color: #b9c6dc; max-width: 520px; margin: 0 auto 34px auto; line-height: 1.7; }
+.ending .companions { display: inline-block; border: 1px solid rgba(255,255,255,.22); color: #d7e0f0; border-radius: 999px; padding: 6px 18px; font-size: 11.5px; letter-spacing: .4px; }
+.ending .foot { position: absolute; left: 64px; right: 64px; bottom: 54px; font-size: 10.5px; color: #93a3bd; letter-spacing: 1.2px; }
+
+code.tbc { background: #fbf1dd; border: none; color: #6e4306; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="hero-page">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="docid">GUIDE 2 / 3</div>
+  <div class="series">ACQUISITIONOS · PAYMENT CONFIGURATION</div>
+  <div class="title">Razorpay Setup<span class="t2">Guide</span></div>
+  <div class="subtitle">Complete step-by-step walkthrough for Razorpay in AcquisitionOS — activation, API keys, one-time orders vs recurring subscriptions, GST server-side math, signature verification, webhooks, and Test → Live migration.</div>
+  <div class="chips"><span class="chip">Orders & Subscriptions</span><span class="chip">UPI · Cards · NetBanking</span><span class="chip">HMAC verification</span><span class="chip">Webhooks</span><span class="chip">INR + 18% GST</span></div>
+  <div class="meta-row"><b>Version 1.0</b> &nbsp;·&nbsp; September 23, 2026 &nbsp;·&nbsp; Documentation only — verified against the current codebase</div>
+  <div class="foot"><span>ACQUISITIONOS</span><span>PAYMENT CONFIGURATION · GUIDE 2 / 3</span></div>
+</div>
+
+<div class="main-content">
+<p><strong>Version:</strong> 1.0 · <strong>Date:</strong> 2026-09-23 · <strong>Scope:</strong> Documentation only — no application code changes</p>
+<p>This guide documents exactly what the <strong>current</strong> AcquisitionOS codebase expects from Razorpay. Everything here was verified against the source (<code>src/lib/payments/razorpay-provider.ts</code>, <code>src/lib/razorpay-service.ts</code>, <code>src/lib/payment-service.ts</code>, <code>src/app/api/payments/webhook/razorpay/route.ts</code>, <code>src/app/api/payments/razorpay/verify/route.ts</code>, <code>src/lib/gst-service.ts</code>). Only Razorpay features actually supported by the implementation are described — nothing is invented. Where the Razorpay Dashboard UI varies, instructions are marked <strong><code>UI may vary by provider dashboard version</code></strong>.</p>
+
+<h2>Part 1 — How AcquisitionOS Uses Razorpay (Read This First)</h2>
+<p>Razorpay is the <strong>India-first gateway</strong> (INR + 18% GST, UPI/cards/netbanking/wallets). Two distinct checkout modes exist in the code:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>When it is used</th>
+<th>Razorpay object</th>
+<th>Renewals</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>One-time order</strong> (default)</td>
+<td>Always, unless a Plan ID env var is configured for the plan/cycle</td>
+<td><code>razorpay.orders.create</code> with a <strong>server-computed</strong> amount (base + 18% GST, in paise)</td>
+<td>Handled in-app by the end-of-period cron (<code>/api/cron/renew-subscriptions</code>) — no Razorpay auto-renewal</td>
+</tr>
+<tr>
+<td><strong>Recurring subscription</strong></td>
+<td>Only when the plan/cycle has <code>RAZORPAY_PLAN_&lt;PLAN&gt;_&lt;CYCLE&gt;</code> set to a <code>plan_...</code> ID</td>
+<td><code>razorpay.subscriptions.create(plan_id, total_count, quantity, notes)</code></td>
+<td>Auto-charged by Razorpay; app syncs via <code>subscription.charged</code> / <code>subscription.halted</code> / <code>subscription.cancelled</code> / <code>subscription.completed</code> webhooks</td>
+</tr>
+</tbody>
+</table>
+<p>Flow (one-time order):</p>
+<ol>
+<li>User picks a plan (Pro/Elite) or a credit pack in the app.</li>
+<li>App calls <code>POST /api/payments/create-checkout-session</code> (gateway <code>razorpay</code>) or <code>POST /api/payments/create-order</code> → server validates plan change, computes <strong>base amount + GST server-side</strong>, calls <code>razorpay.orders.create</code>, stores a <code>PaymentOrder</code> row.</li>
+<li>The browser opens Razorpay Checkout.js with the public Key ID, <code>order_id</code>, amount, currency, and user prefill — the browser never computes or owns the amount.</li>
+<li>On success the handler posts <code>razorpay_order_id</code>, <code>razorpay_payment_id</code>, <code>razorpay_signature</code> to <strong><code>POST /api/payments/razorpay/verify</code></strong>.</li>
+<li>The server verifies the HMAC-SHA256 signature, <strong>fetches the payment from Razorpay's API</strong>, checks the amount against the stored order (± ₹0.01), then activates atomically (webhook dedup table + pending-order check make this idempotent).</li>
+<li>The webhook (<code>/api/payments/webhook/razorpay</code>) is the parallel source of truth and completes activation even if the browser dies.</li>
+</ol>
+<p>Key facts that drive the setup steps:</p>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amounts computed server-side from the app's plan table + GST</td>
+<td>You do <strong>not</strong> create Razorpay Plans/amounts for one-time checkouts; keep dashboard Plans (if any) at the GST-inclusive totals below so recurring charges match</td>
+</tr>
+<tr>
+<td>Signature verification mandatory outside development</td>
+<td><code>RAZORPAY_WEBHOOK_SECRET</code> is required in production; unsigned webhooks are rejected with 500</td>
+</tr>
+<tr>
+<td>Browser-reported success is never trusted</td>
+<td>The verify route + gateway fetch + webhook are the activation paths</td>
+</tr>
+<tr>
+<td><strong>Starter is Stripe-only today</strong></td>
+<td>The Razorpay provider currently validates <code>plan</code> against Pro/Elite only ("Only Pro and Elite plans require payment"). Starter via Razorpay is rejected by design in the current code — document/configure Pro and Elite (and credit packs) here</td>
+</tr>
+</tbody>
+</table>
+<h2>Part 2 — Create / Log In to Your Razorpay Account</h2>
+<ol>
+<li>Go to <a href="https://dashboard.razorpay.com/signup">https://dashboard.razorpay.com/signup</a> and register with your business email.</li>
+<li>Verify email + mobile; enable 2FA (recommended).</li>
+</ol>
+<h2>Part 3 — Complete Account/Business Activation</h2>
+<p>Real payments require KYC activation (Test Mode works immediately):</p>
+<ol>
+<li>Dashboard → <strong>Account &amp; Settings → Profile</strong> (<code>UI may vary</code>) → complete business profile: legal entity type, business name, PAN, GSTIN (if registered), registered address, bank account.</li>
+<li>Submit website/app details (the AcquisitionOS URL + product description) for approval.</li>
+<li>Wait for activation status to become <strong>Active</strong> under Account &amp; Settings. Until then, Live Mode keys cannot be generated.</li>
+</ol>
+<h2>Part 4 — Test Mode vs Live Mode</h2>
+<p>Toggled in the Dashboard (<strong>upper-right mode switch</strong>, <code>UI may vary</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Key ID prefix</th>
+<th>Payments</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test</td>
+<td><code>rzp_test_...</code></td>
+<td>Simulated (Razorpay's test instruments: test UPI VPA <code>success@razorpay</code>, test cards, test netbanking)</td>
+<td>All setup + rehearsal</td>
+</tr>
+<tr>
+<td>Live</td>
+<td><code>rzp_live_...</code></td>
+<td>Real money (post-KYC)</td>
+<td>Production</td>
+</tr>
+</tbody>
+</table>
+<p>The app <strong>auto-detects mode from the key prefix</strong> (<code>rzp_test_</code> → <code>mode: 'test'</code>) and reports it through <code>GET /api/payments/provider-status</code>. No mode setting exists in the app.</p>
+<h2>Part 5 — API Key ID and Secret</h2>
+<ol>
+<li>Dashboard → <strong>Account &amp; Settings → API Keys → Generate Test Key</strong> (repeat for Live when ready) (<code>UI may vary</code>).</li>
+<li>Copy:</li>
+<li><strong>Key ID</strong> → env var <strong><code>RAZORPAY_KEY_ID</code></strong> (used by server SDK calls and, when <code>NEXT_PUBLIC_RAZORPAY_KEY_ID</code> is absent, also sent to the browser as the Checkout.js public key — the Key ID is public-safe by design)</li>
+<li><strong>Key Secret</strong> → env var <strong><code>RAZORPAY_KEY_SECRET</code></strong> (used for HMAC signature verification, refund API calls, and gateway payment fetches — <strong>server-only, never expose</strong>)</li>
+<li>Where they are consumed (verified): <code>razorpay-provider.ts</code> (<code>getRazorpayInstance</code>, <code>isConfigured</code>), <code>payment-service.ts</code> (<code>getRazorpayInstance</code>, availability checks), <code>razorpay-service.ts</code> (<code>verifyPaymentSignature</code>, <code>verifyWebhookSignature</code>, refunds), <code>refund-service.ts</code>.</li>
+<li>Optional client-dedicated publishable copy: <strong><code>NEXT_PUBLIC_RAZORPAY_KEY_ID</code></strong> — preferred by the code (<code>getPublicKeyId()</code>) when present. Set it to the same <code>rzp_...</code> Key ID.</li>
+</ol>
+<p><strong>Merchant ID:</strong> Razorpay exposes account IDs in some dashboard views, but the current AcquisitionOS integration <strong>does not use a Merchant ID anywhere</strong> — nothing to configure.</p>
+<h2>Part 6 — Do You Need Razorpay Plans? (Monthly + Yearly)</h2>
+<ul>
+<li><strong>If you are satisfied with one-time orders + in-app renewal cron (the default):</strong> create nothing. No Plans, no dashboard configuration — amounts are computed per-order server-side.</li>
+<li><strong>If you want Razorpay-native auto-renewal</strong> for Pro/Elite: create <strong>Plans</strong> (recurring billing objects) and map them via env vars. The app checks <code>getRazorpayPlanId(plan, cycle)</code>; when it returns a <code>plan_...</code> ID, checkout switches to <code>razorpay.subscriptions.create</code>.</li>
+</ul>
+<p><code>UI may vary by provider dashboard version</code> — conceptual navigation: <strong>Dashboard → Subscriptions → Plans → Create Plan.</strong></p>
+<h3>Plan matrix to create (recurring, auto-charged)</h3>
+<table>
+<thead>
+<tr>
+<th>Plan · Cycle</th>
+<th>Plan name (recommended)</th>
+<th>Amount to enter</th>
+<th>Interval</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pro · Monthly</td>
+<td><code>AcquisitionOS Pro Monthly</code></td>
+<td><strong>₹1,887</strong> (188700 paise)</td>
+<td>1 month</td>
+<td>GST-inclusive total (base ₹1,599 + ₹288 GST)</td>
+</tr>
+<tr>
+<td>Pro · Yearly</td>
+<td><code>AcquisitionOS Pro Yearly</code></td>
+<td><strong>₹17,699</strong> (1769900 paise)</td>
+<td>1 year</td>
+<td>base ₹14,999 + ₹2,700 GST</td>
+</tr>
+<tr>
+<td>Elite · Monthly</td>
+<td><code>AcquisitionOS Elite Monthly</code></td>
+<td><strong>₹6,135</strong> (613500 paise)</td>
+<td>1 month</td>
+<td>base ₹5,199 + ₹936 GST</td>
+</tr>
+<tr>
+<td>Elite · Yearly</td>
+<td><code>AcquisitionOS Elite Yearly</code></td>
+<td><strong>₹53,099</strong> (5309900 paise)</td>
+<td>1 year</td>
+<td>base ₹44,999 + ₹8,100 GST</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Starter has no Razorpay path in the current code</strong> (provider-level plan validation) — do not create a Starter Plan; sell Starter via Stripe.</li>
+<li>Amounts must equal the GST-inclusive totals because <code>createRazorpaySubscriptionOrder</code> computes the same total (<code>getPlanPrice(base) → calculateGST</code>) and the verify route compares the charged amount to the stored order amount with a tolerance of ₹0.01. A Plan priced differently guarantees <code>AMOUNT_MISMATCH</code> rejections on renewals.</li>
+</ul>
+<h3>Copy each Plan ID into the exact env var</h3>
+<table>
+<thead>
+<tr>
+<th>Plan · Cycle</th>
+<th>Env var (exact)</th>
+<th>Value format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pro · Monthly</td>
+<td><code>RAZORPAY_PLAN_PRO_MONTHLY</code></td>
+<td><code>plan_...</code></td>
+</tr>
+<tr>
+<td>Pro · Yearly</td>
+<td><code>RAZORPAY_PLAN_PRO_YEARLY</code></td>
+<td><code>plan_...</code></td>
+</tr>
+<tr>
+<td>Elite · Monthly</td>
+<td><code>RAZORPAY_PLAN_ELITE_MONTHLY</code></td>
+<td><code>plan_...</code></td>
+</tr>
+<tr>
+<td>Elite · Yearly</td>
+<td><code>RAZORPAY_PLAN_ELITE_YEARLY</code></td>
+<td><code>plan_...</code></td>
+</tr>
+</tbody>
+</table>
+<p>The variable is recognized only when the value <strong>starts with <code>plan_</code></strong> (verified in <code>plan-config.ts</code>). Missing/empty → one-time order fallback (still fully functional). For recurring subscriptions you may also tune mandate tenure:</p>
+<table>
+<thead>
+<tr>
+<th>Env var</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RAZORPAY_SUBSCRIPTION_TOTAL_COUNT_MONTHLY</code></td>
+<td><code>12</code></td>
+<td>Number of billing cycles for monthly subscriptions</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_SUBSCRIPTION_TOTAL_COUNT_YEARLY</code></td>
+<td><code>5</code></td>
+<td>Number of billing cycles for yearly subscriptions</td>
+</tr>
+</tbody>
+</table>
+<h2>Part 7 — Credit Add-On Purchases (One-Time)</h2>
+<p>Credit packs work on Razorpay exactly like one-time plan orders — <strong>no Razorpay objects needed</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Pack</th>
+<th>Base (₹)</th>
+<th>GST 18% (₹)</th>
+<th>Total charged (₹)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100 credits</td>
+<td>499</td>
+<td>90</td>
+<td>589</td>
+</tr>
+<tr>
+<td>500 credits</td>
+<td>1,999</td>
+<td>360</td>
+<td>2,359</td>
+</tr>
+<tr>
+<td>1,000 credits</td>
+<td>3,499</td>
+<td>630</td>
+<td>4,129</td>
+</tr>
+</tbody>
+</table>
+<p>The order is created via <code>razorpay.orders.create</code> with <code>notes: { userId, plan: 'credit_addon', billingCycle: 'one_time', credits, type: 'credits' }</code>, then verified/fulfilled by the same signature-verify path (<code>fulfillCreditAddon</code> → credits added atomically + ledger + notifications).</p>
+<h2>Part 8 — Order IDs, Payment IDs, and Invoice IDs</h2>
+<p>How each Razorpay identifier is used by the app (no configuration required — for your reference):</p>
+<table>
+<thead>
+<tr>
+<th>Identifier</th>
+<th>Example</th>
+<th>Where it appears in AcquisitionOS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Order ID</strong></td>
+<td><code>order_...</code></td>
+<td>Created per checkout (<code>razorpay.orders.create</code>), stored as <code>PaymentOrder.providerOrderId</code>, used by Checkout.js (<code>order_id</code> field) and webhook order matching</td>
+</tr>
+<tr>
+<td><strong>Payment ID</strong></td>
+<td><code>pay_...</code></td>
+<td>Returned by Checkout.js and webhooks; stored as <code>PaymentOrder.providerPaymentId</code>; fetched server-side during verification; used in refund calls</td>
+</tr>
+<tr>
+<td><strong>Subscription ID</strong></td>
+<td><code>sub_...</code></td>
+<td>(Recurring mode only) stored as <code>PaymentOrder.providerSubscriptionId</code> and on the app Subscription record; used for signature fallback + lifecycle webhooks</td>
+</tr>
+<tr>
+<td><strong>Invoice ID</strong></td>
+<td><code>inv_...</code></td>
+<td><strong>Not used</strong> — AcquisitionOS generates its own numbered GST invoices (PDF + email) in-app; Razorpay invoicing stays off</td>
+</tr>
+</tbody>
+</table>
+<h2>Part 9 — Subscription Configuration Summary</h2>
+<p>When a Plan ID is configured, <code>razorpay.subscriptions.create</code> is called with: <code>plan_id</code>, <code>total_count</code> (env-tunable, defaults 12/5), <code>quantity: 1</code>, <code>customer_notify: 1</code>, and <code>notes: { paymentOrderId, userId, plan, billingCycle, couponCode? }</code> so the first charge's webhook can be attributed to the internal order. Nothing further to configure in Razorpay; just keep the webhook (Part 10) active so lifecycle events sync.</p>
+<h2>Part 10 — Configure the Webhook</h2>
+<ol>
+<li><strong>Endpoint URL (exact):</strong> <code>https://&lt;your-domain&gt;/api/payments/webhook/razorpay</code></li>
+<li>Current deployment: <code>https://acquisition.space-z.ai/api/payments/webhook/razorpay</code></li>
+<li>Navigation: Dashboard → <strong>Account &amp; Settings → Webhooks → Add New Webhook</strong> (<code>UI may vary</code>).</li>
+<li>Enter the URL, choose <strong>Active</strong>, and select the events in Part 11.</li>
+<li>Set a <strong>webhook secret</strong> — a strong random string you invent here. Put the <strong>same value</strong> in the app env var <strong><code>RAZORPAY_WEBHOOK_SECRET</code></strong>. (Unlike Stripe, Razorpay does not generate the secret; you define it on both sides.)</li>
+<li>Save. Use the <strong>Send test</strong> / ping option if available.</li>
+</ol>
+<p><strong>Verification behavior (verified in code):</strong> the route computes HMAC-SHA256 of the <strong>raw request body</strong> with <code>RAZORPAY_WEBHOOK_SECRET</code> and compares it to the <code>x-razorpay-signature</code> header using a constant-time comparison. Missing/invalid signatures → 400. <strong>No secret configured outside development → 500 rejection</strong> (hard security rule). In local development only, unsigned webhooks are tolerated with a warning.</p>
+<h2>Part 11 — Required Webhook Events (Exact List)</h2>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>What the app does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>payment.captured</code></td>
+<td>Primary activation for one-time orders (and first charge of subscriptions): order → completed, subscription activated, credits granted, invoice generated</td>
+</tr>
+<tr>
+<td><code>payment.failed</code></td>
+<td>Marks the pending order failed, logs the reason, surfaces failure UI</td>
+</tr>
+<tr>
+<td><code>refund.created</code></td>
+<td>Refund initiated: logs and begins credit-reversal handling</td>
+</tr>
+<tr>
+<td><code>refund.processed</code></td>
+<td>Refund completed: reverses credits; downgrades plan on full refund</td>
+</tr>
+<tr>
+<td><code>subscription.cancelled</code></td>
+<td>Ends the subscription in-app (canceled/expired)</td>
+</tr>
+<tr>
+<td><code>subscription.charged</code></td>
+<td>Renewal charge: extends period, resets monthly credits (period-idempotent), generates invoice</td>
+</tr>
+<tr>
+<td><code>subscription.halted</code></td>
+<td>Recurring payment failed / mandate paused → subscription marked past-due/halted</td>
+</tr>
+<tr>
+<td><code>subscription.completed</code></td>
+<td>Subscription finished its full tenure → handled per status mapping</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Other events are recorded in the <code>PaymentWebhook</code> table and safely ignored.)</em></p>
+<h2>Part 12 — Test Webhook Delivery</h2>
+<ol>
+<li>With the app running locally, expose it (e.g. <code>ngrok http 3000</code>) and register the tunnel URL + <code>/api/payments/webhook/razorpay</code> as a Test-mode webhook.</li>
+<li>Trigger a real Test checkout (test UPI VPA <code>success@razorpay</code> or Razorpay's test cards) — <code>payment.captured</code> arrives at your endpoint.</li>
+<li>CLI-less simulation: Dashboard → Webhooks → your endpoint → <strong>Send test event</strong> (availability varies by dashboard version).</li>
+<li>Verify app-side: the <code>PaymentWebhook</code> table gains a row (<code>provider='razorpay'</code>, <code>eventType</code>, <code>processed=true</code>) and <code>GET /api/admin/billing/webhooks</code> lists it.</li>
+</ol>
+<h2>Part 13 — Payment Verification (How the App Verifies)</h2>
+<p>The verify route (<code>POST /api/payments/razorpay/verify</code>) performs, in order (all verified in code):</p>
+<ol>
+<li><strong>Order lookup + ownership</strong> — internal <code>PaymentOrder</code> by ID, must belong to the authenticated user and be <code>pending</code> (completed orders return <code>alreadyProcessed</code>).</li>
+<li><strong>Signature check</strong> — expected = HMAC_SHA256(<code>RAZORPAY_KEY_SECRET</code>, <code>&lt;order_id|payment_id&gt;</code>) (falls back to <code>&lt;subscription_id|payment_id&gt;</code> for subscription checkouts), constant-time compared.</li>
+<li><strong>Gateway fetch</strong> — <code>payments.fetch(payment_id)</code>; status must be <code>captured</code> or <code>authorized</code>, and the payment must reference <strong>our</strong> order/subscription ID.</li>
+<li><strong>Amount check</strong> — gateway amount ÷ 100 vs stored order amount, tolerance ₹0.01; mismatches mark the order failed (<code>AMOUNT_MISMATCH</code>).</li>
+<li><strong>Idempotent activation</strong> — dedup row <code>checkout_verify_&lt;paymentId&gt;</code> in <code>PaymentWebhook</code>, then atomic activation (<code>confirmPaymentAndActivate</code>) or credit-add-on fulfillment.</li>
+</ol>
+<p>Failure codes you may see in responses/logs: <code>ORDER_NOT_FOUND</code>, <code>ORDER_NOT_PENDING</code>, <code>SIGNATURE_INVALID</code>, <code>PAYMENT_FAILED</code>, <code>AMOUNT_MISMATCH</code>, <code>NOT_CONFIGURED</code>, <code>GATEWAY_ERROR</code>.</p>
+<h2>Part 14 — Failed, Pending, and Refund Handling</h2>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Behavior (verified)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Failed payment</strong></td>
+<td>Checkout.js handler error or <code>payment.failed</code> webhook → order marked <code>failed</code>, failure reason logged, user sees the payment-failed modal and can retry (<code>POST /api/payments/retry</code>)</td>
+</tr>
+<tr>
+<td><strong>Pending / processing</strong></td>
+<td>Order remains <code>pending</code>; either the browser verify or the webhook completes it later; <code>/api/cron/payment-reconciliation</code> reconciles stale pendings with the gateway; a "confirming payment" state is shown meanwhile</td>
+</tr>
+<tr>
+<td><strong>Refunds</strong></td>
+<td>Dashboard refund (Payments → payment → Refund) or super-admin <code>POST /api/admin/refund</code> (calls Razorpay's refund API with Key ID/Secret). <code>refund.created</code> / <code>refund.processed</code> webhooks reverse credits via <code>refundCredits</code> and downgrade the plan on full refunds. Partial refunds supported. Only <code>completed</code> orders can be refunded</td>
+</tr>
+<tr>
+<td><strong>Subscription lifecycle</strong></td>
+<td><code>subscription.charged</code> renewals reset credits (idempotent per period); <code>subscription.halted</code> (payment failing) → past-due handling + recovery banner; <code>subscription.cancelled</code> → access ends per status mapping</td>
+</tr>
+</tbody>
+</table>
+<h2>Part 15 — Exact Environment Variables (Razorpay)</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Provider</th>
+<th>Purpose</th>
+<th>Mode</th>
+<th>Required?</th>
+<th>Where to obtain</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RAZORPAY_KEY_ID</code></td>
+<td>Razorpay</td>
+<td>Server SDK auth (orders, subscriptions, payments fetch, refunds)</td>
+<td>test <code>rzp_test_...</code> / live <code>rzp_live_...</code></td>
+<td>Required for any Razorpay checkout</td>
+<td>Dashboard → Account &amp; Settings → API Keys</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_KEY_SECRET</code></td>
+<td>Razorpay</td>
+<td>HMAC payment verification + webhook-adjacent crypto + refund API</td>
+<td>secret</td>
+<td>Required with key ID</td>
+<td>Same page (shown once — store safely)</td>
+</tr>
+<tr>
+<td><code>NEXT_PUBLIC_RAZORPAY_KEY_ID</code></td>
+<td>Razorpay</td>
+<td>Public Key ID handed to Checkout.js in the browser</td>
+<td>public-safe</td>
+<td>Optional (falls back to <code>RAZORPAY_KEY_ID</code>)</td>
+<td>Same as Key ID</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_WEBHOOK_SECRET</code></td>
+<td>Razorpay</td>
+<td>HMAC-SHA256 verification of webhook bodies</td>
+<td>secret</td>
+<td><strong>Required in production</strong> (unsigned webhooks rejected)</td>
+<td>Your own value, set identically in Dashboard → Webhooks</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_PLAN_PRO_MONTHLY</code></td>
+<td>Razorpay</td>
+<td>Recurring Pro monthly Plan ID</td>
+<td><code>plan_...</code></td>
+<td>Optional (one-time fallback without it)</td>
+<td>Dashboard → Subscriptions → Plans</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_PLAN_PRO_YEARLY</code></td>
+<td>Razorpay</td>
+<td>Recurring Pro yearly Plan ID</td>
+<td><code>plan_...</code></td>
+<td>Optional</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_PLAN_ELITE_MONTHLY</code></td>
+<td>Razorpay</td>
+<td>Recurring Elite monthly Plan ID</td>
+<td><code>plan_...</code></td>
+<td>Optional</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_PLAN_ELITE_YEARLY</code></td>
+<td>Razorpay</td>
+<td>Recurring Elite yearly Plan ID</td>
+<td><code>plan_...</code></td>
+<td>Optional</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_SUBSCRIPTION_TOTAL_COUNT_MONTHLY</code></td>
+<td>Razorpay</td>
+<td>Mandate tenure, monthly</td>
+<td>config</td>
+<td>Optional (default 12)</td>
+<td>Your choice</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_SUBSCRIPTION_TOTAL_COUNT_YEARLY</code></td>
+<td>Razorpay</td>
+<td>Mandate tenure, yearly</td>
+<td>config</td>
+<td>Optional (default 5)</td>
+<td>Your choice</td>
+</tr>
+<tr>
+<td><code>RAZORPAY_SUPPORTED_CURRENCIES</code></td>
+<td>Razorpay</td>
+<td>Advertised currency list (default <code>INR</code>)</td>
+<td>config</td>
+<td>Optional</td>
+<td>Set <code>INR,USD</code> only if your account supports international</td>
+</tr>
+</tbody>
+</table>
+<h2>Part 16 — Test Mode → Live Mode Checklist</h2>
+<ul>
+<li>[ ] KYC activation complete (Account &amp; Settings shows Active)</li>
+<li>[ ] Switch Dashboard to Live mode; generate <strong>Live</strong> API keys</li>
+<li>[ ] Replace <code>RAZORPAY_KEY_ID</code> / <code>RAZORPAY_KEY_SECRET</code> (and <code>NEXT_PUBLIC_RAZORPAY_KEY_ID</code>) with Live values</li>
+<li>[ ] Re-create the four Plans in <strong>Live mode</strong>; update the four <code>RAZORPAY_PLAN_*</code> env vars with Live <code>plan_...</code> IDs</li>
+<li>[ ] Create the <strong>Live</strong> webhook (same URL, same events); set <code>RAZORPAY_WEBHOOK_SECRET</code> to the Live webhook's secret</li>
+<li>[ ] <code>GET /api/payments/provider-status</code> shows <code>razorpay.mode = 'live'</code></li>
+<li>[ ] One real live ₹1 transaction end-to-end (refund afterwards if self-test): verify → activate → invoice → webhook processed</li>
+<li>[ ] Confirm refund path works in Live (small refund on the self-test)</li>
+</ul>
+<h2>Part 17 — Production Verification Checklist</h2>
+<ul>
+<li>[ ] Webhook URL publicly reachable over HTTPS; test event returns 200</li>
+<li>[ ] <code>payment.captured</code>, <code>subscription.charged</code> (if recurring), <code>refund.processed</code> observed at least once</li>
+<li>[ ] Signature tamper test: a webhook with a wrong signature is rejected with 400 (log shows "Invalid signature — rejecting")</li>
+<li>[ ] Amount-mismatch test (optional, staging): order amount modified → <code>AMOUNT_MISMATCH</code>, order failed, no activation</li>
+<li>[ ] Invoice PDF + email generated on a real activation; visible under the user's billing history (<code>GET /api/payments/history</code>)</li>
+<li>[ ] Cancel path: subscription cancellation syncs via <code>subscription.cancelled</code></li>
+<li>[ ] Credit pack purchase adds exactly 100/500/1000 credits with a <code>CreditsLedger</code> entry</li>
+</ul>
+<h2>Part 18 — Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.</code></td>
+<td>Missing env vars</td>
+<td>Set both, redeploy; confirm with <code>provider-status</code></td>
+</tr>
+<tr>
+<td>Webhook 500 <code>Webhook verification not configured</code></td>
+<td><code>RAZORPAY_WEBHOOK_SECRET</code> unset outside development</td>
+<td>Set the same secret in Dashboard webhook + env</td>
+</tr>
+<tr>
+<td>Webhook 400 <code>Invalid signature</code></td>
+<td>Secret mismatch, or body was re-serialized (signature covers raw bytes)</td>
+<td>Ensure the exact secret string; proxy must forward the raw body</td>
+</tr>
+<tr>
+<td><code>SIGNATURE_INVALID</code> on checkout verify</td>
+<td>Key Secret mismatch between environments, or ids from different orders</td>
+<td>Confirm env secret matches the account that issued the keys; retry checkout</td>
+</tr>
+<tr>
+<td><code>AMOUNT_MISMATCH</code></td>
+<td>Plan priced differently from the app's GST-inclusive total, or Price/Plan edited after orders exist</td>
+<td>Align Plan amounts with Part 6 table; never edit amounts of in-flight plans</td>
+</tr>
+<tr>
+<td>Starter plan cannot be bought via Razorpay</td>
+<td>Provider-level validation (Pro/Elite only)</td>
+<td>Sell Starter via Stripe (documented behavior of current code)</td>
+</tr>
+<tr>
+<td>Buttons show Coming Soon</td>
+<td>Razorpay keys not configured (availability requires Key ID <strong>and</strong> Secret)</td>
+<td>Set both env vars</td>
+</tr>
+<tr>
+<td>Renewal charge not reflected</td>
+<td><code>subscription.charged</code> webhook missing/failed</td>
+<td>Check deliveries; replay safely (PaymentWebhook dedup makes replays idempotent)</td>
+</tr>
+<tr>
+<td>UPI fails in Test</td>
+<td>Test UPI needs Razorpay test instruments</td>
+<td>Use <code>success@razorpay</code> VPA or test cards from Razorpay docs</td>
+</tr>
+</tbody>
+</table>
+
+<p><em>End of Razorpay Setup Guide. Companion documents: <code>STRIPE-SETUP-GUIDE.md</code> and <code>PAYMENT-CONFIGURATION-MASTER.md</code>.</em></p>
+</div>
+
+<div class="ending">
+  <div class="big">Configuration complete.</div>
+  <div class="small">Every environment variable name, endpoint, webhook event, and amount in this guide was verified against the current AcquisitionOS source code. Configure objects in Test Mode first, verify the full checklist, then repeat in Live Mode.</div>
+  <div class="companions">Companion guides: Stripe Setup Guide · Payment Configuration Master</div>
+  <div class="foot">ACQUISITIONOS · PAYMENT CONFIGURATION · 2026</div>
+</div>
+
+</body>
+</html>

@@ -335,8 +335,13 @@ async function reconcileRazorpay(): Promise<ReconciliationOutcome> {
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const cronSecret = process.env.CRON_SECRET || 'acquisitionos-cron-dev';
+  // Verify cron secret — fail closed when unset (SECURITY HARDENING:
+  // previously fell back to the public 'acquisitionos-cron-dev' value)
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('[Payment Reconciliation] CRON_SECRET is not configured — rejecting request');
+    return NextResponse.json({ error: 'Cron authentication not configured' }, { status: 500 });
+  }
   const authHeader = request.headers.get('authorization');
   const providedSecret = authHeader?.replace('Bearer ', '');
 

@@ -45,7 +45,7 @@ export class StripePaymentProvider implements PaymentProvider {
   }
 
   /** A Stripe checkout is possible when the plan's Price ID is configured. */
-  canCheckout(plan: 'pro' | 'elite', cycle: BillingCycle): boolean {
+  canCheckout(plan: 'pro' | 'elite' | 'starter', cycle: BillingCycle): boolean {
     if (!this.isConfigured()) return false;
     return !!resolvePlanPriceId(plan, cycle).priceId;
   }
@@ -53,7 +53,7 @@ export class StripePaymentProvider implements PaymentProvider {
   async createCheckout(params: {
     userId: string;
     kind: PurchaseKind;
-    plan?: 'pro' | 'elite';
+    plan?: 'pro' | 'elite' | 'starter';
     billingCycle?: BillingCycle;
     creditAmount?: 100 | 500 | 1000;
     couponCode?: string;
@@ -101,8 +101,10 @@ export class StripePaymentProvider implements PaymentProvider {
 
     const plan = params.plan;
     const billingCycle = params.billingCycle ?? 'monthly';
-    if (plan !== 'pro' && plan !== 'elite') {
-      return { success: false, gateway: 'stripe', error: 'Invalid plan. Only Pro and Elite plans require payment.' };
+    // Final pricing/plan update (Sep 2026): Starter is a real paid plan on
+    // the SAME canonical Stripe Checkout flow (env-resolved Price ID).
+    if (plan !== 'pro' && plan !== 'elite' && plan !== 'starter') {
+      return { success: false, gateway: 'stripe', error: 'Invalid plan. Only Starter, Pro and Elite plans require payment.' };
     }
 
     const result = await createStripeCheckoutSession({

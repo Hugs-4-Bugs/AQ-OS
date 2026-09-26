@@ -297,7 +297,8 @@ async function handleGoogleOAuthCallback(
     }
 
     googleUser = await profileResponse.json();
-    console.log(`[Google CB2 ${requestId}] ✓ Profile fetched: ${googleUser.email}`);
+    // Mask PII (email) in server logs.
+    console.log(`[Google CB2 ${requestId}] ✓ Profile fetched: ${googleUser.email ? googleUser.email.slice(0, 2) + '***' : 'MISSING'}`);
   } catch (profileErr) {
     console.error(`[Google CB2 ${requestId}] Profile fetch crashed:`, profileErr instanceof Error ? profileErr.message : profileErr);
     return null;
@@ -305,6 +306,14 @@ async function handleGoogleOAuthCallback(
 
   if (!googleUser.email) {
     console.error(`[Google CB2 ${requestId}] No email in profile`);
+    return null;
+  }
+
+  // ── SECURITY HARDENING: verified-email enforcement (mirrors the
+  // primary callback) — an unverified Google address must never match
+  // or create a local account.
+  if (googleUser.email_verified !== true) {
+    console.error(`[Google CB2 ${requestId}] Google email is not verified — rejecting sign-in`);
     return null;
   }
 
@@ -326,20 +335,28 @@ async function handleGoogleOAuthCallback(
 
     if (user) {
       console.log(`[Google CB2 ${requestId}] Existing user: id=${user.id}, active=${user.isActive}, authProvider=${user.authProvider}, plan=${user.plan}, role=${user.role}`);
-      if (!user.googleId && googleUser.sub) {
-        await db.user.update({
-          where: { id: user.id },
-          data: { googleId: googleUser.sub },
-        });
+      // ACCOUNT-CONSISTENCY FIX (2026-09-24): same as the primary callback —
+      // link the real Google sub when absent, and replace a synthetic
+      // dev-consent sub ('dev-google-…') so the account carries its TRUE
+      // Google identity regardless of which method was used first.
+      if (googleUser.sub && (!user.googleId || user.googleId.startsWith('dev-google-'))) {
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: { googleId: googleUser.sub },
+          });
+          user = { ...user, googleId: googleUser.sub };
+          console.log(`[Google CB2 ${requestId}] ✓ Google identity linked to existing user`);
+        } catch (linkErr) {
+          console.warn(`[Google CB2 ${requestId}] googleId link failed (non-fatal):`, linkErr instanceof Error ? linkErr.message : linkErr);
+        }
       }
-      // FIX (2026-09-09): Same backfill/reactivate logic as the primary
-      // callback at /api/auth/callback/google — reactivates inactive
-      // accounts and backfills missing plan/role/trial fields so
-      // already-registered email/password users can sign in with Google.
+      // FIX (2026-09-22, security hardening): mirrors the primary callback —
+      // admin-deactivated accounts are never auto-reactivated via Google.
       const backfillData: Record<string, unknown> = {};
       if (!user.isActive) {
-        console.warn(`[Google CB2 ${requestId}] User inactive — reactivating for Google sign-in`);
-        backfillData.isActive = true;
+        console.warn(`[Google CB2 ${requestId}] User inactive — denying Google sign-in (account deactivated by admin)`);
+        return null;
       }
       if (!user.plan) backfillData.plan = 'free';
       if (!user.role) backfillData.role = 'owner';

@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import {
   verifyPassword,
+  generateMfaSessionToken,
+  // FIX (final payment activation architecture, Sep 2026): generateAccessToken
+  // was missing from this import list while the route body calls it at the
+  // token-generation step — password sign-in therefore failed with
+  // "ReferenceError: generateAccessToken is not defined" (500) for every
+  // user. Restoring the import repairs sign-in itself; NO auth logic,
+  // OAuth, or OTP behavior is changed.
   generateAccessToken,
   generateRefreshToken,
   createSession,
@@ -18,16 +25,12 @@ import {
 } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import { withRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
-
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { email, password, rememberMe } = body;
 
     // ── Validation ──────────────────────────────────────────────
     if (!email || !password) {
@@ -38,6 +41,16 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Rate limit (P9): DEDICATED 'signin' bucket keyed by IP+email ──
+    // No longer shares the 5/min 'auth' bucket with OTP/magic-link/refresh,
+    // so unrelated users behind the same preview gateway cannot consume
+    // each other's sign-in quota.
+    const rateLimitResult = withRateLimit(request, 'signin', {
+      keySuffix: authRateKeySuffix(normalizedEmail),
+    });
+    if (rateLimitResult) return rateLimitResult;
+
     const ip = getClientIp(request);
     const ua = getUserAgent(request);
 
@@ -234,7 +247,10 @@ export async function POST(request: NextRequest) {
     const mfaEnabled = user.mfaConfig?.isEnabled ?? false;
     if (mfaEnabled) {
       // Generate a temporary MFA session token (short-lived access token)
-      const mfaSessionToken = generateAccessToken({
+      // SECURITY: this is a dedicated 5-minute `type:'mfa'` token — it is
+      // ONLY accepted by /api/auth/mfa/verify and is rejected by proxy.ts
+      // and getAuthUser, so possession of it does NOT grant API access.
+      const mfaSessionToken = generateMfaSessionToken({
         id: user.id,
         email: user.email,
         role: user.role,
@@ -290,13 +306,18 @@ export async function POST(request: NextRequest) {
       trialEndsAt: user.trialEndsAt,
     });
 
-    // ── Create session ──────────────────────────────────────────
+    // ── Create session ────────────────────────────────────────
+    // P5: "Remember me for 30 days" — the checkbox now controls BOTH the
+    // server-side session policy (rememberMe row + 48h idle + 30d absolute)
+    // and the refresh-cookie persistence (survives browser restart).
+    const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';
     await createSession({
       userId: user.id,
       refreshToken,
       deviceInfo: ua.substring(0, 255),
       ipAddress: ip,
       userAgent: ua,
+      rememberMe: rememberMeFlag,
     });
 
     // ── Update last login ───────────────────────────────────────
@@ -365,7 +386,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return setAuthCookies(response, accessToken, refreshToken);
+    return setAuthCookies(response, accessToken, refreshToken, {
+      persist: rememberMeFlag,
+    });
   } catch (error) {
     console.error('Signin error:', error);
     return NextResponse.json(

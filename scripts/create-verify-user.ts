@@ -6,8 +6,16 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const EMAIL = 'preview.verify@acquisitionos.local';
-const PASSWORD = 'PreviewVerify#2026';
+// SECURITY: password comes from the environment — a known hardcoded
+// password previously created email-verified accounts with public
+// credentials on any database this script ran against.
+const EMAIL = process.env.VERIFY_USER_EMAIL || 'preview.verify@acquisitionos.local';
+const PASSWORD = process.env.VERIFY_USER_PASSWORD;
+
+if (!PASSWORD) {
+  console.error('Set VERIFY_USER_PASSWORD (and optionally VERIFY_USER_EMAIL) in the environment before running this script.');
+  process.exit(1);
+}
 
 const db = new PrismaClient();
 

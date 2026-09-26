@@ -1,3 +1,7 @@
+> ⚠️ **HISTORICAL DOCUMENT — SUPERSEDED.** This file describes the *abandoned earlier multi-service architecture* (FastAPI + Celery + Redis + dedicated WebSocket service) or an earlier product generation. It is kept only for historical reference and does **not** describe the current system. The verified current architecture is a **single Next.js 16 modular monolith** — see [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](02-architecture/SYSTEM-ARCHITECTURE.md) and [`docs/deployment/01-architecture.md`](deployment/01-architecture.md). Do not use this document for onboarding, deployment, or due diligence.
+
+---
+
 # AcquisitionOS — Production Readiness Assessment
 
 > **Version**: 2.0 | **Last Updated**: 2026-03-07 | **Owner**: Platform Team

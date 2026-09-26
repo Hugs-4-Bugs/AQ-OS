@@ -22,6 +22,7 @@
  */
 
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 const RELAY_SECRET = process.env.JWT_SECRET || process.env.RELAY_SECRET || 'acquisitionos-relay-dev-secret';
 const RELAY_EXPIRY_SECONDS = 60;
@@ -106,4 +107,28 @@ export function isSameOrigin(url1: string, url2: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * HMAC marker for the relay's ONE-redirect self-loop guard (2026-09-23).
+ *
+ * Behind gateways that report a STALE public host (e.g. x-forwarded-host
+ * pointing at a previous preview domain), the relay's origin-mismatch
+ * redirect can target the EXACT URL the browser is already on — producing
+ * ERR_TOO_MANY_REDIRECTS. The guard: on the first pass the relay sets a
+ * short-lived `g_relay_hop` cookie whose value is this HMAC of
+ * (nonce, expectedOrigin) keyed with the relay secret. On the second pass
+ * (same token, same URL) the relay verifies the cookie instead of
+ * redirecting again, and finishes the flow (cookies bind to the browser's
+ * real host, which by construction IS the token's expected origin).
+ *
+ * Security: only a server holding RELAY_SECRET can produce the value, so
+ * an attacker replaying a valid relay token on the wrong domain cannot
+ * forge the marker to skip the origin-mismatch redirect.
+ */
+export function relayHopGuardValue(nonce: string, expectedOrigin: string): string {
+  return crypto
+    .createHmac('sha256', RELAY_SECRET)
+    .update(`${nonce}|${expectedOrigin.replace(/\/+$/, '')}`)
+    .digest('hex');
 }

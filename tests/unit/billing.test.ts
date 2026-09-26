@@ -512,7 +512,8 @@ describe('Plan Entitlements', () => {
 
   it('should return correct plan credits', () => {
     expect(PLAN_CREDITS.free).toBe(50);
-    expect(PLAN_CREDITS.pro).toBe(500);
+    expect(PLAN_CREDITS.starter).toBe(150);
+    expect(PLAN_CREDITS.pro).toBe(750);
     expect(PLAN_CREDITS.elite).toBe(2000);
   });
 

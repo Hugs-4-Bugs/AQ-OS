@@ -1,0 +1,1278 @@
+{
+  "summary": {
+    "totalDefined": 26,
+    "appJsRefs": 161,
+    "appPyRefs": 85,
+    "appRefs": 224,
+    "devRefs": 320,
+    "deployRefs": 79,
+    "usedByApp": 24,
+    "devOnly": 0,
+    "unused": 2,
+    "missingFromEnv": 200
+  },
+  "usedByApp": [
+    {
+      "name": "APP_URL",
+      "files": [
+        ".env",
+        ".env.backup"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "AUTH_DEV_MODE",
+      "files": [
+        ".env.example"
+      ],
+      "inRealEnv": false
+    },
+    {
+      "name": "AUTH_SECRET",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "CRON_SECRET",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "DATABASE_URL",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "EMAIL_FROM",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "ENABLE_GOOGLE_OAUTH",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "ENABLE_MAGIC_LINK",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "ENABLE_OTP_LOGIN",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "GMAIL_APP_PASSWORD",
+      "files": [
+        ".env",
+        ".env.backup"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "GMAIL_USER",
+      "files": [
+        ".env",
+        ".env.backup"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "GOOGLE_SEARCH_API_KEY",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "GOOGLE_SEARCH_CX",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "JWT_SECRET",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "NEXT_PUBLIC_APP_URL",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "NEXTAUTH_SECRET",
+      "files": [
+        ".env.example"
+      ],
+      "inRealEnv": false
+    },
+    {
+      "name": "NEXTAUTH_URL",
+      "files": [
+        ".env",
+        ".env.backup"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "SMTP_HOST",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "SMTP_PASS",
+      "files": [
+        ".env",
+        ".env.backup"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "SMTP_PASSWORD",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "SMTP_PORT",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "SMTP_USER",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    }
+  ],
+  "devOnly": [],
+  "unused": [
+    {
+      "name": "AUTH_AUTO_VERIFY",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    },
+    {
+      "name": "AUTH_BYPASS_EMAIL",
+      "files": [
+        ".env",
+        ".env.backup",
+        ".env.example"
+      ],
+      "inRealEnv": true
+    }
+  ],
+  "missing": [
+    {
+      "name": "__DB_REDIRECTED_TO_TMP",
+      "category": "app"
+    },
+    {
+      "name": "ADMIN_EMAIL",
+      "category": "app"
+    },
+    {
+      "name": "ADMIN_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "AI_DAILY_BUDGET_USD",
+      "category": "app"
+    },
+    {
+      "name": "AI_LOCAL_ENDPOINT",
+      "category": "app"
+    },
+    {
+      "name": "AI_LOCAL_MODEL",
+      "category": "app"
+    },
+    {
+      "name": "AI_MONTHLY_BUDGET_USD",
+      "category": "app"
+    },
+    {
+      "name": "ALLOWED_ORIGINS",
+      "category": "app"
+    },
+    {
+      "name": "ANALYTICS_CACHE_TTL",
+      "category": "app"
+    },
+    {
+      "name": "ANOMALY_DEVIATION_THRESHOLD",
+      "category": "app"
+    },
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "ANTHROPIC_BASE_URL",
+      "category": "app"
+    },
+    {
+      "name": "ANTHROPIC_MODEL",
+      "category": "app"
+    },
+    {
+      "name": "APP_PUBLIC_URL",
+      "category": "app"
+    },
+    {
+      "name": "APP_SECRET_KEY",
+      "category": "app"
+    },
+    {
+      "name": "AWS_ACCESS_KEY_ID",
+      "category": "app"
+    },
+    {
+      "name": "AWS_LAMBDA_FUNCTION_NAME",
+      "category": "app"
+    },
+    {
+      "name": "AWS_REGION",
+      "category": "app"
+    },
+    {
+      "name": "AWS_S3_BUCKET",
+      "category": "app"
+    },
+    {
+      "name": "AWS_SECRET_ACCESS_KEY",
+      "category": "app"
+    },
+    {
+      "name": "BACKUP_DIR",
+      "category": "app"
+    },
+    {
+      "name": "BRIGHTDATA_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "BRIGHTDATA_USERNAME",
+      "category": "app"
+    },
+    {
+      "name": "CELERY_BROKER_URL",
+      "category": "app"
+    },
+    {
+      "name": "CELERY_RESULT_BACKEND",
+      "category": "app"
+    },
+    {
+      "name": "CLOUDFLARE_R2_ENDPOINT",
+      "category": "app"
+    },
+    {
+      "name": "COMPANY_ADDRESS",
+      "category": "app"
+    },
+    {
+      "name": "COMPANY_EMAIL",
+      "category": "app"
+    },
+    {
+      "name": "COMPANY_GST_NUMBER",
+      "category": "app"
+    },
+    {
+      "name": "COMPANY_NAME",
+      "category": "app"
+    },
+    {
+      "name": "COMPANY_PHONE",
+      "category": "app"
+    },
+    {
+      "name": "COMPANY_TAX_ID",
+      "category": "app"
+    },
+    {
+      "name": "COMPETITOR_CACHE_TTL",
+      "category": "app"
+    },
+    {
+      "name": "COMPETITOR_SCAN_LIMIT",
+      "category": "app"
+    },
+    {
+      "name": "CRON_AUTH_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_CONNECT_TIMEOUT_S",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_IDLE_TIMEOUT_MS",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_POOL_SIZE",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_QUERY_TIMEOUT_MS",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_SSL_MODE",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_STATEMENT_TIMEOUT_S",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_TIMEOUT_MS",
+      "category": "app"
+    },
+    {
+      "name": "DATABASE_URL_SYNC",
+      "category": "app"
+    },
+    {
+      "name": "DISCOVERY_MAX_CONCURRENT_JOBS",
+      "category": "app"
+    },
+    {
+      "name": "DISCOVERY_RESULTS_PER_JOB",
+      "category": "app"
+    },
+    {
+      "name": "EMAIL_HOST",
+      "category": "app"
+    },
+    {
+      "name": "EMAIL_PASS",
+      "category": "app"
+    },
+    {
+      "name": "EMAIL_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "EMAIL_PORT",
+      "category": "app"
+    },
+    {
+      "name": "EMAIL_USER",
+      "category": "app"
+    },
+    {
+      "name": "EMAIL_USERNAME",
+      "category": "app"
+    },
+    {
+      "name": "ENABLE_COMPETITOR_INTELLIGENCE",
+      "category": "app"
+    },
+    {
+      "name": "ENABLE_GMAIL_INTEGRATION",
+      "category": "app"
+    },
+    {
+      "name": "ENABLE_TELEGRAM",
+      "category": "app"
+    },
+    {
+      "name": "ENABLE_WHATSAPP",
+      "category": "app"
+    },
+    {
+      "name": "ENCRYPTION_KEY",
+      "category": "app"
+    },
+    {
+      "name": "ENRICHMENT_TIMEOUT_MS",
+      "category": "app"
+    },
+    {
+      "name": "ENVIRONMENT",
+      "category": "app"
+    },
+    {
+      "name": "EXPORT_MAX_ROWS",
+      "category": "app"
+    },
+    {
+      "name": "FACEBOOK_APP_ID",
+      "category": "app"
+    },
+    {
+      "name": "FACEBOOK_APP_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "FLOWER_BASIC_AUTH",
+      "category": "app"
+    },
+    {
+      "name": "FLOWER_PORT",
+      "category": "app"
+    },
+    {
+      "name": "FROM_EMAIL",
+      "category": "app"
+    },
+    {
+      "name": "FRONTEND_URL",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_CRON_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_ENCRYPTION_KEY",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_PUBSUB_SUBSCRIPTION",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_PUBSUB_TOPIC",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_PUBSUB_VERIFICATION_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_PUBSUB_WEBHOOK_URL",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_TRACKING_BASE_URL",
+      "category": "app"
+    },
+    {
+      "name": "GMAIL_UNSUBSCRIBE_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_GMAIL_CLIENT_ID",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_GMAIL_CLIENT_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_GMAIL_REDIRECT_URI",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_LOGIN_CLIENT_ID",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_LOGIN_CLIENT_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_LOGIN_REDIRECT_URI",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_MAPS_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_REDIRECT_URI",
+      "category": "app"
+    },
+    {
+      "name": "GOOGLE_SEARCH_ENGINE_ID",
+      "category": "app"
+    },
+    {
+      "name": "GST_RATE",
+      "category": "app"
+    },
+    {
+      "name": "HOSTNAME",
+      "category": "app"
+    },
+    {
+      "name": "IMPORT_MAX_ROWS",
+      "category": "app"
+    },
+    {
+      "name": "INDIAMART_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "INSIGHT_VALIDITY_DAYS",
+      "category": "app"
+    },
+    {
+      "name": "INSTAGRAM_APP_ID",
+      "category": "app"
+    },
+    {
+      "name": "INSTAGRAM_APP_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "JUSTDIAL_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "JUSTDIAL_API_URL",
+      "category": "app"
+    },
+    {
+      "name": "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
+      "category": "app"
+    },
+    {
+      "name": "JWT_ALGORITHM",
+      "category": "app"
+    },
+    {
+      "name": "JWT_REFRESH_TOKEN_EXPIRE_DAYS",
+      "category": "app"
+    },
+    {
+      "name": "LINKEDIN_CLIENT_ID",
+      "category": "app"
+    },
+    {
+      "name": "LINKEDIN_CLIENT_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "LOG_LEVEL",
+      "category": "app"
+    },
+    {
+      "name": "LOGIN_LOCKOUT_MINUTES",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_FROM",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_FROM_ADDRESS",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_HOST",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_PASS",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_PORT",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_USER",
+      "category": "app"
+    },
+    {
+      "name": "MAIL_USERNAME",
+      "category": "app"
+    },
+    {
+      "name": "MAX_LOGIN_ATTEMPTS",
+      "category": "app"
+    },
+    {
+      "name": "META_APP_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "META_WEBHOOK_VERIFY_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "META_WHATSAPP_PHONE_ID",
+      "category": "app"
+    },
+    {
+      "name": "META_WHATSAPP_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "NEXT_PUBLIC_APP_VERSION",
+      "category": "app"
+    },
+    {
+      "name": "NEXT_PUBLIC_RAZORPAY_KEY_ID",
+      "category": "app"
+    },
+    {
+      "name": "NEXT_PUBLIC_SENTRY_DSN",
+      "category": "app"
+    },
+    {
+      "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "category": "app"
+    },
+    {
+      "name": "NEXT_RUNTIME",
+      "category": "app"
+    },
+    {
+      "name": "NEXTJS_API_URL",
+      "category": "app"
+    },
+    {
+      "name": "NODE_ENV",
+      "category": "app"
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "OPENAI_BASE_URL",
+      "category": "app"
+    },
+    {
+      "name": "OPENAI_MODEL",
+      "category": "app"
+    },
+    {
+      "name": "OPENROUTER_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "OPENROUTER_BASE_URL",
+      "category": "app"
+    },
+    {
+      "name": "OPENROUTER_MODEL",
+      "category": "app"
+    },
+    {
+      "name": "OTEL_ENABLED",
+      "category": "app"
+    },
+    {
+      "name": "OTEL_EXPORTER",
+      "category": "app"
+    },
+    {
+      "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+      "category": "app"
+    },
+    {
+      "name": "OTEL_SERVICE_NAME",
+      "category": "app"
+    },
+    {
+      "name": "PAYMENTS_DEV_CONFIRM_ENABLED",
+      "category": "app"
+    },
+    {
+      "name": "PGBOUNCER_ENABLED",
+      "category": "app"
+    },
+    {
+      "name": "PORT",
+      "category": "app"
+    },
+    {
+      "name": "POSTGRES_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "PREDICTION_EXPIRY_DAYS",
+      "category": "app"
+    },
+    {
+      "name": "PRIVACY_POLICY_URL",
+      "category": "app"
+    },
+    {
+      "name": "PRODUCT_NAME",
+      "category": "app"
+    },
+    {
+      "name": "RATE_LIMIT_AI",
+      "category": "app"
+    },
+    {
+      "name": "RATE_LIMIT_AUTH",
+      "category": "app"
+    },
+    {
+      "name": "RATE_LIMIT_GENERAL",
+      "category": "app"
+    },
+    {
+      "name": "RATE_LIMIT_SCRAPING",
+      "category": "app"
+    },
+    {
+      "name": "RAZORPAY_KEY_ID",
+      "category": "app"
+    },
+    {
+      "name": "RAZORPAY_KEY_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "RAZORPAY_SUPPORTED_CURRENCIES",
+      "category": "app"
+    },
+    {
+      "name": "RAZORPAY_WEBHOOK_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "REDIS_HOST",
+      "category": "app"
+    },
+    {
+      "name": "REDIS_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "REDIS_URL",
+      "category": "app"
+    },
+    {
+      "name": "RELAY_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "REPORT_RETENTION_DAYS",
+      "category": "app"
+    },
+    {
+      "name": "RESEARCH_BATCH_CONCURRENCY",
+      "category": "app"
+    },
+    {
+      "name": "RESEARCH_BATCH_MAX",
+      "category": "app"
+    },
+    {
+      "name": "RESEND_API_KEY",
+      "category": "app"
+    },
+    {
+      "name": "SECRET_KEY",
+      "category": "app"
+    },
+    {
+      "name": "SENTRY_DSN",
+      "category": "app"
+    },
+    {
+      "name": "SENTRY_TRACES_SAMPLE_RATE",
+      "category": "app"
+    },
+    {
+      "name": "SERPAPI_KEY",
+      "category": "app"
+    },
+    {
+      "name": "SMTP_AUTH_PASSWORD",
+      "category": "app"
+    },
+    {
+      "name": "SMTP_FROM",
+      "category": "app"
+    },
+    {
+      "name": "SMTP_FROM_EMAIL",
+      "category": "app"
+    },
+    {
+      "name": "SMTP_FROM_NAME",
+      "category": "app"
+    },
+    {
+      "name": "SMTP_USERNAME",
+      "category": "app"
+    },
+    {
+      "name": "SSE_TIMEOUT",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_CANCEL_URL",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_ELITE_MONTHLY_PRICE_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_ELITE_PRODUCT_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_ELITE_YEARLY_PRICE_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PORTAL_RETURN_URL",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_CREDITS_1000_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_CREDITS_2500_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_CREDITS_250_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_CREDITS_500_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_ID_ELITE_MONTHLY",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_ID_ELITE_YEARLY",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_ID_PRO_MONTHLY",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRICE_ID_PRO_YEARLY",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRO_MONTHLY_PRICE_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRO_PRODUCT_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PRO_YEARLY_PRICE_ID",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_PUBLISHABLE_KEY",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_SECRET_KEY",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_SUCCESS_URL",
+      "category": "app"
+    },
+    {
+      "name": "STRIPE_WEBHOOK_SECRET",
+      "category": "app"
+    },
+    {
+      "name": "TELEGRAM_BOT_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "TELEGRAM_BOT_USERNAME",
+      "category": "app"
+    },
+    {
+      "name": "TELEGRAM_WEBHOOK_URL",
+      "category": "app"
+    },
+    {
+      "name": "TERMS_URL",
+      "category": "app"
+    },
+    {
+      "name": "TOKEN_ENCRYPTION_KEY",
+      "category": "app"
+    },
+    {
+      "name": "TRIAL_DAYS",
+      "category": "app"
+    },
+    {
+      "name": "TWILIO_ACCOUNT_SID",
+      "category": "app"
+    },
+    {
+      "name": "TWILIO_AUTH_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "TWILIO_WHATSAPP_NUMBER",
+      "category": "app"
+    },
+    {
+      "name": "UPLOAD_STORAGE_PATH",
+      "category": "app"
+    },
+    {
+      "name": "VAPID_PRIVATE_KEY",
+      "category": "app"
+    },
+    {
+      "name": "VAPID_PUBLIC_KEY",
+      "category": "app"
+    },
+    {
+      "name": "VERCEL",
+      "category": "app"
+    },
+    {
+      "name": "WHATSAPP_API_TOKEN",
+      "category": "app"
+    },
+    {
+      "name": "WORKFLOW_MAX_RETRIES",
+      "category": "app"
+    },
+    {
+      "name": "WORKFLOW_RETENTION_DAYS",
+      "category": "app"
+    },
+    {
+      "name": "WORKFLOW_TIMEOUT",
+      "category": "app"
+    },
+    {
+      "name": "YELP_API_KEY",
+      "category": "app"
+    }
+  ],
+  "appRefNames": [
+    "ADMIN_EMAIL",
+    "ADMIN_PASSWORD",
+    "AI_DAILY_BUDGET_USD",
+    "AI_LOCAL_ENDPOINT",
+    "AI_LOCAL_MODEL",
+    "AI_MONTHLY_BUDGET_USD",
+    "ALLOWED_ORIGINS",
+    "ANALYTICS_CACHE_TTL",
+    "ANOMALY_DEVIATION_THRESHOLD",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_MODEL",
+    "APP_PUBLIC_URL",
+    "APP_SECRET_KEY",
+    "APP_URL",
+    "AUTH_DEV_MODE",
+    "AUTH_SECRET",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_LAMBDA_FUNCTION_NAME",
+    "AWS_REGION",
+    "AWS_S3_BUCKET",
+    "AWS_SECRET_ACCESS_KEY",
+    "BACKUP_DIR",
+    "BRIGHTDATA_PASSWORD",
+    "BRIGHTDATA_USERNAME",
+    "CELERY_BROKER_URL",
+    "CELERY_RESULT_BACKEND",
+    "CLOUDFLARE_R2_ENDPOINT",
+    "COMPANY_ADDRESS",
+    "COMPANY_EMAIL",
+    "COMPANY_GST_NUMBER",
+    "COMPANY_NAME",
+    "COMPANY_PHONE",
+    "COMPANY_TAX_ID",
+    "COMPETITOR_CACHE_TTL",
+    "COMPETITOR_SCAN_LIMIT",
+    "CRON_AUTH_TOKEN",
+    "CRON_SECRET",
+    "DATABASE_CONNECT_TIMEOUT_S",
+    "DATABASE_IDLE_TIMEOUT_MS",
+    "DATABASE_POOL_SIZE",
+    "DATABASE_QUERY_TIMEOUT_MS",
+    "DATABASE_SSL_MODE",
+    "DATABASE_STATEMENT_TIMEOUT_S",
+    "DATABASE_TIMEOUT_MS",
+    "DATABASE_URL",
+    "DATABASE_URL_SYNC",
+    "DISCOVERY_MAX_CONCURRENT_JOBS",
+    "DISCOVERY_RESULTS_PER_JOB",
+    "EMAIL_FROM",
+    "EMAIL_HOST",
+    "EMAIL_PASS",
+    "EMAIL_PASSWORD",
+    "EMAIL_PORT",
+    "EMAIL_USER",
+    "EMAIL_USERNAME",
+    "ENABLE_COMPETITOR_INTELLIGENCE",
+    "ENABLE_GMAIL_INTEGRATION",
+    "ENABLE_GOOGLE_OAUTH",
+    "ENABLE_MAGIC_LINK",
+    "ENABLE_OTP_LOGIN",
+    "ENABLE_TELEGRAM",
+    "ENABLE_WHATSAPP",
+    "ENCRYPTION_KEY",
+    "ENRICHMENT_TIMEOUT_MS",
+    "ENVIRONMENT",
+    "EXPORT_MAX_ROWS",
+    "FACEBOOK_APP_ID",
+    "FACEBOOK_APP_SECRET",
+    "FLOWER_BASIC_AUTH",
+    "FLOWER_PORT",
+    "FROM_EMAIL",
+    "FRONTEND_URL",
+    "GMAIL_APP_PASSWORD",
+    "GMAIL_CRON_API_KEY",
+    "GMAIL_ENCRYPTION_KEY",
+    "GMAIL_PASSWORD",
+    "GMAIL_PUBSUB_SUBSCRIPTION",
+    "GMAIL_PUBSUB_TOPIC",
+    "GMAIL_PUBSUB_VERIFICATION_TOKEN",
+    "GMAIL_PUBSUB_WEBHOOK_URL",
+    "GMAIL_TRACKING_BASE_URL",
+    "GMAIL_UNSUBSCRIBE_SECRET",
+    "GMAIL_USER",
+    "GOOGLE_API_KEY",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_GMAIL_CLIENT_ID",
+    "GOOGLE_GMAIL_CLIENT_SECRET",
+    "GOOGLE_GMAIL_REDIRECT_URI",
+    "GOOGLE_LOGIN_CLIENT_ID",
+    "GOOGLE_LOGIN_CLIENT_SECRET",
+    "GOOGLE_LOGIN_REDIRECT_URI",
+    "GOOGLE_MAPS_API_KEY",
+    "GOOGLE_REDIRECT_URI",
+    "GOOGLE_SEARCH_API_KEY",
+    "GOOGLE_SEARCH_CX",
+    "GOOGLE_SEARCH_ENGINE_ID",
+    "GST_RATE",
+    "HOSTNAME",
+    "IMPORT_MAX_ROWS",
+    "INDIAMART_API_KEY",
+    "INSIGHT_VALIDITY_DAYS",
+    "INSTAGRAM_APP_ID",
+    "INSTAGRAM_APP_SECRET",
+    "JUSTDIAL_API_KEY",
+    "JUSTDIAL_API_URL",
+    "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
+    "JWT_ALGORITHM",
+    "JWT_REFRESH_TOKEN_EXPIRE_DAYS",
+    "JWT_SECRET",
+    "LINKEDIN_CLIENT_ID",
+    "LINKEDIN_CLIENT_SECRET",
+    "LOGIN_LOCKOUT_MINUTES",
+    "LOG_LEVEL",
+    "MAIL_FROM",
+    "MAIL_FROM_ADDRESS",
+    "MAIL_HOST",
+    "MAIL_PASS",
+    "MAIL_PASSWORD",
+    "MAIL_PORT",
+    "MAIL_USER",
+    "MAIL_USERNAME",
+    "MAX_LOGIN_ATTEMPTS",
+    "META_APP_SECRET",
+    "META_WEBHOOK_VERIFY_TOKEN",
+    "META_WHATSAPP_PHONE_ID",
+    "META_WHATSAPP_TOKEN",
+    "NEXTAUTH_SECRET",
+    "NEXTAUTH_URL",
+    "NEXTJS_API_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_APP_VERSION",
+    "NEXT_PUBLIC_RAZORPAY_KEY_ID",
+    "NEXT_PUBLIC_SENTRY_DSN",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    "NEXT_RUNTIME",
+    "NODE_ENV",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_MODEL",
+    "OPENROUTER_API_KEY",
+    "OPENROUTER_BASE_URL",
+    "OPENROUTER_MODEL",
+    "OTEL_ENABLED",
+    "OTEL_EXPORTER",
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_SERVICE_NAME",
+    "PAYMENTS_DEV_CONFIRM_ENABLED",
+    "PGBOUNCER_ENABLED",
+    "PORT",
+    "POSTGRES_PASSWORD",
+    "PREDICTION_EXPIRY_DAYS",
+    "PRIVACY_POLICY_URL",
+    "PRODUCT_NAME",
+    "RATE_LIMIT_AI",
+    "RATE_LIMIT_AUTH",
+    "RATE_LIMIT_GENERAL",
+    "RATE_LIMIT_SCRAPING",
+    "RAZORPAY_KEY_ID",
+    "RAZORPAY_KEY_SECRET",
+    "RAZORPAY_SUPPORTED_CURRENCIES",
+    "RAZORPAY_WEBHOOK_SECRET",
+    "REDIS_HOST",
+    "REDIS_PASSWORD",
+    "REDIS_URL",
+    "RELAY_SECRET",
+    "REPORT_RETENTION_DAYS",
+    "RESEARCH_BATCH_CONCURRENCY",
+    "RESEARCH_BATCH_MAX",
+    "RESEND_API_KEY",
+    "SECRET_KEY",
+    "SENTRY_DSN",
+    "SENTRY_TRACES_SAMPLE_RATE",
+    "SERPAPI_KEY",
+    "SMTP_AUTH_PASSWORD",
+    "SMTP_FROM",
+    "SMTP_FROM_EMAIL",
+    "SMTP_FROM_NAME",
+    "SMTP_HOST",
+    "SMTP_PASS",
+    "SMTP_PASSWORD",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SMTP_USERNAME",
+    "SSE_TIMEOUT",
+    "STRIPE_CANCEL_URL",
+    "STRIPE_ELITE_MONTHLY_PRICE_ID",
+    "STRIPE_ELITE_PRODUCT_ID",
+    "STRIPE_ELITE_YEARLY_PRICE_ID",
+    "STRIPE_PORTAL_RETURN_URL",
+    "STRIPE_PRICE_CREDITS_1000_ID",
+    "STRIPE_PRICE_CREDITS_100_ID",
+    "STRIPE_PRICE_CREDITS_2500_ID",
+    "STRIPE_PRICE_CREDITS_250_ID",
+    "STRIPE_PRICE_CREDITS_500_ID",
+    "STRIPE_PRICE_ID_ELITE_MONTHLY",
+    "STRIPE_PRICE_ID_ELITE_YEARLY",
+    "STRIPE_PRICE_ID_PRO_MONTHLY",
+    "STRIPE_PRICE_ID_PRO_YEARLY",
+    "STRIPE_PRO_MONTHLY_PRICE_ID",
+    "STRIPE_PRO_PRODUCT_ID",
+    "STRIPE_PRO_YEARLY_PRICE_ID",
+    "STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_SUCCESS_URL",
+    "STRIPE_WEBHOOK_SECRET",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_BOT_USERNAME",
+    "TELEGRAM_WEBHOOK_URL",
+    "TERMS_URL",
+    "TOKEN_ENCRYPTION_KEY",
+    "TRIAL_DAYS",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_WHATSAPP_NUMBER",
+    "UPLOAD_STORAGE_PATH",
+    "VAPID_PRIVATE_KEY",
+    "VAPID_PUBLIC_KEY",
+    "VERCEL",
+    "WHATSAPP_API_TOKEN",
+    "WORKFLOW_MAX_RETRIES",
+    "WORKFLOW_RETENTION_DAYS",
+    "WORKFLOW_TIMEOUT",
+    "YELP_API_KEY",
+    "__DB_REDIRECTED_TO_TMP"
+  ]
+}

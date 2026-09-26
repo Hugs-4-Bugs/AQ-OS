@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import {
@@ -228,6 +229,8 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
   // DEV-ONLY (sandbox): the OTP surfaced in-place when the server cannot
   // send emails. Never set in production.
   const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
+  // P5: "Remember me for 30 days" — wired to the OTP login session
+  const [rememberMe, setRememberMe] = useState(false);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   // Cooldown timer for resend
@@ -310,7 +313,7 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ email, otp, rememberMe }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -326,7 +329,7 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
     } finally {
       setLoading(false);
     }
-  }, [email, otp]);
+  }, [email, otp, rememberMe]);
 
   return (
     <AuthLayout
@@ -383,6 +386,17 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
                       autoComplete="email"
                     />
                   </div>
+                </div>
+                {/* P5: Remember me — controls the session created on verify */}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="otp-remember"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  />
+                  <Label htmlFor="otp-remember" className="text-xs text-muted-foreground cursor-pointer">
+                    Remember me for 30 days
+                  </Label>
                 </div>
                 <Button
                   type="submit"
@@ -504,6 +518,8 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
   // DEV-ONLY (sandbox): the sign-in link surfaced in-place when the server
   // cannot send emails. Never set in production.
   const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
+  // P5: Remember-me for the magic-link session
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSendMagicLink = useCallback(
     async (e: React.FormEvent) => {
@@ -518,7 +534,7 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
         const res = await fetch('/api/auth/magic-link/request', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, rememberMe }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -554,7 +570,7 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
         setLoading(false);
       }
     },
-    [email]
+    [email, rememberMe]
   );
 
   return (
@@ -656,6 +672,17 @@ function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
                       autoComplete="email"
                     />
                   </div>
+                </div>
+                {/* P5: Remember me — applies to the session the link creates */}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="magic-remember"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  />
+                  <Label htmlFor="magic-remember" className="text-xs text-muted-foreground cursor-pointer">
+                    Remember me for 30 days
+                  </Label>
                 </div>
                 <Button
                   type="submit"

@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { mfaSessionToken, code } = body;
+    const { mfaSessionToken, code, rememberMe } = body;
+    // P5: remember-me choice carried from the sign-in form through MFA
+    const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';
 
     // ── Validation ──────────────────────────────────────────────
     if (!mfaSessionToken || !code) {
@@ -40,8 +42,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Verify MFA session token ────────────────────────────────
+    // SECURITY: only dedicated `type:'mfa'` tokens (5-min expiry) are
+    // accepted here. Full access tokens are rejected so that a stolen
+    // pre-MFA token can never be used as an API credential.
     const payload = verifyToken(mfaSessionToken);
-    if (!payload || payload.type !== 'access') {
+    if (!payload || payload.type !== 'mfa') {
       return NextResponse.json(
         { error: 'Invalid or expired MFA session token' },
         { status: 401 }
@@ -142,6 +147,7 @@ export async function POST(request: NextRequest) {
       deviceInfo: ua.substring(0, 255),
       ipAddress: ip,
       userAgent: ua,
+      rememberMe: rememberMeFlag,
     });
 
     // ── Update last login ───────────────────────────────────────
@@ -183,7 +189,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return setAuthCookies(response, accessToken, refreshToken);
+    return setAuthCookies(response, accessToken, refreshToken, {
+      persist: rememberMeFlag,
+    });
   } catch (error) {
     console.error('MFA verify error:', error);
     return NextResponse.json(

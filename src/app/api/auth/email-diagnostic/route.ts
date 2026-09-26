@@ -35,14 +35,15 @@ import {
  */
 export async function GET(request: NextRequest) {
   // ── Auth: require CRON_SECRET ─────────────────────────────────
+  // SECURITY: header-only. Previously the secret could also be passed as
+  // ?key=<CRON_SECRET>, which leaks it into access logs and proxies.
   const authHeader = request.headers.get('authorization');
-  const urlSecret = request.nextUrl.searchParams.get('key');
   const cronSecret = process.env.CRON_SECRET;
 
-  const providedSecret = authHeader?.replace('Bearer ', '') || urlSecret;
+  const providedSecret = authHeader?.replace('Bearer ', '');
   if (!cronSecret || providedSecret !== cronSecret) {
     return NextResponse.json(
-      { error: 'Unauthorized. Provide Authorization: Bearer <CRON_SECRET> or ?key=<CRON_SECRET>' },
+      { error: 'Unauthorized. Provide Authorization: Bearer <CRON_SECRET>' },
       { status: 401 }
     );
   }

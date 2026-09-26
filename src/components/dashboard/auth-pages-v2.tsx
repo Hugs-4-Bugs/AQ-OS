@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useLegalStore } from '@/lib/legal-store';
 import { DevDeliveryNotice, parseDevDelivery } from '@/components/dashboard/dev-delivery-notice';
+import { setRememberMeCookie, getRememberMePreference } from '@/lib/auth-client';
 import type { DevDeliveryPayload } from '@/lib/dev-auth';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -319,12 +320,20 @@ export function SignInPage({
   // LoadingScreen while that flag is set, which would UNMOUNT this page and
   // discard the inline error alert + filled fields.
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Google Sign-in is PERMANENTLY available — no env-based gating.
-  const googleAvailable = true;
+  // ── P5: "Remember me for 30 days" is now a REAL control ──
+  // CHECKED  → server creates a remembered session: survives browser
+  //            restart, 48h inactivity limit, 30-day absolute maximum.
+  // UNCHECKED → normal non-remembered session (browser-session cookie).
+  const [rememberMe, setRememberMe] = useState(false);
+  // Google Sign-in reflects the ACTUAL runtime configuration (P7) — the
+  // button is hidden with an honest notice when credentials are missing.
+  const [googleConfigured, setGoogleConfigured] = useState(true);
 
   // Server-driven Google OAuth: client_id never touches frontend
   const startGoogleOAuth = useCallback(async () => {
     try {
+      // P5: carry the remember-me choice across the OAuth redirect.
+      setRememberMeCookie(rememberMe);
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const res = await fetch(`/api/auth/google/state?origin=${encodeURIComponent(origin)}`);
       if (!res.ok) throw new Error('Failed to get OAuth state');
@@ -336,7 +345,7 @@ export function SignInPage({
       console.error('Google OAuth error:', err);
       toast.error('Google sign-in could not start. Please try again.');
     }
-  }, []);
+  }, [rememberMe]);
 
   const validate = useCallback(() => {
     const errs: Record<string, string> = {};
@@ -356,7 +365,9 @@ export function SignInPage({
       if (Object.keys(validationErrors).length > 0) return;
 
       setIsSubmitting(true);
-      const result = await signIn(email, password);
+      // P5: persist the choice for the MFA step, then sign in with it.
+      setRememberMeCookie(rememberMe);
+      const result = await signIn(email, password, rememberMe);
       setIsSubmitting(false);
       if (result.success) {
         toast.success('Welcome back!');
@@ -386,8 +397,25 @@ export function SignInPage({
         // form are the suggested methods — the alert text points to them.
       }
     },
-    [email, password, validate, signIn, onSuccess, onVerifyEmailClick]
+    [email, password, rememberMe, validate, signIn, onSuccess, onVerifyEmailClick]
   );
+
+  // P7: reflect REAL runtime Google configuration (no more hardcoded true).
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/config')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg) => {
+        if (!cancelled && cfg) setGoogleConfigured(!!cfg.googleConfigured);
+      })
+      .catch(() => {
+        // Endpoint unreachable — leave the button visible; the OAuth start
+        // route itself fails clearly if credentials are missing.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <AuthLayout title="Welcome Back" description="Sign in to your AcquisitionOS account">
@@ -481,9 +509,14 @@ export function SignInPage({
               <FieldError message={errors.password} />
             </div>
 
-            {/* Remember me */}
+            {/* Remember me (P5 — now wired end-to-end) */}
             <div className="flex items-center gap-2">
-              <Checkbox id="signin-remember" className="mt-0.5" />
+              <Checkbox
+                id="signin-remember"
+                className="mt-0.5"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+              />
               <Label htmlFor="signin-remember" className="text-xs text-muted-foreground cursor-pointer">
                 Remember me for 30 days
               </Label>
@@ -501,8 +534,8 @@ export function SignInPage({
             </span>
           </div>
 
-          {/* Google SSO — always available, server-driven OAuth */}
-          {googleAvailable && (
+          {/* Google SSO — reflects REAL runtime configuration (P7) */}
+          {googleConfigured ? (
             <div className="relative rounded-lg p-[1.5px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
               <Button
                 variant="outline"
@@ -519,6 +552,10 @@ export function SignInPage({
                 Continue with Google
               </Button>
             </div>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground" role="status">
+              Google sign-in is temporarily unavailable (server credentials are not configured).
+            </p>
           )}
 
           {/* Magic Link & OTP login options */}
@@ -591,12 +628,20 @@ export function SignUpPage({
   // that flag to render the full-screen LoadingScreen — which would unmount
   // this component and discard `showSuccess`.
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Google Sign-in is PERMANENTLY available — no env-based gating.
-  const googleAvailable = true;
+  // ── P5: "Remember me for 30 days" is now a REAL control ──
+  // CHECKED  → server creates a remembered session: survives browser
+  //            restart, 48h inactivity limit, 30-day absolute maximum.
+  // UNCHECKED → normal non-remembered session (browser-session cookie).
+  const [rememberMe, setRememberMe] = useState(false);
+  // Google Sign-in reflects the ACTUAL runtime configuration (P7) — the
+  // button is hidden with an honest notice when credentials are missing.
+  const [googleConfigured, setGoogleConfigured] = useState(true);
 
   // Server-driven Google OAuth: client_id never touches frontend
   const startGoogleOAuth = useCallback(async () => {
     try {
+      // P5: carry the remember-me choice across the OAuth redirect.
+      setRememberMeCookie(rememberMe);
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const res = await fetch(`/api/auth/google/state?origin=${encodeURIComponent(origin)}`);
       if (!res.ok) throw new Error('Failed to get OAuth state');
@@ -608,7 +653,7 @@ export function SignUpPage({
       console.error('Google OAuth error:', err);
       toast.error('Google sign-in could not start. Please try again.');
     }
-  }, []);
+  }, [rememberMe]);
 
   const validate = useCallback(() => {
     const errs: Record<string, string> = {};
@@ -870,8 +915,8 @@ export function SignUpPage({
 
           <Separator />
 
-          {/* Google SSO — always available, server-driven OAuth */}
-          {googleAvailable && (
+          {/* Google SSO — reflects REAL runtime configuration (P7) */}
+          {googleConfigured ? (
             <div className="relative rounded-lg p-[1.5px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
               <Button
                 variant="outline"
@@ -888,6 +933,10 @@ export function SignUpPage({
                 Continue with Google
               </Button>
             </div>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground" role="status">
+              Google sign-in is temporarily unavailable (server credentials are not configured).
+            </p>
           )}
 
           <p className="text-center text-xs text-muted-foreground">
@@ -1459,7 +1508,8 @@ export function MfaVerificationPage({
     }
     setError('');
     setLoading(true);
-    const result = await verifyMfa(verifyValue);
+    // P5: honor the remember-me choice made on the sign-in form
+    const result = await verifyMfa(verifyValue, getRememberMePreference());
     setLoading(false);
     if (result.success) {
       toast.success('Verification successful!');

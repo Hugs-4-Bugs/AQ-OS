@@ -7,11 +7,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiLogging } from '@/lib/observability/api-logger';
 import { processMeetingReminders } from '@/lib/meeting-orchestration-service';
 
-const CRON_AUTH_TOKEN = process.env.CRON_AUTH_TOKEN || 'acquisitionos-cron-dev';
+// SECURITY HARDENING: no hardcoded fallback — fail closed when unset.
+const CRON_AUTH_TOKEN = process.env.CRON_AUTH_TOKEN || process.env.CRON_SECRET;
 
 export const POST = withApiLogging(async (request: NextRequest) => {
   try {
     // Validate cron auth header
+    if (!CRON_AUTH_TOKEN) {
+      console.error('[Meeting Reminders API] CRON_AUTH_TOKEN/CRON_SECRET is not configured — rejecting request');
+      return NextResponse.json(
+        { error: 'Cron authentication not configured.' },
+        { status: 500 }
+      );
+    }
     const authHeader = request.headers.get('authorization');
     if (!authHeader || authHeader !== `Bearer ${CRON_AUTH_TOKEN}`) {
       return NextResponse.json(

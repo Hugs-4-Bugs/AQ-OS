@@ -2582,6 +2582,8 @@ function TemplatesTab({ onTemplateUsed }: { onTemplateUsed: () => void }) {
 export default function WorkflowsTab() {
   const { toast } = useToast();
   const currentPlan = useSubscriptionStore((s) => s.currentPlan);
+  // P3: only trust the plan when an authoritative sync verified it
+  const syncState = useSubscriptionStore((s) => s.syncState);
   const [subTab, setSubTab] = useState<'workflows' | 'executions' | 'templates'>('workflows');
   const [builderMode, setBuilderMode] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
@@ -2598,7 +2600,16 @@ export default function WorkflowsTab() {
   };
 
   const handleCreateWithAi = () => {
-    // Visible to all — functional for Elite only
+    // Visible to all — functional for Elite only.
+    // P3: while the subscription state is not verified (loading/failed
+    // lookup) do NOT deny with an upgrade prompt — the plan may be Elite.
+    if (syncState !== 'verified') {
+      toast({
+        title: 'Subscription status is being verified',
+        description: 'Please try again in a moment — your plan entitlements are preserved.',
+      });
+      return;
+    }
     if (currentPlan !== 'elite') {
       toast({
         title: 'Upgrade to Elite to use AI workflow creation',

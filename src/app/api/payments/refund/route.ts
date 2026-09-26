@@ -1,10 +1,16 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — POST /api/payments/refund
 // Initiate a refund for a payment (full or partial)
+//
+// SECURITY HARDENING (P0): refunds move real money via the provider
+// APIs. Per platform policy (see withSuperAdmin docs), cross-tenant
+// payment operations are reserved for platform super admins. This
+// endpoint is now super-admin-only; end users must request refunds
+// through support (admins act via /api/admin/refund or here).
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { initiateRefund } from '@/lib/refund-service';
 
 interface RefundRequestBody {
@@ -15,7 +21,7 @@ interface RefundRequestBody {
 }
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const body = (await request.json()) as RefundRequestBody;
       const { paymentOrderId, refundType = 'full', amount, reason } = body;

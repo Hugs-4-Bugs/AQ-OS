@@ -22,6 +22,14 @@ export async function POST(request: NextRequest) {
       if (contentType.includes('multipart/form-data')) {
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
+      // SECURITY: cap upload size before buffering the whole body
+      const MAX_IMPORT_BYTES = 10 * 1024 * 1024; // 10 MB
+      if (file && file.size > MAX_IMPORT_BYTES) {
+        return NextResponse.json(
+          { error: 'Import file exceeds the 10 MB limit' },
+          { status: 413 }
+        );
+      }
         preview = formData.get('preview') === 'true';
 
         if (!file) {

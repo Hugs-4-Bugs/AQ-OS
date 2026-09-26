@@ -88,7 +88,6 @@ export async function GET(request: Request) {
       'X-Accel-Buffering': 'no', // Disable nginx buffering
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Cache-Control, Last-Event-ID',
-      'Access-Control-Allow-Credentials': 'true',
     },
   });
 }
@@ -101,7 +100,6 @@ export async function OPTIONS() {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Cache-Control, Last-Event-ID',
-      'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Max-Age': '86400',
     },
   });

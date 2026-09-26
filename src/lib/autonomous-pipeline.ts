@@ -8,7 +8,7 @@ import { startDiscoveryJob, getDiscoveryJobStatus, type DiscoveryParams, type Di
 import { analyzeLead } from './ai/lead-analysis-engine';
 import { generateOutreach } from './ai/outreach-generator';
 import { checkCreditSufficiency, deductCredits } from './credit-service';
-import { dispatchNotification } from './notification-engine';
+import { sendNotification } from './notification-engine';
 import { sendEmail, type SendEmailParams } from './gmail-delivery-service';
 import ZAI from 'z-ai-web-dev-sdk';
 
@@ -139,7 +139,7 @@ export async function startAutonomousCampaign(
   });
 
   // Notify user via multi-channel dispatch
-  await dispatchNotification({
+  await sendNotification({
     userId,
     type: 'campaign_started',
     title: 'Campaign Started',
@@ -226,7 +226,7 @@ async function processCampaignAsync(
       data: { status: 'completed', completedAt: new Date() },
     });
 
-    await dispatchNotification({
+    await sendNotification({
       userId,
       type: 'campaign_completed',
       title: 'Campaign Completed',
@@ -241,7 +241,7 @@ async function processCampaignAsync(
       data: { status: 'failed', errorMessage },
     });
 
-    await dispatchNotification({
+    await sendNotification({
       userId,
       type: 'campaign_failed',
       title: 'Campaign Failed',

@@ -358,7 +358,8 @@ export async function handleUnsubscribe(
       await logUnsubscribeDetected(userId, email);
     }
 
-    console.log(`[GmailTracking] Unsubscribe processed: ${email}, IP: ${ip}`);
+    // Mask PII (email) in server logs.
+    console.log(`[GmailTracking] Unsubscribe processed for account id: ${userId ?? 'unknown'}`);
 
     return { success: true, email };
   } catch (error) {

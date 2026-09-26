@@ -6,22 +6,19 @@ import {
   logAuthEvent,
   getClientIp,
   getUserAgent,
+  classifyAuthErrorCategory,
 } from '@/lib/auth';
 import { sendMagicLinkEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devMagicLinkDelivery } from '@/lib/dev-auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import { withRateLimit, refundRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
 import { getAppUrl } from '@/lib/app-url';
 
 const MAGIC_LINK_EXPIRY_SECONDS = 15 * 60; // 15 minutes
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
-
   try {
     const body = await request.json();
-    const { email } = body;
+    const { email, rememberMe } = body;
 
     // ── Validation ──────────────────────────────────────────────
     if (!email || typeof email !== 'string') {
@@ -39,6 +36,15 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Rate limit (P9): DEDICATED 'magic_link' bucket keyed by IP+email ──
+    const rateLimitResult = withRateLimit(request, 'magic_link', {
+      keySuffix: authRateKeySuffix(normalizedEmail),
+    });
+    if (rateLimitResult) return rateLimitResult;
+
+    // P5: Remember-me travels WITH the link (the click is a fresh GET).
+    const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';
 
     // ── Find user (return same message regardless of existence) ──
     const user = await db.user.findUnique({
@@ -114,12 +120,13 @@ export async function POST(request: NextRequest) {
     const baseUrl = isPublicAppUrl(APP_URL)
       ? APP_URL.replace(/\/+$/, '')
       : getAppUrl(request);
-    const magicLinkUrl = `${baseUrl}/api/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(normalizedEmail)}`;
+    const magicLinkUrl = `${baseUrl}/api/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(normalizedEmail)}${rememberMeFlag ? '&remember=1' : ''}`;
 
-    // CRITICAL LOG: Shows the EXACT URL that will be emailed to the user.
+    // SECURITY: never log the full magic-link URL — it contains the login
+    // token. Log only host diagnostics so delivery issues stay debuggable.
     console.warn(`[Magic Link Request] APP_URL env: ${APP_URL || 'NOT SET'}`);
     console.warn(`[Magic Link Request] BASE URL: ${baseUrl}`);
-    console.warn(`[Magic Link Request] FULL MAGIC LINK URL: ${magicLinkUrl}`);
+    console.warn(`[Magic Link Request] magic link generated (token withheld from logs)`);
     console.warn(`[Magic Link Request] request.host header: ${request.headers.get('host') || 'NONE'}`);
     console.warn(`[Magic Link Request] x-forwarded-host: ${request.headers.get('x-forwarded-host') || 'NONE'}`);
     console.warn(`[Magic Link Request] origin header: ${request.headers.get('origin') || 'NONE'}`);
@@ -143,19 +150,24 @@ export async function POST(request: NextRequest) {
 
     if (!emailConfigured) {
       console.error('[Magic Link] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY).');
-      // DEV-ONLY: when no real provider exists (e.g. sandbox/preview) hand the
-      // generated link back to the requesting client so the flow can continue.
-      // In production builds devMagicLinkDelivery() returns undefined and the
-      // response is identical to the previous behavior.
+      // P8: do NOT pretend an email was sent.
+      refundRateLimit(request, 'magic_link', { keySuffix: authRateKeySuffix(normalizedEmail) });
       const devDelivery = devMagicLinkDelivery(magicLinkUrl);
-      return NextResponse.json({
-        message: 'If an account exists with this email, a magic link has been sent.',
-        deliveryIssue: !devDelivery,
-        deliveryMessage: devDelivery
-          ? 'Email delivery is not configured on this server. Development mode: your sign-in link was generated locally and can be opened below.'
-          : 'Email delivery is not configured on the server. Please contact support.',
-        ...(devDelivery ? { devDelivery } : {}),
-      });
+      if (devDelivery) {
+        // DEV-ONLY sandbox escape hatch (AUTH_DEV_MODE) — undefined in production.
+        return NextResponse.json({
+          message: 'Email delivery is not configured on this server. Development mode: your sign-in link was generated locally and can be opened below.',
+          deliveryIssue: false,
+          ...(devDelivery ? { devDelivery } : {}),
+        });
+      }
+      return NextResponse.json(
+        {
+          error: 'Email delivery is temporarily unavailable (the server has no mail provider configured). Please contact support.',
+          code: 'EMAIL_NOT_CONFIGURED',
+        },
+        { status: 503 }
+      );
     }
 
     let emailSent = false;
@@ -171,24 +183,29 @@ export async function POST(request: NextRequest) {
       console.error(`Magic link email result: failed — ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    // If email delivery genuinely failed, surface a clear error.
+    // If email delivery genuinely failed, surface a CLEAR failure (P8).
     if (!emailSent) {
-      return NextResponse.json({
-        message: 'If an account exists with this email, a magic link has been sent.',
-        deliveryIssue: true,
-        deliveryMessage:
-          'We could not deliver your magic link right now due to a temporary email service issue. Please try again later, or contact support if the problem persists.',
-      });
+      refundRateLimit(request, 'magic_link', { keySuffix: authRateKeySuffix(normalizedEmail) });
+      return NextResponse.json(
+        {
+          error: 'We could not deliver your sign-in link right now due to a temporary email service issue. Please try again shortly.',
+          code: 'EMAIL_DELIVERY_FAILED',
+        },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({
       message: 'If an account exists with this email, a magic link has been sent.',
     });
   } catch (error) {
-    console.error('Magic link request error:', error);
+    // SAFE error handling: generic message to the browser; stable category
+    // code in the server log for diagnosability (no secrets, no stacks).
+    console.error(`[Magic Link Request] 500 category=${classifyAuthErrorCategory(error)}`, error instanceof Error ? error.message : error);
+    refundRateLimit(request, 'magic_link', {});
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: 'Unable to send the sign-in link right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR' },
+      { status: 503 }
     );
   }
 }

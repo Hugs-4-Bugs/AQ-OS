@@ -684,4 +684,9 @@ export default function CheckoutModal({
   );
 }
 
-const PLAN_ORDER: PlanType[] = ['free', 'pro', 'elite'];
+// Plan hierarchy — MUST include every paid plan. 'starter' was previously
+// missing here (Starter finalization fix, Sep 2026): indexOf('starter')
+// returned -1, so opening this modal for the Starter plan mis-classified
+// the purchase as neither upgrade nor downgrade ("Subscribe" badge, broken
+// billing preview). Order must stay Free → Starter → Pro → Elite.
+const PLAN_ORDER: PlanType[] = ['free', 'starter', 'pro', 'elite'];

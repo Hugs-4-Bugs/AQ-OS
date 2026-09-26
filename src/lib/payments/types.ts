@@ -125,13 +125,13 @@ export interface PaymentProvider {
   /** Currencies this gateway can charge in this deployment. */
   supportedCurrencies(): string[];
   /** True when the given plan+cycle is purchasable on this gateway. */
-  canCheckout(plan: 'pro' | 'elite', cycle: BillingCycle): boolean;
+  canCheckout(plan: 'pro' | 'elite' | 'starter', cycle: BillingCycle): boolean;
 
   /** Create a checkout (subscription or credit add-on). */
   createCheckout(params: {
     userId: string;
     kind: PurchaseKind;
-    plan?: 'pro' | 'elite';
+    plan?: 'pro' | 'elite' | 'starter';
     billingCycle?: BillingCycle;
     creditAmount?: 100 | 500 | 1000;
     couponCode?: string;

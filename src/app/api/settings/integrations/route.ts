@@ -246,7 +246,8 @@ export async function PUT(request: NextRequest) {
           // in the response so the UI can display it for dev/manual testing.
           // When a real provider is wired up, remove the `otp` from the response.
           // ─────────────────────────────────────────────────────────────
-          console.log(`[WhatsApp OTP] Generated OTP ${otp} for user ${userId}, phone ${phoneNumber}`);
+          // PRODUCTION: never log the OTP code or phone number (PII + auth secret).
+          console.log(`[WhatsApp OTP] OTP generated for user ${userId}`);
           const hasWhatsappProvider = !!(process.env.WHATSAPP_API_TOKEN || process.env.TWILIO_AUTH_TOKEN);
 
           return NextResponse.json({

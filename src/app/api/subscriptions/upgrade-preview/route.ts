@@ -19,12 +19,15 @@ import { getCreditBalance } from '@/lib/credit-service';
 import { validateAndApplyCoupon } from '@/lib/coupon-service';
 import { logBillingEvent } from '@/lib/billing-audit';
 import { getClientIp, getUserAgent } from '@/lib/auth';
+import { PLAN_PRICING as CENTRAL_PLAN_PRICING } from '@/lib/payments/plan-config';
 
-// Plan pricing configuration
+// Plan pricing configuration (USD display; amounts from the central plan
+// catalog — src/lib/payments/plan-config.ts, final pricing/plan update Sep 2026)
 const PLAN_PRICING: Record<PlanType, { monthly: number; yearly: number; currency: string }> = {
   free: { monthly: 0, yearly: 0, currency: 'USD' },
-  pro: { monthly: 29, yearly: 279, currency: 'USD' },
-  elite: { monthly: 89, yearly: 849, currency: 'USD' },
+  starter: { ...CENTRAL_PLAN_PRICING.starter.USD, currency: 'USD' },
+  pro: { ...CENTRAL_PLAN_PRICING.pro.USD, currency: 'USD' },
+  elite: { ...CENTRAL_PLAN_PRICING.elite.USD, currency: 'USD' },
 };
 
 const YEARLY_DISCOUNT_PERCENT = 20; // ~20% savings with yearly billing
@@ -44,9 +47,9 @@ export async function POST(request: NextRequest) {
       const { plan, billingCycle = 'monthly', couponCode, currency = 'USD' } = body;
 
       // Validate target plan
-      if (!plan || !['pro', 'elite'].includes(plan)) {
+      if (!plan || !['starter', 'pro', 'elite'].includes(plan)) {
         return NextResponse.json(
-          { error: 'Invalid target plan. Must be "pro" or "elite".' },
+          { error: 'Invalid target plan. Must be "starter", "pro", or "elite".' },
           { status: 400 }
         );
       }

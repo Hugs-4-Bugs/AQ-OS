@@ -8,6 +8,7 @@
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import Redis from 'ioredis';
+import jwt from 'jsonwebtoken';
 
 // ═══════════════════════════════════════════════════════════════════
 // Configuration
@@ -97,6 +98,41 @@ function initRedis() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Authentication (SECURITY HARDENING)
+// ═══════════════════════════════════════════════════════════════
+// The socket identity is ALWAYS derived from a verified JWT — either the
+// `token` handshake field or the same-origin `access_token` cookie.
+// Client-claimed userId/orgId values are NEVER trusted. Previously this
+// service accepted ANY non-empty token and joined the attacker-supplied
+// `user:<id>` room, enabling full cross-user event interception.
+
+function verifySocketIdentity(handshakeAuth: Partial<AuthPayload> | undefined, headers: { cookie?: string }): { userId: string; orgId?: string } | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('[WS] JWT_SECRET is not set — rejecting all connections (fail closed)');
+    return null;
+  }
+
+  let token: string | undefined = handshakeAuth?.token;
+  if (!token && headers.cookie) {
+    const match = headers.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, secret, {
+      issuer: 'acquisitionos',
+      audience: 'acquisitionos-api',
+    }) as { sub?: string; orgId?: string | null; type?: string };
+    if (!payload.sub || payload.type !== 'access') return null;
+    return { userId: String(payload.sub), orgId: payload.orgId || undefined };
+  } catch {
+    return null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Socket.IO Server Setup
 // ═══════════════════════════════════════════════════════════════════
@@ -117,17 +153,21 @@ const io = new Server(httpServer, {
 // ═══════════════════════════════════════════════════════════════════
 
 io.use((socket, next) => {
-  const auth = socket.handshake.auth as AuthPayload;
+  const auth = socket.handshake.auth as Partial<AuthPayload>;
 
-  if (!auth || !auth.userId || !auth.token) {
-    return next(new Error('Authentication required: userId and token must be provided'));
+  // SECURITY: identity comes from the verified JWT (token or cookie),
+  // never from client-supplied fields.
+  const identity = verifySocketIdentity(auth, socket.handshake.headers as { cookie?: string });
+  if (!identity) {
+    return next(new Error('Authentication required: a valid session token must be provided'));
   }
 
-  if (auth.token.length < 1) {
-    return next(new Error('Invalid authentication token'));
-  }
+  // Overwrite client-claimed values with verified identity
+  (auth as AuthPayload).userId = identity.userId;
+  (auth as AuthPayload).orgId = identity.orgId;
+  (auth as AuthPayload).token = '';
 
-  const existing = userConnections.get(auth.userId) || [];
+  const existing = userConnections.get(identity.userId) || [];
   if (existing.length >= MAX_CONNECTIONS_PER_USER) {
     const oldest = existing[0];
     const oldSocket = io.sockets.sockets.get(oldest.socketId);
@@ -177,6 +217,13 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('subscribe', (data: { channel: string; targetId?: string }) => {
     const { channel, targetId } = data;
+    // SECURITY: targeted room joins are limited to the caller's own user
+    // and org rooms. Channel-wide subscriptions (no targetId) remain
+    // available and are filtered per-user by event publishers.
+    if (targetId && targetId !== auth.userId && targetId !== auth.orgId) {
+      socket.emit('error', { message: 'Forbidden subscription target' });
+      return;
+    }
     const roomName = targetId ? `${channel}:${targetId}` : channel;
     socket.join(roomName);
     connection.rooms.add(roomName);

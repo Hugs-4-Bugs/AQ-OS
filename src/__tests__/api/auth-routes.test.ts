@@ -99,7 +99,17 @@ import { verifyPassword, validatePasswordStrength } from '@/lib/auth';
 // Mock rate limiter (used by signup and signin routes)
 vi.mock('@/lib/security/rate-limiter', () => ({
   withRateLimit: vi.fn().mockReturnValue(null),
-  RATE_LIMITERS: { auth: { limit: 5, windowSeconds: 60 } },
+  // P9 (Sep 2026): auth routes now key per-flow buckets by IP+email
+  authRateKeySuffix: vi.fn().mockReturnValue(''),
+  refundRateLimit: vi.fn(),
+  RATE_LIMITERS: {
+    auth: { limit: 5, windowSeconds: 60 },
+    signin: { limit: 10, windowSeconds: 60 },
+    otp: { limit: 5, windowSeconds: 60 },
+    otp_verify: { limit: 10, windowSeconds: 60 },
+    magic_link: { limit: 5, windowSeconds: 60 },
+    refresh: { limit: 30, windowSeconds: 60 },
+  },
   checkRateLimit: vi.fn().mockReturnValue({ allowed: true, limit: 5, remaining: 4, resetAt: Math.floor(Date.now() / 1000) + 60 }),
 }));
 

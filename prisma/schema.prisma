@@ -183,6 +183,8 @@ model User {
   competitorData           CompetitorData[]
   promptTemplates          PromptTemplate[]
   feedbackReports          FeedbackReport[]
+  supportTickets           SupportTicket[]
+  kbArticleFeedbacks       KbArticleFeedback[]
 
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
@@ -198,14 +200,21 @@ model User {
 }
 
 model UserSession {
-  id           String   @id @default(cuid())
-  userId       String
-  refreshToken String   @unique
-  deviceInfo   String?
-  ipAddress    String?
-  userAgent    String?
-  expiresAt    DateTime
-  isRevoked    Boolean  @default(false)
+  id                String   @id @default(cuid())
+  userId            String
+  refreshToken      String   @unique
+  deviceInfo        String?
+  ipAddress         String?
+  userAgent         String?
+  expiresAt         DateTime
+  isRevoked         Boolean  @default(false)
+  // ── Remember-me / activity tracking (P5+P6, forward-only additive) ──
+  // rememberMe = the user checked "Remember me for 30 days".
+  // lastActivityAt = server-authoritative last authenticated activity.
+  // absoluteExpiresAt = hard ceiling (30 days), regardless of activity.
+  rememberMe        Boolean  @default(false)
+  lastActivityAt    DateTime @default(now())
+  absoluteExpiresAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -631,6 +640,21 @@ model Lead {
   websiteScreenshotUrl String?
   techStack            String? // JSON array
 
+  // Columns that already exist in the live database (written by
+  // src/lib/website-service.ts) but were missing from the schema file.
+  // Declared here so `prisma db push` stays purely additive and never
+  // drops real data (pre-existing drift fix, Sep 2026).
+  websiteStatus               String?
+  websiteVerificationConfidence String?
+  websiteVerificationSource   String?
+  websiteVerifiedAt           DateTime?
+
+  // Real employee data captured during AI discovery (null = unknown).
+  // employeeRange preserves a provider range honestly (e.g. "51-100",
+  // "10000+") when no exact count is available.
+  employeeCount Int?
+  employeeRange String?
+
   isActive  Boolean   @default(true)
   deletedAt DateTime?
 
@@ -686,6 +710,12 @@ model LeadAnalysis {
   closingStrategy       String?
   bestContactTime       String?
   analysisVersion       Int     @default(1)
+
+  // Columns that already exist in the live database (written by
+  // src/lib/website-service.ts) but were missing from the schema file.
+  // Declared so db push never drops real data (pre-existing drift fix).
+  isStale               Boolean?
+  staleReason           String?
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
@@ -1920,6 +1950,9 @@ model DiscoveryJob {
   imported     Int       @default(0)
   duplicates   Int       @default(0)
   failed       Int       @default(0)
+  // Candidates rejected AFTER provider results by the deterministic
+  // hard-criteria validator (out of range / unverified / excluded type).
+  filteredOut  Int       @default(0)
   errorMessage String?
   resultData   String? // JSON: { leads: [...] }
   startedAt    DateTime?
@@ -2876,4 +2909,119 @@ model ProspectPipeline {
   @@index([leadId, createdAt])
   @@index([userId, createdAt])
   @@index([status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SUPPORT CENTER — customer support tickets + knowledge base
+// (Support Center + Downgrade + Responsive Pricing, Sep 2026)
+// Conventions mirror FeedbackReport/FeedbackComment/FeedbackStatusLog:
+// cuid ids, unique ticketNumber, String status/priority, status log,
+// internal (support-staff-only) messages, additive indexes.
+// ═══════════════════════════════════════════════════════════════════
+
+model SupportTicket {
+  id             String    @id @default(cuid())
+  ticketNumber   String    @unique
+  userId         String
+  category       String // billing | plans | credits | leads | outreach | ai_features | account | technical | integrations | other
+  subcategory    String? // e.g. downgrade_plan | upgrade | payment_failure | ...
+  subject        String
+  description    String
+  status         String    @default("OPEN") // OPEN | IN_PROGRESS | WAITING_FOR_USER | RESOLVED | CLOSED
+  priority       String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  currentPlan    String? // plan at submission time (free|starter|pro|elite)
+  requestedPlan  String? // downgrade/upgrade target plan, if applicable
+  billingCycle   String? // monthly | yearly, if applicable
+  assignedTo     String? // support/admin user id
+  assignedAt     DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  lastRepliedAt  DateTime? // last staff reply (drives user-facing "updated")
+  lastActivityAt DateTime  @default(now()) // any message/status change
+  source         String    @default("support_center") // support_center | pricing_modal | kb_article | api
+  metadata       String? // JSON: e.g. { searchQuery, articleSlug }
+
+  user      User                   @relation(fields: [userId], references: [id])
+  messages  SupportTicketMessage[]
+  statusLog SupportTicketStatusLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([status, priority])
+}
+
+model SupportTicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  authorId   String
+  authorRole String   @default("user") // user | admin
+  content    String
+  isInternal Boolean  @default(false) // internal support notes — NEVER returned to customers
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([ticketId, createdAt])
+  @@index([authorId])
+}
+
+model SupportTicketStatusLog {
+  id         String   @id @default(cuid())
+  ticketId   String
+  fromStatus String
+  toStatus   String
+  changedBy  String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model KnowledgeBaseArticle {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  category        String // getting_started | leads | outreach | ai_features | credits | plans_billing | account_security | troubleshooting | integrations_api
+  subcategory     String?
+  summary         String // short description shown in lists/search results
+  content         String // full article body (markdown-style paragraphs)
+  tags            String? // JSON string array for search + display
+  keywords        String? // JSON string array of extra search keywords (not displayed)
+  helpfulCount    Int      @default(0)
+  notHelpfulCount Int      @default(0)
+  published       Boolean  @default(true)
+  sortOrder       Int      @default(0) // display ordering inside a category
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  feedback KbArticleFeedback[]
+
+  @@index([category])
+  @@index([published])
+  @@index([sortOrder])
+}
+
+model KbArticleFeedback {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  helpful   Boolean
+  createdAt DateTime @default(now())
+
+  article KnowledgeBaseArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@index([articleId])
 }

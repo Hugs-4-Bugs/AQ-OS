@@ -134,16 +134,17 @@ function generateInvoiceNumber(): string {
 // ===== ENSURE INVOICES DIRECTORY =====
 
 function ensureInvoicesDir(): string {
-  // In standalone build, process.cwd() is .next/standalone/ — we need to
-  // also try the project root. Check both locations.
+  // SECURITY HARDENING: invoices are PII-bearing documents and are now
+  // stored OUTSIDE the statically-served public/ directory, in a private
+  // data/ folder. Downloads go through authenticated API routes only.
   const candidates = [
-    path.join(process.cwd(), 'public', 'invoices'),
-    path.join(process.cwd(), '..', '..', 'public', 'invoices'),
+    path.join(process.cwd(), 'data', 'invoices'),
+    path.join(process.cwd(), '..', '..', 'data', 'invoices'),
   ];
 
   for (const dir of candidates) {
-    const publicDir = path.dirname(dir);
-    if (fs.existsSync(publicDir)) {
+    const parent = path.dirname(dir);
+    if (fs.existsSync(parent)) {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
@@ -152,7 +153,7 @@ function ensureInvoicesDir(): string {
   }
 
   // Fallback: create in CWD
-  const invoicesDir = path.join(process.cwd(), 'public', 'invoices');
+  const invoicesDir = path.join(process.cwd(), 'data', 'invoices');
   if (!fs.existsSync(invoicesDir)) {
     fs.mkdirSync(invoicesDir, { recursive: true });
   }
@@ -714,13 +715,15 @@ export async function generateInvoicePdf(paymentOrderId: string, options?: { for
     // 8. Ensure invoices directory exists
     const invoicesDir = ensureInvoicesDir();
 
-    // 9. Save PDF to public/invoices/{invoiceNumber}.pdf
+    // 9. Save PDF to data/invoices/{invoiceNumber}.pdf (non-public)
     const fileName = `${invoiceNumber}.pdf`;
     const filePath = path.join(invoicesDir, fileName);
     fs.writeFileSync(filePath, pdfBuffer);
 
-    // 10. Update or create Invoice record with real PDF URL
-    const pdfUrl = `/invoices/${fileName}`;
+    // 10. Update or create Invoice record.
+    // SECURITY: pdfUrl is an internal storage marker (NOT a publicly
+    // servable URL). Clients must download via the authenticated API.
+    const pdfUrl = `file:data/invoices/${fileName}`;
 
     const invoice = await db.invoice.upsert({
       where: { paymentOrderId },

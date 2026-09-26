@@ -135,11 +135,15 @@ export async function POST(request: NextRequest) {
         });
 
         // Create credit ledger entry
+        // FIX (ledger correctness): previously wrote -order.amount (a
+        // monetary ₹ value) as `credits`. The refund path revokes the
+        // PLAN's monthly credits — consistent with the webhook refund path.
+        const { PLAN_CREDITS: REFUND_PLAN_CREDITS } = await import('@/lib/entitlement-service');
         await db.creditsLedger.create({
           data: {
             userId,
             action: 'refund_adjustment',
-            credits: -order.amount,
+            credits: -(REFUND_PLAN_CREDITS[order.plan as keyof typeof REFUND_PLAN_CREDITS] ?? 0),
             balance: freeCredits,
             description: `Credits adjusted due to admin refund for ${order.plan} plan order`,
             referenceId: order.id,

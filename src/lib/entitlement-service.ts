@@ -8,7 +8,7 @@ import { logEntitlementEvent } from '@/lib/billing-audit';
 
 // ===== TYPES =====
 
-export type PlanType = 'free' | 'pro' | 'elite';
+export type PlanType = 'free' | 'starter' | 'pro' | 'elite';
 
 export type FeatureKey =
   | 'lead_discovery'
@@ -42,6 +42,27 @@ export type EntitlementsMap = Record<FeatureKey, EntitlementConfig>;
 export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
   free: {
     lead_discovery:       { limit: 10,  enabled: true },
+    deep_analysis:        { limit: 0,   enabled: false },
+    outreach_messages:    { limit: 50,  enabled: true },
+    outreach_sequences:   { limit: 0,   enabled: false },
+    sales_coaching:       { limit: 0,   enabled: false },
+    proposal_generation:  { limit: 0,   enabled: false },
+    competitor_analysis:  { limit: 0,   enabled: false },
+    data_export:          { limit: 0,   enabled: false },
+    gmail_integration:    { limit: 0,   enabled: false },
+    whatsapp_integration: { limit: 0,   enabled: false },
+    telegram_access:      { limit: 0,   enabled: false },
+    workflow_access:      { limit: 0,   enabled: false },
+    api_access:           { limit: 0,   enabled: false },
+    chatbot_access:       { limit: 0,   enabled: false },
+    team_members:         { limit: 1,   enabled: true },
+    white_label:          { limit: 0,   enabled: false },
+    custom_integrations:  { limit: 0,   enabled: false },
+  },
+  // Starter — basic features only (final pricing/plan update, Sep 2026).
+  // Same feature set as Free except the monthly lead limit is 25.
+  starter: {
+    lead_discovery:       { limit: 25,  enabled: true },
     deep_analysis:        { limit: 0,   enabled: false },
     outreach_messages:    { limit: 50,  enabled: true },
     outreach_sequences:   { limit: 0,   enabled: false },
@@ -102,14 +123,17 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
 // Plan hierarchy for comparison
 const PLAN_LEVELS: Record<PlanType, number> = {
   free: 0,
-  pro: 1,
-  elite: 2,
+  starter: 1,
+  pro: 2,
+  elite: 3,
 };
 
-// Plan monthly credit allocations
+// Plan monthly credit allocations (final pricing/plan update, Sep 2026):
+//   Free 50 · Starter 150 · Pro 750 · Elite 2,000
 export const PLAN_CREDITS: Record<PlanType, number> = {
   free: 50,
-  pro: 500,
+  starter: 150,
+  pro: 750,
   elite: 2000,
 };
 
@@ -160,7 +184,7 @@ export function hasFeatureAccess(plan: PlanType, feature: FeatureKey): boolean {
 
 /**
  * Get numeric plan level for comparison.
- * free=0, pro=1, elite=2
+ * free=0, starter=1, pro=2, elite=3
  */
 export function getPlanLevel(plan: PlanType): number {
   return PLAN_LEVELS[plan] ?? 0;
@@ -213,7 +237,7 @@ export function canPerformAction(
  * Walks up the plan hierarchy to find the first plan that has the feature enabled.
  */
 export function getUpgradeRequiredPlan(currentPlan: PlanType, feature: FeatureKey): PlanType | null {
-  const planOrder: PlanType[] = ['free', 'pro', 'elite'];
+  const planOrder: PlanType[] = ['free', 'starter', 'pro', 'elite'];
 
   for (const plan of planOrder) {
     if (PLAN_LEVELS[plan] > PLAN_LEVELS[currentPlan] && checkEntitlement(plan, feature)) {
@@ -356,7 +380,7 @@ export async function seedPlanEntitlements(): Promise<{ seeded: number; errors: 
   let seeded = 0;
   let errors = 0;
 
-  const plans: PlanType[] = ['free', 'pro', 'elite'];
+  const plans: PlanType[] = ['free', 'starter', 'pro', 'elite'];
 
   for (const plan of plans) {
     const entitlements = ENTITLEMENTS[plan];

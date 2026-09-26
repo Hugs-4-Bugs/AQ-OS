@@ -886,29 +886,32 @@ export async function handleWebhookTrigger(
     throw new Error('No active workflow found for this webhook path');
   }
 
-  // ACCOUNT ISOLATION: when the workflow was configured with a webhook
-  // secret, every call must present a valid HMAC-SHA256 signature over the
-  // raw request body (same contract as /api/workflows/webhook/[id]).
-  // Without this, anyone who guesses the path could execute another user's
-  // workflow and consume their credits.
+  // ACCOUNT ISOLATION (SECURITY HARDENING): a webhook secret is now
+  // MANDATORY for path-based webhook triggers. Every call must present a
+  // valid HMAC-SHA256 signature over the raw request body. Without this,
+  // anyone who guesses the path could execute another user's workflow and
+  // consume their credits.
+  let config: Record<string, unknown> = {};
   if (workflow.triggerConfig) {
     try {
-      const config = JSON.parse(workflow.triggerConfig) as Record<string, unknown>;
-      if (config.webhookSecret) {
-        const { createHmac } = await import('crypto');
-        const expected = createHmac('sha256', String(config.webhookSecret))
-          .update(options?.rawBody ?? '')
-          .digest('hex');
-        const provided = options?.signature || '';
-        if (provided !== `sha256=${expected}` && provided !== expected) {
-          throw new Error('Invalid webhook signature');
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message === 'Invalid webhook signature') {
-        throw err;
-      }
-      // Malformed triggerConfig — treat as unconfigured and continue.
+      config = JSON.parse(workflow.triggerConfig) as Record<string, unknown>;
+    } catch {
+      config = {};
+    }
+  }
+
+  if (!config.webhookSecret) {
+    throw new Error('Webhook secret not configured');
+  }
+
+  {
+    const { createHmac } = await import('crypto');
+    const expected = createHmac('sha256', String(config.webhookSecret))
+      .update(options?.rawBody ?? '')
+      .digest('hex');
+    const provided = options?.signature || '';
+    if (provided !== `sha256=${expected}` && provided !== expected) {
+      throw new Error('Invalid webhook signature');
     }
   }
 

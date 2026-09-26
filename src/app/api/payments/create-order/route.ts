@@ -23,21 +23,20 @@ import { logBillingEvent } from '@/lib/billing-audit';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 import { withMonitoring } from '@/lib/observability/middleware';
 import { getAppUrl } from '@/lib/app-url';
+import { PLAN_PRICING as CENTRAL_PLAN_PRICING } from '@/lib/payments/plan-config';
+import { resolvePlanPriceId } from '@/lib/payment-service';
 
-// Plan pricing configuration (supports both INR and USD)
+// Plan pricing configuration (supports both INR and USD).
+// SINGLE SOURCE OF TRUTH: the amounts come from src/lib/payments/plan-config.ts
+// (Starter monthly price update, Sep 2026 — Starter ₹399/₹4,999, Pro ₹1,599/₹14,999,
+// Elite ₹5,199/₹44,999). The local view only adds the free plan, which is
+// never charged. Do NOT redefine plan amounts here.
 const PLAN_PRICING: Record<PlanType, Record<string, { monthly: number; yearly: number }>> = {
   free: {
     INR: { monthly: 0, yearly: 0 },
     USD: { monthly: 0, yearly: 0 },
   },
-  pro: {
-    INR: { monthly: 2499, yearly: 23990 },
-    USD: { monthly: 29, yearly: 279 },
-  },
-  elite: {
-    INR: { monthly: 7999, yearly: 76790 },
-    USD: { monthly: 89, yearly: 849 },
-  },
+  ...CENTRAL_PLAN_PRICING,
 };
 
 const GST_RATE = 0.18;
@@ -114,7 +113,7 @@ export const POST = withMonitoring(async (request: NextRequest) => {
       ) {
         const subPlan = subscription.plan;
         const subCycle = subscription.billingCycle;
-        const PLAN_RANK: Record<string, number> = { free: 0, pro: 1, elite: 2 };
+        const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, elite: 3 };
 
         // Same plan same cycle
         if (subPlan === plan && subCycle === billingCycle) {
@@ -278,9 +277,20 @@ export const POST = withMonitoring(async (request: NextRequest) => {
           const Stripe = (await import('stripe')).default;
           const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-          // Determine the price ID for this plan/billing cycle
-          const priceKey = `STRIPE_${plan.toUpperCase()}_${billingCycle.toUpperCase()}_PRICE_ID` as keyof NodeJS.ProcessEnv;
-          const priceId = process.env[priceKey];
+          // Determine the price ID for this plan/billing cycle via the
+          // canonical env-driven resolver (PROVIDER-NEUTRAL SINGLE MAPPING,
+          // final payment activation architecture). Supports the canonical
+          // STRIPE_PRICE_{PLAN}_{CYCLE}_ID convention (e.g.
+          // STRIPE_PRICE_STARTER_MONTHLY_ID, STRIPE_PRICE_PRO_MONTHLY_ID,
+          // STRIPE_PRICE_ELITE_YEARLY_ID) AND all legacy aliases — the same
+          // resolution used by payment-service.createStripeCheckoutSession,
+          // so every checkout route understands the same env configuration.
+          // Never hardcoded, never invented; values not starting with
+          // `price_` are ignored (never reach Stripe).
+          const { priceId } = resolvePlanPriceId(
+            plan as 'pro' | 'elite' | 'starter',
+            billingCycle
+          );
           const isPlaceholderPrice = priceId ? PLACEHOLDER_PRICE_RE.test(priceId) : true;
 
           const appUrl = getAppUrl();

@@ -22,7 +22,7 @@
 ├── middleware-disabled note     # src/middleware.ts disabled in sandbox → middleware.ts.disabled
 │
 ├── prisma/
-│   ├── schema.prisma            # 104 models, SQLite datasource, PostgreSQL migration annotations
+│   ├── schema.prisma            # 105 models, SQLite datasource, PostgreSQL migration annotations
 │   └── migrations/              # Migration history (db push used in dev)
 │
 ├── scripts/
@@ -56,7 +56,7 @@
     │   │   └── feedback/        #   my feedback reports
     │   ├── admin/feedback/      # Admin: feedback moderation console
     │   ├── payment/success/     # Post-checkout landing
-    │   └── api/                 # 485 route files — grouped by domain:
+    │   └── api/                 # 505 route files — grouped by domain:
     │       ├── auth/            #   signup/signin/otp/magic-link/google/mfa/sessions…
     │       ├── admin/           #   backups, billing ops, feedback moderation, refunds
     │       ├── ai/              #   chat(+stream/cancel), analyze, score, outreach gen, RAG, costs
@@ -82,7 +82,7 @@
     │   ├── providers.tsx        # App-wide providers (theme, query, toast)
     │   ├── error-boundary.tsx   # Crash reporting boundary → /api/feedback/crash
     │   ├── ui/                  # 50 shadcn-style primitives (button, dialog, table…)
-    │   ├── dashboard/           # 181 dashboard components:
+    │   ├── dashboard/           # 185 dashboard components:
     │   │   ├── auth-gate.tsx    #   SPA shell: redirects unauth users, loads main layout
     │   │   ├── dashboard-layout.tsx, command-center.tsx, command-palette.tsx
     │   │   ├── ai-*.tsx         #   copilot panel, outreach dialog, scoring, chat bubble
@@ -133,7 +133,7 @@
     │   ├── analytics-engine.ts / predictive-analytics-engine.ts / anomaly-detection-engine.ts
     │   ├── proxy-rotation-service.ts / distributed-scraping-service.ts / screenshot-service.ts
     │   ├── env-validation.ts / env-safeguard.ts / logger.ts / error-tracking.ts
-    │   └── …                    # ~180 modules total (see KT-DOCUMENT for map)
+    │   └── …                    # ~258 modules total (see KT-DOCUMENT for map)
     │
     └── __tests__/               # Vitest suites (api/, lib/, helpers/)
 ```
@@ -142,10 +142,10 @@
 
 | Area | Path | Count |
 |---|---|---|
-| API route files | `src/app/api/**/route.ts` | 485 |
-| Prisma models | `prisma/schema.prisma` | 104 |
-| Dashboard components | `src/components/dashboard/` | 181 |
+| API route files | `src/app/api/**/route.ts` | 505 |
+| Prisma models | `prisma/schema.prisma` | 105 |
+| Dashboard components | `src/components/dashboard/` | 185 |
 | UI primitives | `src/components/ui/` | 50 |
-| Service modules | `src/lib/*.ts` + subfolders | ~180 |
-| Client hooks | `src/hooks/` | 24 |
+| Service modules | `src/lib/*.ts` + subfolders | ~258 |
+| Client hooks | `src/hooks/` | 23 |
 | Cron endpoints | `src/app/api/cron/` | 12 |

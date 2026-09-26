@@ -6,6 +6,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { startDiscoveryJob, type DiscoverySource } from '@/lib/lead-discovery-service';
+import {
+  extractHardCriteria,
+  hasEnforceableCriteria,
+  mergeHardCriteria,
+  normalizeCriteriaInput,
+  EMPTY_CRITERIA,
+} from '@/lib/discovery/hard-criteria';
 
 const VALID_SOURCES: DiscoverySource[] = [
   'all',
@@ -41,7 +48,18 @@ export async function POST(request: NextRequest) {
       const sanitizedCountry = country.trim().substring(0, 100);
       const sanitizedCity = city ? String(city).trim().substring(0, 100) : undefined;
       const sanitizedMaxResults = maxResults ? Math.min(Math.max(parseInt(String(maxResults), 10) || 10, 1), 50) : undefined;
-      const sanitizedRequirements = requirements ? String(requirements).trim().substring(0, 300) : undefined;
+      const sanitizedRequirements = requirements ? String(requirements).trim().substring(0, 1000) : undefined;
+
+      // ── HARD CRITERIA (defense in depth) ─────────────────────────
+      // 1. Structured criteria from the client (AI parser output).
+      // 2. INDEPENDENT server-side re-extraction from the requirements
+      //    text — so even a client that omits criteria (old client,
+      //    direct API call) cannot bypass an explicit "20 to 200
+      //    employees" constraint. Numeric bounds intersect strictly.
+      const clientCriteria = normalizeCriteriaInput(body.criteria);
+      const textCriteria = extractHardCriteria(sanitizedRequirements || '');
+      const mergedCriteria = mergeHardCriteria(clientCriteria, textCriteria);
+      const effectiveCriteria = hasEnforceableCriteria(mergedCriteria) ? mergedCriteria : null;
 
       // Start discovery job
       const result = await startDiscoveryJob(user.id, {
@@ -51,6 +69,7 @@ export async function POST(request: NextRequest) {
         source,
         maxResults: sanitizedMaxResults,
         requirements: sanitizedRequirements,
+        criteria: effectiveCriteria ?? EMPTY_CRITERIA,
       }, user.orgId ?? undefined);
 
       if (result.status === 'failed') {

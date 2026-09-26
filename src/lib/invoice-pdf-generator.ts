@@ -126,17 +126,21 @@ function formatDate(date: Date): string {
 // ===== DIRECTORY HELPER =====
 
 function ensureInvoicesDir(): string {
-  // In standalone Next.js builds, process.cwd() is .next/standalone/.
-  // Try several candidate directories to locate the public folder.
+  // SECURITY HARDENING: invoice PDFs contain customer PII and were
+  // previously written into the statically-served public/ directory,
+  // making them downloadable without authentication by guessing the
+  // (partly sequential) filename. They are now stored in a NON-public
+  // data/ directory and served exclusively through the authenticated
+  // download API routes.
   const candidates = [
-    path.join(process.cwd(), 'public', 'invoices'),
-    path.join(process.cwd(), '..', '..', 'public', 'invoices'),
-    path.join(process.cwd(), '..', 'public', 'invoices'),
+    path.join(process.cwd(), 'data', 'invoices'),
+    path.join(process.cwd(), '..', '..', 'data', 'invoices'),
+    path.join(process.cwd(), '..', 'data', 'invoices'),
   ];
 
   for (const dir of candidates) {
-    const publicDir = path.dirname(dir);
-    if (fs.existsSync(publicDir)) {
+    const parent = path.dirname(dir);
+    if (fs.existsSync(parent)) {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
@@ -145,7 +149,7 @@ function ensureInvoicesDir(): string {
   }
 
   // Fallback: create relative to CWD
-  const fallback = path.join(process.cwd(), 'public', 'invoices');
+  const fallback = path.join(process.cwd(), 'data', 'invoices');
   fs.mkdirSync(fallback, { recursive: true });
   return fallback;
 }

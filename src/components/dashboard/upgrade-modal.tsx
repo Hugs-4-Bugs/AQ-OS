@@ -15,9 +15,10 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
-  Mail,
+  LifeBuoy,
   CreditCard,
   Smartphone,
+  Clock,
 } from 'lucide-react';
 import {
   Dialog,
@@ -40,63 +41,91 @@ import {
 } from '@/lib/subscription-store';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { usePlanAvailability, isPlanCheckoutAvailable } from '@/hooks/use-plan-availability';
+import SupportRequestDialog from '@/components/support/support-request-dialog';
 
 interface UpgradeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Credit add-on packs — AcquisitionOS (Sep 2026).
+// Credit add-on packs — AcquisitionOS (final add-on pricing update, Sep 2026).
 // These INR amounts are DISPLAY ONLY. The actual Stripe Price ID used at
-// checkout is read server-side from STRIPE_PRICE_CREDITS_100_ID,
-// STRIPE_PRICE_CREDITS_500_ID, STRIPE_PRICE_CREDITS_1000_ID — NEVER
-// hardcoded in the client. See PART 4 of SUBSCRIPTION-PAYMENT-FIX-20260909.
+// checkout is read server-side from STRIPE_PRICE_CREDITS_250_ID,
+// STRIPE_PRICE_CREDITS_500_ID, STRIPE_PRICE_CREDITS_1000_ID,
+// STRIPE_PRICE_CREDITS_2500_ID — NEVER hardcoded in the client.
 const CREDIT_ADDONS = [
-  { credits: 100, priceINR: 499, priceUSD: 6, label: '100 Credits' },
-  { credits: 500, priceINR: 1999, priceUSD: 24, label: '500 Credits' },
-  { credits: 1000, priceINR: 3499, priceUSD: 42, label: '1,000 Credits' },
+  { credits: 250, priceINR: 599, priceUSD: 7, label: 'Starter Pack', badge: null as string | null },
+  { credits: 500, priceINR: 999, priceUSD: 12, label: 'Growth Pack', badge: null as string | null },
+  { credits: 1000, priceINR: 1799, priceUSD: 22, label: 'Pro Pack', badge: null as string | null },
+  { credits: 2500, priceINR: 3999, priceUSD: 48, label: 'Power Pack', badge: 'Best Value' as string | null },
 ];
 
-// Yearly savings vs monthly (precomputed from PLAN_DETAILS).
-//   Pro:   ₹1,599 * 12 - ₹11,999 = ₹7,189
-//   Elite: ₹5,199 * 12 - ₹37,999 = ₹24,389
-const YEARLY_SAVINGS_INR: Record<'pro' | 'elite', number> = {
-  pro: 7189,
-  elite: 24389,
+// Yearly savings vs monthly (precomputed from PLAN_DETAILS — Starter
+// monthly price update, Sep 2026). Starter's monthly × 12 (₹399 × 12 =
+// ₹4,788) is now LESS than its yearly price (₹4,999), so the savings is
+// negative — savings claims are hidden wherever the value is ≤ 0.
+//   Starter: ₹399 * 12 - ₹4,999 = ₹-211 (yearly costs more — claim hidden)
+//   Pro:     ₹1,599 * 12 - ₹14,999 = ₹4,189
+//   Elite:   ₹5,199 * 12 - ₹44,999 = ₹17,389
+const YEARLY_SAVINGS_INR: Record<'starter' | 'pro' | 'elite', number> = {
+  starter: -211,
+  pro: 4189,
+  elite: 17389,
 };
 
 // Monthly equivalent for yearly plans (rounded down for display).
-//   Pro:   ₹11,999 / 12 ≈ ₹999.92 → ₹999
-//   Elite: ₹37,999 / 12 ≈ ₹3,166.58 → ₹3,166
-const YEARLY_MONTHLY_EQUIV_INR: Record<'pro' | 'elite', number> = {
-  pro: 999,
-  elite: 3166,
+//   Starter: ₹4,999 / 12 ≈ ₹416.58 → ₹416
+//   Pro:     ₹14,999 / 12 ≈ ₹1,249.92 → ₹1,249
+//   Elite:   ₹44,999 / 12 ≈ ₹3,749.92 → ₹3,749
+const YEARLY_MONTHLY_EQUIV_INR: Record<'starter' | 'pro' | 'elite', number> = {
+  starter: 416,
+  pro: 1249,
+  elite: 3749,
 };
 
-// Contact-support mailto — used by the "Contact Support" CTA on lower
-// plan cards. No self-serve downgrade is ever exposed in the UI.
-const SUPPORT_MAILTO =
-  'mailto:support@acquisitionos.com?subject=Plan%20change%20request';
+// Downgrade CTAs open the REAL SupportRequestDialog (support ticket flow,
+// preselected "Billing & Subscription → Downgrade Plan") — no mailto, no
+// fake toast. See SupportRequestDialog / SupportTicketForm.
 
 // ─── Plan button state matrix ────────────────────────────────────────
 // Implements PART 2 of SUBSCRIPTION-PAYMENT-FIX-20260909. Downgrades are
-// never self-serve — they show "Contact Support" (mailto) instead.
+// never self-serve — they open the real support ticket dialog instead.
 // (force-recompile marker v2 — turbopack was serving a stale chunk that
 //  crashed on the Free card in yearly mode.)
+// FINAL PAYMENT ACTIVATION ARCHITECTURE: the 'coming-soon' kind was
+// removed — Starter, Pro and Elite are all ACTIVE paid plans and always
+// render a real purchase action. `configRequired` on an enabled action
+// signals "provider configuration required" (shown as an honest notice,
+// never as a product availability decision).
 type PlanBtnKind = 'current' | 'switch-annual' | 'upgrade' | 'support';
 interface PlanBtnState {
   kind: PlanBtnKind;
   label: string;
   disabled: boolean;
+  /** True when the application-side checkout is fully implemented but the
+   * provider configuration (Stripe Price ID env var / Razorpay keys) is
+   * missing for this plan/cycle. The card keeps a REAL, ENABLED purchase
+   * action and shows an honest "configuration required" notice — never a
+   * product availability decision (final payment activation architecture). */
+  configRequired?: boolean;
 }
-function computePlanButtonState(
+export function computePlanButtonState(
   currentPlan: PlanType,
   currentBillingCycle: 'monthly' | 'yearly',
   planType: PlanType,
   isYearly: boolean,
+  checkoutAvailable: boolean | null = null,
 ): PlanBtnState {
   const currentIsYearly = currentBillingCycle === 'yearly';
-  const planName = planType === 'free' ? 'Free' : planType === 'pro' ? 'Pro' : 'Elite';
+  const planName =
+    planType === 'free'
+      ? 'Free'
+      : planType === 'starter'
+      ? 'Starter'
+      : planType === 'pro'
+      ? 'Pro'
+      : 'Elite';
 
   // ─── SAME PLAN ───
   if (planType === currentPlan) {
@@ -113,13 +142,23 @@ function computePlanButtonState(
       return { kind: 'current', label: 'Current Plan', disabled: true };
     }
     if (isYearly && !currentIsYearly) {
-      // Monthly → Yearly switch on the same plan (Pro/Elite only — the
-      // free plan returned above, so the lookup is always defined).
-      const savings = YEARLY_SAVINGS_INR[planType as 'pro' | 'elite'];
+      // Monthly → Yearly switch on the same plan (Starter/Pro/Elite only —
+      // the free plan returned above, so the lookup is always defined).
+      // Missing provider configuration (no Stripe Price ID AND no
+      // Razorpay keys) keeps the REAL switch action and surfaces the
+      // provider-configuration notice via `configRequired`. The server
+      // returns an honest configuration error if clicked.
+      const savings = YEARLY_SAVINGS_INR[planType as 'starter' | 'pro' | 'elite'];
       return {
         kind: 'switch-annual',
-        label: `Switch to Annual — Save ₹${savings.toLocaleString('en-IN')}`,
+        // Only claim savings when switching actually saves money. After
+        // the Starter ₹399 monthly update, Starter yearly (₹4,999) costs
+        // more than 12 × ₹399 — so no savings claim is shown there.
+        label: savings > 0
+          ? `Switch to Annual — Save ₹${savings.toLocaleString('en-IN')}`
+          : 'Switch to Annual',
         disabled: false,
+        configRequired: checkoutAvailable === false || undefined,
       };
     }
     // Yearly user viewing the monthly card on the same plan — per spec,
@@ -128,21 +167,47 @@ function computePlanButtonState(
   }
 
   // ─── HIGHER PLAN — upgrade ───
+  // FINAL PAYMENT ACTIVATION ARCHITECTURE: there is no "Coming Soon"
+  // state for paid plans. When the provider configuration is missing
+  // (checkoutAvailable === false) the upgrade action stays ENABLED and
+  // carries `configRequired` so the card renders the honest
+  // "<Plan> checkout implemented — payment provider configuration
+  // required" notice. Pro/Elite included — no special-casing.
   const currentLevel = PLAN_ORDER.indexOf(currentPlan);
   const thisLevel = PLAN_ORDER.indexOf(planType);
   if (thisLevel > currentLevel) {
+    // Starter card uses "Get Started" for non-Starter users (spec).
+    if (planType === 'starter') {
+      return {
+        kind: 'upgrade',
+        label: 'Get Started',
+        disabled: false,
+        configRequired: checkoutAvailable === false || undefined,
+      };
+    }
     if (currentPlan === 'free') {
       // Free → Pro / Elite (any cycle): "Upgrade to Pro" / "Upgrade to Elite"
-      return { kind: 'upgrade', label: `Upgrade to ${planName}`, disabled: false };
+      return {
+        kind: 'upgrade',
+        label: `Upgrade to ${planName}`,
+        disabled: false,
+        configRequired: checkoutAvailable === false || undefined,
+      };
     }
     if (currentPlan === 'pro' && planType === 'elite') {
       return {
         kind: 'upgrade',
         label: isYearly ? 'Upgrade to Elite Annual' : 'Upgrade to Elite',
         disabled: false,
+        configRequired: checkoutAvailable === false || undefined,
       };
     }
-    return { kind: 'upgrade', label: `Upgrade to ${planName}`, disabled: false };
+    return {
+      kind: 'upgrade',
+      label: `Upgrade to ${planName}`,
+      disabled: false,
+      configRequired: checkoutAvailable === false || undefined,
+    };
   }
 
   // ─── LOWER PLAN — Contact Support (no self-serve downgrade, ever) ───
@@ -154,25 +219,37 @@ function computePlanButtonState(
   return { kind: 'support', label: 'Contact Support', disabled: false };
 }
 
+// Inline notice shown under a paid plan's CTA ONLY when the provider
+// configuration for the selected cycle is actually missing (no Stripe
+// Price ID env var AND no Razorpay keys). FINAL PAYMENT ACTIVATION
+// ARCHITECTURE: distinguishes APPLICATION IMPLEMENTATION (complete for
+// Starter/Pro/Elite) from PROVIDER CONFIGURATION (required) — never
+// label the whole feature "Coming Soon". No raw env var names or
+// secrets are exposed.
+function planConfigNotice(planType: PlanType): string {
+  const name = planType === 'starter' ? 'Starter' : planType === 'pro' ? 'Pro' : 'Elite';
+  return `${name} checkout implemented — payment provider configuration required`;
+}
+
 // Feature comparison for the table
 const FEATURE_COMPARISON = [
-  { feature: 'Lead Discovery', free: true, pro: true, elite: true },
-  { feature: 'Deep Lead Analysis', free: false, pro: true, elite: true },
-  { feature: 'Outreach Messages', free: true, pro: true, elite: true },
-  { feature: 'Outreach Sequences', free: false, pro: true, elite: true },
-  { feature: 'Sales Coaching', free: false, pro: true, elite: true },
-  { feature: 'Proposal Generation', free: false, pro: true, elite: true },
-  { feature: 'Competitor Analysis', free: false, pro: true, elite: true },
-  { feature: 'Data Export (PDF)', free: false, pro: true, elite: true },
-  { feature: 'White-Label Reports', free: false, pro: false, elite: true },
-  { feature: 'Team Collaboration', free: false, pro: false, elite: true },
-  { feature: 'Custom Integrations', free: false, pro: false, elite: true },
-  { feature: 'API Access', free: false, pro: true, elite: true },
-  { feature: 'Priority Support', free: false, pro: true, elite: true },
-  { feature: 'Dedicated Account Manager', free: false, pro: false, elite: true },
+  { feature: 'Lead Discovery', free: true, starter: true, pro: true, elite: true },
+  { feature: 'Deep Lead Analysis', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Outreach Messages', free: true, starter: true, pro: true, elite: true },
+  { feature: 'Outreach Sequences', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Sales Coaching', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Proposal Generation', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Competitor Analysis', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Data Export (PDF)', free: false, starter: false, pro: true, elite: true },
+  { feature: 'White-Label Reports', free: false, starter: false, pro: false, elite: true },
+  { feature: 'Team Collaboration', free: false, starter: false, pro: false, elite: true },
+  { feature: 'Custom Integrations', free: false, starter: false, pro: false, elite: true },
+  { feature: 'API Access', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Priority Support', free: false, starter: false, pro: true, elite: true },
+  { feature: 'Dedicated Account Manager', free: false, starter: false, pro: false, elite: true },
 ];
 
-const PLAN_ORDER: PlanType[] = ['free', 'pro', 'elite'];
+const PLAN_ORDER: PlanType[] = ['free', 'starter', 'pro', 'elite'];
 
 // Payment state type. 'select_gateway' is the intermediate step where the
 // user picks between the available payment gateways (Stripe / Razorpay).
@@ -228,6 +305,8 @@ function PlanCard({
   isProcessing,
   currentPlan,
   currentBillingCycle,
+  checkoutAvailable,
+  onContactSupport,
 }: {
   planType: PlanType;
   isYearly: boolean;
@@ -237,6 +316,13 @@ function PlanCard({
   isProcessing: boolean;
   currentPlan: PlanType;
   currentBillingCycle: 'monthly' | 'yearly';
+  /** null = unknown (availability endpoint pending/failed); false = provider
+   * configuration missing for this plan/cycle (config-required notice — the
+   * CTA stays enabled). */
+  checkoutAvailable: boolean | null;
+  /** Opens the REAL support request dialog for this plan card
+   * ("Contact Support to Downgrade" / "Contact Support"). */
+  onContactSupport: () => void;
 }) {
   const details = PLAN_DETAILS[planType];
   // Defensive: if a planType isn't in PLAN_DETAILS, fall back to free-shaped
@@ -255,23 +341,35 @@ function PlanCard({
   const totalINR = priceINR + gstINR;
 
   // PART 2 — button state matrix (no self-serve downgrade).
-  const buttonState = computePlanButtonState(currentPlan, currentBillingCycle, planType, isYearly);
+  // checkoutAvailable === false → the plan's provider configuration is
+  // missing: the button STAYS ENABLED and the card shows the honest
+  // config-required notice (final payment activation architecture).
+  const buttonState = computePlanButtonState(
+    currentPlan,
+    currentBillingCycle,
+    planType,
+    isYearly,
+    checkoutAvailable
+  );
   const isCurrent = buttonState.kind === 'current';
 
   const cardGradients: Record<PlanType, string> = {
     free: 'from-slate-500/10 via-card to-card',
+    starter: 'from-teal-400/10 via-card to-card',
     pro: 'from-primary/10 via-card to-card',
     elite: 'from-amber-500/10 via-card to-card',
   };
 
   const borderColors: Record<PlanType, string> = {
     free: 'border-border',
+    starter: 'border-teal-400/40',
     pro: 'border-primary/40',
     elite: 'border-amber-500/40',
   };
 
   const iconColors: Record<PlanType, string> = {
     free: 'text-muted-foreground',
+    starter: 'text-teal-500',
     pro: 'text-primary',
     elite: 'text-amber-500',
   };
@@ -323,8 +421,9 @@ function PlanCard({
           <h3 className="text-lg font-bold text-foreground">{details.name}</h3>
         </div>
 
-        {/* Price — font-extrabold text-foreground per PART 6 */}
-        <div className="flex items-baseline gap-1">
+        {/* Price — font-extrabold text-foreground per PART 6. flex-wrap
+            keeps strikethrough + price + period inside narrow cards. */}
+        <div className="flex flex-wrap items-baseline gap-1">
           {priceINR === 0 ? (
             <span className="text-3xl font-extrabold text-foreground">Free</span>
           ) : (
@@ -344,7 +443,7 @@ function PlanCard({
         {/* "₹X/month billed annually" sub-line for yearly plans (PART 1) */}
         {isYearly && priceINR > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
-            ₹{YEARLY_MONTHLY_EQUIV_INR[planType as 'pro' | 'elite']?.toLocaleString('en-IN')}/month billed annually
+            ₹{YEARLY_MONTHLY_EQUIV_INR[planType as 'starter' | 'pro' | 'elite']?.toLocaleString('en-IN')}/month billed annually
           </p>
         )}
         {priceUSD > 0 && (
@@ -352,14 +451,18 @@ function PlanCard({
             ${priceUSD}{period}
           </span>
         )}
-        {/* Yearly savings badge — exact text per PART 1 */}
-        {isYearly && priceINR > 0 && (
-          <Badge variant="secondary" className="mt-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-            Save ₹{YEARLY_SAVINGS_INR[planType as 'pro' | 'elite']?.toLocaleString('en-IN')}/year vs monthly
+        {/* Yearly savings badge — exact text per PART 1. whitespace-normal
+            overrides the shadcn Badge default (whitespace-nowrap) so the
+            text wraps inside the card instead of overflowing it.
+            Hidden when the yearly price no longer saves money vs monthly
+            (e.g. Starter after the ₹399 monthly update). */}
+        {isYearly && priceINR > 0 && (YEARLY_SAVINGS_INR[planType as 'starter' | 'pro' | 'elite'] ?? 0) > 0 && (
+          <Badge variant="secondary" className="mt-1.5 max-w-full whitespace-normal leading-snug text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+            Save ₹{YEARLY_SAVINGS_INR[planType as 'starter' | 'pro' | 'elite']?.toLocaleString('en-IN')}/year vs monthly
           </Badge>
         )}
         {coupon?.valid && discountPercent > 0 && priceINR > 0 && (
-          <Badge variant="secondary" className="mt-1.5 text-[10px] bg-primary/10 text-primary border-primary/20 gap-0.5">
+          <Badge variant="secondary" className="mt-1.5 max-w-full whitespace-normal text-[10px] bg-primary/10 text-primary border-primary/20 gap-0.5">
             <BadgeCheck className="h-2.5 w-2.5" />
             {discountPercent}% off applied
           </Badge>
@@ -385,51 +488,55 @@ function PlanCard({
 
       {/* Credits */}
       <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
-        <Zap className="h-4 w-4 text-primary" />
-        <span className="text-sm font-semibold text-foreground">
+        <Zap className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold text-foreground min-w-0">
           {details.creditsMonthly.toLocaleString()} credits/month
         </span>
       </div>
 
       {/* Features list — themed foreground / muted-foreground per PART 6.
-          Crossed-out features use opacity-50 (not opacity-40) for AA contrast. */}
+          min-w-0 + break-words keeps long feature names ("Team
+          collaboration (up to 10)") wrapped INSIDE the card. */}
       <div className="flex-1 space-y-2 mb-5">
         {details.features.map((feature) => (
           <div key={feature} className="flex items-start gap-2">
             <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-            <span className="text-sm text-foreground/80">{feature}</span>
+            <span className="text-sm text-foreground/80 min-w-0 break-words [overflow-wrap:anywhere]">{feature}</span>
           </div>
         ))}
         {details.disabledFeatures.slice(0, 3).map((feature) => (
           <div key={feature} className="flex items-start gap-2 opacity-50">
             <X className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <span className="text-sm text-muted-foreground line-through">{feature}</span>
+            <span className="text-sm text-muted-foreground line-through min-w-0 break-words [overflow-wrap:anywhere]">{feature}</span>
           </div>
         ))}
       </div>
 
       {/* CTA Button — driven by the PART 2 state matrix.
-          'support' renders as an anchor (mailto:) so the user can click
-          through to their mail client. Other kinds render as a Button. */}
+          'support' opens the REAL support request dialog (ticket flow with
+          the category preselected) — never a mailto or a fake toast.
+          whitespace-normal lets long labels like
+          "Contact Support to Downgrade" wrap INSIDE the card instead of
+          overflowing (shadcn Button defaults to whitespace-nowrap).
+          Other kinds render as a Button — every paid plan kind is a
+          real, enabled purchase action (no "Coming Soon" state exists). */}
       {buttonState.kind === 'support' ? (
         <Button
-          asChild
           variant="outline"
           className={cn(
-            'w-full gap-2 font-semibold',
+            'w-full gap-2 font-semibold whitespace-normal leading-snug min-h-[44px]',
             'bg-muted/40 text-muted-foreground border-muted hover:bg-muted hover:text-foreground',
           )}
+          onClick={onContactSupport}
         >
-          <a href={SUPPORT_MAILTO}>
-            <Mail className="h-4 w-4" />
-            {buttonState.label}
-          </a>
+          <LifeBuoy className="h-4 w-4 shrink-0" />
+          {buttonState.label}
         </Button>
       ) : (
         <Button
           variant={buttonState.kind === 'current' ? 'outline' : 'default'}
           className={cn(
-            'w-full gap-2 font-semibold',
+            'w-full gap-2 font-semibold whitespace-normal leading-snug min-h-[44px]',
             // Teal accent for "Switch to Annual — Save ₹X"
             buttonState.kind === 'switch-annual' && 'bg-teal-600 hover:bg-teal-700 text-white',
             // PART 2 — all upgrade buttons are blue/primary (the previous
@@ -458,6 +565,21 @@ function PlanCard({
           )}
         </Button>
       )}
+
+      {/* Provider-configuration notice — all paid plans. Shown ONLY when the
+          plan/cycle's provider configuration (Stripe Price ID + Razorpay
+          keys) is actually missing. The CTA above stays a real, enabled
+          purchase action; clicking it reaches the server, which reports the
+          missing configuration honestly. No fake payment is possible. */}
+      {buttonState.configRequired && (
+        <p
+          className="mt-2 text-[11px] leading-snug text-muted-foreground flex items-start gap-1.5"
+          role="note"
+        >
+          <Clock className="h-3 w-3 mt-0.5 shrink-0" />
+          <span>{planConfigNotice(planType)}</span>
+        </p>
+      )}
     </motion.div>
   );
 }
@@ -472,6 +594,14 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
   const [paymentState, setPaymentState] = useState<PaymentState>('idle');
   const [paymentError, setPaymentError] = useState('');
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  // ─── Contact Support / Downgrade support-request dialog ─────────
+  // Opens the REAL support ticket flow (SupportRequestDialog) with the
+  // category preselected (Billing & Subscription → Downgrade Plan) and
+  // the plan context from the card the user clicked.
+  const [supportRequest, setSupportRequest] = useState<{
+    open: boolean;
+    requestedPlan: PlanType | null;
+  }>({ open: false, requestedPlan: null });
   // Locks the modal while a real Stripe redirect is in flight. While true,
   // outside-click / Escape / the X close button are all disabled so the
   // user can't accidentally abandon a checkout session. Outside-click is
@@ -482,6 +612,12 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
   const currentPlan = useSubscriptionStore((s) => s.currentPlan);
   const currentBillingCycle = useSubscriptionStore((s) => s.billingCycle);
   const syncFromBackend = useSubscriptionStore((s) => s.syncFromBackend);
+
+  // Per-plan/cycle provider configuration status. A paid plan whose
+  // Stripe Price ID env var is missing (and Razorpay not configured)
+  // keeps an ENABLED purchase button and shows the config-required
+  // notice — paid plans are always ACTIVE (no "Coming Soon").
+  const planAvailability = usePlanAvailability();
 
   // ─── Payment gateway selection state ─────────────────────────────
   // Availability is fetched from the PUBLIC /api/payments/provider-status
@@ -657,7 +793,6 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
       setPaymentState('select_gateway');
     },
     // startCheckout is declared below with useCallback — stable deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [providerStatus]
   );
 
@@ -681,6 +816,16 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
       beginPurchase({ kind: 'credits', addon });
     },
     [beginPurchase]
+  );
+
+  // ─── "Contact Support to Downgrade" / "Contact Support" handler ──
+  // Opens the support request dialog with full plan context prefilled.
+  // Never mutates the subscription — only creates a support ticket.
+  const handleContactSupport = useCallback(
+    (targetPlan: PlanType) => {
+      setSupportRequest({ open: true, requestedPlan: targetPlan });
+    },
+    []
   );
 
   // ─── Step 2: the actual checkout, per gateway ────────────────────
@@ -768,7 +913,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
           description:
             purchase.kind === 'credits'
               ? `${purchase.addon?.label ?? 'Credits'} add-on`
-              : `${purchase.plan === 'elite' ? 'Elite' : 'Pro'} Plan — ${billingCycle}`,
+              : `${PLAN_DETAILS[purchase.plan ?? 'free']?.name ?? purchase.plan} Plan — ${billingCycle}`,
           prefill: data.prefill ?? {},
           theme: { color: '#6C63FF' },
           modal: {
@@ -852,7 +997,6 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
       }
     },
     // verifyPaymentAndSync is a stable useCallback declared above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isYearly, coupon, loadRazorpayScript]
   );
 
@@ -872,9 +1016,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
   // Render payment success state — shows a plan-specific welcome message
   // per PART 5 ("Welcome to [Plan Name]! Your plan is now active.").
   const renderSuccessState = () => {
-    const planName =
-      currentPlan === 'free' ? 'Free' :
-      currentPlan === 'pro' ? 'Pro' : 'Elite';
+    const planName = PLAN_DETAILS[currentPlan]?.name ?? 'Pro';
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <motion.div
@@ -939,7 +1081,9 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
   const renderGatewaySelection = () => {
     const purchase = pendingPurchase;
     const isCredits = purchase?.kind === 'credits';
-    const planName = purchase?.plan === 'elite' ? 'Elite' : purchase?.plan === 'pro' ? 'Pro' : '';
+    const planName = isCredits
+      ? ''
+      : PLAN_DETAILS[purchase?.plan ?? 'free']?.name ?? '';
     const cycleLabel = isYearly ? 'yearly' : 'monthly';
 
     const stripeMode = providerStatus?.stripe.mode;
@@ -953,16 +1097,18 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
 
     // Display amounts: Stripe charges in USD via the configured Price,
     // Razorpay charges in INR (server-computed, GST added at checkout).
+    // Amounts come from PLAN_DETAILS (central plan display config).
+    const purchasedPlan = purchase?.plan && purchase.plan !== 'free' ? purchase.plan : 'pro';
     const usdPrice = isCredits
       ? (purchase?.addon?.priceUSD ?? 0)
       : isYearly
-        ? (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.yearlyUSD : PLAN_DETAILS.pro.yearlyUSD)
-        : (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.priceUSD : PLAN_DETAILS.pro.priceUSD);
+        ? PLAN_DETAILS[purchasedPlan].yearlyUSD
+        : PLAN_DETAILS[purchasedPlan].priceUSD;
     const inrPrice = isCredits
       ? (purchase?.addon?.priceINR ?? 0)
       : isYearly
-        ? (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.yearlyINR : PLAN_DETAILS.pro.yearlyINR)
-        : (purchase?.plan === 'elite' ? PLAN_DETAILS.elite.priceINR : PLAN_DETAILS.pro.priceINR);
+        ? PLAN_DETAILS[purchasedPlan].yearlyINR
+        : PLAN_DETAILS[purchasedPlan].priceINR;
 
     return (
       <div className="space-y-6">
@@ -1102,7 +1248,17 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
         // modal never overlaps the navbar and never extends past the
         // viewport bottom. Header stays fixed; only the body scrolls.
         ref={(node) => (node ? applyModalSafeArea(node) : undefined)}
-        className="max-w-5xl w-[95vw] top-[var(--aos-modal-top,60px)]! translate-y-0! max-h-[var(--aos-modal-maxh,calc(100dvh-145px))] p-0 gap-0 overflow-hidden bg-card border border-border grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] [&_[data-slot=scroll-area-viewport]>div]:block!"
+        className="w-full max-w-[calc(100%-2rem)] sm:w-[95vw] sm:max-w-5xl top-[var(--aos-modal-top,60px)]! translate-y-0! max-h-[var(--aos-modal-maxh,calc(100dvh-145px))] p-0 gap-0 overflow-hidden bg-card border border-border grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] [&_[data-slot=scroll-area-viewport]>div]:block!"
+        // WIDTH NOTE (responsive fix, Starter finalization Sep 2026): the
+        // shared DialogContent base includes `sm:max-w-lg`. The previous
+        // `max-w-5xl` (no variant) did NOT override it — tailwind-merge keeps
+        // both because their variant prefixes differ, and Tailwind emits
+        // variant utilities after base ones, so `sm:max-w-lg` (512px) won at
+        // >=640px viewports. The plan-card grid then switched to
+        // md:2/lg:4 columns based on the VIEWPORT while the modal stayed
+        // 512px wide → 4 squeezed/clipped cards (the reported bug). Declaring
+        // `sm:max-w-5xl` (same variant as the base rule) lets tailwind-merge
+        // dedupe it properly, restoring the intended 1024px desktop modal.
         // PART 3 — X button stays VISIBLE but is DISABLED while a payment
         // is in flight ("Disable the X button too"), with the notice
         // "Complete or cancel payment to close" rendered below the header.
@@ -1151,7 +1307,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
               ) : (
                 <>
                   {/* Billing Toggle */}
-                  <div className="flex items-center justify-center gap-3">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
                     <span
                       className={cn(
                         'text-sm font-medium transition-colors',
@@ -1176,7 +1332,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                   {/* Billing toggle savings badge */}
                     {isYearly && (
                       <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs">
-                        Save up to ₹24,389/year
+                        Save up to ₹17,389/year
                       </Badge>
                     )}
                   </div>
@@ -1190,7 +1346,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                   )}
 
                   {/* Plan Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))] gap-6">
                     {PLAN_ORDER.map((planType) => (
                       <PlanCard
                         key={planType}
@@ -1202,6 +1358,8 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                         isProcessing={processingPlan === planType || paymentState === 'creating_order'}
                         currentPlan={currentPlan}
                         currentBillingCycle={currentBillingCycle}
+                        checkoutAvailable={isPlanCheckoutAvailable(planAvailability, planType, isYearly ? 'yearly' : 'monthly')}
+                        onContactSupport={() => handleContactSupport(planType)}
                       />
                     ))}
                   </div>
@@ -1281,6 +1439,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                           <tr className="bg-muted/50">
                             <th className="text-left p-3 font-medium">Feature</th>
                             <th className="text-center p-3 font-medium">Free</th>
+                            <th className="text-center p-3 font-medium text-teal-500">Starter</th>
                             <th className="text-center p-3 font-medium text-primary">Pro</th>
                             <th className="text-center p-3 font-medium text-amber-500">Elite</th>
                           </tr>
@@ -1297,6 +1456,13 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                               <td className="p-3 text-foreground/80">{row.feature}</td>
                               <td className="p-3 text-center">
                                 {row.free ? (
+                                  <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                                ) : (
+                                  <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                                )}
+                              </td>
+                              <td className="p-3 text-center">
+                                {row.starter ? (
                                   <Check className="h-4 w-4 text-emerald-500 mx-auto" />
                                 ) : (
                                   <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />
@@ -1330,9 +1496,9 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                       Credit Add-Ons
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Need more credits? Purchase additional credit packs anytime. Credits never expire.
+                      Need more credits? Top up anytime. Credits never expire and work across all features.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4">
                       {CREDIT_ADDONS.map((addon) => {
                         const addonGst = Math.round(addon.priceINR * 0.18);
                         const addonTotal = addon.priceINR + addonGst;
@@ -1340,34 +1506,49 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                           <div
                             key={addon.credits}
                             className={cn(
-                              'flex flex-col items-center gap-3 rounded-xl border p-4',
-                              'border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10',
-                              'transition-all duration-200 cursor-pointer'
+                              'relative flex flex-col items-center gap-2.5 rounded-xl border p-4 min-w-0',
+                              addon.badge
+                                ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/25'
+                                : 'border-primary/20 bg-primary/5',
+                              'hover:border-primary/40 hover:bg-primary/10',
+                              'transition-all duration-200'
                             )}
                           >
-                            <div className="flex items-center gap-1.5">
-                              <Zap className="h-4 w-4 text-primary" />
-                              <span className="text-lg font-bold text-foreground">{addon.label}</span>
+                            {addon.badge && (
+                              <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] px-2 py-0 h-4 whitespace-nowrap max-w-full">
+                                {addon.badge}
+                              </Badge>
+                            )}
+                            {/* 1. Pack label */}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Zap className="h-4 w-4 text-primary shrink-0" />
+                              <span className="text-sm sm:text-base font-bold text-foreground text-center leading-tight">{addon.label}</span>
                             </div>
+                            {/* 2. Credit amount — large and prominent */}
+                            <div className="text-2xl font-extrabold text-primary leading-none text-center">
+                              {addon.credits.toLocaleString('en-IN')}
+                            </div>
+                            <div className="text-xs text-muted-foreground -mt-1">Credits</div>
+                            {/* 3-6. Base price / GST / total / USD equivalent */}
                             <div className="text-center">
-                              <span className="text-sm font-semibold text-foreground">
+                              <span className="text-base font-semibold text-foreground">
                                 ₹{addon.priceINR.toLocaleString('en-IN')}
                               </span>
                               <span className="text-xs text-muted-foreground block">
-                                ${addon.priceUSD}
+                                +₹{addonGst.toLocaleString('en-IN')} GST
                               </span>
-                              {/* GST breakdown for the add-on */}
-                              <div className="mt-1 text-[10px] text-muted-foreground space-y-0.5">
-                                <div>+₹{addonGst.toLocaleString('en-IN')} GST</div>
-                                <div className="font-semibold text-foreground">
-                                  ₹{addonTotal.toLocaleString('en-IN')} total
-                                </div>
-                              </div>
+                              <span className="text-sm font-bold text-foreground block">
+                                ₹{addonTotal.toLocaleString('en-IN')} total
+                              </span>
+                              <span className="text-[11px] text-muted-foreground block">
+                                ~${addon.priceUSD}
+                              </span>
                             </div>
+                            {/* 7. Buy Now — canonical credit add-on checkout */}
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-primary/30 hover:bg-primary/10"
+                              className="border-primary/30 hover:bg-primary/10 w-full"
                               disabled={paymentState === 'creating_order' || paymentInProgress}
                               onClick={() => handleBuyAddon(addon)}
                             >
@@ -1380,6 +1561,10 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
                                 'Buy Now'
                               )}
                             </Button>
+                            {/* 8. Expiration message */}
+                            <p className="text-[11px] text-muted-foreground text-center leading-tight">
+                              Credits never expire
+                            </p>
                           </div>
                         );
                       })}
@@ -1407,6 +1592,30 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
           </div>
         </ScrollArea>
       </DialogContent>
+
+      {/* REAL support request flow — "Contact Support to Downgrade" /
+          "Contact Support" opens this ticket dialog on top of the
+          pricing modal. Category "Billing & Subscription → Downgrade
+          Plan" + plan context prefilled. Submission creates a real
+          persisted ticket (POST /api/support/tickets). */}
+      <SupportRequestDialog
+        open={supportRequest.open}
+        onOpenChange={(open) =>
+          setSupportRequest((prev) => ({ ...prev, open }))
+        }
+        category="billing"
+        subcategory="downgrade_plan"
+        currentPlan={currentPlan}
+        requestedPlan={supportRequest.requestedPlan}
+        billingCycle={isYearly ? 'yearly' : 'monthly'}
+        source="pricing_modal"
+        subject={
+          supportRequest.requestedPlan
+            ? `Downgrade request: ${currentPlan} to ${supportRequest.requestedPlan}`
+            : 'Plan change request'
+        }
+        priority="NORMAL"
+      />
     </Dialog>
   );
 }

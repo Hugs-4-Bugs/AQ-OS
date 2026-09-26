@@ -5,11 +5,23 @@
 // Dubai with no website and poor social media presence") into structured
 // discovery parameters using Z-AI. Available to ALL plans — no credits
 // are deducted here (credits are only consumed by the discovery itself).
+//
+// HARD CRITERIA: explicit, objectively-verifiable constraints (employee
+// ranges, website presence, excluded company types) are extracted BOTH
+// by the LLM and by a deterministic extractor (src/lib/discovery/
+// hard-criteria.ts). The deterministic result wins for anything it
+// detects, so "20 to 200 employees" always becomes a real numeric
+// range — never just free text.
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import ZAI from 'z-ai-web-dev-sdk';
+import {
+  extractHardCriteria,
+  type HardCriteria,
+  type HardExcludeType,
+} from '@/lib/discovery/hard-criteria';
 
 export interface ParsedDiscoveryIntent {
   niche: string;
@@ -18,6 +30,16 @@ export interface ParsedDiscoveryIntent {
   city: string;
   count: number;
   requirements: string;
+  /** Structured HARD criteria — enforced server-side after discovery. */
+  criteria: {
+    employeeMin: number | null;
+    employeeMax: number | null;
+    exactEmployeeCount: number | null;
+    website: 'required' | 'absent' | 'any';
+    excludeTypes: HardExcludeType[];
+    growthSignals: boolean;
+    hiringSignals: boolean;
+  };
 }
 
 const SYSTEM_PROMPT = `You are a lead-discovery request parser for a business acquisition platform.
@@ -30,13 +52,25 @@ Return ONLY a JSON object (no markdown, no explanation) with these fields:
 - city: the city name only, or empty string "" if only a country is given.
 - count: how many leads are requested (integer, 1-100). Default 20 if not specified.
 - requirements: any specific qualifying requirements mentioned (e.g. "no website", "poor social media presence", "low Google rating"). Empty string "" if none.
+- employeeMin: if an explicit employee-count RANGE is mentioned (e.g. "20 to 200 employees", "between 50 and 100 employees"), the INCLUSIVE lower bound as an integer. Otherwise null.
+- employeeMax: if an explicit employee-count RANGE is mentioned, the INCLUSIVE upper bound as an integer. Otherwise null.
+- exactEmployeeCount: if an EXACT employee count is specified (e.g. "exactly 50 employees", "companies with 50 employees"), that number as an integer. Otherwise null.
+- website: "required" if businesses must HAVE a website (e.g. "have a professional website", "exclude companies without a website"); "absent" if businesses must LACK a website (e.g. "with no website"); "any" otherwise.
+- excludeTypes: array of company types the user explicitly EXCLUDED, chosen only from: "agency", "freelancer", "consultant", "contractor", "reseller", "distributor". Empty array [] if none.
+- growthSignals: true if the user wants companies with growth/expansion signals, else false.
+- hiringSignals: true if the user wants companies with hiring/recruiting signals, else false.
+
+IMPORTANT: employee counts refer to COMPANY SIZE ("employees", "staff", "headcount"), NOT to the number of leads requested ("find 20 companies"). "Find 20 companies with 20 to 200 employees" means count=20, employeeMin=20, employeeMax=200.
 
 Examples:
 "Find 20 restaurants in Dubai with no website and poor social media presence"
-→ {"niche":"restaurants","location":"Dubai","country":"UAE","city":"Dubai","count":20,"requirements":"no website, poor social media presence"}
+→ {"niche":"restaurants","location":"Dubai","country":"UAE","city":"Dubai","count":20,"requirements":"no website, poor social media presence","employeeMin":null,"employeeMax":null,"exactEmployeeCount":null,"website":"absent","excludeTypes":[],"growthSignals":false,"hiringSignals":false}
 
 "I need 15 dentists in Mumbai"
-→ {"niche":"dentists","location":"Mumbai","country":"India","city":"Mumbai","count":15,"requirements":""}`;
+→ {"niche":"dentists","location":"Mumbai","country":"India","city":"Mumbai","count":15,"requirements":"","employeeMin":null,"employeeMax":null,"exactEmployeeCount":null,"website":"any","excludeTypes":[],"growthSignals":false,"hiringSignals":false}
+
+"Find 20 B2B SaaS companies in the United States with 20 to 200 employees that are actively growing and have a professional website. Exclude agencies, freelancers, consultants."
+→ {"niche":"b2b saas","location":"United States","country":"USA","city":"","count":20,"requirements":"actively growing, professional website, founder/CEO/Head of Sales involved in acquiring customers","employeeMin":20,"employeeMax":200,"exactEmployeeCount":null,"website":"required","excludeTypes":["agency","freelancer","consultant"],"growthSignals":true,"hiringSignals":false}`;
 
 // Lightweight regex fallback used only if the LLM call fails entirely.
 function fallbackParse(query: string): ParsedDiscoveryIntent {
@@ -68,6 +102,20 @@ function fallbackParse(query: string): ParsedDiscoveryIntent {
     city: '',
     count,
     requirements,
+    criteria: toCriteriaShape(extractHardCriteria(query)),
+  };
+}
+
+/** Convert a HardCriteria into the serializable parser shape. */
+function toCriteriaShape(c: HardCriteria): ParsedDiscoveryIntent['criteria'] {
+  return {
+    employeeMin: c.employeeMin ?? null,
+    employeeMax: c.employeeMax ?? null,
+    exactEmployeeCount: c.exactEmployeeCount ?? null,
+    website: c.website,
+    excludeTypes: c.excludeTypes,
+    growthSignals: c.growthSignals,
+    hiringSignals: c.hiringSignals,
   };
 }
 
@@ -76,6 +124,33 @@ function normalizeParsed(raw: Record<string, unknown>, originalQuery: string): P
   const countRaw = Number(raw.count);
   const niche = str(raw.niche);
   const location = str(raw.location);
+
+  // Deterministic extraction wins for anything it detects; the LLM's
+  // values fill the gaps (e.g. spelled-out numbers like "twenty to two
+  // hundred" that the regexes cannot parse).
+  const det = extractHardCriteria(originalQuery);
+  // NOTE: Number(null) === 0 in JS — null/undefined/'' must map to null
+  // explicitly, or the AI's "no constraint" would become a bogus
+  // "exactly 0 employees" hard filter that rejects every company.
+  const aiNum = (v: unknown): number | null => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  };
+  const aiExclude = Array.isArray(raw.excludeTypes)
+    ? (raw.excludeTypes.map((v) => String(v).trim().toLowerCase()) as HardExcludeType[])
+    : [];
+
+  const criteria: ParsedDiscoveryIntent['criteria'] = {
+    employeeMin: det.employeeMin ?? aiNum(raw.employeeMin),
+    employeeMax: det.employeeMax ?? aiNum(raw.employeeMax),
+    exactEmployeeCount: det.exactEmployeeCount ?? aiNum(raw.exactEmployeeCount),
+    website: det.website !== 'any' ? det.website : (['required', 'absent'].includes(str(raw.website)) ? (str(raw.website) as 'required' | 'absent') : 'any'),
+    excludeTypes: Array.from(new Set([...det.excludeTypes, ...aiExclude])),
+    growthSignals: det.growthSignals || raw.growthSignals === true,
+    hiringSignals: det.hiringSignals || raw.hiringSignals === true,
+  };
+
   if (!niche || !location) {
     // Missing critical fields → try fallback before giving up
     const fb = fallbackParse(originalQuery);
@@ -86,6 +161,7 @@ function normalizeParsed(raw: Record<string, unknown>, originalQuery: string): P
       city: str(raw.city) || fb.city,
       count: Number.isFinite(countRaw) && countRaw > 0 ? Math.min(Math.max(Math.floor(countRaw), 1), 100) : fb.count,
       requirements: str(raw.requirements) || fb.requirements,
+      criteria,
     };
   }
   return {
@@ -95,6 +171,7 @@ function normalizeParsed(raw: Record<string, unknown>, originalQuery: string): P
     city: str(raw.city),
     count: Number.isFinite(countRaw) && countRaw > 0 ? Math.min(Math.max(Math.floor(countRaw), 1), 100) : 20,
     requirements: str(raw.requirements),
+    criteria,
   };
 }
 
@@ -107,8 +184,8 @@ export async function POST(request: NextRequest) {
       if (!query) {
         return NextResponse.json({ error: 'query is required' }, { status: 400 });
       }
-      if (query.length > 500) {
-        return NextResponse.json({ error: 'query is too long (max 500 characters)' }, { status: 400 });
+      if (query.length > 1000) {
+        return NextResponse.json({ error: 'query is too long (max 1000 characters)' }, { status: 400 });
       }
 
       let parsed: ParsedDiscoveryIntent;

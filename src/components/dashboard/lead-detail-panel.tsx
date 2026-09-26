@@ -34,6 +34,7 @@ import {
   FileText,
   Loader2,
   Link,
+  Users,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
@@ -519,6 +520,14 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
             {lead.niche && <Badge variant="outline">{lead.niche}</Badge>}
             {lead.country && <Badge variant="outline">{lead.country}</Badge>}
             {getWebsiteQualityBadge(lead)}
+            {(typeof lead.employeeCount === 'number' || lead.employeeRange) && (
+              <Badge variant="outline" className="gap-1">
+                <Users className="h-3 w-3" />
+                {typeof lead.employeeCount === 'number'
+                  ? `${lead.employeeCount.toLocaleString()} employees`
+                  : `${lead.employeeRange} employees (range)`}
+              </Badge>
+            )}
           </div>
           {/* Tags */}
           {/* FIX: Array.isArray guards — lead.tags can arrive null or

@@ -30,26 +30,42 @@ object is the single source of truth for the charged amount — no amounts are
 hardcoded.
 
 1. Dashboard → **Products** → create:
-   - **AcquisitionOS Pro** — recurring USD prices: **$19 / month** and **$144 / year**
-   - **AcquisitionOS Elite** — recurring USD prices: **$63 / month** and **$456 / year**
+   - **AcquisitionOS Starter** — recurring prices: **$5 / month** and **$60 / year**
+     (INR display: ₹399/month — reduced from ₹499, Sep 2026 — and ₹4,999/year + 18% GST at checkout)
+   - **AcquisitionOS Pro** — recurring prices: **$19 / month** and **$180 / year**
+     (INR display: ₹1,599/month, ₹14,999/year + 18% GST at checkout)
+   - **AcquisitionOS Elite** — recurring prices: **$63 / month** and **$540 / year**
+     (INR display: ₹5,199/month, ₹44,999/year + 18% GST at checkout)
    (Amounts must match `src/lib/payments/plan-config.ts` / the pricing UI.)
-2. Copy each Price ID (`price_...`) into env vars:
+2. Copy each Price ID (`price_...`) into env vars (canonical names — final
+   pricing/plan update, Sep 2026):
 
 ```env
+STRIPE_PRICE_STARTER_MONTHLY_ID=price_...
+STRIPE_PRICE_STARTER_YEARLY_ID=price_...
+STRIPE_PRICE_PRO_YEARLY_ID=price_...
+STRIPE_PRICE_ELITE_YEARLY_ID=price_...
+# legacy aliases still resolved by the resolver (existing deployments):
 STRIPE_PRO_MONTHLY_PRICE_ID=price_...
 STRIPE_PRO_YEARLY_PRICE_ID=price_...
 STRIPE_ELITE_MONTHLY_PRICE_ID=price_...
 STRIPE_ELITE_YEARLY_PRICE_ID=price_...
-# optional — one-time prices for credit add-on packs:
-STRIPE_PRICE_CREDITS_100_ID=price_...
+# optional — one-time prices for credit add-on packs (4 packs, Sep 2026):
+# 250 credits (Starter Pack) / 500 credits (Growth Pack) /
+# 1,000 credits (Pro Pack) / 2,500 credits (Power Pack)
+STRIPE_PRICE_CREDITS_250_ID=price_...
 STRIPE_PRICE_CREDITS_500_ID=price_...
 STRIPE_PRICE_CREDITS_1000_ID=price_...
+STRIPE_PRICE_CREDITS_2500_ID=price_...
 ```
 
 The resolver accepts legacy aliases (`STRIPE_PRICE_ID_PRO_MONTHLY`,
 `STRIPE_PRICE_PRO_MONTHLY_ID`, `STRIPE_PRICE_PRO_MONTHLY`) but prefer the
-canonical names above. If a price id is missing, checkout fails loudly with
-the exact env var names to set — there is no mock fallback.
+canonical names above. If a plan/cycle Price ID is missing, the pricing UI
+shows **"Coming Soon"** for that button and checkout is never initiated
+(the pricing page cannot start a broken checkout). If a checkout is still
+requested server-side for an unconfigured plan, it fails loudly with the
+exact env var names to set — there is no mock fallback.
 
 > The older `src/lib/stripe-service.ts` (legacy `create-order` route) still
 > contains inline `price_data` amounts; it is a parallel compatibility path.

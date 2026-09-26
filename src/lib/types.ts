@@ -119,6 +119,10 @@ export interface Lead {
   facebook?: string;
   googleMapsListing?: string;
   rating?: number;
+  /** Actual employee count when known (null/undefined = unknown). */
+  employeeCount?: number | null;
+  /** Provider employee range when no exact count is available ("51-100", "10000+"). */
+  employeeRange?: string | null;
   stage: LeadStage;
   replyScore: number;
   conversionScore: number;

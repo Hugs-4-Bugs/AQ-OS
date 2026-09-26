@@ -27,6 +27,8 @@ import {
   Layers,
   PencilLine,
   SlidersHorizontal,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -114,6 +116,8 @@ interface DiscoveryJob {
   leadsAdded: number;
   duplicatesSkipped: number;
   errors: number;
+  /** Candidates rejected by the server-side hard-criteria validator. */
+  filteredOut?: number;
   resultData?: Array<{
     businessName: string;
     ownerName?: string;
@@ -124,11 +128,25 @@ interface DiscoveryJob {
     phone?: string;
     website?: string;
     rating?: number;
+    employeeCount?: number | null;
+    employeeRange?: string | null;
   }>;
   createdAt: string;
   completedAt?: string;
   message?: string;
   errorMessage?: string;
+}
+
+/** The status API returns imported/duplicates/failed — normalize once so
+ *  the UI never renders "undefined leads found" after completion. */
+function normalizeJobFromApi(raw: Partial<DiscoveryJob> & Record<string, unknown>): DiscoveryJob {
+  return {
+    ...(raw as unknown as DiscoveryJob),
+    leadsAdded: (raw.leadsAdded as number | undefined) ?? (raw.imported as number | undefined) ?? 0,
+    duplicatesSkipped: (raw.duplicatesSkipped as number | undefined) ?? (raw.duplicates as number | undefined) ?? 0,
+    errors: (raw.errors as number | undefined) ?? (raw.failed as number | undefined) ?? 0,
+    filteredOut: (raw.filteredOut as number | undefined) ?? 0,
+  };
 }
 
 // ─── AI Chat Mode Types ─────────────────────────────────
@@ -139,6 +157,16 @@ interface ParsedIntent {
   city: string;
   count: number;
   requirements: string;
+  /** Structured HARD criteria — enforced server-side after discovery. */
+  criteria?: {
+    employeeMin: number | null;
+    employeeMax: number | null;
+    exactEmployeeCount: number | null;
+    website: 'required' | 'absent' | 'any';
+    excludeTypes: string[];
+    growthSignals: boolean;
+    hiringSignals: boolean;
+  };
 }
 
 interface DiscoveryVars {
@@ -148,6 +176,21 @@ interface DiscoveryVars {
   source: string;
   maxResults?: number;
   requirements?: string;
+  criteria?: ParsedIntent['criteria'];
+}
+
+/** Human label for the parsed hard criteria (badges + honest notices). */
+function describeCriteria(criteria?: ParsedIntent['criteria']): string {
+  if (!criteria) return '';
+  const parts: string[] = [];
+  if (criteria.exactEmployeeCount != null) parts.push(`exactly ${criteria.exactEmployeeCount} employees`);
+  else if (criteria.employeeMin != null && criteria.employeeMax != null) parts.push(`${criteria.employeeMin}–${criteria.employeeMax} employees`);
+  else if (criteria.employeeMin != null) parts.push(`≥ ${criteria.employeeMin} employees`);
+  else if (criteria.employeeMax != null) parts.push(`≤ ${criteria.employeeMax} employees`);
+  if (criteria.website === 'required') parts.push('website required');
+  if (criteria.website === 'absent') parts.push('no website');
+  if (criteria.excludeTypes?.length) parts.push(`excludes: ${criteria.excludeTypes.join(', ')}`);
+  return parts.join(' · ');
 }
 
 // ─── Helper Functions ────────────────────────────────────
@@ -276,7 +319,7 @@ function DiscoveryJobProgress({
         const res = await fetch(`/api/leads/discover/status/${currentJob.id}`);
         if (res.ok) {
           const data = await res.json();
-          const updatedJob = data.job as DiscoveryJob;
+          const updatedJob = normalizeJobFromApi(data.job);
           setCurrentJob(updatedJob);
 
           if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
@@ -362,7 +405,8 @@ function DiscoveryJobProgress({
           <span>{currentJob.niche} · {currentJob.country}{currentJob.city ? ` · ${currentJob.city}` : ''}</span>
           {currentJob.status === 'completed' && (
             <span className="text-emerald-500 font-medium">
-              {currentJob.leadsAdded} leads found
+              {currentJob.leadsAdded} verified lead{currentJob.leadsAdded === 1 ? '' : 's'} found
+              {currentJob.filteredOut ? ` · ${currentJob.filteredOut} rejected by hard filters` : ''}
             </span>
           )}
           {currentJob.status === 'failed' && (currentJob.errorMessage || currentJob.message) && (
@@ -423,6 +467,19 @@ function DiscoveredLeadCard({
             <MapPin className="h-3 w-3 shrink-0" />
             {[lead.city, lead.country].filter(Boolean).join(', ') || 'Unknown location'}
           </div>
+
+          {/* ACTUAL employee data from the provider — never the requested range.
+              A range (e.g. "51-100") is shown honestly as a provider range. */}
+          {(typeof lead.employeeCount === 'number' || lead.employeeRange) && (
+            <div className="flex items-center gap-2 text-xs">
+              <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="font-medium text-foreground">
+                Employees: {typeof lead.employeeCount === 'number'
+                  ? lead.employeeCount.toLocaleString()
+                  : `${lead.employeeRange} (provider range)`}
+              </span>
+            </div>
+          )}
 
           {lead.rating && (
             <div className="flex items-center gap-1">
@@ -536,6 +593,9 @@ export default function DiscoverTab() {
   // Jobs state
   const [activeJob, setActiveJob] = useState<DiscoveryJob | null>(null);
   const [discoveredLeads, setDiscoveredLeads] = useState<Lead[]>([]);
+  // Honest verified-matches notice — shown when hard filters returned fewer
+  // verified companies than requested. Never padded with unverified leads.
+  const [honestMatchNotice, setHonestMatchNotice] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [pipelineAddingIds, setPipelineAddingIds] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
@@ -587,6 +647,8 @@ export default function DiscoverTab() {
         source: vars?.source ?? source,
         maxResults: vars?.maxResults || undefined,
         requirements: vars?.requirements || undefined,
+        // Structured HARD criteria from the AI parser — enforced server-side
+        criteria: vars?.criteria || undefined,
       };
       const res = await fetch('/api/leads/discover', {
         method: 'POST',
@@ -689,9 +751,21 @@ export default function DiscoverTab() {
 
     if (completedJob.status === 'completed') {
       toast.success('Discovery complete!', {
-        description: `Found ${completedJob.leadsAdded} leads`,
+        description: `Found ${completedJob.leadsAdded} verified leads${completedJob.filteredOut ? ` (${completedJob.filteredOut} rejected by hard filters)` : ''}`,
       });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+
+      // Honest verified-matches notice: when the user asked for N companies
+      // and hard-filter enforcement returned fewer, say so explicitly —
+      // the remaining slots are NEVER filled with loosely-related companies.
+      const requested = searchMode === 'ai' ? parsedIntent?.count : undefined;
+      if (requested && completedJob.leadsAdded < requested) {
+        setHonestMatchNotice(
+          `${completedJob.leadsAdded} verified match${completedJob.leadsAdded === 1 ? '' : 'es'} found. We couldn't verify additional companies that meet all your criteria.`
+        );
+      } else {
+        setHonestMatchNotice(null);
+      }
 
       // Refresh discovered leads
       fetchLeads({ limit: 50 }).then((result) => {
@@ -721,7 +795,7 @@ export default function DiscoverTab() {
         description: completedJob.message || 'Unknown error',
       });
     }
-  }, [queryClient, discoveryHistory]);
+  }, [queryClient, discoveryHistory, searchMode, parsedIntent]);
 
   // Add lead to pipeline
   const handleAddToPipeline = useCallback(async (leadId: string) => {
@@ -1009,10 +1083,30 @@ export default function DiscoverTab() {
                           </>
                         )}
                       </div>
+                      {/* HARD CRITERIA — enforced server-side after discovery */}
+                      {describeCriteria(parsedIntent.criteria) && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-muted-foreground">Hard filters (strictly enforced):</span>
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400 gap-1"
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            {describeCriteria(parsedIntent.criteria)}
+                          </Badge>
+                        </div>
+                      )}
+                      {parsedIntent.criteria && (parsedIntent.criteria.employeeMin != null || parsedIntent.criteria.employeeMax != null || parsedIntent.criteria.exactEmployeeCount != null) && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Only companies whose employee count can be verified within this range will be returned — if fewer
+                          than {parsedIntent.count} verified matches exist, you'll see the honest count.
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
-                          onClick={() =>
+                          onClick={() => {
+                            setHonestMatchNotice(null);
                             handleStartDiscovery({
                               niche: parsedIntent.niche,
                               country: parsedIntent.country,
@@ -1020,8 +1114,9 @@ export default function DiscoverTab() {
                               source,
                               maxResults: parsedIntent.count,
                               requirements: parsedIntent.requirements || undefined,
-                            })
-                          }
+                              criteria: parsedIntent.criteria,
+                            });
+                          }}
                           disabled={discoverMutation.isPending}
                           className="bg-primary hover:bg-primary/90 active:scale-95 transition-all"
                         >
@@ -1159,18 +1254,43 @@ export default function DiscoverTab() {
         </motion.div>
       )}
 
+      {/* Honest verified-matches notice (hard filters returned fewer than requested) */}
+      <AnimatePresence>
+        {honestMatchNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+              <ShieldCheck className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium text-blue-700 dark:text-blue-400">{honestMatchNotice}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Hard filters (employee range, website, exclusions) are enforced server-side — every company above was
+                  verified against them. The list is never padded with loosely related companies.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Discovered Leads Results */}
       {discoveredLeads.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-muted-foreground">
-              Discovered {discoveredLeads.length} leads
+              Discovered {discoveredLeads.length} verified lead{discoveredLeads.length === 1 ? '' : 's'}
             </h3>
             <Button
               variant="ghost"
               size="sm"
               className="text-xs text-muted-foreground"
-              onClick={() => setDiscoveredLeads([])}
+              onClick={() => {
+                setDiscoveredLeads([]);
+                setHonestMatchNotice(null);
+              }}
             >
               Clear results
             </Button>

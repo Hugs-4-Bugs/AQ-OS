@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -23,6 +23,22 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.svg",
   },
+};
+
+// RESPONSIVE VIEWPORT (responsive fix, Starter finalization Sep 2026):
+// the root layout previously rendered NO <meta name="viewport"> tag at
+// all. Mobile browsers therefore used a ~980px virtual layout viewport and
+// zoomed the whole desktop layout out to fit the physical screen — the
+// billing/pricing UI appeared as a tiny, squeezed multi-column layout on
+// phones exactly as reported. `width=device-width` makes the layout
+// viewport equal the device width so Tailwind breakpoints (sm/md/lg/xl)
+// respond to the REAL device width; `initialScale=1` prevents the initial
+// zoom-out. Interactive widgets (e.g. Razorpay overlays) also rely on a
+// correct viewport. This is the standard Next.js App Router viewport
+// configuration and does not alter any visual design on desktop.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

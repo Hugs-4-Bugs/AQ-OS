@@ -11,13 +11,23 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // ===== CONSTANTS =====
 // JWT_SECRET: In production, this MUST be set via environment variable.
-// Uses a dev fallback for build-time and dev mode; runtime checks validate in production.
-const JWT_SECRET = process.env.JWT_SECRET || 'acquisitionos-dev-secret-change-in-production';
+// Resolution order: JWT_SECRET → AUTH_SECRET → NEXTAUTH_SECRET. The dev
+// fallback below is ONLY reachable when NODE_ENV !== 'production'; the
+// ensureJwtSecret() runtime guard refuses to sign/verify with it in production.
+const DEV_FALLBACK_JWT_SECRET = 'acquisitionos-dev-secret-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  DEV_FALLBACK_JWT_SECRET;
 
-/** Runtime guard: ensure JWT_SECRET is properly configured at request time */
+/** Runtime guard: never sign or verify JWTs with the dev fallback in production */
 function ensureJwtSecret(): void {
-  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_SECRET environment variable is not set in production.');
+  if (process.env.NODE_ENV === 'production' && JWT_SECRET === DEV_FALLBACK_JWT_SECRET) {
+    throw new Error(
+      'FATAL: JWT_SECRET (or AUTH_SECRET) environment variable is not set in production. '
+      + 'Refusing to sign/verify tokens with the insecure dev fallback secret.'
+    );
   }
 }
 const JWT_ACCESS_EXPIRY = '15m';
@@ -28,6 +38,17 @@ const OTP_MAX_ATTEMPTS = 5;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
+// ===== SESSION LIFETIME POLICY (P5+P6, permanent fix Sep 2026) =====
+// "Remember me for 30 days" = ABSOLUTE maximum lifetime, with a
+// server-authoritative 48-hour INACTIVITY limit:
+//   - Active users keep their session until the 30-day absolute ceiling.
+//   - A session idle for > 48h is invalidated at the next refresh.
+// Non-remembered sessions keep the app's normal 30-day session behavior.
+// Access tokens stay short-lived (15m) — refresh is the only lifetime gate.
+export const SESSION_IDLE_MAX_MS = 48 * 60 * 60 * 1000;      // 48 hours
+export const SESSION_REMEMBER_ABSOLUTE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const SESSION_ACTIVITY_WRITE_THROTTLE_MS = 5 * 60 * 1000; // avoid per-request writes
+
 // ===== TYPES =====
 export interface JwtPayload {
   sub: string;        // user ID
@@ -37,7 +58,7 @@ export interface JwtPayload {
   orgId: string | null;
   isTrial: boolean;
   trialEndsAt: string | null;
-  type: 'access' | 'refresh';
+  type: 'access' | 'refresh' | 'mfa';
 }
 
 export interface AuthUser {
@@ -131,9 +152,44 @@ export function generateRefreshToken(user: {
   );
 }
 
+/**
+ * Generate a short-lived MFA session token.
+ *
+ * SECURITY: this token carries `type: 'mfa'` and is ONLY accepted by
+ * /api/auth/mfa/verify to complete TOTP verification. Unlike a full
+ * access token it cannot be used on any other API (proxy.ts and
+ * getAuthUser both require type === 'access').
+ */
+export function generateMfaSessionToken(user: {
+  id: string;
+  email: string;
+  role: string;
+  plan: string;
+  orgId: string | null;
+  isTrial: boolean;
+  trialEndsAt: Date | null;
+}): string {
+  ensureJwtSecret();
+  return jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      plan: user.plan,
+      orgId: user.orgId,
+      isTrial: user.isTrial,
+      trialEndsAt: user.trialEndsAt?.toISOString() || null,
+      type: 'mfa',
+    },
+    JWT_SECRET,
+    { expiresIn: '5m', issuer: 'acquisitionos', audience: 'acquisitionos-api' }
+  );
+}
+
 /** Verify a JWT token and return the payload */
 export function verifyToken(token: string): JwtPayload | null {
   try {
+    ensureJwtSecret();
     const decoded = jwt.verify(token, JWT_SECRET, {
       issuer: 'acquisitionos',
       audience: 'acquisitionos-api',
@@ -153,12 +209,25 @@ export function extractBearerToken(request: NextRequest): string | null {
 
 // ===== COOKIE HELPERS =====
 
-/** Set auth cookies on a response */
+/**
+ * Set auth cookies on a response.
+ *
+ * opts.persist (default TRUE — preserves the app's current behavior for
+ * every existing caller): refresh_token is a persistent cookie with a
+ * 30-day maxAge, so the session survives browser restarts.
+ * opts.persist = false ("Remember me" UNCHECKED): refresh_token is a
+ * BROWSER-SESSION cookie (no maxAge) — it disappears when the browser
+ * closes, which is the conventional non-remembered behavior.
+ * The access_token cookie is unchanged (15 minutes).
+ */
 export function setAuthCookies(
   response: NextResponse,
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
+  opts?: { persist?: boolean }
 ): NextResponse {
+  const persist = opts?.persist !== false;
+
   response.cookies.set('access_token', accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -172,7 +241,7 @@ export function setAuthCookies(
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/api/auth', // Accessible to refresh + signout endpoints
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    ...(persist ? { maxAge: 30 * 24 * 60 * 60 } : {}), // 30d when remembered; session cookie otherwise
   });
 
   return response;
@@ -302,15 +371,40 @@ export function generateMagicLinkToken(): string {
 
 // ===== SESSION MANAGEMENT =====
 
-/** Create a new user session in the database */
+/**
+ * Create a new user session in the database.
+ *
+ * rememberMe (P5): the session row records the user's choice and a hard
+ * 30-day absoluteExpiresAt ceiling. lastActivityAt starts at creation time
+ * and is advanced by touchSessionActivity (server-authoritative, P6).
+ */
 export async function createSession(params: {
   userId: string;
   refreshToken: string;
   deviceInfo?: string;
   ipAddress?: string;
   userAgent?: string;
+  rememberMe?: boolean;
 }): Promise<void> {
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const now = Date.now();
+  // 30-day expiry for BOTH modes: for remembered sessions this IS the
+  // absolute ceiling; for non-remembered sessions this is the normal
+  // server-side lifetime (unchanged from current behavior).
+  const expiresAt = new Date(now + 30 * 24 * 60 * 60 * 1000);
+  const rememberMe = !!params.rememberMe;
+
+  const data = {
+    userId: params.userId,
+    refreshToken: params.refreshToken,
+    deviceInfo: params.deviceInfo || null,
+    ipAddress: params.ipAddress || null,
+    userAgent: params.userAgent || null,
+    expiresAt,
+    isRevoked: false,
+    rememberMe,
+    lastActivityAt: new Date(now),
+    absoluteExpiresAt: new Date(now + SESSION_REMEMBER_ABSOLUTE_MS),
+  };
 
   // Pre-emptively delete any existing session with the same refreshToken
   // to avoid P2002 unique constraint errors on race conditions or re-logins.
@@ -323,17 +417,7 @@ export async function createSession(params: {
   }
 
   try {
-    await db.userSession.create({
-      data: {
-        userId: params.userId,
-        refreshToken: params.refreshToken,
-        deviceInfo: params.deviceInfo || null,
-        ipAddress: params.ipAddress || null,
-        userAgent: params.userAgent || null,
-        expiresAt,
-        isRevoked: false,
-      },
-    });
+    await db.userSession.create({ data });
   } catch (error: unknown) {
     // Handle P2002 (unique constraint violation) gracefully.
     // This can still happen in a race condition where another request
@@ -349,17 +433,7 @@ export async function createSession(params: {
         where: { refreshToken: params.refreshToken },
       });
 
-      await db.userSession.create({
-        data: {
-          userId: params.userId,
-          refreshToken: params.refreshToken,
-          deviceInfo: params.deviceInfo || null,
-          ipAddress: params.ipAddress || null,
-          userAgent: params.userAgent || null,
-          expiresAt,
-          isRevoked: false,
-        },
-      });
+      await db.userSession.create({ data });
     } else {
       throw error;
     }
@@ -388,6 +462,117 @@ export async function isSessionValid(refreshToken: string): Promise<boolean> {
     where: { refreshToken, isRevoked: false, expiresAt: { gt: new Date() } },
   });
   return !!session;
+}
+
+// ===== SESSION STATE (P4/P5/P6 — infrastructure-aware) =====
+
+export type UserSessionState =
+  | 'valid'
+  | 'missing'
+  | 'revoked'
+  | 'expired'
+  | 'idle_expired';
+
+/**
+ * Resolve the exact state of a refresh-token session.
+ *
+ * Unlike isSessionValid (boolean), this DISTINGUISHES:
+ *   valid        — session row exists, not revoked, not expired
+ *   missing      — no row (e.g. the sessions table was rebuilt)
+ *   revoked      — explicit logout/revocation
+ *   expired      — past expiresAt (absolute 30-day ceiling)
+ *   idle_expired — remembered session idle beyond the 48h inactivity limit
+ *
+ * DATABASE/INFRASTRUCTURE ERRORS THROW — callers convert them to 503 so a
+ * temporary database outage is NEVER reported to the client as "logged out".
+ */
+export async function getSessionState(refreshToken: string): Promise<{
+  state: UserSessionState;
+  session: {
+    id: string;
+    userId: string;
+    rememberMe: boolean;
+    lastActivityAt: Date;
+    expiresAt: Date;
+    absoluteExpiresAt: Date | null;
+  } | null;
+}> {
+  const session = await db.userSession.findFirst({
+    where: { refreshToken },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!session) return { state: 'missing', session: null };
+  if (session.isRevoked) return { state: 'revoked', session: null };
+
+  const now = new Date();
+  if (session.expiresAt <= now) return { state: 'expired', session: null };
+
+  // Hard absolute ceiling (P5): 30 days regardless of activity.
+  const absolute = session.absoluteExpiresAt ?? session.expiresAt;
+  if (absolute <= now) return { state: 'expired', session: null };
+
+  // Server-authoritative idle limit (P6): remembered sessions die after
+  // 48h WITHOUT authenticated activity. Non-remembered sessions keep the
+  // app's normal behavior (no idle rule).
+  if (
+    session.rememberMe &&
+    now.getTime() - new Date(session.lastActivityAt).getTime() > SESSION_IDLE_MAX_MS
+  ) {
+    return { state: 'idle_expired', session: null };
+  }
+
+  return {
+    state: 'valid',
+    session: {
+      id: session.id,
+      userId: session.userId,
+      rememberMe: session.rememberMe,
+      lastActivityAt: session.lastActivityAt,
+      expiresAt: session.expiresAt,
+      absoluteExpiresAt: session.absoluteExpiresAt,
+    },
+  };
+}
+
+/**
+ * Advance lastActivityAt for a session (P6 activity tracking).
+ * Called from the token-refresh endpoint (natural low-traffic hook:
+ * at most every 14 minutes per client + on tab focus) — never from a
+ * browser heartbeat. Throttled so repeated refreshes within 5 minutes
+ * do not write.
+ */
+export async function touchSessionActivity(sessionId: string): Promise<void> {
+  try {
+    const session = await db.userSession.findUnique({
+      where: { id: sessionId },
+      select: { lastActivityAt: true },
+    });
+    if (!session) return;
+    if (Date.now() - new Date(session.lastActivityAt).getTime() < SESSION_ACTIVITY_WRITE_THROTTLE_MS) {
+      return; // recent write — skip (reduces SQLite write pressure)
+    }
+    await db.userSession.update({
+      where: { id: sessionId },
+      data: { lastActivityAt: new Date() },
+    });
+  } catch (error) {
+    // Activity tracking must never break authentication. Database failures
+    // here are non-fatal — the session itself was already validated.
+    console.warn('[Auth] touchSessionActivity failed (non-fatal):', error instanceof Error ? error.message : error);
+  }
+}
+
+/**
+ * Read the client-declared "Remember me for 30 days" choice.
+ * The auth pages set a SHORT-LIVED (10 min) non-sensitive cookie when the
+ * checkbox is checked, so every login channel (password, OTP, magic link,
+ * Google, MFA) carries the choice through its own round-trip. Forging the
+ * cookie only changes session LIFETIME POLICY (max 30d absolute + 48h idle)
+ * — never privileges — so it is not a security boundary.
+ */
+export function readRememberMeCookie(request: NextRequest): boolean {
+  return request.cookies.get('aqos_remember_me')?.value === '1';
 }
 
 /** Get all active sessions for a user */
@@ -656,55 +841,53 @@ async function mapUserToAuthUser(
 
 /** Get the authenticated user from a request, or null */
 export async function getAuthUser(request: NextRequest): Promise<AuthUser | null> {
+  // ── P11 (error semantics): infrastructure failures are NOT "anonymous" ──
+  // A database outage must surface as 503 (temporarily unavailable), never
+  // as a silent 401 that client code maps to logged-out / Free.
+  let bearerToken: string | null = null;
+  let accessTokenCookie: string | undefined;
   try {
-    // Try Bearer token first
-    const bearerToken = extractBearerToken(request);
-    if (bearerToken) {
-      const payload = verifyToken(bearerToken);
-      if (payload && payload.type === 'access') {
-        const user = await db.user.findUnique({
-          where: { id: payload.sub },
-          include: {
-            mfaConfig: { select: { isEnabled: true } },
-            subscriptions: {
-              where: { status: { in: ['active', 'trialing'] } },
-              select: { plan: true, status: true },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
+    bearerToken = extractBearerToken(request);
+    accessTokenCookie = request.cookies.get('access_token')?.value;
+
+    const resolveFromToken = async (token: string): Promise<AuthUser | null> => {
+      const payload = verifyToken(token);
+      if (!payload || payload.type !== 'access') return null;
+      const user = await db.user.findUnique({
+        where: { id: payload.sub },
+        include: {
+          mfaConfig: { select: { isEnabled: true } },
+          subscriptions: {
+            where: { status: { in: ['active', 'trialing'] } },
+            select: { plan: true, status: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
           },
-        });
-        if (user) {
-          return await mapUserToAuthUser(user);
-        }
+        },
+      });
+      // SECURITY: deactivated/deleted accounts must never authenticate,
+      // even with a still-valid (≤15 min) access token.
+      if (user && user.isActive && !user.deletedAt) {
+        return await mapUserToAuthUser(user);
       }
+      return null;
+    };
+
+    if (bearerToken) {
+      const user = await resolveFromToken(bearerToken);
+      if (user) return user;
     }
 
-    // Try access_token cookie
-    const accessTokenCookie = request.cookies.get('access_token')?.value;
     if (accessTokenCookie) {
-      const payload = verifyToken(accessTokenCookie);
-      if (payload && payload.type === 'access') {
-        const user = await db.user.findUnique({
-          where: { id: payload.sub },
-          include: {
-            mfaConfig: { select: { isEnabled: true } },
-            subscriptions: {
-              where: { status: { in: ['active', 'trialing'] } },
-              select: { plan: true, status: true },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
-          },
-        });
-        if (user) {
-          return await mapUserToAuthUser(user);
-        }
-      }
+      const user = await resolveFromToken(accessTokenCookie);
+      if (user) return user;
     }
 
     return null;
-  } catch {
+  } catch (error) {
+    if (classifyAuthErrorCategory(error) === 'database') {
+      throw new AuthError('Authentication service temporarily unavailable', 503);
+    }
     return null;
   }
 }
@@ -803,7 +986,11 @@ export async function sendSecurityAlert(params: {
   userAgent: string;
 }): Promise<void> {
   // In production, send an email to the user
-  console.log(`[SECURITY ALERT] ${params.event} for ${params.email} from IP ${params.ip}`);
+  // Mask PII (email) in server logs; IP retained for security forensics only.
+  const maskedEmail = params.email.length > 3
+    ? `${params.email.slice(0, 2)}***${params.email.slice(params.email.indexOf('@') > 0 ? params.email.indexOf('@') : 2)}`
+    : '***';
+  console.log(`[SECURITY ALERT] ${params.event} for ${maskedEmail} from IP ${params.ip}`);
 
   // Send security alert email (non-blocking)
   try {
@@ -822,6 +1009,36 @@ export async function sendSecurityAlert(params: {
     ipAddress: params.ip,
     userAgent: params.userAgent,
   });
+}
+
+// ===== SAFE ERROR CLASSIFICATION (auth routes) =====
+
+/**
+ * Classify an unexpected auth-route error into a SAFE diagnostic category
+ * for server logs. NEVER returns or logs secret values, stack traces, or
+ * raw provider messages — only a short category code, so the real root
+ * cause stays diagnosable in dev.log while the browser sees a generic,
+ * safe message.
+ *
+ * Categories (stable strings, safe to expose in logs):
+ *   database   — Prisma/SQLite unavailable (e.g. db file missing/corrupt)
+ *   validation — malformed request body
+ *   unexpected — anything else (full error still logged server-side above)
+ */
+export function classifyAuthErrorCategory(error: unknown): string {
+  if (error instanceof Error) {
+    const msg = error.message || '';
+    if (
+      /P1\d{3}|P2\d{3}|prisma/i.test(msg) ||
+      /unable to open the database file|SQLITE_|database file|Can't reach database/i.test(msg)
+    ) {
+      return 'database';
+    }
+    if (/body|json|unexpected token/i.test(msg)) {
+      return 'validation';
+    }
+  }
+  return 'unexpected';
 }
 
 // ===== EXPORT CONSTANTS =====

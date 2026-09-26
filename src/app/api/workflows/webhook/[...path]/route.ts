@@ -44,6 +44,10 @@ export async function POST(
       return NextResponse.json({ error: message }, { status: 401 });
     }
 
+    if (message.includes('Webhook secret not configured')) {
+      return NextResponse.json({ error: message }, { status: 403 });
+    }
+
     console.error('[Workflows API] Webhook error:', error);
     return NextResponse.json(
       { error: 'Webhook trigger failed' },

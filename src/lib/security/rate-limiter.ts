@@ -43,6 +43,29 @@ setInterval(() => {
   }
 }, 60_000).unref?.();
 
+// ===== CLIENT IP (trusted-proxy model of this app, unchanged) =====
+
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp;
+  return 'unknown';
+}
+
+/**
+ * Normalize an email for use in a rate-limit key (P9).
+ * Lowercase + trimmed. The email is NEVER logged — it is only hashed into
+ * the in-memory key so two different users behind the same preview gateway
+ * cannot consume each other's authentication quota.
+ */
+export function authRateKeySuffix(email: string | undefined | null): string {
+  if (!email || typeof email !== 'string') return '';
+  const normalized = email.toLowerCase().trim();
+  if (!normalized) return '';
+  return ':em:' + Buffer.from(normalized).toString('base64url').slice(0, 32);
+}
+
 // ===== PRE-CONFIGURED RATE LIMITERS =====
 
 export const RATE_LIMITERS: Record<string, RateLimitConfig> = {
@@ -58,8 +81,48 @@ export const RATE_LIMITERS: Record<string, RateLimitConfig> = {
       return `ip:${getClientIp(req)}`;
     },
   },
+  // LEGACY shared 'auth' bucket — retained ONLY for the routes that were
+  // not part of the P9 split (signup, password flows, etc.). The four
+  // high-collision flows (signin / OTP / magic-link / refresh) now use
+  // their own dedicated buckets below so unrelated users behind one
+  // preview gateway can no longer exhaust each other's quota.
   auth: {
     limit: 5,
+    windowSeconds: 60,
+    keyGenerator: (req) => `ip:${getClientIp(req)}`,
+  },
+  // ── P9 dedicated authentication buckets (Sep 2026) ─────────────────
+  // Password sign-in: 10/min per IP+email (brute-force protection stays
+  // via account lockout + login history).
+  signin: {
+    limit: 10,
+    windowSeconds: 60,
+    keyGenerator: (req) => `ip:${getClientIp(req)}`,
+  },
+  // OTP request: 5/min per IP+email — a second user behind the same
+  // gateway is a DIFFERENT bucket.
+  otp: {
+    limit: 5,
+    windowSeconds: 60,
+    keyGenerator: (req) => `ip:${getClientIp(req)}`,
+  },
+  // OTP verify: 10/min per IP+email (brute force also bounded by
+  // otpAttemptCount/lockout on the user record).
+  otp_verify: {
+    limit: 10,
+    windowSeconds: 60,
+    keyGenerator: (req) => `ip:${getClientIp(req)}`,
+  },
+  // Magic-link request: 5/min per IP+email.
+  magic_link: {
+    limit: 5,
+    windowSeconds: 60,
+    keyGenerator: (req) => `ip:${getClientIp(req)}`,
+  },
+  // Refresh: automatic client behavior — generous, IP-only, isolated so
+  // login storms can never starve token refresh (and vice versa).
+  refresh: {
+    limit: 30,
     windowSeconds: 60,
     keyGenerator: (req) => `ip:${getClientIp(req)}`,
   },
@@ -107,22 +170,13 @@ export const RATE_LIMITERS: Record<string, RateLimitConfig> = {
       if (authHeader.startsWith('Bearer aq_')) {
         // Use a hash of the key as the rate limit key
         // (we don't have the full key here, just use prefix)
-        return `apikey:${authHeader.substring(7, 19)}`;
+        // Hash the FULL key — the old 12-char prefix bucketed distinct keys together
+        return `apikey:${Buffer.from(authHeader.slice(7)).toString('base64url').slice(0, 32)}`;
       }
       return `ip:${getClientIp(req)}`;
     },
   },
 };
-
-// ===== HELPER: Get client IP =====
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) return realIp;
-  return 'unknown';
-}
 
 // ===== CORE RATE LIMIT CHECK =====
 
@@ -198,10 +252,15 @@ export function checkRateLimit(
  *     if (limitResult) return limitResult; // 429 response
  *     // ... normal handler logic
  *   }
+ *
+ * opts.keySuffix (P9): append a per-identity discriminator (e.g. a hashed
+ * normalized email) so two users behind the same gateway get separate
+ * buckets. Pass it AFTER parsing the request body.
  */
 export function withRateLimit(
   request: NextRequest,
-  limiterName: string
+  limiterName: string,
+  opts?: { keySuffix?: string }
 ): NextResponse | null {
   const config = RATE_LIMITERS[limiterName];
   if (!config) {
@@ -209,9 +268,9 @@ export function withRateLimit(
     return null;
   }
 
-  const key = config.keyGenerator
+  const key = (config.keyGenerator
     ? config.keyGenerator(request)
-    : `ip:${getClientIp(request)}`;
+    : `ip:${getClientIp(request)}`) + (opts?.keySuffix || '');
 
   const prefix = `rl:${limiterName}:`;
   const result = checkRateLimit(prefix + key, config);
@@ -240,6 +299,29 @@ export function withRateLimit(
   }
 
   return null; // Request is allowed
+}
+
+/**
+ * Refund one rate-limit slot (P9): authentication routes call this when a
+ * request failed due to INFRASTRUCTURE (database outage, SMTP unavailability)
+ * so an outage + the user's natural retries cannot consume the whole
+ * budget and produce "Too many requests" on recovery. Abuse protection
+ * itself is unchanged — genuine client-driven requests are still counted.
+ */
+export function refundRateLimit(
+  request: NextRequest,
+  limiterName: string,
+  opts?: { keySuffix?: string }
+): void {
+  const config = RATE_LIMITERS[limiterName];
+  if (!config) return;
+  const key = (config.keyGenerator
+    ? config.keyGenerator(request)
+    : `ip:${getClientIp(request)}`) + (opts?.keySuffix || '');
+  const entry = store.get(`rl:${limiterName}:${key}`);
+  if (!entry || entry.timestamps.length === 0) return;
+  entry.timestamps.pop(); // drop the most recent (this request's) slot
+  if (entry.timestamps.length === 0) store.delete(`rl:${limiterName}:${key}`);
 }
 
 /**

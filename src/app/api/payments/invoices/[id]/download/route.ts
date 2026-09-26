@@ -117,16 +117,17 @@ export async function GET(
       // 4. Generate the PDF buffer
       const pdfBuffer = await generateInvoicePdfBuffer(invoiceData);
 
-      // 5. If invoice has no pdfUrl yet, persist it to public/invoices/
+      // 5. If invoice has no pdfUrl yet, persist it to data/invoices/
+      // (SECURITY: non-public storage — public/invoices exposure removed)
       if (!invoice.pdfUrl || invoice.pdfUrl.startsWith('data:')) {
         const fs = await import('fs');
         const path = await import('path');
 
-        // Ensure directory
+        // Ensure directory (non-public data dir, not static-servable)
         const candidates = [
-          path.join(process.cwd(), 'public', 'invoices'),
-          path.join(process.cwd(), '..', '..', 'public', 'invoices'),
-          path.join(process.cwd(), '..', 'public', 'invoices'),
+          path.join(process.cwd(), 'data', 'invoices'),
+          path.join(process.cwd(), '..', '..', 'data', 'invoices'),
+          path.join(process.cwd(), '..', 'data', 'invoices'),
         ];
 
         let invoicesDir = candidates[0];
@@ -144,10 +145,11 @@ export async function GET(
         const filePath = path.join(invoicesDir, fileName);
         fs.writeFileSync(filePath, pdfBuffer);
 
-        // Update the invoice record with the real PDF URL (fire-and-forget)
+        // Update the invoice record with an internal storage marker
+        // (NOT a public URL — clients download via this authenticated route)
         db.invoice.update({
           where: { id: invoice.id },
-          data: { pdfUrl: `/invoices/${fileName}` },
+          data: { pdfUrl: `file:data/invoices/${fileName}` },
         }).catch(() => {
           // Non-critical — don't block the download
         });

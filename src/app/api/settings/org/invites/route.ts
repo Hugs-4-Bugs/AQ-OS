@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { db } from '@/lib/db';
 import { createInvitation, listOrgInvitations, sendInviteEmail, type InviteRole } from '@/lib/invite-lifecycle-service';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -16,6 +17,18 @@ export async function GET(request: NextRequest) {
 
     if (!authUser.orgId) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 });
+    }
+
+    // SECURITY HARDENING: listing invitations is an admin function.
+    // Require owner/admin membership (mirrors POST + settings/team/invite).
+    const membership = await db.orgMember.findFirst({
+      where: { orgId: authUser.orgId, userId: authUser.id },
+    });
+    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      return NextResponse.json(
+        { error: 'Only owners and admins can view invitations' },
+        { status: 403 }
+      );
     }
 
     const invitations = await listOrgInvitations(authUser.orgId);
@@ -39,6 +52,26 @@ export async function POST(request: NextRequest) {
 
     if (!authUser.orgId) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 });
+    }
+
+    // SECURITY HARDENING (privilege-escalation fix): this route previously
+    // had NO role gate — any member/viewer could invite themselves as an
+    // org admin. Enforce owner/admin membership (same as the parallel
+    // route at /api/settings/team/invite).
+    const membership = await db.orgMember.findFirst({
+      where: { orgId: authUser.orgId, userId: authUser.id },
+    });
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'You are not a member of this organization' },
+        { status: 403 }
+      );
+    }
+    if (!['owner', 'admin'].includes(membership.role)) {
+      return NextResponse.json(
+        { error: 'Only owners and admins can send invitations' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

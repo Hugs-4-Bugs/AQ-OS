@@ -16,17 +16,14 @@ import {
   incrementOtpAttempts,
   resetOtpAttempts,
   isOtpLocked,
+  classifyAuthErrorCategory,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import { withRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
-
   try {
     const body = await request.json();
-    const { email, otp } = body;
+    const { email, otp, rememberMe } = body;
 
     // ── Validation ──────────────────────────────────────────────
     if (!email || !otp) {
@@ -51,6 +48,16 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Rate limit (P9): dedicated 'otp_verify' bucket keyed by IP+email ──
+    const rateLimitResult = withRateLimit(request, 'otp_verify', {
+      keySuffix: authRateKeySuffix(normalizedEmail),
+    });
+    if (rateLimitResult) return rateLimitResult;
+
+    // P5: Remember-me carries through the OTP login flow.
+    const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';
+
     const ip = getClientIp(request);
     const ua = getUserAgent(request);
 
@@ -190,13 +197,14 @@ export async function POST(request: NextRequest) {
       trialEndsAt: user.trialEndsAt,
     });
 
-    // ── Create session ──────────────────────────────────────────
+    // ── Create session ────────────────────────────────────────
     await createSession({
       userId: user.id,
       refreshToken,
       deviceInfo: ua.substring(0, 255),
       ipAddress: ip,
       userAgent: ua,
+      rememberMe: rememberMeFlag,
     });
 
     // ── Update last login ───────────────────────────────────────
@@ -247,11 +255,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return setAuthCookies(response, accessToken, refreshToken);
+    return setAuthCookies(response, accessToken, refreshToken, {
+      persist: rememberMeFlag,
+    });
   } catch (error) {
-    console.error('OTP verify error:', error);
+    // SAFE error handling: generic message to the browser; stable category
+    // code in the server log for diagnosability (no secrets, no stacks).
+    // ERROR-SEMANTICS FIX (2026-09-24, account consistency): infrastructure
+    // failures (database unavailable, etc.) now return 503
+    // INFRASTRUCTURE_ERROR — the same contract as the OTP request route —
+    // so a transient DB outage can NEVER be mistaken by the client for an
+    // authentication failure (invalid credentials / forced logout).
+    const category = classifyAuthErrorCategory(error);
+    console.error(`[OTP Verify] error category=${category}`, error instanceof Error ? error.message : error);
+    if (category === 'database') {
+      return NextResponse.json(
+        { error: 'Unable to verify the code right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Unable to verify the code right now. Please try again in a moment.' },
       { status: 500 }
     );
   }

@@ -14,6 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import ZAI from 'z-ai-web-dev-sdk';
+import { readZaiGatewayConfigStatus } from './zai-gateway-config';
 
 // ===== TYPES =====
 
@@ -203,23 +204,58 @@ async function callZAI(
   messages: AIMessage[],
   config: AIProviderConfig
 ): Promise<{ content: string; tokensUsed: number; model: string }> {
-  const zai = await ZAI.create();
+  // Pre-flight credential check (RCA 2026-09-26: 401 "missing X-Token header").
+  // The gateway requires the X-Token header on every request; the SDK only
+  // attaches it when the resolved .z-ai-config contains a non-empty `token`
+  // field. Fail fast with an actionable message instead of sending a doomed
+  // request that surfaces as a cryptic 401. Read-only — no values are logged.
+  const gatewayStatus = readZaiGatewayConfigStatus();
+  if (!gatewayStatus.resolved) {
+    throw new Error(
+      'CONFIGURATION_ERROR: z-ai gateway is not configured. ' +
+        (gatewayStatus.reason || 'No valid .z-ai-config found.') +
+        " Required fields: 'baseUrl', 'apiKey', 'token' (token supplies the mandatory X-Token auth header)."
+    );
+  }
+  if (!gatewayStatus.hasToken) {
+    throw new Error(
+      "CONFIGURATION_ERROR: z-ai gateway credentials are incomplete — the 'token' field is missing or blank in " +
+        `${gatewayStatus.path}. The gateway rejects every request without the X-Token header (401). ` +
+        'Re-provision the gateway config file with the token field set.'
+    );
+  }
 
-  const zaiMessages = messages.map((m) => ({
-    role: m.role === 'system' ? 'assistant' : m.role,
-    content: m.content,
-  }));
+  try {
+    const zai = await ZAI.create();
 
-  const completion = await zai.chat.completions.create({
-    messages: zaiMessages,
-    thinking: { type: 'disabled' },
-  });
+    const zaiMessages = messages.map((m) => ({
+      role: m.role === 'system' ? 'assistant' : m.role,
+      content: m.content,
+    }));
 
-  const content = completion.choices?.[0]?.message?.content || '';
-  const tokensUsed = completion.usage?.total_tokens || Math.ceil(content.length / 4);
-  const model = completion.model || 'z-ai-default';
+    const completion = await zai.chat.completions.create({
+      messages: zaiMessages,
+      thinking: { type: 'disabled' },
+    });
 
-  return { content, tokensUsed, model };
+    const content = completion.choices?.[0]?.message?.content || '';
+    const tokensUsed = completion.usage?.total_tokens || Math.ceil(content.length / 4);
+    const model = completion.model || 'z-ai-default';
+
+    return { content, tokensUsed, model };
+  } catch (error) {
+    // Translate gateway auth rejections (token present but invalid/expired)
+    // into an actionable message. Never include credential values.
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    if (/\bstatus 40[13]\b/.test(rawMessage)) {
+      throw new Error(
+        `AUTH_ERROR: the z-ai gateway rejected the configured credentials (${rawMessage.slice(0, 120)}). ` +
+          `The 'token' field in ${gatewayStatus.path} is invalid or expired — re-provision it. ` +
+          'This is not a transient failure; retries will not help.'
+      );
+    }
+    throw error;
+  }
 }
 
 /**

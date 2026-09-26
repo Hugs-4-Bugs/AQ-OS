@@ -63,7 +63,7 @@ Optional integrations (Google login, SMTP, discovery, payments) = env vars per `
 
 ## 5. Database Schema Explanation
 
-**104 Prisma models** — full field-level reference: `02-architecture/DATABASE-SCHEMA.md` (generated from the schema). Mental map:
+**105 Prisma models** — full field-level reference: `02-architecture/DATABASE-SCHEMA.md` (generated from the schema). Mental map:
 
 - **Identity:** `User` root; `UserSession`/`LoginHistory`/`MfaConfig`/`KnownDevice`/`SecurityAlert` for auth security; `ApiKey` for machine access.
 - **Tenancy:** `Organization` + `OrgMember`/`OrgInvitation` (roles owner/admin/member/viewer).
@@ -81,7 +81,7 @@ Optional integrations (Google login, SMTP, discovery, payments) = env vars per `
 
 1. **Custom JWT auth instead of next-auth runtime** — need for OTP/magic/MFA/session-revocation semantics mapped to `UserSession`; next-auth stays as a dependency for interop but the code paths are ours. Consequence: `JWT_SECRET`/`JWT_REFRESH_SECRET` are the real secrets (no `AUTH_SECRET`).
 2. **Single SPA dashboard behind `AuthGate` at `/`** — one client-rendered shell keeps 181 components cohesive; focused sub-routes (`/dashboard/billing` etc.) exist where deep linking matters.
-3. **Thin routes / fat `src/lib` services** — 485 route files mostly delegate to ~180 service modules; business logic is testable without HTTP.
+3. **Thin routes / fat `src/lib` services** — 505 route files mostly delegate to ~258 service modules; business logic is testable without HTTP.
 4. **Dynamic OAuth origin resolution (request headers over env)** — the sandbox serves multiple domains over time (preview changes per session, prod differs); hardcoding APP_URL broke login across domains. Consequence: every new domain still needs GCP redirect registration.
 5. **Webhook idempotency via unique DB keys** — `PaymentWebhook.eventId @unique` + `PaymentOrder.idempotencyKey @unique` make Stripe retries safe by construction, not by lock files.
 6. **Credits as a ledger** — `CreditsLedger` append-only rows (never just `UPDATE balance`) give auditability and support renewals/rollover/add-ons.
@@ -102,7 +102,7 @@ Optional integrations (Google login, SMTP, discovery, payments) = env vars per `
 | `competitor-intelligence-service.ts.bak` | Stray backup file in src/lib — delete after review |
 | Observability plumbing | OTel wired but no collector endpoint configured |
 | i18n | `next-intl` installed, not wired |
-| Tests | Vitest suites exist (`src/__tests__`) but coverage is partial relative to 485 routes |
+| Tests | Vitest suites exist (`src/__tests__`) but coverage is partial relative to 505 routes |
 | Lint | ESLint reports errors in files outside the recent fix scope (pre-existing) |
 
 ## 8. Features: Working vs Broken vs Partial

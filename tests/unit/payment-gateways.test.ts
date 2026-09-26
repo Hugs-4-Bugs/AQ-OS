@@ -89,17 +89,21 @@ afterEach(() => {
 // 1. Central plan mapping
 // ═════════════════════════════════════════════════════════════════════
 describe('plan-config: central plan ↔ gateway mapping', () => {
-  it('exposes the canonical pricing table (₹1,599/₹11,999 Pro, ₹5,199/₹37,999 Elite)', () => {
-    expect(PLAN_PRICING.pro.INR).toEqual({ monthly: 1599, yearly: 11999 });
-    expect(PLAN_PRICING.elite.INR).toEqual({ monthly: 5199, yearly: 37999 });
-    expect(PLAN_PRICING.pro.USD).toEqual({ monthly: 19, yearly: 144 });
-    expect(PLAN_PRICING.elite.USD).toEqual({ monthly: 63, yearly: 456 });
+  it('exposes the canonical pricing table (₹399/₹4,999 Starter, ₹1,599/₹14,999 Pro, ₹5,199/₹44,999 Elite)', () => {
+    expect(PLAN_PRICING.starter.INR).toEqual({ monthly: 399, yearly: 4999 });
+    expect(PLAN_PRICING.pro.INR).toEqual({ monthly: 1599, yearly: 14999 });
+    expect(PLAN_PRICING.elite.INR).toEqual({ monthly: 5199, yearly: 44999 });
+    expect(PLAN_PRICING.starter.USD).toEqual({ monthly: 5, yearly: 60 });
+    expect(PLAN_PRICING.pro.USD).toEqual({ monthly: 19, yearly: 180 });
+    expect(PLAN_PRICING.elite.USD).toEqual({ monthly: 63, yearly: 540 });
   });
 
   it('returns authoritative amounts via getPlanPrice', () => {
     expect(getPlanPrice('pro', 'monthly', 'INR')).toBe(1599);
-    expect(getPlanPrice('pro', 'yearly', 'INR')).toBe(11999);
+    expect(getPlanPrice('pro', 'yearly', 'INR')).toBe(14999);
     expect(getPlanPrice('elite', 'monthly', 'USD')).toBe(63);
+    expect(getPlanPrice('starter', 'monthly', 'INR')).toBe(399);
+    expect(getPlanPrice('starter', 'yearly', 'INR')).toBe(4999);
     expect(getPlanPrice('free' as never, 'monthly', 'INR')).toBe(0);
   });
 

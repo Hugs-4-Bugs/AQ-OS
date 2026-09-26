@@ -49,9 +49,10 @@ export async function POST(request: Request) {
     } else if (webhookSecret && !signature) {
       console.warn('[Razorpay Webhook] Missing signature header');
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
-    } else if (process.env.NODE_ENV === 'production') {
-      // In production, webhooks MUST have signature verification
-      console.error('[Razorpay Webhook] CRITICAL: No webhook secret configured in production');
+    } else if (process.env.NODE_ENV !== 'development') {
+      // SECURITY HARDENING: signature verification is mandatory for every
+      // non-development environment (production, staging, test, unset).
+      console.error('[Razorpay Webhook] CRITICAL: No webhook secret configured outside development');
       return NextResponse.json({ error: 'Webhook verification not configured' }, { status: 500 });
     } else {
       console.warn('[Razorpay Webhook] No webhook secret configured — skipping signature verification (dev mode)');

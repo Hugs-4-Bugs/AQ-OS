@@ -50,7 +50,7 @@ export function getGatewaysAvailability(): GatewayAvailability[] {
 }
 
 /** Gateways that can take a specific plan/cycle checkout right now. */
-export function getAvailableGatewaysForPlan(plan: 'pro' | 'elite', cycle: BillingCycle): PaymentGateway[] {
+export function getAvailableGatewaysForPlan(plan: 'pro' | 'elite' | 'starter', cycle: BillingCycle): PaymentGateway[] {
   return getAllPaymentProviders()
     .filter((p) => p.isConfigured() && p.canCheckout(plan, cycle))
     .map((p) => p.gateway);

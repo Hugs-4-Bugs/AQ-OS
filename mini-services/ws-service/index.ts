@@ -7,6 +7,7 @@
 
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
 // ═══════════════════════════════════════════════════════════════════
 // Configuration
@@ -82,18 +83,50 @@ const io = new Server(httpServer, {
 // Authentication Middleware
 // ═══════════════════════════════════════════════════════════════════
 
+// SECURITY HARDENING: the socket identity is ALWAYS derived from a
+// verified JWT (handshake `token` field or same-origin `access_token`
+// cookie). Client-claimed userId/orgId are NEVER trusted — previously
+// any non-empty token was accepted and the attacker-chosen `user:<id>`
+// room was joined, enabling cross-user event interception.
+
+function verifySocketIdentity(handshakeAuth: Partial<AuthPayload> | undefined, headers: { cookie?: string }): { userId: string; orgId?: string } | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('[WS] JWT_SECRET is not set — rejecting all connections (fail closed)');
+    return null;
+  }
+
+  let token: string | undefined = handshakeAuth?.token;
+  if (!token && headers.cookie) {
+    const match = headers.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, secret, {
+      issuer: 'acquisitionos',
+      audience: 'acquisitionos-api',
+    }) as { sub?: string; orgId?: string | null; type?: string };
+    if (!payload.sub || payload.type !== 'access') return null;
+    return { userId: String(payload.sub), orgId: payload.orgId || undefined };
+  } catch {
+    return null;
+  }
+}
+
 io.use((socket, next) => {
-  const auth = socket.handshake.auth as AuthPayload;
+  const auth = socket.handshake.auth as Partial<AuthPayload>;
 
-  if (!auth || !auth.userId || !auth.token) {
-    return next(new Error('Authentication required: userId and token must be provided'));
+  const identity = verifySocketIdentity(auth, socket.handshake.headers as { cookie?: string });
+  if (!identity) {
+    return next(new Error('Authentication required: a valid session token must be provided'));
   }
 
-  // In production, validate JWT token here
-  // For now, accept any token with a valid userId
-  if (auth.token.length < 1) {
-    return next(new Error('Invalid authentication token'));
-  }
+  // Overwrite client-claimed values with verified identity
+  (auth as AuthPayload).userId = identity.userId;
+  (auth as AuthPayload).orgId = identity.orgId;
+  (auth as AuthPayload).token = '';
 
   // Check concurrent connection limit
   const existing = userConnections.get(auth.userId) || [];
@@ -153,6 +186,12 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('subscribe', (data: { channel: string; targetId?: string }) => {
     const { channel, targetId } = data;
+    // SECURITY: targeted room joins are limited to the caller's own user
+    // and org rooms (mirrors realtime-service).
+    if (targetId && targetId !== auth.userId && targetId !== auth.orgId) {
+      socket.emit('error', { message: 'Forbidden subscription target' });
+      return;
+    }
     let roomName: string;
 
     if (targetId) {

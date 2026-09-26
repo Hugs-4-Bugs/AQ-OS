@@ -1,3 +1,7 @@
+> ⚠️ **FICTION / ROLEPLAY DOCUMENT — NOT FACTUAL.** This interview-preparation guide intentionally re-describes AcquisitionOS as a fictional Java 17 + Spring Boot system with **invented** scale and financial metrics (users, MRR, ARR, uptime, RPS). None of those figures describe the real product, and the real backend is **not** Java/Spring — it is the Next.js modular monolith documented in [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](../docs/02-architecture/SYSTEM-ARCHITECTURE.md). Never cite this document as product, revenue, or architecture evidence — in particular for valuation, due diligence, or marketing.
+
+---
+
 ---
 title: "AcquisitionOS - Senior Java Backend Interview Preparation"
 subtitle: "Spring Boot 3.2 - Java 17 - Hibernate 6 - PostgreSQL 15 - Redis 7 - Comprehensive Reference Guide"

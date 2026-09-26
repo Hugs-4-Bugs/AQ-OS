@@ -16,6 +16,20 @@ export async function GET(request: NextRequest) {
       // Get subscription status (includes plan details and trial info)
       const subStatus = await getSubscriptionStatus(user.id);
 
+      // ── P3 FIX (Sep 2026): infrastructure failure ≠ Free plan ──
+      // When the subscription store is temporarily unavailable we return
+      // 503 (never HTTP 200 with plan "free"). Clients preserve their
+      // last-known-good plan state instead of downgrading the UI.
+      if (subStatus.unavailable) {
+        return NextResponse.json(
+          {
+            error: 'Subscription service is temporarily unavailable. Your plan state is preserved.',
+            code: 'SUBSCRIPTION_TEMPORARILY_UNAVAILABLE',
+          },
+          { status: 503 }
+        );
+      }
+
       // If user is on trial, also get detailed trial status
       let trialDetails: { isActive: boolean; isExpired: boolean; hasUsedTrial: boolean; daysRemaining: number } | null = null;
       if (subStatus.trialInfo.isTrial) {
@@ -87,9 +101,13 @@ export async function GET(request: NextRequest) {
       });
     } catch (error) {
       console.error('[API] Failed to get subscription status:', error);
+      // P3: DB/infrastructure failure → 503, NOT a successful-looking free plan.
       return NextResponse.json(
-        { error: 'Failed to get subscription status' },
-        { status: 500 }
+        {
+          error: 'Subscription service is temporarily unavailable. Your plan state is preserved.',
+          code: 'SUBSCRIPTION_TEMPORARILY_UNAVAILABLE',
+        },
+        { status: 503 }
       );
     }
   });

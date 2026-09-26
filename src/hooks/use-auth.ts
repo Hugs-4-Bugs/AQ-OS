@@ -14,14 +14,27 @@ export function useAuth() {
   const { user, isAuthenticated, isLoading, mfaRequired, mfaSessionToken, setUser, setLoading, setMfaRequired, logout, updatePlan, updateEmailVerified, updateMfaEnabled } = useAuthStore();
 
   // Fetch current user on mount
+  // ── P11 (Sep 2026): infrastructure failures are NOT anonymous ──
+  // 401 → genuinely unauthenticated → setUser(null).
+  // 5xx / network / 503 → backend temporarily unavailable → KEEP the
+  // current user (if any). Converting a 503 into setUser(null) silently
+  // logged users out during every transient backend failure.
   const fetchUser = useCallback(async () => {
     try {
       const data = await apiCall<{ user: AuthUser }>('/api/auth/me', {
         credentials: 'include',
       }, { errorMessage: 'Failed to fetch user', showToast: false });
       setUser(data.user);
-    } catch {
-      setUser(null);
+    } catch (error) {
+      const status = (error as { status?: number })?.status;
+      if (status === 401) {
+        setUser(null);
+      }
+      // Non-401: keep the last-known user state; the next successful
+      // fetch/refresh will reconcile. If we have no user yet, stay
+      // unauthenticated-but-pending rather than forcing null (same
+      // observable result for a fresh browser, but a transient failure
+      // can no longer DESTROY an existing session view).
     }
   }, [setUser]);
 
@@ -32,13 +45,13 @@ export function useAuth() {
   // while `isLoading` is true, which UNMOUNTS SignInPage and destroys its
   // local state — the inline error alert and filled fields would be lost on
   // remount. SignInPage tracks its own `isSubmitting` for the button spinner.
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, rememberMe?: boolean) => {
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe: !!rememberMe }),
       });
 
       const data = await res.json();
@@ -127,7 +140,7 @@ export function useAuth() {
   }, [setUser]);
 
   // Verify MFA TOTP code
-  const verifyMfa = useCallback(async (code: string) => {
+  const verifyMfa = useCallback(async (code: string, rememberMe?: boolean) => {
     if (!mfaSessionToken) {
       return { success: false, error: 'No MFA session found' };
     }
@@ -137,7 +150,7 @@ export function useAuth() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ code, mfaSessionToken }),
+        body: JSON.stringify({ code, mfaSessionToken, rememberMe: !!rememberMe }),
       });
 
       const data = await res.json();

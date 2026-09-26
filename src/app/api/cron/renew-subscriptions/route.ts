@@ -14,7 +14,7 @@ import { db } from '@/lib/db';
 import { PLAN_CREDITS as PLAN_CREDITS_CONFIG } from '@/lib/entitlement-service';
 
 const ONE_MONTH_SECONDS = 2628000; // 365/12 days in seconds
-const PLAN_CREDITS: Record<string, number> = { free: 50, pro: 500, elite: 2000 };
+const PLAN_CREDITS: Record<string, number> = { free: 50, starter: 150, pro: 750, elite: 2000 };
 const ROLLOVER_MAX: Record<string, number> = { free: 0, pro: 200, elite: 1000 };
 
 export async function POST(request: NextRequest) {

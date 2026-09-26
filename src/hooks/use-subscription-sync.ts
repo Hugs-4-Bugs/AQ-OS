@@ -33,6 +33,7 @@ export function useSubscriptionSync() {
   const syncFromBackend = useSubscriptionStore((s) => s.syncFromBackend);
   const syncEntitlements = useSubscriptionStore((s) => s.syncEntitlements);
   const setLoading = useSubscriptionStore((s) => s.setLoading);
+  const markUnavailable = useSubscriptionStore((s) => s.markUnavailable);
   const lastFetchedAt = useSubscriptionStore((s) => s.lastFetchedAt);
   const reset = useSubscriptionStore((s) => s.reset);
   const isFetchingRef = useRef(false);
@@ -43,6 +44,14 @@ export function useSubscriptionSync() {
     isFetchingRef.current = true;
     setLoading(true);
 
+    // ── P3 (Sep 2026): failure semantics ─────────────────────────
+    // 401               → genuinely unauthenticated → reset store.
+    // 403/5xx/network   → infrastructure/unavailable → markUnavailable()
+    //                     and KEEP the last-known-good plan. NEVER map a
+    //                     backend failure to plan "free" (that falsely
+    //                     stripped Pro/Elite users of their features).
+    let sawInfraFailure = false;
+
     try {
       // Fetch subscription current status
       try {
@@ -52,12 +61,13 @@ export function useSubscriptionSync() {
         syncFromBackend(subData);
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
-          // Not authenticated — reset store
+          // Not authenticated — reset store (correct: real logout state)
           reset();
           return;
         }
+        sawInfraFailure = true;
         // Other errors — log but don't block entitlements fetch
-        console.warn('[SubscriptionSync] Failed to fetch subscription status:', error);
+        console.warn('[SubscriptionSync] Failed to fetch subscription status (plan state preserved):', error);
       }
 
       // Fetch entitlements
@@ -71,15 +81,24 @@ export function useSubscriptionSync() {
           reset();
           return;
         }
-        console.warn('[SubscriptionSync] Failed to fetch entitlements:', error);
+        sawInfraFailure = true;
+        console.warn('[SubscriptionSync] Failed to fetch entitlements (entitlements preserved):', error);
+      }
+
+      // P3: only after BOTH fetch attempts resolved — if any failed with a
+      // non-401 error, mark the store "unavailable". currentPlan keeps its
+      // last-known-good value (loading/never-verified is NOT Free).
+      if (sawInfraFailure) {
+        markUnavailable();
       }
     } catch (error) {
       console.error('[SubscriptionSync] Unexpected error during sync:', error);
+      markUnavailable();
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [syncFromBackend, syncEntitlements, setLoading, reset]);
+  }, [syncFromBackend, syncEntitlements, setLoading, markUnavailable, reset]);
 
   // Initial sync on mount
   useEffect(() => {

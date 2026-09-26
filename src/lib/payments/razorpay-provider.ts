@@ -112,14 +112,14 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     return raw.length > 0 ? raw : ['INR'];
   }
 
-  canCheckout(_plan: 'pro' | 'elite', _cycle: BillingCycle): boolean {
+  canCheckout(_plan: 'pro' | 'elite' | 'starter', _cycle: BillingCycle): boolean {
     // Both one-time orders and subscriptions only need the API keys; the
     // plan/cycle distinction only changes WHICH checkout is used.
     return this.isConfigured();
   }
 
   /** True when this plan/cycle is mapped to a recurring Razorpay plan. */
-  isRecurring(plan: 'pro' | 'elite', cycle: BillingCycle): boolean {
+  isRecurring(plan: 'pro' | 'elite' | 'starter', cycle: BillingCycle): boolean {
     return !!getRazorpayPlanId(plan, cycle);
   }
 
@@ -130,7 +130,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
   async createCheckout(params: {
     userId: string;
     kind: PurchaseKind;
-    plan?: 'pro' | 'elite';
+    plan?: 'pro' | 'elite' | 'starter';
     billingCycle?: BillingCycle;
     creditAmount?: 100 | 500 | 1000;
     couponCode?: string;
@@ -159,7 +159,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
    */
   private async createSubscriptionCheckout(params: {
     userId: string;
-    plan?: 'pro' | 'elite';
+    plan?: 'pro' | 'elite' | 'starter';
     billingCycle?: BillingCycle;
     couponCode?: string;
     ipAddress?: string;
@@ -169,8 +169,12 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     const plan = params.plan;
     const billingCycle = params.billingCycle ?? 'monthly';
 
-    if (plan !== 'pro' && plan !== 'elite') {
-      return { success: false, gateway: 'razorpay', error: 'Invalid plan. Only Pro and Elite plans require payment.' };
+    // Final pricing/plan update (Sep 2026): Starter is a real paid plan and
+    // rides the SAME canonical Razorpay flow (recurring Subscription when
+    // RAZORPAY_PLAN_STARTER_{CYCLE} is configured, otherwise a one-time
+    // order via createPaymentOrder — identical to Pro/Elite semantics).
+    if (plan !== 'pro' && plan !== 'elite' && plan !== 'starter') {
+      return { success: false, gateway: 'razorpay', error: 'Invalid plan. Only Starter, Pro and Elite plans require payment.' };
     }
     if (billingCycle !== 'monthly' && billingCycle !== 'yearly') {
       return { success: false, gateway: 'razorpay', error: 'Invalid billing cycle.' };
@@ -264,7 +268,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
   /** Create a recurring Razorpay Subscription and a linked PaymentOrder. */
   private async createRazorpaySubscriptionOrder(params: {
     userId: string;
-    plan: 'pro' | 'elite';
+    plan: 'pro' | 'elite' | 'starter';
     billingCycle: BillingCycle;
     razorpayPlanId: string;
     couponCode?: string;
@@ -357,14 +361,14 @@ export class RazorpayPaymentProvider implements PaymentProvider {
    * Stripe credit add-on path but with server-computed amounts). */
   private async createCreditAddonOrder(params: {
     userId: string;
-    creditAmount?: 100 | 500 | 1000;
+    creditAmount?: 250 | 500 | 1000 | 2500;
     couponCode?: string;
     ipAddress?: string;
     userAgent?: string;
   }): Promise<CreateCheckoutResult> {
     const { userId, creditAmount } = params;
-    if (creditAmount !== 100 && creditAmount !== 500 && creditAmount !== 1000) {
-      return { success: false, gateway: 'razorpay', error: 'Invalid creditAmount. Must be 100, 500, or 1000.' };
+    if (creditAmount !== 250 && creditAmount !== 500 && creditAmount !== 1000 && creditAmount !== 2500) {
+      return { success: false, gateway: 'razorpay', error: 'Invalid creditAmount. Must be 250, 500, 1000, or 2500.' };
     }
 
     try {

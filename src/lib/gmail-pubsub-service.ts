@@ -259,7 +259,8 @@ export async function handlePubSubMessage(data: string): Promise<{
       historyId: string;
     };
 
-    console.log(`[GmailPubSub] Received notification for: ${message.emailAddress}, historyId: ${message.historyId}`);
+    // Mask PII (account email) in server logs; historyId is safe to log.
+    console.log(`[GmailPubSub] Received Gmail notification, historyId: ${message.historyId}`);
 
     // Find the EmailAccount by email
     const account = await db.emailAccount.findFirst({
@@ -267,7 +268,7 @@ export async function handlePubSubMessage(data: string): Promise<{
     });
 
     if (!account) {
-      console.warn(`[GmailPubSub] No active account found for: ${message.emailAddress}`);
+      console.warn(`[GmailPubSub] No active account matches notification`);
       return { success: false, error: 'Account not found or inactive' };
     }
 

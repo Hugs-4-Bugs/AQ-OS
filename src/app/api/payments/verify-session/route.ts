@@ -102,6 +102,22 @@ async function handleVerifySession(request: NextRequest, sessionId: string | nul
               // reward credits. Previously we only updated the order status,
               // which left the user without credits or plan activation.
               // ═══════════════════════════════════════════════════════════
+              // SECURITY HARDENING: amount consistency check (mirrors the
+              // webhook). If the paid session total doesn't match the order
+              // amount, refuse activation instead of granting the plan.
+              if (order.provider === 'stripe' && order.amount > 0 && session.amount_total) {
+                const paidMinor = session.amount_total;
+                const expectedMinor = Math.round(order.amount * 100);
+                if (Math.abs(paidMinor - expectedMinor) > 1) {
+                  console.error(
+                    `[VerifySession] Amount mismatch for order ${order.id}: expected ${expectedMinor}, session paid ${paidMinor}`
+                  );
+                  return NextResponse.json(
+                    { paid: true, orderStatus: 'pending', message: 'Payment amount does not match the order. Contact support.' },
+                    { status: 409 }
+                  );
+                }
+              }
               const providerPaymentId =
                 (session.payment_intent as string) ||
                 (session as unknown as { latest_charge?: string }).latest_charge ||
@@ -461,7 +477,8 @@ export async function POST(request: NextRequest) {
 function getCreditsForPlan(plan: string): number {
   const planCredits: Record<string, number> = {
     free: 50,
-    pro: 500,
+    starter: 150,
+    pro: 750,
     elite: 2000,
     enterprise: 10000,
   };

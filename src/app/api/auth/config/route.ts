@@ -3,26 +3,28 @@ import { NextResponse } from 'next/server';
 /**
  * Auth configuration endpoint.
  *
- * Returns which auth providers are available.
+ * Returns which auth providers are ACTUALLY configured at runtime.
  *
- * IMPORTANT: googleAvailable is PERMANENTLY true — Google OAuth credentials
- * are always configured in the Secrets panel. We no longer compute this from
- * env var existence checks because Aliyun FC may not load .env files on cold
- * starts, causing false "unavailable" states. The Google OAuth routes
- * (/api/auth/google, /api/auth/google/callback, /api/auth/callback/google)
- * still validate credentials at call time and will return proper errors if
- * truly missing.
+ * P7 FIX (Sep 2026, permanent): googleAvailable was previously HARDCODED
+ * to true. That misrepresentated runtime capability — after a workspace
+ * restore wiped GOOGLE_CLIENT_ID, the UI still showed the Google button
+ * and the click failed (or in older builds silently fell back to the
+ * simulated consent page). The boolean is now computed from REAL runtime
+ * credential presence. Only SAFE booleans are exposed — never values.
  *
- * CRITICAL: This route MUST NEVER crash. The frontend's fetch().catch()
- * handler sets googleAvailable=false when this endpoint fails, which
- * hides the Google Sign-In button. All imports that could fail (email,
- * nodemailer, etc.) are now lazy-loaded inside the handler with try/catch.
- *
- * PERMANENT — Do not make googleAvailable dynamic or computed from env vars.
+ * CRITICAL: This route MUST NEVER crash. All imports that could fail
+ * (email, nodemailer, etc.) are lazy-loaded inside the handler with
+ * try/catch.
  */
 export async function GET() {
-  // PERMANENT — Do not make this dynamic or computed
-  const googleAvailable = true;
+  // Honest runtime capability check (safe booleans only — no secret values).
+  const googleConfigured = !!(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+  // Legacy field name kept for existing consumers — now carries the HONEST
+  // value instead of a permanent true.
+  const googleAvailable = googleConfigured;
 
   // Lazy-load email config check — MUST NOT throw.
   // If the import fails (e.g. nodemailer not available on FC), we default
@@ -55,6 +57,7 @@ export async function GET() {
 
   return NextResponse.json({
     googleAvailable,
+    googleConfigured,
     emailConfigured,
   });
 }

@@ -71,12 +71,15 @@ export async function POST(request: Request) {
         webhookLogger.error('Webhook signature verification failed');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
       }
-    } else if (process.env.NODE_ENV === 'production') {
-      // In production, NEVER process webhooks without signature verification
-      webhookLogger.fatal('Webhook signature verification required in production — STRIPE_WEBHOOK_SECRET not configured');
-      return NextResponse.json({ error: 'Webhook verification not configured — rejected in production' }, { status: 500 });
+    } else if (process.env.NODE_ENV !== 'development') {
+      // SECURITY HARDENING: signature verification is mandatory for every
+      // non-development environment (production, staging, test, unset).
+      // Previously only NODE_ENV === 'production' was rejected, which let
+      // unsigned forged webhooks grant plans/credits on staging deploys.
+      webhookLogger.fatal('Webhook signature verification required outside development — STRIPE_WEBHOOK_SECRET not configured');
+      return NextResponse.json({ error: 'Webhook verification not configured — rejected' }, { status: 500 });
     } else {
-      // Dev mode only — parse directly without verification
+      // Local development only — parse directly without verification
       try {
         event = JSON.parse(body);
       } catch {

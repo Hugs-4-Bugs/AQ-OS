@@ -6,7 +6,7 @@
 
 AcquisitionOS is a **web-based, AI-powered client-acquisition operating system** for B2B service sellers. It wraps the entire acquisition lifecycle into one application: find prospective businesses on the open web, score them automatically, research them with AI, generate and send personalized outreach emails, detect and classify replies, orchestrate meetings (including scheduling follow-ups through Google Calendar), and track everything in a CRM-style pipeline with credits-based billing on top.
 
-The product is a single Next.js application (App Router) with a client-rendered dashboard SPA behind an auth gate, a large API surface (485 route files), and a 104-table Prisma database. It supports teams (organizations with roles), per-user integrations (Gmail, Google Calendar, Telegram, WhatsApp), and two payment providers (Stripe primary, Razorpay for Indian users with GST handling).
+The product is a single Next.js application (App Router) with a client-rendered dashboard SPA behind an auth gate, a large API surface (505 route files), and a 105-table Prisma database. It supports teams (organizations with roles), per-user integrations (Gmail, Google Calendar, Telegram, WhatsApp), and two payment providers (Stripe primary, Razorpay for Indian users with GST handling).
 
 ## The Problem It Solves
 

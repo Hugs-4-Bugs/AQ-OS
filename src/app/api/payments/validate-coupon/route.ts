@@ -9,6 +9,7 @@ import { validateAndApplyCoupon } from '@/lib/coupon-service';
 import { type PlanType } from '@/lib/entitlement-service';
 import { logBillingEvent } from '@/lib/billing-audit';
 import { getClientIp, getUserAgent } from '@/lib/auth';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 interface ValidateCouponBody {
   code: string;
@@ -17,6 +18,11 @@ interface ValidateCouponBody {
 }
 
 export async function POST(request: NextRequest) {
+  // SECURITY HARDENING: rate limit — coupon codes were brute-forceable
+  // via distinct error messages. Per-IP auth limits + generic errors.
+  const rateLimitResult = withRateLimit(request, 'auth');
+  if (rateLimitResult) return rateLimitResult;
+
   return withAuth(request, async (user) => {
     try {
       const body = (await request.json()) as ValidateCouponBody;

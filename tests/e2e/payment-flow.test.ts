@@ -113,7 +113,7 @@ describe('E2E: Payment Flow', () => {
     });
 
     it('should update credit balance to plan allocation', () => {
-      // Free: 50 credits, Pro: 500 credits, Elite: 2000 credits
+      // Free: 50 credits, Starter: 150 credits, Pro: 750 credits, Elite: 2000 credits
       // Verify credit balance matches plan allocation
       // Verify ledger entry for plan upgrade
     });

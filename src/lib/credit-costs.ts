@@ -12,9 +12,10 @@
 //   Messaging           = 0.2 credits
 //
 // Plan allocations (from entitlement-service.ts):
-//   Free  = 50 credits/month  → ~50 lead searches, ~33 deep analyses, ~250 messages
-//   Pro   = 500 credits/month → ~500 lead searches, ~333 deep analyses, ~2500 messages
-//   Elite = 2000 credits/month → ~2000 lead searches, ~1333 deep analyses, ~10000 messages
+//   Free    = 50 credits/month  → ~50 lead searches, ~33 deep analyses, ~250 messages
+//   Starter = 150 credits/month → ~150 lead searches, ~100 deep analyses, ~750 messages
+//   Pro     = 750 credits/month → ~750 lead searches, ~500 deep analyses, ~3750 messages
+//   Elite   = 2000 credits/month → ~2000 lead searches, ~1333 deep analyses, ~10000 messages
 // ═══════════════════════════════════════════════════════════════════
 
 // ===== Core Credit Actions =====
@@ -104,11 +105,12 @@ export const WORKFLOW_ACTION_CREDIT_COSTS: Record<WorkflowActionType, number> = 
 
 // ===== Plan Credit Allocations =====
 
-export type PlanType = 'free' | 'pro' | 'elite';
+export type PlanType = 'free' | 'starter' | 'pro' | 'elite';
 
 export const PLAN_CREDITS: Record<PlanType, number> = {
   free: 50,
-  pro: 500,
+  starter: 150,
+  pro: 750,
   elite: 2000,
 };
 

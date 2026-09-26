@@ -212,14 +212,16 @@ export interface RazorpayWebhookEvent {
 
 const PLAN_PRICING_INR: Record<PlanType, { monthly: number; yearly: number }> = {
   free: { monthly: 0, yearly: 0 },
-  pro: { monthly: 2900, yearly: 27900 },    // ₹29/₹279 in paise
-  elite: { monthly: 8900, yearly: 84900 },   // ₹89/₹849 in paise
+  starter: { monthly: 39900, yearly: 499900 },   // ₹399/₹4,999 in paise
+  pro: { monthly: 159900, yearly: 1499900 },     // ₹1,599/₹14,999 in paise
+  elite: { monthly: 519900, yearly: 4499900 },   // ₹5,199/₹44,999 in paise
 };
 
 const PLAN_PRICING_USD: Record<PlanType, { monthly: number; yearly: number }> = {
   free: { monthly: 0, yearly: 0 },
-  pro: { monthly: 2900, yearly: 27900 },     // $29/$279 in cents
-  elite: { monthly: 8900, yearly: 84900 },   // $89/$849 in cents
+  starter: { monthly: 500, yearly: 6000 },       // $5/$60 in cents
+  pro: { monthly: 1900, yearly: 18000 },         // $19/$180 in cents
+  elite: { monthly: 6300, yearly: 54000 },       // $63/$540 in cents
 };
 
 /**

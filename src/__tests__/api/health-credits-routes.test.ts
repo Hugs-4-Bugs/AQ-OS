@@ -109,7 +109,7 @@ vi.mock('@/lib/billing-audit', () => ({
 
 
 vi.mock('@/lib/entitlement-service', () => ({
-  PLAN_CREDITS: { free: 50, pro: 500, elite: 2000 },
+  PLAN_CREDITS: { free: 50, starter: 150, pro: 750, elite: 2000 },
   getEntitlements: vi.fn().mockReturnValue({
     lead_discovery: { limit: null, enabled: true },
     deep_analysis: { limit: null, enabled: false },

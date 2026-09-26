@@ -16,7 +16,8 @@ Complete documentation for **AcquisitionOS**, an AI-powered client-acquisition p
 | Document | Description |
 |---|---|
 | [SYSTEM-ARCHITECTURE.md](02-architecture/SYSTEM-ARCHITECTURE.md) | End-to-end architecture: App Router layout, auth flow, SMTP flow, Google OAuth flow, Stripe payment flow, discovery pipeline, meeting orchestration, AI provider chain, notification fan-out. |
-| [DATABASE-SCHEMA.md](02-architecture/DATABASE-SCHEMA.md) | All **104 Prisma models** — every field with type, defaults, relations, indexes, and the model's purpose. Generated directly from `prisma/schema.prisma`. |
+| [DATABASE-SCHEMA.md](02-architecture/DATABASE-SCHEMA.md) | All **105 Prisma models** — every field with type, defaults, relations, indexes, and the model's purpose. Generated directly from `prisma/schema.prisma`. |
+| [ARCHITECTURE-DIAGRAM.md](02-architecture/ARCHITECTURE-DIAGRAM.md) | Verified current architecture diagram (Mermaid) — every node traced to code; documents what is deliberately absent (no queues, no microservices). Added 2026-09-21. |
 | [FILE-STRUCTURE.md](02-architecture/FILE-STRUCTURE.md) | Annotated directory tree: `src/app`, `src/lib`, `src/components`, `src/hooks`, `prisma`, `public`. |
 
 ### 03-setup-and-deployment
@@ -45,7 +46,7 @@ Complete documentation for **AcquisitionOS**, an AI-powered client-acquisition p
 ### 06-api-reference
 | Document | Description |
 |---|---|
-| [API-ROUTES.md](06-api-reference/API-ROUTES.md) | **All 485 API routes** with methods, auth requirement and description, grouped by feature category. Generated from `src/app/api/`. |
+| [API-ROUTES.md](06-api-reference/API-ROUTES.md) | **All 505 API routes** with methods, auth requirement and description, grouped by feature category. Generated from `src/app/api/`. |
 
 ### 07-workflows
 | Document | Description |
@@ -85,7 +86,7 @@ Older, ad-hoc documents from earlier development sessions were moved to `[_legac
 
 ## Source of truth
 
-- Database: `prisma/schema.prisma` (104 models — see `DATABASE-SCHEMA.md`)
-- API surface: `src/app/api/**/route.ts` (485 routes — see `API-ROUTES.md`)
+- Database: `prisma/schema.prisma` (105 models — see `DATABASE-SCHEMA.md`)
+- API surface: `src/app/api/**/route.ts` (505 routes — see `API-ROUTES.md`)
 - Environment variables: `ensure-env.sh` template + `src/lib/env-validation.ts` (see `ALL-SECRETS.md`)
 - Dependencies/versions: `package.json` (see `PRODUCT-OVERVIEW.md`)
