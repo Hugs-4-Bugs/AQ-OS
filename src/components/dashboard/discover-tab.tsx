@@ -29,6 +29,8 @@ import {
   SlidersHorizontal,
   Users,
   ShieldCheck,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -165,7 +167,13 @@ interface ParsedIntent {
   location: string;
   country: string;
   city: string;
-  count: number;
+  /**
+   * Explicitly requested lead count, or null when the user did not state
+   * one. Mirrors the parser contract: no invented default — the job then
+   * runs until the provider/data limits are exhausted instead of stopping
+   * at 20.
+   */
+  count: number | null;
   requirements: string;
   /** Structured HARD criteria — enforced server-side after discovery. */
   criteria?: {
@@ -478,6 +486,45 @@ function DiscoveredLeadCard({
             {[lead.city, lead.country].filter(Boolean).join(', ') || 'Unknown location'}
           </div>
 
+          {/* CONTACT AVAILABILITY — honest, per-field badges from REAL stored
+              data only. A lead without an email is never discarded: it stays
+              fully usable for phone-based or manual follow-up. Nothing here
+              is inferred or fabricated: a channel is shown ONLY when the
+              corresponding field was actually returned by the source.
+              verificationStatus distinguishes verified from unverified
+              contact details (single-source listings are unverified). */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {lead.email ? (
+              <Badge variant="outline" className="text-[10px] gap-1 bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400">
+                <Mail className="h-3 w-3" /> Email
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+                <XCircle className="h-3 w-3" /> No email
+              </Badge>
+            )}
+            {lead.phone && (
+              <Badge variant="outline" className="text-[10px] gap-1 bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400">
+                <Phone className="h-3 w-3" /> Phone
+              </Badge>
+            )}
+            {lead.website && (
+              <Badge variant="outline" className="text-[10px] gap-1 bg-violet-500/10 border-violet-500/25 text-violet-600 dark:text-violet-400">
+                <Globe className="h-3 w-3" /> Website
+              </Badge>
+            )}
+            {(!lead.email && !lead.phone) && (
+              <span className="text-[10px] text-muted-foreground">
+                Manual / research follow-up required
+              </span>
+            )}
+            {lead.verificationStatus === 'unverified' && (
+              <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+                <AlertCircle className="h-3 w-3" /> Unverified
+              </Badge>
+            )}
+          </div>
+
           {/* ACTUAL employee data from the provider — never the requested range.
               A range (e.g. "51-100") is shown honestly as a provider range. */}
           {(typeof lead.employeeCount === 'number' || lead.employeeRange) && (
@@ -751,7 +798,7 @@ export default function DiscoverTab() {
 
   // Credit-cost estimate shown in the "All Sources" confirmation
   const allSourcesCreditsEstimate = (() => {
-    const explicitCount = searchMode === 'ai' && parsedIntent ? parsedIntent.count : 0;
+    const explicitCount = searchMode === 'ai' && parsedIntent ? parsedIntent.count ?? 0 : 0;
     const perSource = explicitCount > 0 ? Math.max(5, Math.ceil(explicitCount / ALL_SOURCES_COUNT)) : 10;
     return ALL_SOURCES_COUNT * perSource;
   })();
@@ -769,7 +816,7 @@ export default function DiscoverTab() {
       // Honest verified-matches notice: when the user asked for N companies
       // and hard-filter enforcement returned fewer, say so explicitly —
       // the remaining slots are NEVER filled with loosely-related companies.
-      const requested = searchMode === 'ai' ? parsedIntent?.count : undefined;
+      const requested = searchMode === 'ai' ? parsedIntent?.count ?? undefined : undefined;
       if (requested && completedJob.leadsAdded < requested) {
         setHonestMatchNotice(
           `${completedJob.leadsAdded} verified match${completedJob.leadsAdded === 1 ? '' : 'es'} found. We couldn't verify additional companies that meet all your criteria.`
@@ -1128,7 +1175,7 @@ export default function DiscoverTab() {
                         <span className="text-xs font-medium text-muted-foreground">Searching for:</span>
                         <Badge variant="outline" className="bg-primary/10 border-primary/25 gap-1">
                           <Search className="h-3 w-3" />
-                          {parsedIntent.count} {parsedIntent.niche} in {parsedIntent.location}
+                          {parsedIntent.count != null ? `${parsedIntent.count} ` : ''}{parsedIntent.niche} in {parsedIntent.location}
                         </Badge>
                         {parsedIntent.requirements && (
                           <>
@@ -1159,8 +1206,7 @@ export default function DiscoverTab() {
                       )}
                       {parsedIntent.criteria && (parsedIntent.criteria.employeeMin != null || parsedIntent.criteria.employeeMax != null || parsedIntent.criteria.exactEmployeeCount != null) && (
                         <p className="text-[11px] text-muted-foreground">
-                          Only companies whose employee count can be verified within this range will be returned — if fewer
-                          than {parsedIntent.count} verified matches exist, you'll see the honest count.
+                          Only companies whose employee count can be verified within this range will be returned — if fewer verified matches exist than you asked for, you'll see the honest count.
                         </p>
                       )}
                       <div className="flex flex-wrap gap-2">
@@ -1173,7 +1219,7 @@ export default function DiscoverTab() {
                               country: parsedIntent.country,
                               city: parsedIntent.city || undefined,
                               source,
-                              maxResults: parsedIntent.count,
+                              maxResults: parsedIntent.count ?? undefined,
                               requirements: parsedIntent.requirements || undefined,
                               criteria: parsedIntent.criteria,
                             });

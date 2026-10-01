@@ -659,3 +659,107 @@ Work Log:
 Stage Summary:
 - All 8 spec phases implemented with forward-only additive changes; DB diff verified additive before push; no resets, no billing changes, no existing data modified (only additive columns + new rows created by the controlled E2E on disposable fixture accounts).
 - Remaining disclosures (§20.12/14): source credentials absent for Google Maps/Yelp/Facebook/Instagram/LinkedIn/JustDial/IndiaMART — those sources honestly report not_configured (registry-accurate); Yellow Pages/Sulekha geographic coverage limited by design and now labeled; z-ai web_search has no server-side page param so AI-search volume scales via query expansion (≤10 queries) rather than deep pagination; export cap 20000 default (env EXPORT_MAX_ROWS); starter-plan lead count semantics follow the existing lifetime-count convention (getFeatureUsage unchanged — disclosed, not silently changed); plan-value drift in DB ('PRO' uppercase row) predates this task and is untouched.
+
+---
+Task ID: lead-discovery-pipeline-fix-1
+Agent: Super Z (main agent)
+Task: STRICT Lead Discovery, Persistence & Pipeline Fix — 4 issues: (1) discovery
+capped at ~20 leads, (2) discovered leads not appearing in Leads page, (3)
+"Add to Pipeline" always failing, (4) leads without email handling. Forward-only
+minimal changes; no DB resets; no unrelated refactors; everything tested.
+
+Work Log:
+- DIAGNOSIS (code + read-only DB forensics + live probes, zero data changes):
+  * ISSUE 1 (20-cap): AI-chat intent parser fabricated `count: 20` when the user
+    stated no number (prompt default + normalizeParsed + fallbackParse) →
+    maxResults=20 → extraction prompt capped at 20 + query loop breaks at budget.
+    Filter-mode worldwide runs targeted 200 correctly. Secondary volume limit:
+    z-ai web_search returns max 10 results/query (num ignored — verified live);
+    niches typed as synonym-values ("dentist", "restaurants") expanded to ZERO
+    variants (forward-only synonym map) leaving only 4 base queries ≤ ~40 raw.
+  * ISSUE 2 (not persisted): sanitizeDiscoveredLeads discarded ANY candidate with
+    no own location; for worldwide runs (country omitted) params.city/country are
+    undefined, so candidates legitimately lack location → EVERY extracted result
+    silently dropped → job "completed" with totalFound=0, imported=0,
+    filteredOut=0 (drop invisible). DB proof: operator's Oct 1 jobs (dentist,
+    hospital, country='') imported 0 in ~12s while Sep 27 UAE/Dubai runs imported
+    fine. Location-scoped searches were never affected (params always satisfied
+    hasLocation).
+  * ISSUE 3 (Add to Pipeline): client updateLead() issues PATCH /api/leads/[id];
+    route implemented only GET/PUT/DELETE → Next.js 405 Method Not Allowed on
+    EVERY click. Proven live pre-fix: PATCH→405, PUT→200 with identical auth.
+  * ISSUE 4 (no-email leads): retention already correct (no email requirement in
+    extraction/sanitize/import; DB holds such leads). Gap: no contact-availability
+    surfacing on the Discover card.
+- FIX 1+2 (src/lib/lead-discovery-service.ts): removed the silent worldwide drop
+  in sanitizeDiscoveredLeads (name validation + dedupe retained); added reverse
+  synonym lookup in nicheVariants ("dentist"→dental family, ≤3 like forward);
+  exports of pure helpers + processDiscoveryJob for tests; pacer interval
+  env-overridable (DISCOVERY_ZAI_MIN_INTERVAL_MS, default 4000 unchanged).
+- FIX 1 parser (src/app/api/discovery/parse-intent/route.ts): count is now
+  `number | null` — null when the user states no number (prompt + example +
+  normalizeParsed + fallbackParse + count-strip regex guard); explicit counts
+  still clamped 1..100. UI sends maxResults only for explicit counts →
+  unspecified runs target RESULTS_PER_JOB (200) and stop at budget/data limits.
+- FIX 1 UI + FIX 4 (src/components/dashboard/discover-tab.tsx): ParsedIntent.count
+  nullable end-to-end (chip, honest-match notice, credit estimate, maxResults);
+  Discover card gained honest contact-availability badges (Email / No email /
+  Phone / Website / "Manual / research follow-up required" / Unverified) built
+  ONLY from stored fields — nothing inferred, no channel claims.
+- FIX 3 (src/app/api/leads/[id]/route.ts): PATCH delegates to the PUT handler
+  (one code path: validation, ownership, audit); added actionable stage
+  validation (unknown stage → 400 INVALID_STAGE listing valid stages, was a raw
+  Prisma 500). Stage updates are inherently idempotent (scalar).
+- FIX (src/app/api/leads/route.ts): POST /api/leads passed `tags: null` for
+  tag-less payloads but schema has had `tags String @default("[]")` (required)
+  since the initial commit → PrismaClientValidationError → 500 on every manual
+  UI-less/API lead creation (UI masked it by always sending tags). Fixed to
+  `undefined` so the schema default applies. Found while E2E-probing.
+- ENVIRONMENT REPAIR (no codebase/DB change): regenerated Prisma client
+  (npx prisma generate) — the running app's client predated today's schema in
+  some input validations and produced misleading "Unknown argument userId"
+  union errors for the required-null payload above; regeneration verified with
+  standalone create probes. DB untouched (no push/migrate).
+- TESTS: NEW tests/unit/discovery-volume-persistence.test.ts (14) — provider-
+  accurate mocks (10 results/query): >20 imports across the full expanded query
+  set (100 imports), budget respected (25), worldwide candidates persisted
+  (regression), email-only/phone-only/contact-less retained with provenance +
+  verificationStatus, duplicates counted honestly without charging, reverse-
+  synonym expansion, query cap ≤10. NEW tests/unit/lead-patch-add-to-pipeline.test.ts
+  (7) — PATCH=PUT success + audit, idempotent repeats, INVALID_STAGE 400,
+  404 unknown, 403 foreign owner, 401/403 unauthenticated, PUT≡PATCH parity.
+  Both suites 21/21 green. Adjacent suites (hard-criteria/countries/credits/
+  verification/export) 109/109. FULL suite: 1077 passed / 30 failed — failing
+  files EXACTLY the documented pre-existing env-dependent baseline
+  (auth/JWT/SMTP/credits/onboarding), zero new. ESLint: 0 problems on all
+  changed/new files. Full tsc --noEmit OOMs on this box while the dev server
+  holds ~2.6GB (exit 134/137 at 1.5-2.2GB heap) — noted honestly; Next dev
+  compile + runtime E2E cover the changed routes.
+- LIVE E2E (fixture qa@test.com, signed token; all created rows deleted after;
+  credit deductions by normal app rules disclosed): PATCH add-to-pipeline
+  200 → stage persisted 'analyzed' → repeated PATCH idempotent → invalid stage
+  400 INVALID_STAGE → 404/403/401-403 blocked; parse-intent count=null
+  ("Find dentists in Mumbai") / 30 ("Find 30 gyms in Dubai"); WORLDWIDE ai_search
+  run (no country, maxResults=30): completed with totalFound=26, imported=26,
+  duplicates=0, failed=0 — 26 new leads queryable from GET /api/leads
+  (refresh-stable), 24 without email / 23 with no contact at all retained;
+  CreditsLedger: exactly 26 × -1 entries referencing the job, balance 50→24
+  arithmetic consistent (idempotency keys prevent double-charge); cleanup
+  removed all 27 probe rows (26 discovery + 1 API probe). Status endpoint
+  /api/discovery/status returns honest per-field counts.
+- Commits: see git log (single fix commit + worklog).
+
+Stage Summary:
+- Root causes: parser-fabricated count=20 cap; sanitize silently destroying ALL
+  worldwide candidates (the actual "results don't appear in Leads page" bug);
+  missing PATCH route (405) for Add to Pipeline; no-email handling was already
+  correct — surfaced honestly on the card instead. Bonus fix: tags:null 500 on
+  manual lead creation (required-since-day-one schema default violated).
+- No DB/schema changes; no billing/plan/credit-rule changes; no unrelated
+  refactors; no fabricated data anywhere (badges derive from stored fields only).
+- Remaining provider limits (disclosed, respected): web_search returns ≤10
+  results/query (no server-side pagination) — ai_search volume scales via ≤10
+  expanded queries per job (reverse synonyms now included); configured API
+  sources (Maps/Yelp/LinkedIn/etc.) keep their own plan/pagination behavior
+  unchanged. WhatsApp/SMS outreach is NOT claimed operational anywhere — card
+  shows factual field availability only.

@@ -28,7 +28,15 @@ export interface ParsedDiscoveryIntent {
   location: string;
   country: string;
   city: string;
-  count: number;
+  /**
+   * How many leads the user EXPLICITLY requested, or null when they did
+   * not specify a number. The old hard default of 20 silently capped every
+   * unspecified AI-chat discovery at ~20 results even when the plan, the
+   * providers and the user's intent allowed more. When null, the discovery
+   * job targets the service default (RESULTS_PER_JOB) and stops only when
+   * the data/provider limits are exhausted.
+   */
+  count: number | null;
   requirements: string;
   /** Structured HARD criteria — enforced server-side after discovery. */
   criteria: {
@@ -50,7 +58,7 @@ Return ONLY a JSON object (no markdown, no explanation) with these fields:
 - location: the city and/or country to search in, as written (e.g. "Dubai", "Mumbai, India").
 - country: the country name only (e.g. "UAE", "India", "USA"). If unclear, use the location.
 - city: the city name only, or empty string "" if only a country is given.
-- count: how many leads are requested (integer, 1-100). Default 20 if not specified.
+- count: how many leads are requested (integer, 1-100) ONLY when the user explicitly stated a number. If the user did not state a number, return null — never invent a default.
 - requirements: any specific qualifying requirements mentioned (e.g. "no website", "poor social media presence", "low Google rating"). Empty string "" if none.
 - employeeMin: if an explicit employee-count RANGE is mentioned (e.g. "20 to 200 employees", "between 50 and 100 employees"), the INCLUSIVE lower bound as an integer. Otherwise null.
 - employeeMax: if an explicit employee-count RANGE is mentioned, the INCLUSIVE upper bound as an integer. Otherwise null.
@@ -70,13 +78,17 @@ Examples:
 → {"niche":"dentists","location":"Mumbai","country":"India","city":"Mumbai","count":15,"requirements":"","employeeMin":null,"employeeMax":null,"exactEmployeeCount":null,"website":"any","excludeTypes":[],"growthSignals":false,"hiringSignals":false}
 
 "Find 20 B2B SaaS companies in the United States with 20 to 200 employees that are actively growing and have a professional website. Exclude agencies, freelancers, consultants."
-→ {"niche":"b2b saas","location":"United States","country":"USA","city":"","count":20,"requirements":"actively growing, professional website, founder/CEO/Head of Sales involved in acquiring customers","employeeMin":20,"employeeMax":200,"exactEmployeeCount":null,"website":"required","excludeTypes":["agency","freelancer","consultant"],"growthSignals":true,"hiringSignals":false}`;
+→ {"niche":"b2b saas","location":"United States","country":"USA","city":"","count":20,"requirements":"actively growing, professional website, founder/CEO/Head of Sales involved in acquiring customers","employeeMin":20,"employeeMax":200,"exactEmployeeCount":null,"website":"required","excludeTypes":["agency","freelancer","consultant"],"growthSignals":true,"hiringSignals":false}
+
+"Find dentists in Mumbai"
+→ {"niche":"dentists","location":"Mumbai","country":"India","city":"Mumbai","count":null,"requirements":"","employeeMin":null,"employeeMax":null,"exactEmployeeCount":null,"website":"any","excludeTypes":[],"growthSignals":false,"hiringSignals":false}`;
 
 // Lightweight regex fallback used only if the LLM call fails entirely.
 function fallbackParse(query: string): ParsedDiscoveryIntent {
   const trimmed = query.trim();
   const countMatch = trimmed.match(/\b(\d{1,3})\b/);
-  const count = countMatch ? Math.min(Math.max(parseInt(countMatch[1], 10), 1), 100) : 20;
+  // No number stated → null (no fabricated default cap).
+  const count = countMatch ? Math.min(Math.max(parseInt(countMatch[1], 10), 1), 100) : null;
 
   const locationMatch =
     trimmed.match(/\bin\s+([A-Z][\w\s,-]+?)(?:\s+with\b|\s+that\b|,|$)/i) ||
@@ -91,7 +103,8 @@ function fallbackParse(query: string): ParsedDiscoveryIntent {
   if (location) niche = niche.replace(new RegExp(`\\b(in|around|near)\\s+${location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'), '');
   niche = niche
     .replace(/^.*?\b(find|get|search(?:\s+for)?|look\s+for|show\s+me|i\s+need)\b/i, '')
-    .replace(new RegExp(`\\b${count}\\b`), '')
+    // Strip the requested count from the niche text (only when one was stated).
+    .replace(count !== null ? new RegExp(`\\b${count}\\b`) : /$^/, '')
     .replace(/\bwith\s+.+$/i, '')
     .trim();
 
@@ -121,7 +134,7 @@ function toCriteriaShape(c: HardCriteria): ParsedDiscoveryIntent['criteria'] {
 
 function normalizeParsed(raw: Record<string, unknown>, originalQuery: string): ParsedDiscoveryIntent {
   const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
-  const countRaw = Number(raw.count);
+  const countRaw = raw.count === null || raw.count === undefined || raw.count === '' ? null : Number(raw.count);
   const niche = str(raw.niche);
   const location = str(raw.location);
 
@@ -159,7 +172,7 @@ function normalizeParsed(raw: Record<string, unknown>, originalQuery: string): P
       location: location || fb.location,
       country: str(raw.country) || fb.country,
       city: str(raw.city) || fb.city,
-      count: Number.isFinite(countRaw) && countRaw > 0 ? Math.min(Math.max(Math.floor(countRaw), 1), 100) : fb.count,
+      count: countRaw !== null && Number.isFinite(countRaw) && countRaw > 0 ? Math.min(Math.max(Math.floor(countRaw), 1), 100) : fb.count,
       requirements: str(raw.requirements) || fb.requirements,
       criteria,
     };
@@ -169,7 +182,7 @@ function normalizeParsed(raw: Record<string, unknown>, originalQuery: string): P
     location,
     country: str(raw.country) || location,
     city: str(raw.city),
-    count: Number.isFinite(countRaw) && countRaw > 0 ? Math.min(Math.max(Math.floor(countRaw), 1), 100) : 20,
+    count: countRaw !== null && Number.isFinite(countRaw) && countRaw > 0 ? Math.min(Math.max(Math.floor(countRaw), 1), 100) : null,
     requirements: str(raw.requirements),
     criteria,
   };

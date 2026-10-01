@@ -164,7 +164,7 @@ export const POST = withMonitoring(async (request: NextRequest) => {
         outreachStyle: body.outreachStyle?.trim() || null,
         source: body.source?.trim() || null,
         notes: body.notes?.trim() || null,
-        tags: body.tags ? (typeof body.tags === 'string' ? body.tags : JSON.stringify(body.tags)) : null,
+        tags: body.tags ? (typeof body.tags === 'string' ? body.tags : JSON.stringify(body.tags)) : undefined,
         replyScore: body.replyScore ?? 0,
         conversionScore: body.conversionScore ?? 0,
         urgencyScore: body.urgencyScore ?? 0,

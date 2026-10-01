@@ -145,7 +145,9 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // SDK calls across all jobs share one pacer: minimum spacing between calls
 // + retry-with-backoff on 429. This turns burst-failures into slow-but-
 // reliable jobs instead of silently-empty extractions.
-const ZAI_MIN_INTERVAL_MS = 4000;
+// (Env-overridable for unit tests: DISCOVERY_ZAI_MIN_INTERVAL_MS=0 removes
+// pacing in mocked-provider tests. Production default is unchanged at 4s.)
+const ZAI_MIN_INTERVAL_MS = parseInt(process.env.DISCOVERY_ZAI_MIN_INTERVAL_MS || '4000', 10);
 const ZAI_RETRY_BACKOFFS_MS = [8000, 15000, 25000];
 let lastZaiCallAt = 0;
 
@@ -380,7 +382,7 @@ export async function listDiscoveryJobs(
  * Process a discovery job in the background.
  * Uses z-ai-web-dev-sdk for web search + LLM extraction.
  */
-async function processDiscoveryJob(
+export async function processDiscoveryJob(
   jobId: string,
   userId: string,
   params: DiscoveryParams,
@@ -779,11 +781,20 @@ async function discoverFromSource(
 /**
  * Universal lead validation (applies to EVERY source, including AI search):
  *   1. A lead without a business name is discarded.
- *   2. A lead without any location information (its own, or the search's)
- *      is discarded — every returned lead has at least name + location.
- *   3. Per-source duplicates are removed.
+ *   2. Per-source duplicates are removed.
+ *
+ * NOTE — location is intentionally NOT a rejection criterion. The previous
+ * rule ("a lead without any location information — its own, or the
+ * search's — is discarded") could only ever fire on WORLDWIDE searches:
+ * when the search itself had a location, `params.city`/`params.country`
+ * made every candidate pass. On worldwide runs (no country/city selected)
+ * candidates legitimately carry no location, so the rule silently
+ * discarded ALL extracted results — the job then "completed" with
+ * totalFound=0 and nothing persisted to the Leads page. Worldwide
+ * candidates are now retained; location is displayed as "Unknown
+ * location" when absent (matches the Leads UI).
  */
-function sanitizeDiscoveredLeads(
+export function sanitizeDiscoveredLeads(
   leads: DiscoveredLead[],
   params: DiscoveryParams,
   maxResults: number
@@ -794,11 +805,6 @@ function sanitizeDiscoveredLeads(
   for (const lead of leads) {
     const name = (lead.businessName || '').trim();
     if (!name || name.length < 2) continue;
-
-    const hasLocation = Boolean(
-      lead.city || lead.country || lead.address || params.city || params.country
-    );
-    if (!hasLocation) continue;
 
     const key = `${name.toLowerCase()}|${(lead.phone || lead.website || lead.city || '').toLowerCase()}`;
     if (seen.has(key)) continue;
@@ -1245,13 +1251,29 @@ const NICHE_SYNONYMS: Record<string, string[]> = {
 /**
  * Expand a niche into synonymous/commercial variants, preserving intent.
  * Returns at most 3 synonyms, only when known — no generic padding.
+ *
+ * REVERSE LOOKUP: the map is keyed by the canonical niche ("dental"), but
+ * users type the variant ("dentist"). When the requested niche matches one
+ * of the map's synonym VALUES, its key and sibling synonyms are returned —
+ * otherwise niches like "dentist" or "restaurants" (a value of "restaurant")
+ * expand to nothing and the job runs with only the 4 base queries, capping
+ * real volume at ~40 raw results (the provider returns 10 per query).
  */
 function nicheVariants(niche: string): string[] {
   const key = niche.toLowerCase().trim();
-  return NICHE_SYNONYMS[key] ?? [];
+  if (NICHE_SYNONYMS[key]) return NICHE_SYNONYMS[key];
+  for (const [canonical, variants] of Object.entries(NICHE_SYNONYMS)) {
+    if (variants.includes(key)) {
+      // Siblings first (same industry, different phrasing), then the
+      // canonical key itself — bounded to 3 like the forward lookup.
+      const siblings = variants.filter((v) => v !== key);
+      return [...siblings, canonical].slice(0, 3);
+    }
+  }
+  return [];
 }
 
-function buildSearchQueries(params: DiscoveryParams): string[] {
+export function buildSearchQueries(params: DiscoveryParams): string[] {
   const { niche, country, city, source } = params;
   // Worldwide-safe location string (spec §5): pieces that exist are joined;
   // when neither is provided the queries run location-free.

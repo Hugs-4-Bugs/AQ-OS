@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — GET/PUT/DELETE /api/leads/[id]
+// AcquisitionOS — GET/PUT/PATCH/DELETE /api/leads/[id]
 // Phase 7: Full lead details, update, soft delete
 // ═══════════════════════════════════════════════════════════════════
 
@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { logAuditEvent } from '@/lib/lead-audit';
+import { STAGE_ORDER, type LeadStage } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -113,6 +114,21 @@ export async function PUT(
         }
       }
 
+      // Actionable stage validation: an unknown stage previously reached
+      // Prisma and surfaced as a raw 500. Return a clear 400 instead.
+      if (updateData.stage !== undefined && updateData.stage !== null) {
+        const stageVal = String(updateData.stage);
+        if (!STAGE_ORDER.includes(stageVal as LeadStage)) {
+          return NextResponse.json(
+            {
+              error: `Invalid stage "${stageVal}". Valid stages: ${STAGE_ORDER.join(', ')}`,
+              code: 'INVALID_STAGE',
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       // Handle rating separately (numeric)
       if (body.rating !== undefined) {
         updateData.rating = typeof body.rating === 'number' ? Math.min(5, Math.max(0, body.rating)) : null;
@@ -149,6 +165,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update lead' }, { status: 500 });
     }
   });
+}
+
+// PATCH ≡ PUT — the client's updateLead() (used by "Add to Pipeline" on the
+// Discover tab and the stage dropdowns on the Leads page) issues PATCH, but
+// this route previously implemented only GET/PUT/DELETE. Every PATCH hit a
+// Next.js 405 Method Not Allowed, so adding a discovered lead to the
+// pipeline ALWAYS failed with "Failed to add lead to pipeline". Delegating
+// PATCH to the same handler keeps one code path for validation, ownership
+// checks, and audit logging.
+export async function PATCH(
+  request: NextRequest,
+  routeContext: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, routeContext);
 }
 
 export async function DELETE(
