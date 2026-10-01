@@ -763,3 +763,131 @@ Stage Summary:
   sources (Maps/Yelp/LinkedIn/etc.) keep their own plan/pagination behavior
   unchanged. WhatsApp/SMS outreach is NOT claimed operational anywhere — card
   shows factual field availability only.
+
+---
+Task ID: UX-FIX-1
+Agent: Super Z (main agent)
+Task: 8 targeted UI/UX + functionality fixes on AcquisitionOS main: (1) clickable
+dashboard/Insights metric cards with real detail views, (2) AI outreach signature
+from authenticated user profile, (3) remove duplicate bottom-left sidebar
+Notifications/Credits widgets, (4) mobile responsiveness, (5) onboarding
+basic-details form contrast, (6) Sales Assistant Markdown rendering, (7) Sales
+Coach layout, (8) accuracy/regression checks. Forward-only, no DB changes.
+
+Work Log:
+- DIAGNOSIS (code + live DB reads, zero data changes):
+  * T1: StatCard/EnhancedStatCard static; compound metrics (Contacted=stage in
+    contacted..negotiation incl. legacy 'interested', Hot=replyScore>70) not
+    reproducible via Leads tab single-stage filter; Lead.stage is a String
+    column (legacy 'interested' rows possible) — verified in schema.
+  * T2: outreach-generation/followup-generation prompts carried NO sender
+    identity → model invented "[Your Name]"; User has name/email/phone/company;
+    company resolution mirrors GET /api/settings/profile
+    (UserSettings.companyName → org name → legacy User.company).
+  * T3: desktop sidebar duplicated CreditDisplay + NotificationCenter that
+    already exist in desktop topbar AND mobile header.
+  * T5: onboarding modal used .glass-card = oklch(1 0 0 / 0.06) (6% alpha) over
+    bg-black/60 overlay → near-invisible form.
+  * T6: assistant-tab rendered msg.content as plain text (default mode) and a
+    line-parser that ignores **bold** (coach mode); react-markdown v10 already
+    a dep (Outreach/Deals use it).
+  * T7: inline lead-context card rendered on desktop IN ADDITION to the w-72
+    right panel; coach banner + probability stack above the flex-1 chat.
+- FIX T1: additive GET /api/leads params `stages` (comma-separated, validated
+  against STAGE_ORDER + legacy 'interested') and `minReplyScore` (gte);
+  additive /api/leads/stats fields contactedLeadCount/repliedLeadCount;
+  fetchLeads client params extended; NEW src/components/dashboard/metric-
+  detail-drawer.tsx (Sheet drawer, modes leads/deals/breakdown, records
+  fetched with the metric's EXACT filter, row click → setSelectedLeadId +
+  setActiveTab('leads') existing pattern, loading/empty/error states,
+  aria-labelled, full-width on mobile); overview 7 stat cards wired (meeting
+  cards → /dashboard/meetings), insights 4 metric cards wired (Reply Rate →
+  honest breakdown incl. legacy '—' when missing; Close Rate → won+lost
+  records; Avg Deal Value → deals with proposedPrice; Total Deals → all
+  deals); Insights Stage Funnel rows became buttons (single-stage records,
+  disabled-looking plain row for 0 counts).
+- FIX T2: NEW src/lib/ai/sender-signature.ts (pure buildSenderSignatureBlock +
+  applySenderSignature); outreach-generator loads the AUTHENTICATED user's
+  profile (db select settings+organizations) and injects the signature block
+  into prompts (senderSignature var) and post-processes the parsed body
+  (placeholder tokens → real values, missing fields omitted cleanly, no-op on
+  real signatures, never appends → no duplication); prompt-manager bumped
+  outreach-generation → v3 and followup-generation → v2 (forward-only new
+  versions). Client edit flow untouched (customMessage||generatedMessage
+  already preserves user edits on regenerate).
+- FIX T3: removed the sidebar's Credits Display + Notification Center rows
+  (kept FollowUpReminders — unique to sidebar); topbar + mobile header
+  untouched as the single surface for both features.
+- FIX T5: onboarding card glass-card → bg-card border shadow-2xl (solid,
+  theme-aware); max-h-[92svh] + internal scroll for short screens.
+- FIX T6: assistant-tab renders msg.content via ReactMarkdown (both modes;
+  prose classes, links target=_blank rel=noopener, no raw-HTML → XSS-safe);
+  kept Quick Copy Replies + CopyableReply; removed only the verbatim-
+  duplicated signals/hesitation/closing list blocks (data still on message
+  objects). Also fixed the same defect in the floating Quick Assistant
+  (ai-copilot-panel.tsx) — same pipeline, minimal change.
+- FIX T7: inline lead-context card now lg:hidden (mobile-only; desktop uses
+  the right panel); coach banner auto-hides once conversation starts; chat
+  ScrollArea min-h-[160px] floor (no fixed heights); assistant header rows
+  wrap on mobile.
+- FIX T4: wrap/flex fixes in assistant header, outreach generated-message
+  header + composer row; drawer full-width on mobile; onboarding max-h.
+  Verified overflow=false at 390px on Overview/Leads/Insights/Assistant/
+  Outreach via live browser.
+- TESTS: NEW tests/unit/outreach-signature.test.ts (12), outreach-prompt-
+  signature.test.ts (3), leads-metric-filters.test.ts (10 — incl. 401,
+  backward-compat single-stage precedence, invalid-token drop-to-empty),
+  leads-stats-reply-counts.test.ts (2). tests/unit total: 527 pass / 3 fail —
+  the 3 (api-key-service expiry timing) verified identical on HEAD via
+  git stash → pre-existing, zero new failures. Adjacent 10 suites 154/154.
+  ESLint on all 19 changed/new files: 0 new problems (dashboard-layout
+  set-state-in-effect error + api.ts unused-directive warnings pre-exist on
+  HEAD). Scoped tsc (tsconfig.scope-uxfix.json, heap-capped): 0 errors in all
+  changed files; 339 tree-wide errors are the pre-existing baseline.
+- LIVE E2E (dev server :3000, fixture qa@test.com minted session token;
+  probe leads created via POST /api/leads and DELETED after — final count 0;
+  credit changes disclosed below):
+  * GET /api/leads/stats returns contactedLeadCount/repliedLeadCount.
+  * stages=discovered,analyzed → 1 probe lead; stages=won → 0; stages=not-a-
+    stage → 0; minReplyScore=71 → replyScore 80 lead; stage=discovered
+    unchanged (backward compat).
+  * Browser (agent-browser, viewport 1440×900 + 390×844): topbar shows
+    credits+notifications, sidebar shows only nav (T3 ✓); stat cards are
+    buttons "Total Leads: N. View details"; click opens drawer with the
+    exact record; row click → Leads tab with LeadDetailPanel open (T1 ✓);
+    onboarding card solid opaque bg, lab(98.8…) alpha 1, no backdrop-filter
+    (T5 ✓); real AI responses: default mode → <strong>Intent Analysis:/
+    Buying Signals:/Hesitation Factors:/Recommended Response:</strong>, 5 <li>,
+    zero literal '**'; coach mode → H2 🎯/🟢/🔴/💬 + H3 Professional/Casual,
+    Quick Copy Replies intact (T6 ✓); coach+lead worst case on 390px: banner
+    72px + inline card 68px (visible) + chat 233px + composer/send visible,
+    no overflow (T7 ✓); desktop: inline card hidden, right panel shows lead
+    context when expanded, composer visible (T7 ✓).
+- CREDIT DISCLOSURE (fixture user, normal app rules): clicking "Skip" in the
+  onboarding flow during browser verification awarded the app's one-time
+  onboarding_bonus (+25 credits, ledger entry, balance 24→49 on qa@test.com);
+  assistant/coach/widget live messages consumed a few sales_coaching credits
+  via the normal credit rules. No billing/plan logic touched.
+- ARTIFACTS: scripts/mint-qa-token.mjs (fixture token), scripts/inspect-qa-
+  users.mjs (read-only), scripts/onboarding-solid-card.png, scripts/drawer-
+  empty-state.png, tsconfig.scope-uxfix.json (scoped typecheck).
+
+Stage Summary:
+- Root causes: no sender identity in generation prompts (+deterministic
+  placeholder leakage); static metric cards without an exact-filter records
+  path; literal duplication of topbar widgets in the sidebar; 6%-alpha glass
+  card over a black overlay; plain-text rendering of Markdown chat content;
+  duplicated lead-context panels + instructional banners squeezing the
+  flex-1 chat area.
+- 19 files changed/new; 27 new unit tests (all green); zero new lint/type/
+  test regressions; no DB/schema/billing/auth changes; probe data fully
+  cleaned up (leads count 0 for fixture).
+- Honest limitations: (a) mobile Safari/DVW real-device touch behaviour not
+  tested (headless Chromium only); (b) the Quick Assistant floating button
+  did not mount during one verification pass (likely tab-context gating) —
+  its markdown fix verified by the same pattern + lint/tsc, not a second live
+  AI call; (c) drawers fetch up to 100 records and say "Open in Leads to see
+  all" beyond that; (d) full tsc tree run still OOMs on this box — scoped
+  config used instead; (e) WelcomeBanner mini-stats and Insights "Quick
+  Stats" row left non-clickable (hardcoded/derived values there pre-date
+  this task; making them clickable would surface non-real data).

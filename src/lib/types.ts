@@ -205,6 +205,9 @@ export interface DashboardStats {
     revenuePotentialScore: number;
   };
   topNiches: { niche: string; count: number }[];
+  /** Underlying counts for the Reply Rate breakdown (additive) */
+  contactedLeadCount?: number;
+  repliedLeadCount?: number;
   topCountries: { country: string; count: number }[];
   replyRate: number;
   closeRate: number;

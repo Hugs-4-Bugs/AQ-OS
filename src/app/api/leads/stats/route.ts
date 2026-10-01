@@ -131,6 +131,7 @@ export async function GET(request: NextRequest) {
       .map(([country, count]) => ({ country, count }));
 
     // Reply rate: leads that received inbound communication / leads that were contacted
+    // (counts exposed additively for the Insights "Reply Rate" breakdown)
     const leadsContacted = new Set(
       allCommunications
         .filter((c) => c.direction === 'outbound')
@@ -144,6 +145,8 @@ export async function GET(request: NextRequest) {
     const replyRate = leadsContacted.size > 0
       ? Math.round((leadsReplied.size / leadsContacted.size) * 100)
       : 0;
+    const contactedLeadCount = leadsContacted.size;
+    const repliedLeadCount = leadsReplied.size;
 
     // Close rate
     const closedDeals = wonLeads + lostLeads;
@@ -172,6 +175,9 @@ export async function GET(request: NextRequest) {
       topNiches,
       topCountries,
       replyRate,
+      // Underlying counts for the Insights "Reply Rate" breakdown
+      contactedLeadCount,
+      repliedLeadCount,
       closeRate,
       avgDealValue,
       totalDeals: allDeals.length,

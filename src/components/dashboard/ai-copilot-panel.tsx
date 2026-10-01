@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,7 +172,15 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-tr-md'
         )}
       >
-        <div className="whitespace-pre-wrap">{message.content}</div>
+        {/* Markdown rendering for AI messages (same pipeline as the Sales
+            Assistant tab) — react-markdown escapes HTML, so this is XSS-safe. */}
+        {isAI ? (
+          <div className="prose prose-xs dark:prose-invert max-w-none [&_p]:my-0.5 [&_li]:my-0 [&_h1,&_h2,&_h3,&_h4]:my-1 [&_h1,&_h2,&_h3,&_h4]:text-[12px]">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        ) : (
+          <div className="whitespace-pre-wrap">{message.content}</div>
+        )}
         <div
           className={cn(
             'text-[9px] mt-1.5',

@@ -55,6 +55,7 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { STAGE_LABELS, STAGE_COLORS, type LeadStage, type TabId } from '@/lib/types';
 import ErrorFallback from './error-fallback';
+import MetricDetailDrawer, { type MetricDetail } from './metric-detail-drawer';
 
 /* ===== Animated Counter Hook ===== */
 function useAnimatedCounter(target: number, duration = 1200) {
@@ -184,6 +185,8 @@ function getHeatmapTextColor(score: number): string {
 }
 
 /* ===== Enhanced Stat Card Component ===== */
+// Optional onClick — same accessible button semantics as the dashboard
+// StatCard: cards backed by underlying records open the detail drawer.
 function EnhancedStatCard({
   label,
   value,
@@ -195,6 +198,7 @@ function EnhancedStatCard({
   trend,
   trendUp,
   sparkle,
+  onClick,
 }: {
   label: string;
   value: number;
@@ -206,55 +210,91 @@ function EnhancedStatCard({
   trend: string;
   trendUp: boolean;
   sparkle?: boolean;
+  onClick?: () => void;
 }) {
   const animatedValue = useAnimatedCounter(value);
+
+  const body = (
+    <>
+      <div className={cn('absolute inset-0', gradient)} />
+      <CardContent className="relative p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div
+            className={cn(
+              'rounded-lg p-2.5 transition-colors',
+              bg
+            )}
+          >
+            <Icon className={cn('h-4 w-4', color)} />
+          </div>
+          <div
+            className={cn(
+              'flex items-center gap-0.5 text-xs font-medium',
+              trendUp ? 'text-emerald-500' : 'text-red-500'
+            )}
+          >
+            {trendUp ? (
+              <ArrowUpRight className="h-3 w-3" />
+            ) : (
+              <ArrowDownRight className="h-3 w-3" />
+            )}
+            {trend}
+          </div>
+        </div>
+        <p className="text-xl sm:text-2xl font-bold tracking-tight tabular-nums">
+          {animatedValue}
+          {suffix && <span className="text-base font-medium text-muted-foreground">{suffix}</span>}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">{label}</p>
+      </CardContent>
+    </>
+  );
+
+  if (!onClick) {
+    return (
+      <motion.div variants={itemVariants}>
+        <Card
+          className={cn(
+            'relative overflow-hidden card-glow group',
+            sparkle && 'animate-sparkle'
+          )}
+        >
+          {body}
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div variants={itemVariants}>
       <Card
+        role="button"
+        tabIndex={0}
+        aria-label={`${label}: ${value}${suffix ?? ''}. View details`}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
         className={cn(
-          'relative overflow-hidden card-glow group',
+          'relative overflow-hidden card-glow group cursor-pointer text-left w-full',
+          'transition-transform hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           sparkle && 'animate-sparkle'
         )}
       >
-        <div className={cn('absolute inset-0', gradient)} />
-        <CardContent className="relative p-3 sm:p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div
-              className={cn(
-                'rounded-lg p-2.5 transition-colors',
-                bg
-              )}
-            >
-              <Icon className={cn('h-4 w-4', color)} />
-            </div>
-            <div
-              className={cn(
-                'flex items-center gap-0.5 text-xs font-medium',
-                trendUp ? 'text-emerald-500' : 'text-red-500'
-              )}
-            >
-              {trendUp ? (
-                <ArrowUpRight className="h-3 w-3" />
-              ) : (
-                <ArrowDownRight className="h-3 w-3" />
-              )}
-              {trend}
-            </div>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold tracking-tight tabular-nums">
-            {animatedValue}
-            {suffix && <span className="text-base font-medium text-muted-foreground">{suffix}</span>}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">{label}</p>
-        </CardContent>
+        {body}
       </Card>
     </motion.div>
   );
 }
 
 /* ===== Enhanced Stage Funnel Component with Drop-offs ===== */
-function StageFunnel({ data }: { data: { stage: string; label: string; count: number; percentage: number; color: string }[] }) {
+// Optional onSelectStage: each funnel row is a real stage metric with the
+// underlying leads available — clicking a row opens that stage's records.
+function StageFunnel({ data, onSelectStage }: { data: { stage: string; label: string; count: number; percentage: number; color: string }[]; onSelectStage?: (stage: string, label: string) => void }) {
   const maxCount = Math.max(...data.map((d) => d.count), 1);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -289,36 +329,71 @@ function StageFunnel({ data }: { data: { stage: string; label: string; count: nu
             <TooltipProvider>
               <UiTooltip>
                 <TooltipTrigger asChild>
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.06 }}
-                    className="flex items-center gap-3 cursor-default"
-                    onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                  >
-                    <div className="w-16 sm:w-20 text-[10px] sm:text-xs text-muted-foreground text-right shrink-0">
-                      {item.label}
-                    </div>
-                    <div className="flex-1 relative h-8 bg-muted/50 rounded-md overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${widthPercent}%` }}
-                        transition={{ duration: 0.8, delay: index * 0.06, ease: 'easeOut' }}
-                        className="h-full rounded-md flex items-center justify-end pr-2 relative overflow-hidden"
-                        style={{ backgroundColor: item.color, minWidth: '2rem' }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10" />
-                        <span className="text-xs font-bold text-white drop-shadow-sm relative z-10">
-                          {item.count}
-                        </span>
-                      </motion.div>
-                    </div>
-                    <div className="w-10 sm:w-12 text-[10px] sm:text-xs text-muted-foreground shrink-0">
-                      {item.percentage}%
-                    </div>
-                  </motion.div>
-                </TooltipTrigger>
+              {onSelectStage && item.count > 0 ? (
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.06 }}
+                  className="flex items-center gap-3 w-full cursor-pointer rounded-md text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  onClick={() => onSelectStage(item.stage, item.label)}
+                  aria-label={`${item.label}: ${item.count} leads. View these leads`}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                >
+                  <div className="w-16 sm:w-20 text-[10px] sm:text-xs text-muted-foreground text-right shrink-0 py-1">
+                    {item.label}
+                  </div>
+                  <div className="flex-1 relative h-8 bg-muted/50 rounded-md overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${widthPercent}%` }}
+                      transition={{ duration: 0.8, delay: index * 0.06, ease: 'easeOut' }}
+                      className="h-full rounded-md flex items-center justify-end pr-2 relative overflow-hidden"
+                      style={{ backgroundColor: item.color, minWidth: '2rem' }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10" />
+                      <span className="text-xs font-bold text-white drop-shadow-sm relative z-10">
+                        {item.count}
+                      </span>
+                    </motion.div>
+                  </div>
+                  <div className="w-10 sm:w-12 text-[10px] sm:text-xs text-muted-foreground shrink-0">
+                    {item.percentage}%
+                  </div>
+                </motion.button>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.06 }}
+                  className="flex items-center gap-3 cursor-default"
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                >
+                  <div className="w-16 sm:w-20 text-[10px] sm:text-xs text-muted-foreground text-right shrink-0">
+                    {item.label}
+                  </div>
+                  <div className="flex-1 relative h-8 bg-muted/50 rounded-md overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${widthPercent}%` }}
+                      transition={{ duration: 0.8, delay: index * 0.06, ease: 'easeOut' }}
+                      className="h-full rounded-md flex items-center justify-end pr-2 relative overflow-hidden"
+                      style={{ backgroundColor: item.color, minWidth: '2rem' }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10" />
+                      <span className="text-xs font-bold text-white drop-shadow-sm relative z-10">
+                        {item.count}
+                      </span>
+                    </motion.div>
+                  </div>
+                  <div className="w-10 sm:w-12 text-[10px] sm:text-xs text-muted-foreground shrink-0">
+                    {item.percentage}%
+                  </div>
+                </motion.div>
+              )}
+            </TooltipTrigger>
                 <TooltipContent side="right" className="text-xs">
                   <div className="font-semibold">{item.label}</div>
                   <div>{item.count} leads ({item.percentage}% of total)</div>
@@ -507,6 +582,8 @@ function TrendIndicator({ value }: { value: number }) {
 /* ===== Main Component ===== */
 export default function InsightsTab() {
   const { setActiveTab, setSelectedLeadId } = useAppStore();
+  // Currently open metric-card detail drawer (Task: clickable metric cards)
+  const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
 
   const { data: insights, isLoading: insightsLoading, error: insightsError, refetch: refetchInsights } = useQuery({
     queryKey: ['insights'],
@@ -553,7 +630,9 @@ export default function InsightsTab() {
     );
   }
 
-  /* ===== Metric Cards Data with dynamic trends ===== */
+  /* ===== Metric Cards Data with dynamic trends =====
+      Each card backed by underlying records opens the shared detail drawer;
+      definitions mirror the semantics of GET /api/leads/stats. */
   const metricCards = [
     {
       label: 'Reply Rate',
@@ -565,6 +644,16 @@ export default function InsightsTab() {
       gradient: 'stat-card-gradient-blue',
       trend: trends ? `${trends.reply.trend > 0 ? '+' : ''}${trends.reply.trend}%` : '+5%',
       trendUp: trends ? trends.reply.trend >= 0 : true,
+      detail: {
+        title: 'Reply Rate',
+        description: 'Leads that replied ÷ leads contacted (inbound vs outbound messages)',
+        mode: 'breakdown' as const,
+        breakdown: [
+          { label: 'Leads contacted (outbound)', value: stats?.contactedLeadCount ?? '—' },
+          { label: 'Leads replied (inbound)', value: stats?.repliedLeadCount ?? '—' },
+          { label: 'Reply Rate', value: `${stats?.replyRate ?? 0}%` },
+        ],
+      } as MetricDetail,
     },
     {
       label: 'Close Rate',
@@ -576,6 +665,12 @@ export default function InsightsTab() {
       gradient: 'stat-card-gradient-emerald',
       trend: trends ? `${trends.deals.trend > 0 ? '+' : ''}${trends.deals.trend}%` : '+12%',
       trendUp: trends ? trends.deals.trend >= 0 : true,
+      detail: {
+        title: 'Close Rate',
+        description: `Won ÷ (won + lost) — currently ${stats?.closeRate ?? 0}%`,
+        mode: 'leads' as const,
+        leadsParams: { stages: ['won', 'lost'] },
+      } as MetricDetail,
     },
     {
       label: 'Avg Deal Value',
@@ -587,6 +682,12 @@ export default function InsightsTab() {
       gradient: 'stat-card-gradient-amber',
       trend: trends ? `${trends.pipeline.trend > 0 ? '+' : ''}${trends.pipeline.trend}%` : '+8%',
       trendUp: trends ? trends.pipeline.trend >= 0 : true,
+      detail: {
+        title: 'Average Deal Value',
+        description: 'Average proposed price across deals with a value',
+        mode: 'deals' as const,
+        dealsFilter: (d: { proposedPrice?: number | null }) => d.proposedPrice != null,
+      } as MetricDetail,
     },
     {
       label: 'Total Deals',
@@ -599,6 +700,11 @@ export default function InsightsTab() {
       trend: trends ? `${trends.leads.trend > 0 ? '+' : ''}${trends.leads.trend}%` : '+3%',
       trendUp: trends ? trends.leads.trend >= 0 : true,
       sparkle: true,
+      detail: {
+        title: 'Total Deals',
+        description: 'All deals attached to your leads',
+        mode: 'deals' as const,
+      } as MetricDetail,
     },
   ];
 
@@ -693,6 +799,7 @@ export default function InsightsTab() {
               trend={metric.trend}
               trendUp={metric.trendUp}
               sparkle={metric.sparkle}
+              onClick={metric.detail ? () => setMetricDetail(metric.detail) : undefined}
             />
           ))}
         </motion.div>
@@ -777,7 +884,17 @@ export default function InsightsTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <StageFunnel data={insights?.stageFunnel ?? []} />
+              <StageFunnel
+                data={insights?.stageFunnel ?? []}
+                onSelectStage={(stage, label) =>
+                  setMetricDetail({
+                    title: `${label} Leads`,
+                    description: `Leads currently at the ${label.toLowerCase()} stage`,
+                    mode: 'leads',
+                    leadsParams: { stage: stage as LeadStage },
+                  })
+                }
+              />
             </CardContent>
           </Card>
 
@@ -1400,6 +1517,9 @@ export default function InsightsTab() {
           </Card>
         </div>
       </div>
+
+      {/* Metric card detail drawer — underlying records for clicked cards */}
+      <MetricDetailDrawer detail={metricDetail} onClose={() => setMetricDetail(null)} />
     </ScrollArea>
   );
 }

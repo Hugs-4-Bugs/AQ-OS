@@ -239,6 +239,13 @@ function transformDeal(raw: RawDeal): Deal {
 
 export async function fetchLeads(params?: {
   stage?: LeadStage;
+  // Comma-separated multi-stage filter — used by the dashboard/insights
+  // metric detail drawer for metrics defined over several stages. Kept as
+  // plain strings: legacy rows may carry stage values outside LeadStage
+  // (e.g. "interested") and the stats endpoint includes them.
+  stages?: string[];
+  // Lower-bound reply-score filter ("Hot Leads" = replyScore > 70).
+  minReplyScore?: number;
   niche?: Niche;
   // Plain string: the worldwide country filter sends canonical ISO names and
   // the backend matches them (plus legacy aliases) with tolerant contains.
@@ -258,6 +265,8 @@ export async function fetchLeads(params?: {
 }): Promise<{ leads: Lead[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
   const searchParams = new URLSearchParams();
   if (params?.stage) searchParams.set('stage', params.stage);
+  if (params?.stages && params.stages.length > 0) searchParams.set('stages', params.stages.join(','));
+  if (typeof params?.minReplyScore === 'number') searchParams.set('minReplyScore', String(params.minReplyScore));
   if (params?.niche) searchParams.set('niche', params.niche);
   if (params?.country) searchParams.set('country', params.country);
   if (params?.search) searchParams.set('search', params.search);

@@ -53,6 +53,7 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { STAGE_LABELS, STAGE_CHART_COLORS, type LeadStage } from '@/lib/types';
 import ErrorFallback from './error-fallback';
+import MetricDetailDrawer, { type MetricDetail } from './metric-detail-drawer';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -97,39 +98,75 @@ function useAnimatedCounter(target: number, duration = 1200) {
 }
 
 /* ===== Stat Card Component with animated counter ===== */
-function StatCard({ stat }: { stat: { label: string; value: number; icon: React.ElementType; trend: string; trendUp: boolean; color: string; bg: string; gradient: string; sparkle?: boolean } }) {
+// Optional onClick: when a metric has underlying records, the whole card
+// becomes a real button (keyboard focusable, focus ring, hover state).
+// Cards without onClick stay non-interactive (no decorative clickability).
+function StatCard({ stat, onClick }: { stat: { label: string; value: number; icon: React.ElementType; trend: string; trendUp: boolean; color: string; bg: string; gradient: string; sparkle?: boolean }; onClick?: () => void }) {
   const Icon = stat.icon;
   const animatedValue = useAnimatedCounter(stat.value);
 
+  const body = (
+    <>
+      <div className={cn('absolute inset-0', stat.gradient)} />
+      <CardContent className="relative p-3 sm:p-4 backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+          <div className={cn('rounded-lg p-1.5 sm:p-2 transition-colors', stat.bg)}>
+            <Icon className={cn('h-3.5 w-3.5 sm:h-4 sm:w-4', stat.color)} />
+          </div>
+          <div
+            className={cn(
+              'flex items-center gap-0.5 text-[10px] sm:text-xs font-medium',
+              stat.trendUp ? 'text-emerald-500' : 'text-red-500'
+            )}
+          >
+            {stat.trendUp ? (
+              <ArrowUpRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            ) : (
+              <ArrowDownRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            )}
+            {stat.trend}
+          </div>
+        </div>
+        <p className="text-lg sm:text-2xl font-bold tracking-tight tabular-nums shimmer">{animatedValue}</p>
+        <p className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-tight">{stat.label}</p>
+      </CardContent>
+    </>
+  );
+
+  if (!onClick) {
+    return (
+      <motion.div variants={itemVariants}>
+        <Card className={cn(
+          'relative overflow-hidden card-glow glass-card group',
+          stat.sparkle && 'animate-sparkle'
+        )}>
+          {body}
+        </Card>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div variants={itemVariants}>
-      <Card className={cn(
-        'relative overflow-hidden card-glow glass-card group',
-        stat.sparkle && 'animate-sparkle'
-      )}>
-        <div className={cn('absolute inset-0', stat.gradient)} />
-        <CardContent className="relative p-3 sm:p-4 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-            <div className={cn('rounded-lg p-1.5 sm:p-2 transition-colors', stat.bg)}>
-              <Icon className={cn('h-3.5 w-3.5 sm:h-4 sm:w-4', stat.color)} />
-            </div>
-            <div
-              className={cn(
-                'flex items-center gap-0.5 text-[10px] sm:text-xs font-medium',
-                stat.trendUp ? 'text-emerald-500' : 'text-red-500'
-              )}
-            >
-              {stat.trendUp ? (
-                <ArrowUpRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              ) : (
-                <ArrowDownRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              )}
-              {stat.trend}
-            </div>
-          </div>
-          <p className="text-lg sm:text-2xl font-bold tracking-tight tabular-nums shimmer">{animatedValue}</p>
-          <p className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-tight">{stat.label}</p>
-        </CardContent>
+      <Card
+        role="button"
+        tabIndex={0}
+        aria-label={`${stat.label}: ${stat.value}. View details`}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        className={cn(
+          'relative overflow-hidden card-glow glass-card group cursor-pointer text-left w-full',
+          'transition-transform hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          stat.sparkle && 'animate-sparkle'
+        )}
+      >
+        {body}
       </Card>
     </motion.div>
   );
@@ -754,6 +791,8 @@ export default function OverviewTab() {
   const { setActiveTab } = useAppStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
+  // Currently open metric-card detail drawer (Task: clickable metric cards)
+  const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['stats'],
@@ -806,6 +845,9 @@ export default function OverviewTab() {
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
+  // Stat-card detail definitions. Stage sets and thresholds mirror
+  // GET /api/leads/stats EXACTLY (including the legacy "interested" stage)
+  // so the drawer's records always correspond 1:1 to the card's number.
   const statCards = stats
     ? [
         {
@@ -817,6 +859,12 @@ export default function OverviewTab() {
           color: 'text-emerald-500',
           bg: 'bg-emerald-500/10',
           gradient: 'stat-card-gradient-emerald',
+          detail: {
+            title: 'Total Leads',
+            description: 'All leads in your workspace',
+            mode: 'leads' as const,
+            leadsParams: {},
+          } as MetricDetail,
         },
         {
           label: 'Hot Leads',
@@ -828,6 +876,12 @@ export default function OverviewTab() {
           bg: 'bg-orange-500/10',
           gradient: 'stat-card-gradient-orange',
           sparkle: true,
+          detail: {
+            title: 'Hot Leads',
+            description: 'Leads with a reply score above 70',
+            mode: 'leads' as const,
+            leadsParams: { minReplyScore: 71 },
+          } as MetricDetail,
         },
         {
           label: 'Contacted',
@@ -838,6 +892,12 @@ export default function OverviewTab() {
           color: 'text-blue-500',
           bg: 'bg-blue-500/10',
           gradient: 'stat-card-gradient-blue',
+          detail: {
+            title: 'Contacted Leads',
+            description: 'Leads at the contacted stage or beyond',
+            mode: 'leads' as const,
+            leadsParams: { stages: ['contacted', 'replied', 'interested', 'discussion', 'proposal', 'negotiation'] },
+          } as MetricDetail,
         },
         {
           label: 'Replied',
@@ -848,6 +908,12 @@ export default function OverviewTab() {
           color: 'text-amber-500',
           bg: 'bg-amber-500/10',
           gradient: 'stat-card-gradient-amber',
+          detail: {
+            title: 'Replied Leads',
+            description: 'Leads that replied or moved past that stage',
+            mode: 'leads' as const,
+            leadsParams: { stages: ['replied', 'interested', 'discussion', 'proposal', 'negotiation', 'won'] },
+          } as MetricDetail,
         },
         {
           label: 'Interested',
@@ -858,6 +924,12 @@ export default function OverviewTab() {
           color: 'text-purple-500',
           bg: 'bg-purple-500/10',
           gradient: 'stat-card-gradient-purple',
+          detail: {
+            title: 'Interested Leads',
+            description: 'Leads in discussion, proposal or negotiation',
+            mode: 'leads' as const,
+            leadsParams: { stages: ['discussion', 'proposal', 'negotiation'] },
+          } as MetricDetail,
         },
         {
           label: 'Deals Won',
@@ -868,6 +940,12 @@ export default function OverviewTab() {
           color: 'text-emerald-500',
           bg: 'bg-emerald-500/10',
           gradient: 'stat-card-gradient-emerald',
+          detail: {
+            title: 'Deals Won',
+            description: 'Leads marked as won',
+            mode: 'leads' as const,
+            leadsParams: { stage: 'won' as LeadStage },
+          } as MetricDetail,
         },
         {
           label: 'Deals Lost',
@@ -878,6 +956,12 @@ export default function OverviewTab() {
           color: 'text-red-500',
           bg: 'bg-red-500/10',
           gradient: 'stat-card-gradient-red',
+          detail: {
+            title: 'Deals Lost',
+            description: 'Leads marked as lost',
+            mode: 'leads' as const,
+            leadsParams: { stage: 'lost' as LeadStage },
+          } as MetricDetail,
         },
       ]
     : [];
@@ -1037,7 +1121,11 @@ export default function OverviewTab() {
           className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 lg:gap-4 overflow-x-auto lg:overflow-visible snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0"
         >
           {statCards.map((stat) => (
-            <StatCard key={stat.label} stat={stat} />
+            <StatCard
+              key={stat.label}
+              stat={stat}
+              onClick={stat.detail ? () => setMetricDetail(stat.detail) : undefined}
+            />
           ))}
         </motion.div>
 
@@ -1102,7 +1190,11 @@ export default function OverviewTab() {
                   gradient: 'stat-card-gradient-amber',
                 },
               ].map((stat) => (
-                <StatCard key={stat.label} stat={stat} />
+                <StatCard
+                  key={stat.label}
+                  stat={stat}
+                  onClick={() => window.location.assign('/dashboard/meetings')}
+                />
               ))}
             </motion.div>
           </motion.div>
@@ -1543,6 +1635,10 @@ export default function OverviewTab() {
           </Card>
         </div>
       </div>
+
+      {/* Metric card detail drawer — shows the underlying records for the
+          clicked stat card (records fetched with the metric's exact filter). */}
+      <MetricDetailDrawer detail={metricDetail} onClose={() => setMetricDetail(null)} />
     </ScrollArea>
   );
 }

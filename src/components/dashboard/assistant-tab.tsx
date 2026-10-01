@@ -56,6 +56,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import ReactMarkdown from 'react-markdown';
 import { fetchLeads, fetchCommunications } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -177,6 +178,28 @@ const LEAD_SELECTED_PROMPTS = [
 
 function BarChart3Icon(props: React.ComponentProps<typeof TrendingUp>) {
   return <TrendingUp {...props} />;
+}
+
+// ─── Safe Markdown Renderer ────────────────────────────────
+// Assistant responses carry Markdown (**bold**, ## headings, - lists,
+// links, code). react-markdown (already a project dependency, used by
+// Outreach/Deals) renders it properly and — critically — does NOT
+// inject raw HTML (no rehype-raw), so AI output can never introduce an
+// XSS vector. URLs are sanitized by react-markdown's default transform.
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground prose-headings:mt-3 prose-headings:mb-1 prose-p:my-1 prose-li:my-0.5 prose-a:text-primary prose-a:break-words prose-pre:overflow-x-auto">
+      <ReactMarkdown
+        components={{
+          a: ({ node: _node, ...props }) => (
+            <a {...props} target="_blank" rel="noopener noreferrer" />
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 // ─── Sales Coach Quick Prompts ─────────────────────────────
@@ -729,7 +752,7 @@ export default function AssistantTab() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-y-2 pb-3">
             <div className="flex items-center gap-3">
               <div className={cn(
                 "h-9 w-9 rounded-full flex items-center justify-center relative",
@@ -754,7 +777,7 @@ export default function AssistantTab() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Export Chat */}
               {messages.length > 0 && (
                 <Button
@@ -884,8 +907,11 @@ export default function AssistantTab() {
 
           <Separator className="mb-3" />
 
-          {/* Sales Coach Mode Banner */}
-          {salesCoachMode && (
+          {/* Sales Coach Mode Banner — instructional hint for the empty
+              state. Hidden once a conversation exists so it stops consuming
+              vertical space from the message area (the chat panel needs the
+              full remaining viewport height in coach mode). */}
+          {salesCoachMode && messages.length === 0 && (
             <div className="mb-3 slide-in-up">
               <div className="flex items-center gap-2.5 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20">
                 <div className="h-7 w-7 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
@@ -912,9 +938,12 @@ export default function AssistantTab() {
             </div>
           )}
 
-          {/* Lead Context Card (shown when lead is selected) */}
+          {/* Lead Context Card (compact, MOBILE ONLY — on desktop the richer
+              Lead Context side panel below already shows the same lead, and
+              rendering both squeezed the conversation area in Sales Coach
+              mode; the inline card is the touch-friendly surface on phones). */}
           {selectedLead && (
-            <div className="mb-3 slide-in-up">
+            <div className="mb-3 slide-in-up lg:hidden">
               <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/15 bg-primary/[0.04] dark:bg-primary/[0.06]">
                 <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                   <span className="text-sm font-bold text-primary">
@@ -991,7 +1020,11 @@ export default function AssistantTab() {
           )}
 
           {/* Messages */}
-          <ScrollArea className="flex-1 min-h-0 custom-scrollbar" ref={scrollRef}>
+          {/* min-h floor: keeps the conversation usable when the coach-mode
+              header stack (banner/probability/context) is tall; on very short
+              viewports the page scrolls instead of collapsing the chat to a
+              sliver — no fixed height that could clip content. */}
+          <ScrollArea className="flex-1 min-h-[160px] custom-scrollbar" ref={scrollRef}>
             <div className="space-y-4 pb-4">
               {messages.length === 0 && (
                 <div className="text-center py-8">
@@ -1082,103 +1115,33 @@ export default function AssistantTab() {
                       >
                         {msg.role === 'assistant' ? (
                           <div className="space-y-3">
-                            {/* Sales Coach Mode: Render raw Markdown content */}
-                            {salesCoachMode ? (
-                              <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                                {msg.content.split('\n').map((line, lineIdx) => {
-                                  if (line.startsWith('## 🎯')) {
-                                    return <h3 key={lineIdx} className="text-sm font-bold text-primary mt-3 first:mt-0">{line.replace('## ', '')}</h3>;
-                                  }
-                                  if (line.startsWith('## 🟢')) {
-                                    return <h3 key={lineIdx} className="text-sm font-bold text-emerald-500 mt-3">{line.replace('## ', '')}</h3>;
-                                  }
-                                  if (line.startsWith('## 🔴')) {
-                                    return <h3 key={lineIdx} className="text-sm font-bold text-red-500 mt-3">{line.replace('## ', '')}</h3>;
-                                  }
-                                  if (line.startsWith('## 💬')) {
-                                    return <h3 key={lineIdx} className="text-sm font-bold text-primary mt-3">{line.replace('## ', '')}</h3>;
-                                  }
-                                  if (line.startsWith('## 🏁')) {
-                                    return <h3 key={lineIdx} className="text-sm font-bold text-amber-500 mt-3">{line.replace('## ', '')}</h3>;
-                                  }
-                                  if (line.startsWith('## 📊')) {
-                                    return <h3 key={lineIdx} className="text-sm font-bold text-primary mt-3">{line.replace('## ', '')}</h3>;
-                                  }
-                                  if (line.startsWith('### ')) {
-                                    return <h4 key={lineIdx} className="text-xs font-semibold text-primary/80 mt-2">{line.replace('### ', '')}</h4>;
-                                  }
-                                  if (line.startsWith('- ')) {
-                                    return <p key={lineIdx} className="text-xs text-muted-foreground pl-3">• {line.substring(2)}</p>;
-                                  }
-                                  if (line.trim() === '') {
-                                    return <div key={lineIdx} className="h-1" />;
-                                  }
-                                  return <p key={lineIdx} className="text-xs text-muted-foreground">{line}</p>;
-                                })}
+                            {/* Markdown rendering (both modes): the API returns
+                                Markdown in `content` — Sales Coach mode returns
+                                raw AI Markdown (## 🎯, **bold**, lists), default
+                                mode builds **Intent Analysis:**-style sections.
+                                Rendered via react-markdown (no raw-HTML pass-
+                                through) so formatting shows instead of literal
+                                asterisks. Structured sections below are kept. */}
+                            <MarkdownContent content={msg.content} />
 
-                                {parseCoachSections && parseCoachSections.replyOptions.length > 0 && idx === messages.length - 1 && (
-                                  <div className="mt-3 space-y-2">
-                                    <p className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider">Quick Copy Replies</p>
-                                    {parseCoachSections.replyOptions.map((opt) => (
-                                      <CopyableReply key={opt.label} label={opt.label} content={opt.content} />
-                                    ))}
-                                  </div>
-                                )}
+                            {salesCoachMode &&
+                              parseCoachSections && parseCoachSections.replyOptions.length > 0 && idx === messages.length - 1 && (
+                              <div className="mt-3 space-y-2">
+                                <p className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider">Quick Copy Replies</p>
+                                {parseCoachSections.replyOptions.map((opt) => (
+                                  <CopyableReply key={opt.label} label={opt.label} content={opt.content} />
+                                ))}
                               </div>
-                            ) : (
-                              <>
-                                {/* Default Mode: Structured analysis */}
-                                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                            )}
 
-                                {msg.buyingSignals && msg.buyingSignals.length > 0 && (
-                                  <div className="space-y-2 mt-2 pl-3 border-l-2 border-emerald-500/40">
-                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
-                                      <Lightbulb className="h-3.5 w-3.5" />
-                                      Buying Signals
-                                    </div>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                      {msg.buyingSignals.map((s, i) => (
-                                        <li key={i} className="flex items-start gap-1.5">
-                                          <span className="text-emerald-500 mt-0.5">•</span>
-                                          {s}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-
-                                {msg.hesitationFactors && msg.hesitationFactors.length > 0 && (
-                                  <div className="space-y-2 mt-2 pl-3 border-l-2 border-orange-500/40">
-                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-orange-500">
-                                      <AlertCircle className="h-3.5 w-3.5" />
-                                      Hesitation Factors
-                                    </div>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                      {msg.hesitationFactors.map((s, i) => (
-                                        <li key={i} className="flex items-start gap-1.5">
-                                          <span className="text-orange-500 mt-0.5">•</span>
-                                          {s}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-
+                            {/* Quick-copy convenience for the recommended reply.
+                                (The signals/hesitation/closing structured lists
+                                were removed here — they repeated verbatim what
+                                the Markdown content above already shows; the
+                                data still lives on the message object.) */}
                                 {msg.recommendedResponse && (
                                   <CopyableReply label="Recommended Response" content={msg.recommendedResponse} />
                                 )}
-
-                                {msg.closingStrategy && (
-                                  <div className="mt-2 p-2.5 bg-emerald-500/[0.04] rounded-lg border border-emerald-500/10">
-                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 mb-1">
-                                      <Target className="h-3.5 w-3.5" />
-                                      Closing Strategy
-                                    </div>
-                                    <p className="text-xs text-muted-foreground leading-relaxed">{msg.closingStrategy}</p>
-                                  </div>
-                                )}
-                              </>
-                            )}
 
                             {/* Action buttons: Copy, Pin, Save */}
                             <div className="flex items-center justify-between mt-2 pt-2 border-t border-primary/5">

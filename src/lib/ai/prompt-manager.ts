@@ -152,8 +152,8 @@ Be analytical, evidence-based, and explain your reasoning. Return ONLY valid JSO
     name: 'Outreach Generation',
     description: 'Generate personalized outreach messages for different channels',
     category: 'outreach',
-    currentVersion: 2,
-    variables: ['leadContext', 'businessName', 'ownerName', 'niche', 'channel', 'tone', 'language'],
+    currentVersion: 3,
+    variables: ['leadContext', 'businessName', 'ownerName', 'niche', 'channel', 'tone', 'language', 'senderSignature'],
     versions: [
       {
         version: 1,
@@ -202,6 +202,50 @@ Return ONLY valid JSON.`,
         createdAt: '2025-01-15',
         description: 'Enhanced with multi-version generation and personalization',
       },
+      {
+        version: 3,
+        content: `You are an expert cold outreach writer for AcquisitionOS. Create compelling, personalized outreach messages.
+
+Lead Information:
+{{leadContext}}
+
+Business: {{businessName}}
+Owner: {{ownerName}}
+Niche: {{niche}}
+Channel: {{channel}}
+Tone: {{tone}}
+Language: {{language}}
+
+{{senderSignature}}
+
+Generate outreach content and return a JSON object:
+{
+  "subject": "string - email subject line (for email channel)",
+  "body": "string - main message body",
+  "callToAction": "string - specific CTA",
+  "followUpSuggestion": "string - suggested follow-up approach",
+  "personalizationPoints": ["array of what makes this personalized"],
+  "toneAnalysis": "string - how the tone matches the target",
+  "estimatedReplyRate": number (0-100),
+  "alternativeVersions": {
+    "formal": "string - formal version of the message",
+    "casual": "string - casual version",
+    "urgent": "string - urgency-driven version"
+  }
+}
+
+Rules:
+- NEVER use generic templates
+- ALWAYS reference specific details about the business
+- Make it feel personal, not automated
+- Include a clear, specific CTA
+- Keep it concise (under 150 words for email, under 100 for WhatsApp/LinkedIn)
+- Sign the message ONLY with the real sender details given above; never use placeholders like [Your Name]
+
+Return ONLY valid JSON.`,
+        createdAt: '2026-10-02',
+        description: 'Adds authenticated sender signature block (no more [Your Name] placeholders)',
+      },
     ],
   },
 
@@ -211,8 +255,8 @@ Return ONLY valid JSON.`,
     name: 'Follow-up Generation',
     description: 'Generate follow-up messages for leads that have gone silent',
     category: 'outreach',
-    currentVersion: 1,
-    variables: ['leadContext', 'businessName', 'previousMessage', 'daysSinceLastContact', 'channel'],
+    currentVersion: 2,
+    variables: ['leadContext', 'businessName', 'previousMessage', 'daysSinceLastContact', 'channel', 'senderSignature'],
     versions: [
       {
         version: 1,
@@ -238,6 +282,34 @@ Return a JSON object:
 
 Make it feel natural, not pushy. Reference specific value propositions. Return ONLY valid JSON.`,
         createdAt: '2025-01-15',
+      },
+      {
+        version: 2,
+        content: `You are a follow-up message expert for AcquisitionOS. Generate compelling follow-up messages that re-engage silent leads.
+
+Lead Information:
+{{leadContext}}
+
+Business: {{businessName}}
+Previous Message Sent: {{previousMessage}}
+Days Since Last Contact: {{daysSinceLastContact}}
+Channel: {{channel}}
+
+{{senderSignature}}
+
+Return a JSON object:
+{
+  "subject": "string - follow-up subject (for email)",
+  "body": "string - follow-up message body",
+  "angle": "string - the psychological angle used",
+  "urgencyLevel": "low|medium|high",
+  "alternativeAngles": ["array of 2-3 alternative approaches"],
+  "bestSendTime": "string - recommended send time"
+}
+
+Make it feel natural, not pushy. Reference specific value propositions. Sign the message ONLY with the real sender details given above; never use placeholders like [Your Name]. Return ONLY valid JSON.`,
+        createdAt: '2026-10-02',
+        description: 'Adds authenticated sender signature block (no more [Your Name] placeholders)',
       },
     ],
   },

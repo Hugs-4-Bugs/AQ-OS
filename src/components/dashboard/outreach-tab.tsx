@@ -890,12 +890,12 @@ export default function OutreachTab() {
             {(generatedMessage || generateMutation.isPending) && (
               <Card>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-emerald-500" />
                       AI-Generated Message
                     </CardTitle>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="active:scale-95 transition-all">
                         <RefreshCw className="h-3.5 w-3.5 mr-1" />
                         Regenerate
@@ -938,10 +938,10 @@ export default function OutreachTab() {
                       value={customMessage || generatedMessage}
                       onChange={(e) => setCustomMessage(e.target.value)}
                       rows={6}
-                      className="text-sm"
+                      className="text-sm w-full"
                       placeholder="Edit the message..."
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         onClick={() => sendMutation.mutate()}
                         disabled={(!generatedMessage && !customMessage) || sendMutation.isPending}

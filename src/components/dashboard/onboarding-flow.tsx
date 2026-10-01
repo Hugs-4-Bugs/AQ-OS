@@ -769,7 +769,12 @@ export default function OnboardingFlow({ open, onComplete }: OnboardingFlowProps
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
-        <div className="glass-card rounded-2xl overflow-hidden">
+        {/* Solid, opaque card: the previous glass-card style (6% white alpha)
+            sat on a bg-black/60 overlay, leaving labels/inputs barely visible.
+            bg-card tracks the active theme (light/dark) and keeps full contrast;
+            the decorative gradient surface of the app is untouched elsewhere.
+            max-h + internal scroll keeps every step usable on short screens. */}
+        <div className="bg-card border border-border shadow-2xl rounded-2xl overflow-hidden max-h-[92svh] overflow-y-auto custom-scrollbar">
           {/* Progress bar */}
           <div className="h-1 bg-muted/30">
             <motion.div

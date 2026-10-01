@@ -5,6 +5,7 @@ import { checkPlanEntitlement, getFeatureUsage } from '@/lib/entitlement-middlew
 import { withMonitoring } from '@/lib/observability/middleware';
 import { checkApiKeyLeadLimit, recordApiKeyUsage } from '@/lib/api-key-service';
 import { aliasesFor } from '@/lib/countries';
+import { STAGE_ORDER, type LeadStage } from '@/lib/types';
 
 // GET /api/leads - List all leads with filtering, sorting, and pagination
 export const GET = withMonitoring(async (request: NextRequest) => {
@@ -13,6 +14,14 @@ export const GET = withMonitoring(async (request: NextRequest) => {
       const { searchParams } = new URL(request.url);
 
       const stage = searchParams.get('stage');
+      // stages=contacted,replied — comma-separated multi-stage filter. Used by
+      // dashboard/insights metric cards whose metric is defined over several
+      // stages (e.g. "Contacted" = contacted..negotiation in /api/leads/stats).
+      // Backward compatible: when absent, the single `stage` param applies.
+      const stagesParam = searchParams.get('stages');
+      // minReplyScore=71 — lower-bound reply-score filter ("Hot Leads" in
+      // /api/leads/stats is replyScore > 70). Additive, backward compatible.
+      const minReplyScoreParam = searchParams.get('minReplyScore');
       const niche = searchParams.get('niche');
       const country = searchParams.get('country');
       const search = searchParams.get('search');
@@ -43,6 +52,25 @@ export const GET = withMonitoring(async (request: NextRequest) => {
         where.userId = user.id;
       }
       if (stage) where.stage = stage;
+      if (!stage && stagesParam) {
+        // Multi-stage filter — only valid values, unknown tokens ignored so a
+        // malformed request cannot silently return everything. "interested"
+        // is a legacy stage value (String column, present in the stats
+        // endpoint's stage sets) and is accepted for metric parity.
+        const allowedStages: string[] = [...STAGE_ORDER, 'interested'];
+        const stageList = stagesParam
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => allowedStages.includes(s));
+        if (stageList.length > 0) where.stage = { in: stageList };
+        else where.stage = { in: [] };
+      }
+      if (minReplyScoreParam) {
+        const minReplyScore = Number(minReplyScoreParam);
+        if (Number.isFinite(minReplyScore)) {
+          where.replyScore = { ...(where.replyScore as object | undefined), gte: minReplyScore };
+        }
+      }
       if (niche) where.niche = { contains: niche };
       if (source) where.source = source;
       if (city) where.city = { contains: city };

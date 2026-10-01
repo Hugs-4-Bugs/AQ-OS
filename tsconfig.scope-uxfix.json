@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "skipLibCheck": true
+  },
+  "files": [
+    "src/lib/ai/sender-signature.ts",
+    "src/lib/ai/outreach-generator.ts",
+    "src/lib/ai/prompt-manager.ts",
+    "src/app/api/leads/route.ts",
+    "src/app/api/leads/stats/route.ts",
+    "src/lib/api.ts",
+    "src/lib/types.ts",
+    "src/components/dashboard/metric-detail-drawer.tsx",
+    "src/components/dashboard/dashboard-layout.tsx",
+    "src/components/dashboard/overview-tab.tsx",
+    "src/components/dashboard/insights-tab.tsx",
+    "src/components/dashboard/assistant-tab.tsx",
+    "src/components/dashboard/outreach-tab.tsx",
+    "src/components/dashboard/onboarding-flow.tsx",
+    "src/components/dashboard/ai-copilot-panel.tsx",
+    "tests/unit/outreach-signature.test.ts",
+    "tests/unit/outreach-prompt-signature.test.ts",
+    "tests/unit/leads-metric-filters.test.ts",
+    "tests/unit/leads-stats-reply-counts.test.ts"
+  ]
+}

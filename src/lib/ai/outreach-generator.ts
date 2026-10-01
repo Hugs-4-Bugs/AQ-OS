@@ -27,6 +27,7 @@ import { executeAICompletion, type AICompletionRequest, AI_CONFIG } from './ai-p
 import { getPrompt, sanitizePromptInput } from './prompt-manager';
 import { logOutreachGenerated } from './ai-audit';
 import { deductCredits, checkCreditSufficiency, refundCredits, type CreditAction } from '@/lib/credit-service';
+import { buildSenderSignatureBlock, applySenderSignature, type SenderProfile } from './sender-signature';
 
 // ===== TYPES =====
 
@@ -84,6 +85,41 @@ const CHANNEL_CONSTRAINTS: Record<OutreachChannel, { maxWords: number; requiresS
   linkedin: { maxWords: 150, requiresSubject: false },
   instagram: { maxWords: 80, requiresSubject: false },
 };
+
+// ===== SENDER PROFILE =====
+
+/**
+ * Load the AUTHENTICATED user's profile for signature personalization.
+ * Resolution mirrors GET /api/settings/profile: UserSettings.companyName
+ * is the canonical company storage, with the primary org name and the
+ * legacy User.company column as fallbacks. Only saved values are
+ * returned — nothing is inferred or invented.
+ */
+async function loadSenderProfile(userId: string): Promise<SenderProfile> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      name: true,
+      email: true,
+      phone: true,
+      company: true,
+      settings: { select: { companyName: true } },
+      organizations: {
+        take: 1,
+        select: { organization: { select: { name: true } } },
+      },
+    },
+  });
+
+  if (!user) return {};
+
+  return {
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    company: user.settings?.companyName ?? user.organizations[0]?.organization?.name ?? user.company,
+  };
+}
 
 // ===== MAIN GENERATION FUNCTION =====
 
@@ -147,6 +183,11 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
     const isFollowUp = !!previousMessageId;
     const promptId = isFollowUp ? 'followup-generation' : 'outreach-generation';
 
+    // Sender identity comes from the AUTHENTICATED user's saved profile so
+    // the AI signs with real details instead of placeholders like
+    // "[Your Name]". Never the lead's details, never hardcoded values.
+    const senderProfile = await loadSenderProfile(userId);
+
     const prompt = getPrompt(promptId, {
       leadContext: sanitizePromptInput(leadContext),
       businessName: sanitizePromptInput(lead.businessName),
@@ -159,6 +200,7 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
       daysSinceLastContact: lead.lastContactedAt
         ? String(Math.ceil((Date.now() - new Date(lead.lastContactedAt).getTime()) / (1000 * 60 * 60 * 24)))
         : 'Never contacted',
+      senderSignature: buildSenderSignatureBlock(senderProfile),
     });
 
     // 6. Execute AI completion
@@ -196,9 +238,16 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
       const parsed = JSON.parse(jsonMatch[0]);
       const constraints = CHANNEL_CONSTRAINTS[channel];
 
+      // Signature personalization: replace any "[Your Name]"-style
+      // placeholders the model still emitted with the authenticated
+      // user's real saved profile values (missing fields are omitted
+      // cleanly). Real signatures pass through unchanged; nothing is
+      // ever appended, so existing contact details are not duplicated.
+      const personalizedBody = applySenderSignature(String(parsed.body || ''), senderProfile);
+
       outreachData = {
         subject: constraints.requiresSubject ? String(parsed.subject || `Re: ${lead.businessName}`) : undefined,
-        body: String(parsed.body || ''),
+        body: personalizedBody,
         callToAction: String(parsed.callToAction || ''),
         followUpSuggestion: String(parsed.followUpSuggestion || ''),
         personalizationPoints: Array.isArray(parsed.personalizationPoints) ? parsed.personalizationPoints.map(String) : [],

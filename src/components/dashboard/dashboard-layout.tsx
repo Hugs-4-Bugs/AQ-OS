@@ -603,8 +603,10 @@ export default function DashboardLayout({
       <div className="flex flex-1 min-h-0">
         {/* Desktop Sidebar — collapsible (expanded ≈256px / collapsed icon rail ≈64px).
             State persists in localStorage; mobile nav is separate and untouched.
-            Expanded layout mirrors the reference screenshot: logo → 12 nav items →
-            Credits card → Notifications (user/theme controls live in the navbar). */}
+            Expanded layout: logo → 12 nav items → Follow-up Reminders.
+            (Credits + Notifications live ONLY in the topbar/mobile header — the
+            old bottom-of-sidebar duplicates were removed; the topbar widgets
+            remain the single, always-visible surface for both.) */}
         <aside
           className={cn(
             'hidden lg:flex lg:flex-col lg:border-r bg-sidebar shrink-0 transition-all duration-300 ease-in-out relative',
@@ -650,23 +652,16 @@ export default function DashboardLayout({
           </ScrollArea>
           {/* Collapsible sections — hidden in the collapsed icon rail to keep it
               compact and intentional; all content is reachable in expanded state
-              and stays untouched when expanded. */}
+              and stays untouched when expanded.
+              NOTE: the old bottom "Credits Display" and "Notifications" rows were
+              removed — both are already available in the desktop topbar and the
+              mobile header (CreditDisplay + NotificationCenter there are the
+              single source for those features). Follow-up Reminders is unique to
+              the sidebar and stays. */}
           {!sidebarCollapsed && (
-            <>
-              {/* Credits Display */}
-              <div className="border-t px-3 py-2 shrink-0">
-                <CreditDisplay onClick={() => setUpgradeModalOpen(true)} rolloverCredits={rolloverCredits} addonCredits={addonCredits} />
-              </div>
-              {/* Notification Center */}
-              <div className="border-t px-3 py-2 flex items-center justify-between shrink-0">
-                <span className="text-xs font-medium text-muted-foreground">Notifications</span>
-                <NotificationCenter />
-              </div>
-              {/* Follow-up Reminders */}
-              <div className="border-t shrink-0">
-                <FollowUpReminders />
-              </div>
-            </>
+            <div className="border-t shrink-0">
+              <FollowUpReminders />
+            </div>
           )}
           {/* Collapse/Expand toggle moved to the border handle at the top of
               the sidebar (see aside top) — the bottom footer row it used to
