@@ -474,3 +474,23 @@ Stage Summary:
   NOT an env var); candidate order cwd → $HOME → /etc.
 - End-to-end pipeline NOT re-run against user data (would consume/modify
   credits — not authorized); the exact failing network request verified OK.
+
+---
+Task ID: monitoring-403-fix-1
+Agent: Super Z (main agent)
+Task: FIX ONLY Settings → Monitoring HTTP 403 ("Failed to load metrics — HTTP 403") — smallest possible change, preserve security
+
+Work Log:
+- Context: workspace had been platform-restored to a pre-Task-F state (git log: HEAD 7ac46df21, commits 8ff21de/2ca886b absent; src/lib/silent-refresh.ts gone). Monitoring 403 re-appeared because the prior accepted fix was wiped.
+- Root cause (verified): /api/metrics/dashboard guarded by withSuperAdmin (platform super_admin only, exact-match role check in auth-middleware L105-106) while Settings nav shows the Monitoring tab to ALL users (settings-shell SETTINGS_NAV L80, no gating). DB: 32 owners, 1 super_admin, 1 legacy USER; ALL recent live sessions belong to an owner → every Monitoring click = 403 "Super admin access required". getAuthUser resolves role fresh from DB (not stale JWT) — auth chain itself correct.
+- Prior accepted fix recovered as REFERENCE from dangling commit 8ff21de (Task F worklog entry + file blobs); re-applied as forward edits (Edit tool, not git restore). Resulting route.ts byte-identical to the previously-accepted version (diff-verified).
+- Fix (single file + its test): guard withSuperAdmin → withAdmin (super_admin/owner/admin; member/viewer/unauthenticated stay blocked) + ROLE-SCOPED PAYLOAD: super_admin unchanged full platform view; owner/admin business metrics filtered to own userId (real DB aggregates, no fabrication); recentSlowQueries SQL text + traces stripped for non-platform admins (cross-user artifacts).
+- Tests: tests/unit/metrics-dashboard-scope.test.ts 3/3 (super_admin unscoped+artifacts, owner scoped+stripped, unauth 401). ESLint changed files 0 errors.
+- Full suite A/B: baseline (stashed) 30 failed/986 passed; with-fix 36→31 failed/983→988 passed across 2 runs — failing FILE SETS identical (env-dependent SMTP/JWT/credits/onboarding/health files); auth-api integration flake passes 18/18 in isolation with fix. Zero regressions attributable.
+- LIVE E2E (scripts/monitoring-403-e2e.js, JWT minted server-side from .env secret, never printed; DB via readOnly snapshot copy): 11/11 — unauth 401; owner qa***@test.com 200 + scoped (totalLeads=0, totalCredits=50 == own rows; slowQueries/traces stripped; structure intact); super_admin 200 + full (totalLeads=89, activeUsers=47 == platform totals); scoping contrast owner<platform proven.
+- Committed 1007d283a (route.ts +40/−12, new test file 144 lines). No DB writes to real database (snapshot copies only); no other files touched.
+
+Stage Summary:
+- Root cause: role-guard/visibility mismatch — UI offers Monitoring to everyone, API allowed only platform super_admin; operator-class users (owner) correctly authenticated but rejected at authorization.
+- Fix: withAdmin + role-scoped payload; isolation preserved (own-metrics-only, no SQL/trace leakage); unauthorized still blocked (401 unauth / 403 member-viewer).
+- Out-of-scope observations (NOT touched, disclosed): Task-F Remember-Me files (silent-refresh.ts etc.) also wiped by restore; /api/health 503 = dev-server heap 96.5% (memory pressure, DB healthy); .env/.next tracked by platform auto-commits.

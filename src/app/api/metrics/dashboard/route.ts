@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withAdmin } from '@/lib/auth-middleware';
 import { db, dbMonitor, getConnectionPoolStats } from '@/lib/db';
 import { apiMonitor } from '@/lib/observability/api-monitor';
 import { alertEngine } from '@/lib/observability/alerts';
@@ -13,7 +13,19 @@ import { logger } from '@/lib/observability/logger';
 import { getRecentTraces } from '@/lib/observability/tracer';
 
 export async function GET(request: NextRequest) {
-  return withSuperAdmin(request, async () => {
+  return withAdmin(request, async (user) => {
+  // ROLE-SCOPED VISIBILITY (fix 2026-09-29: Settings → Monitoring returned
+  // HTTP 403 for every non-platform user):
+  // - super_admin: full platform payload, unchanged (cross-tenant business
+  //   metrics, slow-query SQL text, traces).
+  // - owner/admin: same dashboard UI with account-scoped data — business
+  //   metrics filtered to the requesting user, and cross-user artifacts
+  //   (raw SQL text, distributed traces) stripped. Member/viewer/unauthenticated
+  //   remain blocked by withAdmin.
+  const isPlatformAdmin = user.role === 'super_admin';
+  // Tenant scope: platform admins see cross-tenant aggregates; org-level
+  // admins are scoped to their own account's rows.
+  const scope = isPlatformAdmin ? {} : { userId: user.id };
   try {
     // ── System Health Metrics ────────────────────────────────────
     const mem = process.memoryUsage();
@@ -73,13 +85,16 @@ export async function GET(request: NextRequest) {
     };
 
     // ── Database Metrics ─────────────────────────────────────────
+    // Raw slow-query SQL text is PLATFORM-ADMIN ONLY (it embeds user IDs
+    // and query parameters from every tenant). Non-platform admins get the
+    // counters without the query text.
     const dbStats = dbMonitor.getStats();
     const dbMetrics = {
       totalQueries: dbStats.totalQueries,
       slowQueries: dbStats.slowQueries,
       avgQueryTimeMs: Math.round(dbStats.avgQueryTimeMs * 100) / 100,
       queriesByOperation: dbMonitor.getQueryCountByOperation(),
-      recentSlowQueries: dbMonitor.getRecentSlowQueries(10),
+      recentSlowQueries: isPlatformAdmin ? dbMonitor.getRecentSlowQueries(10) : [],
       connectionPool,
     };
 
@@ -108,21 +123,34 @@ export async function GET(request: NextRequest) {
         creditsToday,
         activeWorkflows,
       ] = await Promise.all([
-        db.lead.count(),
-        db.lead.count({ where: { isActive: true } }),
-        db.deal.count(),
-        db.deal.count({ where: { status: 'won' } }),
-        db.deal.aggregate({ _sum: { finalPrice: true }, where: { status: 'won' } }),
-        db.user.count({ where: { isActive: true, deletedAt: null } }),
-        db.user.aggregate({ _sum: { credits: true }, where: { isActive: true, deletedAt: null } }),
+        db.lead.count({ where: scope }),
+        db.lead.count({ where: { ...scope, isActive: true } }),
+        db.deal.count({ where: scope }),
+        db.deal.count({ where: { ...scope, status: 'won' } }),
+        db.deal.aggregate({ _sum: { finalPrice: true }, where: { ...scope, status: 'won' } }),
+        // "Active users" — for the account owner this is their own account.
+        db.user.count({
+          where: isPlatformAdmin
+            ? { isActive: true, deletedAt: null }
+            : { id: user.id, isActive: true, deletedAt: null },
+        }),
+        // Credit totals: platform-wide for super_admin, own balance otherwise.
+        // Read-only aggregates — no billing/credit data is modified.
+        db.user.aggregate({
+          _sum: { credits: true },
+          where: isPlatformAdmin
+            ? { isActive: true, deletedAt: null }
+            : { id: user.id, isActive: true, deletedAt: null },
+        }),
         db.creditsLedger.aggregate({
           _sum: { credits: true },
           where: {
+            ...scope,
             credits: { lt: 0 },
             createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
           },
         }),
-        db.workflowExecution.count({ where: { status: 'running' } }),
+        db.workflowExecution.count({ where: { ...scope, status: 'running' } }),
       ]);
 
       businessMetrics = {
@@ -171,7 +199,7 @@ export async function GET(request: NextRequest) {
         recent: recentLogs,
         counts: logCounts,
       },
-      traces: recentTraces.map(t => ({
+      traces: (isPlatformAdmin ? recentTraces : []).map(t => ({
         traceId: t.traceId,
         rootOperation: t.rootOperation,
         spanCount: t.spanCount,
