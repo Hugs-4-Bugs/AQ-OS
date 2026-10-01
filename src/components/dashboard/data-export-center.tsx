@@ -163,20 +163,74 @@ export default function DataExportCenter() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const handleExport = useCallback(() => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      const reportLabel = REPORT_TYPES.find((r) => r.id === selectedReport)?.label;
-      const formatLabel = EXPORT_FORMATS.find((f) => f.id === selectedFormat)?.label;
-      showToast(`${reportLabel} exported as ${formatLabel} successfully!`);
-    }, 1500);
-  }, [selectedReport, selectedFormat, showToast]);
+  // ═══ REAL EXPORT (spec §11 — no fake success toasts) ═══════════
+  // Lead exports hit the real /api/leads/export endpoint (CSV / Excel /
+  // JSON). Formats and report types with no backend implementation show
+  // an honest "not available" message instead of a simulated success.
+  const downloadLeadsExport = useCallback(
+    async (format: 'csv' | 'xlsx' | 'json') => {
+      const params = new URLSearchParams();
+      params.set('format', format);
+      const res = await fetch(`/api/leads/export?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Export failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const recordCount = res.headers.get('X-Record-Count');
+      return recordCount ? `${recordCount} records` : 'completed';
+    },
+    []
+  );
 
-  const handleQuickExport = useCallback((reportName: string, format: ExportFormat) => {
-    showToast(`${reportName} (${format.toUpperCase()}) export started!`, 'info');
-    setTimeout(() => showToast(`${reportName} exported successfully!`), 2000);
-  }, [showToast]);
+  const LEAD_EXPORT_FORMATS: Partial<Record<ExportFormat, 'csv' | 'xlsx' | 'json'>> = {
+    excel: 'xlsx',
+    csv: 'csv',
+    json: 'json',
+  };
+
+  const runRealExport = useCallback(
+    async (reportLabel: string, format: ExportFormat) => {
+      const formatLabel = EXPORT_FORMATS.find((f) => f.id === format)?.label ?? format.toUpperCase();
+      if (reportLabel !== 'Lead Analytics') {
+        showToast(`${reportLabel} export isn't available yet. Lead exports (CSV/Excel/JSON) are available from this center and the Leads page.`, 'error');
+        return;
+      }
+      const apiFormat = LEAD_EXPORT_FORMATS[format];
+      if (!apiFormat) {
+        showToast(`PDF export for leads isn't available yet — use Excel, CSV, or JSON instead.`, 'error');
+        return;
+      }
+      setIsExporting(true);
+      try {
+        const outcome = await downloadLeadsExport(apiFormat);
+        showToast(`Lead Analytics exported as ${formatLabel} successfully — ${outcome}.`);
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Export failed', 'error');
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [downloadLeadsExport, showToast]
+  );
+
+  const handleExport = useCallback(() => {
+    const reportLabel = REPORT_TYPES.find((r) => r.id === selectedReport)?.label ?? 'Report';
+    void runRealExport(reportLabel, selectedFormat);
+  }, [selectedReport, selectedFormat, runRealExport]);
+
+  const handleQuickExport = useCallback(
+    (reportName: string, format: ExportFormat) => {
+      void runRealExport(reportName, format);
+    },
+    [runRealExport]
+  );
 
   return (
     <>

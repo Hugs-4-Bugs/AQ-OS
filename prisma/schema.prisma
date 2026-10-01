@@ -655,6 +655,19 @@ model Lead {
   employeeCount Int?
   employeeRange String?
 
+  // Provenance & verification (lead-discovery master spec §7/§3.3).
+  // sourceUrl   = the listing URL on the discovery source where this lead
+  //               was found (null when the provider gave no listing page).
+  // discoveredVia = the exact search query / variation that produced the
+  //               lead, so users can audit how each lead was obtained.
+  // verificationStatus = field-level verification label per spec §7.2
+  //               (verified | partially_verified | unverified |
+  //                verification_failed | conflicting). null = not yet
+  //               assessed (treated as unverified in the UI).
+  sourceUrl          String?
+  discoveredVia      String?
+  verificationStatus String?
+
   isActive  Boolean   @default(true)
   deletedAt DateTime?
 

@@ -6,6 +6,8 @@
 import { db } from '@/lib/db';
 import { logAuditEvent } from '@/lib/lead-audit';
 import { checkDuplicate } from '@/lib/lead-dedup-service';
+import { aliasesFor } from '@/lib/countries';
+import ExcelJS from 'exceljs';
 
 // ===== TYPES =====
 
@@ -19,6 +21,12 @@ export interface LeadFilters {
   search?: string;
   dateFrom?: string;
   dateTo?: string;
+  // Qualification filters (spec §9/§11.4) — 'true' when set
+  hasEmail?: string;
+  hasPhone?: string;
+  hasWebsite?: string;
+  verificationStatus?: string;
+  websiteStatus?: string;
 }
 
 export interface ImportResult {
@@ -33,15 +41,20 @@ export interface ImportResult {
 
 export interface ExportResult {
   success: boolean;
-  data: string;
+  /** Text formats return a string; .xlsx returns a Node Buffer. */
+  data: string | Buffer;
   filename: string;
   contentType: string;
   recordCount: number;
+  /** Rows matching the filters — may exceed recordCount when capped. */
+  totalMatching?: number;
   error?: string;
 }
 
 const IMPORT_MAX_ROWS = parseInt(process.env.IMPORT_MAX_ROWS || '1000', 10);
-const EXPORT_MAX_ROWS = parseInt(process.env.EXPORT_MAX_ROWS || '5000', 10);
+// Safety ceiling for one export; env-overridable. Exports report — never
+// silently hide — when more rows matched than were exported (spec §11.4).
+const EXPORT_MAX_ROWS = parseInt(process.env.EXPORT_MAX_ROWS || '20000', 10);
 
 // ===== CSV IMPORT =====
 
@@ -175,54 +188,181 @@ export async function importCSV(
   }
 }
 
-// ===== CSV EXPORT =====
+// ===== EXPORT (CSV / XLSX / JSON) =====
+// Spec §11: plan-aware bulk export with correct escaping, formula-injection
+// protection, Unicode safety, batched server-side pagination (never limited
+// to a UI page), and honest record counts (no silent truncation).
+
+/** Columns every plan may receive — no secrets, no internal-only data. */
+const EXPORT_HEADERS = [
+  'businessName', 'ownerName', 'email', 'phone', 'whatsapp', 'website',
+  'linkedin', 'instagram', 'facebook', 'sourceUrl', 'discoveredVia',
+  'city', 'country', 'niche', 'employeeCount', 'employeeRange',
+  'rating', 'reviews', 'stage', 'source', 'estimatedQuality',
+  'estimatedRevenue', 'replyScore', 'conversionScore', 'urgencyScore',
+  'revenuePotentialScore', 'hasWebsite', 'websiteQuality', 'websiteStatus',
+  'verificationStatus', 'scoreReasoning', 'opportunityNotes', 'notes', 'createdAt',
+];
 
 /**
- * Export leads as CSV.
+ * Spreadsheet formula-injection guard (spec §11.4): cells starting with
+ * = + - @ or a tab/CR could execute as a formula in Excel. Prefix an
+ * apostrophe so the value is treated as text.
  */
+export function guardFormula(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+function cellToString(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  const str = val instanceof Date ? val.toISOString() : String(val);
+  return guardFormula(str);
+}
+
+export function csvEscape(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+export interface ExportMeta {
+  truncated: boolean;
+  /** Total rows matching the filters (may exceed the exported count). */
+  totalMatching: number;
+}
+
+/**
+ * Batched, filter-aware lead fetch for exports. Pages through ALL matching
+ * rows server-side (batch 500) instead of a single `take` — exports are not
+ * limited to what a UI page shows (spec §11.1) and memory stays bounded.
+ */
+async function getFilteredLeads(
+  userId: string,
+  filters: LeadFilters,
+  maxRows: number
+): Promise<{ leads: Array<Record<string, unknown>>; truncated: boolean; totalMatching: number }> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { orgId: true },
+  });
+
+  const where: Record<string, unknown> = { isActive: true };
+
+  // Tenant isolation — identical to GET /api/leads
+  if (user?.orgId) {
+    where.orgId = user.orgId;
+  } else {
+    where.userId = userId;
+  }
+
+  if (filters.stage) where.stage = filters.stage;
+  if (filters.niche) where.niche = filters.niche;
+  if (filters.city) where.city = { contains: filters.city };
+  if (filters.source) where.source = filters.source;
+  if (filters.minRating) where.rating = { gte: filters.minRating };
+  if (filters.hasEmail === 'true') where.email = { not: null };
+  if (filters.hasPhone === 'true') where.phone = { not: null };
+  if (filters.hasWebsite === 'true') {
+    where.hasWebsite = true;
+    where.website = { not: null };
+  }
+  if (filters.verificationStatus) where.verificationStatus = filters.verificationStatus;
+  if (filters.websiteStatus) where.websiteStatus = filters.websiteStatus;
+
+  if (filters.dateFrom || filters.dateTo) {
+    const createdAt: Record<string, Date> = {};
+    if (filters.dateFrom) createdAt.gte = new Date(filters.dateFrom);
+    if (filters.dateTo) createdAt.lte = new Date(filters.dateTo);
+    where.createdAt = createdAt;
+  }
+
+  // Free-text search — was previously accepted but IGNORED (bug); now applied
+  if (filters.search) {
+    where.OR = [
+      { businessName: { contains: filters.search } },
+      { ownerName: { contains: filters.search } },
+      { email: { contains: filters.search } },
+      { city: { contains: filters.search } },
+      { niche: { contains: filters.search } },
+    ];
+  }
+
+  // Country filter with alias tolerance (same semantics as GET /api/leads)
+  const andConds: Array<Record<string, unknown>> = [];
+  if (filters.country) {
+    andConds.push({ OR: aliasesFor(filters.country).map((v) => ({ country: { contains: v } })) });
+  }
+  if (filters.search) {
+    andConds.push({
+      OR: [
+        { businessName: { contains: filters.search } },
+        { ownerName: { contains: filters.search } },
+        { email: { contains: filters.search } },
+        { city: { contains: filters.search } },
+        { niche: { contains: filters.search } },
+      ],
+    });
+  }
+  if (andConds.length > 0) {
+    where.AND = andConds;
+    delete where.OR;
+  }
+
+  const totalMatching = await db.lead.count({ where });
+
+  const BATCH = 500;
+  const collected: Array<Record<string, unknown>> = [];
+  let skip = 0;
+  while (collected.length < maxRows) {
+    const batch = (await db.lead.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: Math.min(BATCH, maxRows - collected.length),
+    })) as unknown as Array<Record<string, unknown>>;
+    if (batch.length === 0) break;
+    collected.push(...batch);
+    skip += batch.length;
+    if (batch.length < BATCH) break;
+  }
+
+  return { leads: collected, truncated: collected.length < totalMatching, totalMatching };
+}
+
 export async function exportCSV(
   userId: string,
   filters: LeadFilters
 ): Promise<ExportResult> {
   try {
-    const leads = await getFilteredLeads(userId, filters, EXPORT_MAX_ROWS);
+    const { leads, truncated, totalMatching } = await getFilteredLeads(userId, filters, EXPORT_MAX_ROWS);
 
     if (leads.length === 0) {
       return { success: false, data: '', filename: '', contentType: 'text/csv', recordCount: 0, error: 'No leads found matching filters' };
     }
 
-    // Build CSV
-    const headers = [
-      'businessName', 'ownerName', 'email', 'phone', 'whatsapp', 'website',
-      'linkedin', 'instagram', 'facebook', 'city', 'country', 'niche',
-      'rating', 'reviews', 'stage', 'source', 'estimatedQuality',
-      'estimatedRevenue', 'replyScore', 'conversionScore', 'urgencyScore',
-      'revenuePotentialScore', 'hasWebsite', 'websiteQuality', 'createdAt',
-    ];
-
-    const csvRows = [headers.join(',')];
-
+    const lines = [EXPORT_HEADERS.join(',')];
     for (const lead of leads) {
-      const row = headers.map((h) => {
-        const val = lead[h as keyof typeof lead];
-        if (val === null || val === undefined) return '';
-        const str = String(val);
-        // Escape CSV: wrap in quotes if contains comma, quote, or newline
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      });
-      csvRows.push(row.join(','));
+      lines.push(
+        EXPORT_HEADERS.map((h) => csvEscape(cellToString(lead[h as keyof typeof lead]))).join(',')
+      );
     }
 
-    const csvData = csvRows.join('\n');
+    // UTF-8 BOM so Excel opens international characters correctly (spec §11.4)
+    const csvData = '\ufeff' + lines.join('\n');
     const filename = `leads_export_${new Date().toISOString().split('T')[0]}.csv`;
+    if (truncated) {
+      console.warn(`[Export] CSV truncated: exported ${leads.length} of ${totalMatching} matching rows (cap ${EXPORT_MAX_ROWS})`);
+    }
 
-    // Audit log
     await logAuditEvent(userId, 'export_generated', {
       format: 'csv',
       recordCount: leads.length,
+      totalMatching,
+      truncated,
       filters,
     });
 
@@ -230,8 +370,10 @@ export async function exportCSV(
       success: true,
       data: csvData,
       filename,
-      contentType: 'text/csv',
+      contentType: 'text/csv; charset=utf-8',
       recordCount: leads.length,
+      totalMatching,
+      error: truncated ? `Export capped at ${EXPORT_MAX_ROWS} rows — ${totalMatching} leads matched the filters. Narrow the filters or raise EXPORT_MAX_ROWS.` : undefined,
     };
   } catch (error) {
     return {
@@ -245,17 +387,87 @@ export async function exportCSV(
   }
 }
 
-// ===== JSON EXPORT =====
+export async function exportXLSX(
+  userId: string,
+  filters: LeadFilters
+): Promise<ExportResult> {
+  try {
+    const { leads, truncated, totalMatching } = await getFilteredLeads(userId, filters, EXPORT_MAX_ROWS);
 
-/**
- * Export leads as JSON.
- */
+    if (leads.length === 0) {
+      return { success: false, data: '', filename: '', contentType: '', recordCount: 0, error: 'No leads found matching filters' };
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'AcquisitionOS';
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet('Leads');
+
+    // Header row
+    sheet.addRow(EXPORT_HEADERS.map((h) =>
+      h.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()).trim()
+    ));
+    sheet.getRow(1).font = { bold: true };
+
+    for (const lead of leads) {
+      sheet.addRow(
+        EXPORT_HEADERS.map((h) => {
+          const raw = lead[h as keyof typeof lead];
+          if (raw === null || raw === undefined) return '';
+          if (raw instanceof Date) return raw;
+          return guardFormula(String(raw));
+        })
+      );
+    }
+
+    // Phone / postal / identifier columns stay TEXT so Excel never mangles them
+    const phoneCol = EXPORT_HEADERS.indexOf('phone') + 1;
+    const whatsappCol = EXPORT_HEADERS.indexOf('whatsapp') + 1;
+    const createdCol = EXPORT_HEADERS.indexOf('createdAt') + 1;
+    for (let i = 2; i <= leads.length + 1; i++) {
+      if (phoneCol > 0) sheet.getCell(i, phoneCol).numFmt = '@';
+      if (whatsappCol > 0) sheet.getCell(i, whatsappCol).numFmt = '@';
+      if (createdCol > 0) sheet.getCell(i, createdCol).numFmt = 'yyyy-mm-dd hh:mm:ss';
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const filename = `leads_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    await logAuditEvent(userId, 'export_generated', {
+      format: 'xlsx',
+      recordCount: leads.length,
+      totalMatching,
+      truncated,
+      filters,
+    });
+
+    return {
+      success: true,
+      data: Buffer.from(buffer as ArrayBuffer),
+      filename,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      recordCount: leads.length,
+      totalMatching,
+      error: truncated ? `Export capped at ${EXPORT_MAX_ROWS} rows — ${totalMatching} leads matched the filters.` : undefined,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: '',
+      filename: '',
+      contentType: '',
+      recordCount: 0,
+      error: error instanceof Error ? error.message : 'Export failed',
+    };
+  }
+}
+
 export async function exportJSON(
   userId: string,
   filters: LeadFilters
 ): Promise<ExportResult> {
   try {
-    const leads = await getFilteredLeads(userId, filters, EXPORT_MAX_ROWS);
+    const { leads, truncated, totalMatching } = await getFilteredLeads(userId, filters, EXPORT_MAX_ROWS);
 
     if (leads.length === 0) {
       return { success: false, data: '', filename: '', contentType: 'application/json', recordCount: 0, error: 'No leads found matching filters' };
@@ -264,10 +476,10 @@ export async function exportJSON(
     const jsonData = JSON.stringify(leads, null, 2);
     const filename = `leads_export_${new Date().toISOString().split('T')[0]}.json`;
 
-    // Audit log
     await logAuditEvent(userId, 'export_generated', {
       format: 'json',
       recordCount: leads.length,
+      truncated,
       filters,
     });
 
@@ -277,6 +489,8 @@ export async function exportJSON(
       filename,
       contentType: 'application/json',
       recordCount: leads.length,
+      totalMatching,
+      error: truncated ? `Export capped at ${EXPORT_MAX_ROWS} rows — matched leads exceed the cap.` : undefined,
     };
   } catch (error) {
     return {
@@ -365,46 +579,4 @@ function mapCSVRowToLead(row: Record<string, string>): Record<string, unknown> {
   };
 }
 
-async function getFilteredLeads(
-  userId: string,
-  filters: LeadFilters,
-  maxRows: number
-): Promise<Array<Record<string, unknown>>> {
-  // Get user's orgId
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { orgId: true },
-  });
 
-  const where: Record<string, unknown> = {
-    isActive: true,
-  };
-
-  if (user?.orgId) {
-    where.orgId = user.orgId;
-  } else {
-    where.userId = userId;
-  }
-
-  if (filters.stage) where.stage = filters.stage;
-  if (filters.niche) where.niche = filters.niche;
-  if (filters.country) where.country = filters.country;
-  if (filters.city) where.city = filters.city;
-  if (filters.source) where.source = filters.source;
-  if (filters.minRating) where.rating = { gte: filters.minRating };
-
-  if (filters.dateFrom || filters.dateTo) {
-    const createdAt: Record<string, Date> = {};
-    if (filters.dateFrom) createdAt.gte = new Date(filters.dateFrom);
-    if (filters.dateTo) createdAt.lte = new Date(filters.dateTo);
-    where.createdAt = createdAt;
-  }
-
-  const leads = await db.lead.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: maxRows,
-  });
-
-  return leads as unknown as Array<Record<string, unknown>>;
-}

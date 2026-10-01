@@ -123,6 +123,12 @@ export interface Lead {
   employeeCount?: number | null;
   /** Provider employee range when no exact count is available ("51-100", "10000+"). */
   employeeRange?: string | null;
+  /** Source listing URL where this lead was found (provenance, spec §7). */
+  sourceUrl?: string | null;
+  /** Search query / variation that produced this lead (provenance, spec §3.3). */
+  discoveredVia?: string | null;
+  /** Field-level verification label (spec §7.2): verified | partially_verified | unverified | verification_failed | conflicting. */
+  verificationStatus?: string | null;
   stage: LeadStage;
   replyScore: number;
   conversionScore: number;

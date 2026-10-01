@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { startDiscoveryJob, type DiscoverySource } from '@/lib/lead-discovery-service';
+import { getEntitlements, type PlanType } from '@/lib/entitlement-service';
+import { getFeatureUsage } from '@/lib/entitlement-middleware';
 import {
   extractHardCriteria,
   hasEnforceableCriteria,
@@ -32,8 +34,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'niche is required' }, { status: 400 });
       }
 
-      if (!country || typeof country !== 'string' || country.trim().length === 0) {
-        return NextResponse.json({ error: 'country is required' }, { status: 400 });
+      // Country is OPTIONAL (worldwide search, spec §5) — but when present
+      // it must be a non-empty string.
+      if (country !== undefined && country !== null && (typeof country !== 'string' || !country.trim())) {
+        return NextResponse.json({ error: 'country must be a non-empty string when provided' }, { status: 400 });
       }
 
       if (!source || !VALID_SOURCES.includes(source)) {
@@ -45,9 +49,12 @@ export async function POST(request: NextRequest) {
 
       // Sanitize inputs
       const sanitizedNiche = niche.trim().substring(0, 200);
-      const sanitizedCountry = country.trim().substring(0, 100);
+      const sanitizedCountry = country && typeof country === 'string' ? country.trim().substring(0, 100) : undefined;
       const sanitizedCity = city ? String(city).trim().substring(0, 100) : undefined;
-      const sanitizedMaxResults = maxResults ? Math.min(Math.max(parseInt(String(maxResults), 10) || 10, 1), 50) : undefined;
+      // Upper bound 500 — the effective ceiling stays RESULTS_PER_JOB (200
+      // unless env-overridden) inside the service; the route bound only
+      // rejects absurd inputs (spec §3.1: no tiny hardcoded caps).
+      const sanitizedMaxResults = maxResults ? Math.min(Math.max(parseInt(String(maxResults), 10) || 10, 1), 500) : undefined;
       const sanitizedRequirements = requirements ? String(requirements).trim().substring(0, 1000) : undefined;
 
       // ── HARD CRITERIA (defense in depth) ─────────────────────────
@@ -61,13 +68,43 @@ export async function POST(request: NextRequest) {
       const mergedCriteria = mergeHardCriteria(clientCriteria, textCriteria);
       const effectiveCriteria = hasEnforceableCriteria(mergedCriteria) ? mergedCriteria : null;
 
+      // ── PLAN ENTITLEMENT (server-side, spec §11.2/§12) ────────────
+      // lead_discovery limits (free 10 / starter 25) were previously only
+      // enforced on manual lead creation — discovery bypassed them. The
+      // remaining allowance CAPS this job's result target; an exhausted
+      // allowance blocks the job with an actionable upgrade message.
+      // Pro/Elite are unlimited (limit: null) and unchanged.
+      let effectiveMaxResults = sanitizedMaxResults;
+      const planType = ((user as { plan?: string }).plan || 'free') as PlanType;
+      const discoveryEntitlement = getEntitlements(planType).lead_discovery;
+      if (discoveryEntitlement.enabled && discoveryEntitlement.limit !== null) {
+        const currentUsage = await getFeatureUsage(user.id, 'lead_discovery');
+        const remaining = discoveryEntitlement.limit - currentUsage;
+        if (remaining <= 0) {
+          return NextResponse.json(
+            {
+              error: `Your ${planType} plan includes ${discoveryEntitlement.limit} discovered leads and your account already has ${currentUsage}. Upgrade your plan to discover more.`,
+              code: 'LEAD_DISCOVERY_LIMIT_REACHED',
+              feature: 'lead_discovery',
+              limit: discoveryEntitlement.limit,
+              used: currentUsage,
+              plan: planType,
+            },
+            { status: 429 }
+          );
+        }
+        if (effectiveMaxResults === undefined || effectiveMaxResults > remaining) {
+          effectiveMaxResults = remaining;
+        }
+      }
+
       // Start discovery job
       const result = await startDiscoveryJob(user.id, {
         niche: sanitizedNiche,
-        country: sanitizedCountry,
+        country: sanitizedCountry || undefined,
         city: sanitizedCity,
         source,
-        maxResults: sanitizedMaxResults,
+        maxResults: effectiveMaxResults,
         requirements: sanitizedRequirements,
         criteria: effectiveCriteria ?? EMPTY_CRITERIA,
       }, user.orgId ?? undefined);

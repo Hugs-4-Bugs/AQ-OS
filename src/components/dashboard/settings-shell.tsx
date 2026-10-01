@@ -39,6 +39,7 @@ import {
   LifeBuoy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { silentRefresh } from '@/lib/silent-refresh';
 // FIX 17: real QR code rendering for TOTP 2FA setup (was: otpauth link only)
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
@@ -284,11 +285,11 @@ export default function SettingsShell() {
       } else if (res.status === 401) {
         // Access token expired — try one refresh, then re-fetch so the form
         // hydrates from the database instead of staying empty.
-        const refreshed = await fetch('/api/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-        });
-        if (refreshed.ok) {
+        // Serialized via silentRefresh() so this cannot race a sibling
+        // tab's rotation (RCA 2026-09-29: concurrent refreshes with the
+        // same pre-rotation cookie produced false SESSION_REVOKED logouts).
+        const refreshResult = await silentRefresh({ force: true });
+        if (refreshResult.ok) {
           const retry = await fetch('/api/settings/profile', { credentials: 'include' });
           if (retry.ok) {
             const data = await retry.json();

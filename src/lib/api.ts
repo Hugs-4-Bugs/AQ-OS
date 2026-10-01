@@ -51,6 +51,9 @@ interface RawLead {
   rating?: number | null;
   employeeCount?: number | null;
   employeeRange?: string | null;
+  sourceUrl?: string | null;
+  discoveredVia?: string | null;
+  verificationStatus?: string | null;
   estimatedQuality?: string | null;
   estimatedRevenue?: string | null;
   city?: string | null;
@@ -155,6 +158,9 @@ function transformLead(raw: RawLead): Lead {
     rating: raw.rating ?? undefined,
     employeeCount: typeof raw.employeeCount === 'number' ? raw.employeeCount : undefined,
     employeeRange: raw.employeeRange || undefined,
+    sourceUrl: raw.sourceUrl || undefined,
+    discoveredVia: raw.discoveredVia || undefined,
+    verificationStatus: raw.verificationStatus || undefined,
     niche: raw.niche || undefined,
     country: raw.country || undefined,
     city: raw.city || undefined,
@@ -234,8 +240,17 @@ function transformDeal(raw: RawDeal): Deal {
 export async function fetchLeads(params?: {
   stage?: LeadStage;
   niche?: Niche;
-  country?: Country;
+  // Plain string: the worldwide country filter sends canonical ISO names and
+  // the backend matches them (plus legacy aliases) with tolerant contains.
+  country?: string;
   search?: string;
+  // Qualification filters (spec §9)
+  source?: string;
+  city?: string;
+  hasEmail?: boolean;
+  hasPhone?: boolean;
+  hasWebsite?: boolean;
+  verificationStatus?: string;
   sortBy?: string;
   sortOrder?: string;
   page?: number;
@@ -246,6 +261,12 @@ export async function fetchLeads(params?: {
   if (params?.niche) searchParams.set('niche', params.niche);
   if (params?.country) searchParams.set('country', params.country);
   if (params?.search) searchParams.set('search', params.search);
+  if (params?.source) searchParams.set('source', params.source);
+  if (params?.city) searchParams.set('city', params.city);
+  if (params?.hasEmail) searchParams.set('hasEmail', 'true');
+  if (params?.hasPhone) searchParams.set('hasPhone', 'true');
+  if (params?.hasWebsite) searchParams.set('hasWebsite', 'true');
+  if (params?.verificationStatus) searchParams.set('verificationStatus', params.verificationStatus);
   if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
   if (params?.page) searchParams.set('page', String(params.page));

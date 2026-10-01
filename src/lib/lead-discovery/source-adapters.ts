@@ -13,6 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import type { DiscoverySourceId } from './source-registry';
+import { extractCountryFromLocation } from '@/lib/countries';
 
 // ===== SHARED TYPES =====
 
@@ -33,6 +34,8 @@ export interface DiscoveredLead {
   country?: string;
   niche?: string;
   source: string;
+  /** Provider listing URL (provenance) — where on the source this lead was found. */
+  sourceUrl?: string;
   /** Street address or extra REAL context from the provider (stored in Lead.notes). */
   address?: string;
   /** Actual employee count when the provider states one (e.g. LinkedIn staffCount). */
@@ -65,7 +68,15 @@ const DEFAULT_TIMEOUT_MS = 12000;
 const SCRAPE_DELAY_MS = 1000; // 1s between scraping requests (anti-rate-limit)
 const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
-const MAX_SCRAPE_RESULTS = 20;
+/**
+ * Scrape cap per job. Raised from 20 → 50 so a single Yellow Pages / Sulekha
+ * run is not artificially capped below what the provider pages actually
+ * return (spec §3.1: no tiny hardcoded result limits). Still a bounded,
+ * rate-limit-respecting ceiling.
+ */
+const MAX_SCRAPE_RESULTS = 50;
+/** Hard ceiling on provider pages fetched per adapter run (anti-runaway). */
+const MAX_PROVIDER_PAGES = 5;
 
 // ===== HELPERS =====
 
@@ -131,6 +142,28 @@ function splitAddress(address: string): { city?: string; country?: string; full:
 
 function cleanText(value: unknown): string {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+}
+
+/**
+ * Geographic coverage pre-flight (spec §4.5/§5): when a source is declared
+ * to cover specific countries and the user explicitly searched a DIFFERENT
+ * country, fail fast with an honest coverage explanation instead of a
+ * misleading "no results" that implies the source was actually queried.
+ * Unknown/unresolvable countries proceed — the source may still serve them.
+ */
+function coverageError(
+  source: DiscoverySourceId,
+  label: string,
+  location: string,
+  coverage: { countries: string[]; note: string }
+): AdapterError | null {
+  const detected = extractCountryFromLocation(location);
+  if (!detected) return null;
+  if (coverage.countries.some((c) => c === detected)) return null;
+  return {
+    kind: 'no_results',
+    message: `${label} only covers ${coverage.countries.join(' and ')}. Your search location "${location}" resolves to ${detected}, which this source does not list. ${coverage.note}`,
+  };
 }
 
 /** Discard anything without a business name; attach the search niche. */
@@ -207,20 +240,43 @@ export async function searchGooglePlaces(
     url.searchParams.set('query', `${niche} in ${location}`);
     url.searchParams.set('key', apiKey);
 
-    const data = await fetchJson(url.toString());
+    const firstPage = await fetchJson(url.toString());
 
-    if (data.status === 'REQUEST_DENIED') {
-      return { leads: [], error: apiError(`Google Places API denied the request: ${cleanText(data.error_message) || 'check key restrictions and that the Places API is enabled'}`) };
-    }
-    if (data.status === 'OVER_QUERY_LIMIT' || data.status === 'RESOURCE_EXHAUSTED') {
-      return { leads: [], error: rateLimitError(5) };
-    }
-    if (data.status === 'INVALID_REQUEST' || data.status === 'ZERO_RESULTS') {
-      return { leads: [], error: { kind: 'no_results', message: `Google Places returned no results for "${niche}" in "${location}"` } };
+    // Google Places Text Search paginates via next_page_token — 20 results
+    // per page, up to ~60 total. Follow the token until maxResults is reached
+    // or the provider is exhausted (spec §3.2).
+    const results: PlaceSearchResult[] = [];
+    let pageToken: string | undefined;
+    let pagesFetched = 0;
+    let pageData: Record<string, unknown> = firstPage;
+
+    while (pagesFetched < MAX_PROVIDER_PAGES && results.length < Math.max(maxResults, 1)) {
+      if (pageData.status === 'REQUEST_DENIED') {
+        return { leads: [], error: apiError(`Google Places API denied the request: ${cleanText(pageData.error_message) || 'check key restrictions and that the Places API is enabled'}`) };
+      }
+      if (pageData.status === 'OVER_QUERY_LIMIT' || pageData.status === 'RESOURCE_EXHAUSTED') {
+        return { leads: [], error: rateLimitError(5) };
+      }
+      if (pagesFetched === 0 && (pageData.status === 'INVALID_REQUEST' || pageData.status === 'ZERO_RESULTS')) {
+        return { leads: [], error: { kind: 'no_results', message: `Google Places returned no results for "${niche}" in "${location}"` } };
+      }
+
+      const pageResults = Array.isArray(pageData.results) ? (pageData.results as PlaceSearchResult[]) : [];
+      results.push(...pageResults);
+      pagesFetched++;
+
+      pageToken = typeof pageData.next_page_token === 'string' ? pageData.next_page_token : undefined;
+      if (!pageToken) break;
+
+      // Google requires a short delay before the pagination token becomes valid
+      await new Promise((r) => setTimeout(r, 1500));
+      const nextUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
+      nextUrl.searchParams.set('pagetoken', pageToken);
+      nextUrl.searchParams.set('key', apiKey);
+      pageData = await fetchJson(nextUrl.toString());
     }
 
-    const results = Array.isArray(data.results) ? (data.results as PlaceSearchResult[]) : [];
-    const capped = results.slice(0, Math.min(Math.max(maxResults, 1), 20));
+    const capped = results.slice(0, Math.max(maxResults, 1));
     const leads: DiscoveredLead[] = [];
 
     for (const place of capped) {
@@ -300,16 +356,28 @@ export async function searchYelp(
   }
 
   try {
-    const url = new URL('https://api.yelp.com/v3/businesses/search');
-    url.searchParams.set('term', niche);
-    url.searchParams.set('location', location);
-    url.searchParams.set('limit', String(Math.min(Math.max(maxResults, 1), 20)));
+    // Yelp Fusion API supports offset pagination (limit ≤ 50 per request).
+    // Fetch successive pages until maxResults is reached or Yelp is exhausted.
+    const businesses: YelpBusiness[] = [];
+    const pageSize = 50;
+    let offset = 0;
 
-    const data = await fetchJson(url.toString(), {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    while (businesses.length < Math.max(maxResults, 1) && offset < pageSize * MAX_PROVIDER_PAGES) {
+      const url = new URL('https://api.yelp.com/v3/businesses/search');
+      url.searchParams.set('term', niche);
+      url.searchParams.set('location', location);
+      url.searchParams.set('limit', String(pageSize));
+      if (offset > 0) url.searchParams.set('offset', String(offset));
 
-    const businesses = Array.isArray(data.businesses) ? (data.businesses as YelpBusiness[]) : [];
+      const data = await fetchJson(url.toString(), {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      const page = Array.isArray(data.businesses) ? (data.businesses as YelpBusiness[]) : [];
+      if (page.length === 0) break; // provider exhausted
+      businesses.push(...page);
+      offset += page.length;
+    }
     const leads: DiscoveredLead[] = businesses.map((b) => {
       const displayAddress = Array.isArray(b.location?.display_address)
         ? b.location!.display_address!.join(', ')
@@ -321,7 +389,9 @@ export async function searchYelp(
       return {
         businessName: cleanText(b.name),
         phone: cleanText(b.display_phone) || cleanText(b.phone) || undefined,
-        // Yelp returns its own listing URL — kept in notes, never claimed as the business website
+        // Yelp returns its own listing URL — kept as provenance + in notes,
+        // never claimed as the business website
+        sourceUrl: b.url || undefined,
         address: displayAddress || undefined,
         city: cleanText(b.location?.city) || undefined,
         country: cleanText(b.location?.country) || undefined,
@@ -406,36 +476,48 @@ export async function searchLinkedIn(
   try {
     const token = await getLinkedInToken();
 
-    const url = new URL('https://api.linkedin.com/rest/organizationSearch');
-    url.searchParams.set('q', 'search');
-    url.searchParams.set('keywords', `${niche} ${location}`.trim());
-    url.searchParams.set('pageSize', String(Math.min(Math.max(maxResults, 1), 20)));
+    // Organization Search supports start-offset pagination — follow pages
+    // until maxResults is reached or LinkedIn returns no more elements.
+    const orgs: LinkedInOrg[] = [];
+    const pageSize = Math.min(Math.max(maxResults, 1), 50);
+    let start = 0;
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'LinkedIn-Version': '202405',
-        'X-Restli-Protocol-Version': '2.0.0',
-      },
-      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
-    });
+    while (orgs.length < Math.max(maxResults, 1) && start < pageSize * MAX_PROVIDER_PAGES) {
+      const url = new URL('https://api.linkedin.com/rest/organizationSearch');
+      url.searchParams.set('q', 'search');
+      url.searchParams.set('keywords', `${niche} ${location}`.trim());
+      url.searchParams.set('pageSize', String(pageSize));
+      if (start > 0) url.searchParams.set('start', String(start));
 
-    const text = await res.text();
+      const res = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'LinkedIn-Version': '202405',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+      });
 
-    if (res.status === 429) return { leads: [], error: rateLimitError(10) };
-    if (!res.ok) {
-      // LinkedIn partner-access rejections are common — surface the real error
-      return { leads: [], error: apiError(`LinkedIn API rejected the search (HTTP ${res.status}): ${text.slice(0, 250)}. Organization Search usually requires LinkedIn Marketing API partner approval.`) };
+      const text = await res.text();
+
+      if (res.status === 429) return { leads: [], error: rateLimitError(10) };
+      if (!res.ok) {
+        // LinkedIn partner-access rejections are common — surface the real error
+        return { leads: [], error: apiError(`LinkedIn API rejected the search (HTTP ${res.status}): ${text.slice(0, 250)}. Organization Search usually requires LinkedIn Marketing API partner approval.`) };
+      }
+
+      let data: { elements?: LinkedInOrg[] };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return { leads: [], error: apiError('LinkedIn API returned a non-JSON response') };
+      }
+
+      const page = Array.isArray(data.elements) ? data.elements : [];
+      if (page.length === 0) break; // provider exhausted
+      orgs.push(...page);
+      start += page.length;
     }
-
-    let data: { elements?: LinkedInOrg[] };
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return { leads: [], error: apiError('LinkedIn API returned a non-JSON response') };
-    }
-
-    const orgs = Array.isArray(data.elements) ? data.elements : [];
     const leads: DiscoveredLead[] = orgs.map((org) => {
       const loc = org.locations?.[0]?.address;
       // Defensive: some LinkedIn projections include a staff count — keep it
@@ -721,28 +803,47 @@ export async function searchFacebookPages(
   try {
     const token = await getFacebookAppToken();
 
-    const url = new URL('https://graph.facebook.com/v19.0/pages/search');
-    url.searchParams.set('q', `${niche} ${location}`.trim());
-    url.searchParams.set('fields', 'name,link,phone,website,category,location');
-    url.searchParams.set('limit', String(Math.min(Math.max(maxResults, 1), 20)));
-    url.searchParams.set('access_token', token);
+    // Graph API Pages Search supports cursor pagination (after) — follow it
+    // until maxResults is reached or Meta returns no further pages.
+    const pages: FBPage[] = [];
+    let after: string | undefined;
+    let pagesFetched = 0;
 
-    const data = await fetchJson(url.toString());
+    while (pages.length < Math.max(maxResults, 1) && pagesFetched < MAX_PROVIDER_PAGES) {
+      const url = new URL('https://graph.facebook.com/v19.0/pages/search');
+      url.searchParams.set('q', `${niche} ${location}`.trim());
+      url.searchParams.set('fields', 'name,link,phone,website,category,location');
+      url.searchParams.set('limit', String(Math.min(Math.max(maxResults, 1), 100)));
+      url.searchParams.set('access_token', token);
+      if (after) url.searchParams.set('after', after);
 
-    if (data.error) {
-      const err = data.error as { message?: string; code?: number };
-      if (err.code === 4 || err.code === 17 || err.code === 32) {
-        return { leads: [], error: rateLimitError(10) };
+      const data = await fetchJson(url.toString());
+      pagesFetched++;
+
+      if (data.error) {
+        const err = data.error as { message?: string; code?: number };
+        if (err.code === 4 || err.code === 17 || err.code === 32) {
+          // Preserve earlier pages rather than discarding real results
+          if (pages.length > 0) break;
+          return { leads: [], error: rateLimitError(10) };
+        }
+        if (pages.length > 0) break; // keep what we honestly fetched
+        return { leads: [], error: apiError(`Facebook Graph API error: ${err.message || 'unknown error'}`) };
       }
-      return { leads: [], error: apiError(`Facebook Graph API error: ${err.message || 'unknown error'}`) };
-    }
 
-    const pages = Array.isArray(data.data) ? (data.data as FBPage[]) : [];
+      const page = Array.isArray(data.data) ? (data.data as FBPage[]) : [];
+      pages.push(...page);
+
+      const paging = data.paging as { cursors?: { after?: string }; next?: string } | undefined;
+      after = paging?.cursors?.after;
+      if (!after || page.length === 0) break; // provider exhausted
+    }
     const leads: DiscoveredLead[] = pages.map((page) => ({
       businessName: cleanText(page.name),
       website: page.website ? normalizeUrl(cleanText(page.website).split(/\s+/)[0]) : undefined,
       phone: cleanText(page.phone) || undefined,
       facebook: page.link ? normalizeUrl(page.link) : undefined,
+      sourceUrl: page.link ? normalizeUrl(page.link) : undefined,
       city: cleanText(page.location?.city) || undefined,
       country: cleanText(page.location?.country) || undefined,
       address: cleanText(page.location?.street) || undefined,
@@ -851,12 +952,22 @@ export async function scrapeYellowPages(
   location: string,
   maxResults: number
 ): Promise<AdapterResult> {
+  const coverageErr = coverageError(
+    'yellow_pages',
+    'Yellow Pages',
+    location,
+    { countries: ['United States'], note: 'Try US cities/states, or use AI Search for other countries.' }
+  );
+  if (coverageErr) return { leads: [], error: coverageErr };
+
   const cheerio = await import('cheerio');
   const leads: DiscoveredLead[] = [];
   const target = Math.min(Math.max(maxResults, 1), MAX_SCRAPE_RESULTS);
 
-  // yellowpages.com paginates 15 per page — fetch up to 2 pages, 1s apart
-  for (const page of [1, 2]) {
+  // yellowpages.com paginates ~15 per page — fetch as many pages as the
+  // target requires (bounded by MAX_PROVIDER_PAGES), 1s apart (anti-rate-limit)
+  const pagesToFetch = Math.min(MAX_PROVIDER_PAGES, Math.ceil(target / 15));
+  for (let page = 1; page <= pagesToFetch; page++) {
     if (leads.length >= target) break;
 
     const url = new URL('https://www.yellowpages.com/search');
@@ -900,6 +1011,14 @@ export async function scrapeYellowPages(
 
         const city = locality || region || undefined;
         const country = 'United States';
+        // Provenance: the listing's own detail URL on yellowpages.com
+        const detailHref =
+          card.find('a.business-name').attr('href') ||
+          card.find('h2 a').attr('href') ||
+          '';
+        const sourceUrl = detailHref
+          ? `https://www.yellowpages.com${detailHref.startsWith('/') ? detailHref : '/' + detailHref}`
+          : undefined;
 
         if (name && (city || street)) {
           leads.push({
@@ -910,12 +1029,13 @@ export async function scrapeYellowPages(
             country,
             address: [street, locality, region].filter(Boolean).join(', ') || undefined,
             reviews: categories.length ? `Categories: ${categories.join(', ')}` : undefined,
+            sourceUrl,
             source: 'yellow_pages',
           });
         }
       });
 
-      if (page === 1) await new Promise((r) => setTimeout(r, SCRAPE_DELAY_MS));
+      if (page < pagesToFetch) await new Promise((r) => setTimeout(r, SCRAPE_DELAY_MS));
     } catch (err) {
       if (leads.length > 0) break; // partial real results are still real
       return { leads: [], error: { kind: 'scrape_failed', message: `Failed to fetch yellowpages.com: ${(err as Error).message}` } };
@@ -938,6 +1058,14 @@ export async function scrapeSulekha(
   location: string,
   maxResults: number
 ): Promise<AdapterResult> {
+  const coverageErr = coverageError(
+    'sulekha',
+    'Sulekha',
+    location,
+    { countries: ['India'], note: 'Try Indian cities, or use AI Search for other countries.' }
+  );
+  if (coverageErr) return { leads: [], error: coverageErr };
+
   const cheerio = await import('cheerio');
   const target = Math.min(Math.max(maxResults, 1), MAX_SCRAPE_RESULTS);
 
@@ -985,6 +1113,18 @@ export async function scrapeSulekha(
         const addressText =
           cleanText(card.find('[class*="address"], [class*="location"], [class*="locality"]').first().text());
 
+        // Provenance: the listing card's own detail URL on sulekha.com
+        const detailHref =
+          card.find('h2 a').first().attr('href') ||
+          card.find('h3 a').first().attr('href') ||
+          card.find('[class*="title"] a').first().attr('href') ||
+          '';
+        const sourceUrl = detailHref
+          ? detailHref.startsWith('http')
+            ? detailHref
+            : `https://www.sulekha.com${detailHref.startsWith('/') ? detailHref : '/' + detailHref}`
+          : undefined;
+
         if (name && (addressText || location)) {
           leads.push({
             businessName: name,
@@ -992,6 +1132,7 @@ export async function scrapeSulekha(
             city: citySlug || undefined,
             country: 'India',
             address: addressText || undefined,
+            sourceUrl,
             source: 'sulekha',
           });
         }

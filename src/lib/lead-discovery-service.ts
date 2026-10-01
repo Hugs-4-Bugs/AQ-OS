@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
-import { deductCredits, CREDIT_COSTS } from '@/lib/credit-service';
+import { deductCredits, refundCredits, CREDIT_COSTS } from '@/lib/credit-service';
 import { logAuditEvent } from '@/lib/lead-audit';
 import { checkDuplicate } from '@/lib/lead-dedup-service';
 import { createNotificationOnce } from '@/lib/notification-service';
@@ -18,7 +18,10 @@ import {
 } from '@/lib/lead-discovery/source-registry';
 import {
   runSourceAdapter,
+  type AdapterErrorKind,
 } from '@/lib/lead-discovery/source-adapters';
+import { normalizeCountryName } from '@/lib/countries';
+import { deriveImportVerificationStatus } from '@/lib/lead-discovery/verification';
 import {
   type HardCriteria,
   type HardRejectReason,
@@ -59,7 +62,11 @@ const ALL_DISCOVERY_SOURCES: DiscoverySource[] = [
 
 export interface DiscoveryParams {
   niche: string;
-  country: string;
+  /**
+   * Optional since worldwide support (spec §5): when omitted the search
+   * runs without a country constraint instead of failing validation.
+   */
+  country?: string;
   city?: string;
   source: DiscoverySource;
   maxResults?: number;
@@ -89,6 +96,12 @@ export interface DiscoveredLead {
   country?: string;
   niche?: string;
   source: string;
+  /** Provider listing URL (provenance) — where on the source this lead was found. */
+  sourceUrl?: string;
+  /** Search query / variation that produced this lead (spec §3.3 provenance). */
+  discoveredVia?: string;
+  /** Same identity returned by 2+ independent sources (spec §7.2 corroboration). */
+  corroborated?: boolean;
   /** REAL street address or provider context (stored in Lead.notes). */
   address?: string;
   /** Actual employee count when the provider/LLM stated one. null = unknown. */
@@ -163,8 +176,30 @@ async function pacedZaiCall<T>(
 // ===== CONSTANTS =====
 
 const MAX_CONCURRENT_JOBS = parseInt(process.env.DISCOVERY_MAX_CONCURRENT_JOBS || '3', 10);
-const RESULTS_PER_JOB = parseInt(process.env.DISCOVERY_RESULTS_PER_JOB || '50', 10);
+/**
+ * Default per-job target. Raised 50 → 200 (spec §3.1: do not hardcode a
+ * tiny global result limit when providers and the user's plan permit more;
+ * still a bounded, rate-limit-respecting ceiling, env-overridable).
+ */
+const RESULTS_PER_JOB = parseInt(process.env.DISCOVERY_RESULTS_PER_JOB || '200', 10);
 const CREDIT_COST_PER_LEAD = CREDIT_COSTS.lead_discovery;
+
+/**
+ * Error thrown by discoverFromSource carrying the provider's structured
+ * error kind — so the job processor can distinguish a genuine zero-result
+ * search (kind: 'no_results') from a provider failure / rate limit and
+ * complete the job honestly instead of reporting a blanket failure (§3.4).
+ */
+class DiscoverySourceError extends Error {
+  kind: AdapterErrorKind;
+  retryAfterMinutes?: number;
+  constructor(message: string, kind: AdapterErrorKind, retryAfterMinutes?: number) {
+    super(message);
+    this.name = 'DiscoverySourceError';
+    this.kind = kind;
+    this.retryAfterMinutes = retryAfterMinutes;
+  }
+}
 
 // ===== JOB MANAGEMENT =====
 
@@ -177,12 +212,13 @@ export async function startDiscoveryJob(
   params: DiscoveryParams,
   orgId?: string
 ): Promise<DiscoveryJobResult> {
-  // Validate params
-  if (!params.niche || !params.country || !params.source) {
+  // Validate params — country is intentionally optional (worldwide search,
+  // spec §5: "Support worldwide searches without requiring a country")
+  if (!params.niche || !params.source) {
     return {
       jobId: '',
       status: 'failed',
-      message: 'Missing required fields: niche, country, source',
+      message: 'Missing required fields: niche, source',
     };
   }
 
@@ -230,7 +266,7 @@ export async function startDiscoveryJob(
       status: 'pending',
       source: params.source,
       niche: params.niche,
-      country: params.country,
+      country: params.country || '', // '' = worldwide (column is NOT NULL)
       city: params.city || null,
       totalFound: 0,
       imported: 0,
@@ -474,15 +510,24 @@ async function processDiscoveryJob(
 
         if (dupCheck.isDuplicate) {
           duplicates++;
+          // Preserve useful information from the duplicate listing instead of
+          // discarding it (spec §8): fill empty fields + provenance. Non-
+          // destructive, idempotent, never overwrites existing values.
+          if (dupCheck.duplicateOf) {
+            await mergeFillDuplicate(dupCheck.duplicateOf, leadData);
+          }
           continue;
         }
 
-        // Deduct credit for this lead
+        // Deduct credit for this lead. Idempotency key = job + position,
+        // so a retried/replayed job can NEVER double-charge the same slot
+        // (spec §12: usage accounting must be idempotent).
         const creditResult = await deductCredits({
           userId,
           action: 'lead_discovery',
           cost: CREDIT_COST_PER_LEAD,
           referenceId: jobId,
+          idempotencyKey: `${jobId}:lead:${imported}`,
         });
 
         if (!creditResult.success) {
@@ -490,37 +535,62 @@ async function processDiscoveryJob(
           continue;
         }
 
-        // Create lead — tag with the lead's own source so "all" mode shows the real origin
-        await db.lead.create({
-          data: {
+        // Canonical country (spec §5 normalization) — falls back to the raw
+        // value when it cannot be confidently resolved, never guesses.
+        const rawCountry = leadData.country || params.country;
+        const canonicalCountry = normalizeCountryName(rawCountry) || rawCountry;
+
+        try {
+          // Create lead — tag with the lead's own source so "all" mode shows the real origin
+          await db.lead.create({
+            data: {
+              userId,
+              orgId: orgId || null,
+              businessName: leadData.businessName,
+              ownerName: leadData.ownerName || null,
+              website: leadData.website || null,
+              email: leadData.email || null,
+              phone: leadData.phone || null,
+              whatsapp: leadData.whatsapp || null,
+              linkedin: leadData.linkedin || null,
+              instagram: leadData.instagram || null,
+              facebook: leadData.facebook || null,
+              googleMapsListing: leadData.googleMapsListing || null,
+              reviews: leadData.reviews || null,
+              rating: leadData.rating || null,
+              city: leadData.city || params.city || null,
+              country: canonicalCountry,
+              niche: leadData.niche || params.niche,
+              source: leadData.source || params.source,
+              stage: 'discovered',
+              hasWebsite: !!leadData.website,
+              employeeCount:
+                typeof leadData.employeeCount === 'number' && Number.isFinite(leadData.employeeCount)
+                  ? Math.round(leadData.employeeCount)
+                  : null,
+              employeeRange: leadData.employeeRange || null,
+              sourceUrl: leadData.sourceUrl || null,
+              discoveredVia: leadData.discoveredVia || null,
+              verificationStatus: deriveImportVerificationStatus(!!leadData.corroborated),
+              notes: leadData.address ? `Address: ${leadData.address}` : null,
+            },
+          });
+        } catch (createErr) {
+          // The lead was NOT saved — the credit must not be kept (spec §12:
+          // never charge for a failed operation). Idempotent deduction means
+          // the refund plus key makes retries safe.
+          failedCount++;
+          console.error(`[DiscoveryService] Failed to import lead — refunding credit:`, createErr);
+          await refundCredits({
             userId,
-            orgId: orgId || null,
-            businessName: leadData.businessName,
-            ownerName: leadData.ownerName || null,
-            website: leadData.website || null,
-            email: leadData.email || null,
-            phone: leadData.phone || null,
-            whatsapp: leadData.whatsapp || null,
-            linkedin: leadData.linkedin || null,
-            instagram: leadData.instagram || null,
-            facebook: leadData.facebook || null,
-            googleMapsListing: leadData.googleMapsListing || null,
-            reviews: leadData.reviews || null,
-            rating: leadData.rating || null,
-            city: leadData.city || params.city || null,
-            country: leadData.country || params.country,
-            niche: leadData.niche || params.niche,
-            source: leadData.source || params.source,
-            stage: 'discovered',
-            hasWebsite: !!leadData.website,
-            employeeCount:
-              typeof leadData.employeeCount === 'number' && Number.isFinite(leadData.employeeCount)
-                ? Math.round(leadData.employeeCount)
-                : null,
-            employeeRange: leadData.employeeRange || null,
-            notes: leadData.address ? `Address: ${leadData.address}` : null,
-          },
-        });
+            amount: CREDIT_COST_PER_LEAD,
+            originalAction: 'lead_discovery',
+            referenceId: jobId,
+          }).catch((refundErr) => {
+            console.error('[DiscoveryService] Credit refund failed (ledger keeps reference):', refundErr);
+          });
+          continue;
+        }
 
         imported++;
       } catch (leadErr) {
@@ -580,12 +650,59 @@ async function processDiscoveryJob(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
+    // ══ HONEST OUTCOME CLASSIFICATION (spec §3.4) ═════════════════
+    // A provider that answered "no results" is NOT a failure. Blanket-
+    // failing genuine zero-result searches is exactly what produced the
+    // old misleading "No suitable leads found" behavior.
+    if (error instanceof DiscoverySourceError && error.kind === 'no_results') {
+      const reason = `No results: ${errorMessage}`;
+      await db.discoveryJob.update({
+        where: { id: jobId },
+        data: {
+          status: 'completed',
+          totalFound: 0,
+          imported: 0,
+          duplicates: 0,
+          failed: 0,
+          filteredOut: 0,
+          errorMessage: reason,
+          completedAt: new Date(),
+        },
+      });
+
+      await logAuditEvent(userId, 'discovery_completed_empty', {
+        jobId,
+        source: params.source,
+        reason: errorMessage,
+      });
+
+      await createNotificationOnce({
+        userId,
+        type: 'discovery_completed',
+        title: 'Lead discovery completed — no results',
+        message: `No matching businesses were returned: ${errorMessage}`,
+        actionUrl: '/business-ai/discover',
+        metadata: { jobId, source: params.source, totalFound: 0, imported: 0 },
+        dedupeKey: `discovery:${jobId}:completed`,
+      }).catch(() => {
+        // Never fail the discovery path because of a notification problem
+      });
+      return;
+    }
+
+    // Provider failure / rate limit / infrastructure error — job failed,
+    // with a truthful, actionable message (retry window when known).
+    const friendlyMessage =
+      error instanceof DiscoverySourceError && error.kind === 'rate_limited'
+        ? `${errorMessage}${error.retryAfterMinutes ? ` (retry in ~${error.retryAfterMinutes} min)` : ''}`
+        : errorMessage;
+
     // Update job as failed
     await db.discoveryJob.update({
       where: { id: jobId },
       data: {
         status: 'failed',
-        errorMessage,
+        errorMessage: friendlyMessage,
         completedAt: new Date(),
       },
     });
@@ -637,7 +754,7 @@ async function discoverFromSource(
     );
   }
 
-  const searchLocation = params.city ? `${params.city}, ${params.country}` : params.country;
+  const searchLocation = [params.city, params.country].filter(Boolean).join(', ');
   const result = await runSourceAdapter(
     params.source as DiscoverySourceId,
     params.niche,
@@ -646,9 +763,14 @@ async function discoverFromSource(
   );
 
   if (result.error) {
-    // Surface the exact, honest reason — including "Rate limit reached,
-    // try again in X minutes" for rate limiting.
-    throw new Error(result.error.message);
+    // Surface the exact, honest reason — preserving the structured kind so
+    // the job processor can distinguish "genuinely no results" from "provider
+    // failed / rate limited" (spec §3.4) instead of a blanket failure.
+    throw new DiscoverySourceError(
+      result.error.message,
+      result.error.kind,
+      result.error.retryAfterMinutes
+    );
   }
 
   return sanitizeDiscoveredLeads(result.leads, params, maxResults);
@@ -712,6 +834,68 @@ function rankVerifiedLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
     if (rating !== 0) return rating;
     return (b.website ? 1 : 0) - (a.website ? 1 : 0);
   });
+}
+
+// ===== DUPLICATE MERGE-FILL (spec §8) =====
+
+/**
+ * Fill ONLY empty fields on an existing lead from a duplicate discovery
+ * result. Never overwrites existing (stronger) evidence with incoming
+ * (weaker) evidence — non-conflicting merge only. Idempotent: running
+ * again changes nothing. Preserves the duplicate listing's provenance in
+ * notes and upgrades verification when the second sighting comes from a
+ * DIFFERENT source (independent corroboration, spec §7.2).
+ */
+async function mergeFillDuplicate(leadId: string, incoming: DiscoveredLead): Promise<void> {
+  try {
+    const existing = await db.lead.findUnique({ where: { id: leadId } });
+    if (!existing) return;
+
+    const data: Record<string, unknown> = {};
+    if (!existing.email && incoming.email) data.email = incoming.email;
+    if (!existing.phone && incoming.phone) data.phone = incoming.phone;
+    if (!existing.website && incoming.website) {
+      data.website = incoming.website;
+      data.hasWebsite = true;
+    }
+    if (!existing.sourceUrl && incoming.sourceUrl) data.sourceUrl = incoming.sourceUrl;
+    if (
+      incoming.employeeCount != null &&
+      Number.isFinite(incoming.employeeCount) &&
+      existing.employeeCount == null
+    ) {
+      data.employeeCount = Math.round(incoming.employeeCount);
+    }
+    if (incoming.employeeRange && !existing.employeeRange) {
+      data.employeeRange = incoming.employeeRange;
+    }
+
+    // Independent corroboration: same identity, different source
+    if (
+      existing.verificationStatus === 'unverified' &&
+      incoming.source &&
+      existing.source &&
+      existing.source !== incoming.source
+    ) {
+      data.verificationStatus = 'partially_verified';
+    }
+
+    const mergedSomething = Object.keys(data).length > 0;
+    if (!mergedSomething) return;
+
+    // Bounded provenance note (never overwrite the user's own notes)
+    const provenance = `Re-sighted via ${incoming.source}${incoming.sourceUrl ? ` — ${incoming.sourceUrl}` : ''}; merged non-conflicting fields only.`;
+    const currentNotes = existing.notes || '';
+    data.notes = (currentNotes ? `${currentNotes} | ` : '') + provenance;
+    if ((data.notes as string).length > 2000) {
+      data.notes = (data.notes as string).slice(-2000);
+    }
+
+    await db.lead.update({ where: { id: leadId }, data });
+  } catch (mergeErr) {
+    // Merge-fill is best-effort: the duplicate is still counted, never fatal
+    console.warn('[DiscoveryService] merge-fill skipped:', mergeErr instanceof Error ? mergeErr.message : mergeErr);
+  }
 }
 
 // ===== LEAD EVIDENCE ENRICHMENT =====
@@ -956,7 +1140,12 @@ async function searchSourceLeads(
         );
       }
 
-      discoveredLeads.push(...leadsFromResults);
+      // Record which search variation produced each lead (spec §3.3 provenance).
+      // Leads extracted from this query keep the query text; never overwrite
+      // a provenance tag set by a more specific inner step.
+      discoveredLeads.push(
+        ...leadsFromResults.map((l) => ({ ...l, discoveredVia: l.discoveredVia ?? query }))
+      );
     } catch (searchErr) {
       console.error(`[DiscoveryService] Search query failed: "${query}"`, searchErr);
       // Continue with next query
@@ -969,22 +1158,35 @@ async function searchSourceLeads(
 /**
  * Cross-source deduplication for "all" mode — merges results from parallel
  * sources and removes duplicates by website, email or normalized business name.
+ * ALSO records cross-source corroboration: when the same business identity is
+ * returned by 2+ different sources, the lead is tagged `corroborated: true`
+ * (spec §7.2 — corroboration is identity confidence, never field-level proof).
  */
 function dedupeDiscoveredLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
   const seen = new Set<string>();
   const unique: DiscoveredLead[] = [];
+  /** Key -> set of distinct sources that returned it (for corroboration). */
+  const keySources = new Map<string, Set<string>>();
 
   const normalizeName = (name: string) =>
     name.toLowerCase().replace(/[^a-z0-9]/g, '');
   const normalizeSite = (site?: string) =>
     site ? site.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') : '';
 
+  const keysFor = (lead: DiscoveredLead): string[] => [
+    lead.website ? `site:${normalizeSite(lead.website)}` : '',
+    lead.email ? `email:${lead.email.toLowerCase()}` : '',
+    `name:${normalizeName(lead.businessName)}`,
+  ].filter(Boolean);
+
   for (const lead of leads) {
-    const keys = [
-      lead.website ? `site:${normalizeSite(lead.website)}` : '',
-      lead.email ? `email:${lead.email.toLowerCase()}` : '',
-      `name:${normalizeName(lead.businessName)}`,
-    ].filter(Boolean);
+    const keys = keysFor(lead);
+
+    // Track which sources contributed to this identity
+    for (const k of keys) {
+      if (!keySources.has(k)) keySources.set(k, new Set());
+      keySources.get(k)!.add(lead.source);
+    }
 
     // A lead is a duplicate if any of its keys was already seen
     if (keys.some((k) => seen.has(k))) continue;
@@ -992,20 +1194,87 @@ function dedupeDiscoveredLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
     unique.push(lead);
   }
 
+  // Corroborated = identity surfaced from 2+ independent sources
+  for (const lead of unique) {
+    const sources = new Set<string>();
+    for (const k of keysFor(lead)) {
+      for (const src of keySources.get(k) ?? []) sources.add(src);
+    }
+    if (sources.size >= 2) {
+      lead.corroborated = true;
+      // Provenance upgrade: record the independent sources explicitly
+      lead.discoveredVia = `corroborated by: ${Array.from(sources).sort().join(' + ')}`;
+    }
+  }
+
   return unique;
+}
+
+/**
+ * Bounded, intent-preserving query expansion (spec §3.3). Adds industry
+ * synonyms and standard commercial phrasings — NEVER unrelated industries —
+ * so a niche with thin first-query recall still fills the requested result
+ * count without drifting from the user's intent. Hard-capped at 10 queries.
+ */
+const NICHE_SYNONYMS: Record<string, string[]> = {
+  dental: ['dentist', 'dental clinic', 'orthodontist'],
+  healthcare: ['medical clinic', 'doctor office', 'health center'],
+  clinic: ['medical clinic', 'health center'],
+  restaurant: ['restaurants', 'dining', 'eatery'],
+  cafe: ['coffee shop', 'café'],
+  gym: ['fitness center', 'fitness studio'],
+  fitness: ['gym', 'personal trainer'],
+  salon: ['hair salon', 'beauty salon'],
+  spa: ['day spa', 'wellness center'],
+  hotel: ['hotels', 'boutique hotel'],
+  'real estate': ['real estate agency', 'realtor', 'property agency'],
+  legal: ['law firm', 'attorney office'],
+  lawyer: ['law firm', 'attorney'],
+  accounting: ['accounting firm', 'CPA firm'],
+  construction: ['construction company', 'contractor'],
+  automotive: ['auto repair shop', 'car dealership'],
+  'e-commerce': ['online store', 'ecommerce company'],
+  manufacturing: ['manufacturer', 'factory'],
+  logistics: ['logistics company', 'freight company'],
+  education: ['training institute', 'tutoring center'],
+  marketing: ['marketing agency', 'digital marketing agency'],
+  software: ['software company', 'SaaS company'],
+  it: ['IT services company', 'IT company'],
+};
+
+/**
+ * Expand a niche into synonymous/commercial variants, preserving intent.
+ * Returns at most 3 synonyms, only when known — no generic padding.
+ */
+function nicheVariants(niche: string): string[] {
+  const key = niche.toLowerCase().trim();
+  return NICHE_SYNONYMS[key] ?? [];
 }
 
 function buildSearchQueries(params: DiscoveryParams): string[] {
   const { niche, country, city, source } = params;
-  const location = city ? `${city}, ${country}` : country;
+  // Worldwide-safe location string (spec §5): pieces that exist are joined;
+  // when neither is provided the queries run location-free.
+  const location = [city, country].filter(Boolean).join(', ');
   const queries: string[] = [];
 
   switch (source) {
-    case 'ai_search':
-      queries.push(`${niche} businesses in ${location}`);
-      queries.push(`${niche} companies ${location} contact details`);
-      queries.push(`best ${niche} services in ${location} reviews`);
+    case 'ai_search': {
+      queries.push(`${niche} businesses${location ? ` in ${location}` : ''}`);
+      queries.push(`${niche} companies ${location} contact details`.replace(/\s+/g, ' '));
+      queries.push(`best ${niche} services${location ? ` in ${location}` : ''} reviews`);
+      // Intent-preserving expansion (spec §3.3): synonyms of the SAME
+      // industry, not unrelated industries. Each variant reaches provider
+      // pages the primary phrasing misses, materially raising recall.
+      for (const variant of nicheVariants(niche)) {
+        queries.push(`${variant} businesses in ${location}`);
+        queries.push(`${variant} ${location} contact details`);
+      }
+      // Directory/list phrasing surfaces company-list pages that single-
+      // result pages miss — still strictly on-niche and on-location.
+      queries.push(`${niche} companies directory list ${location}`.replace(/\s+/g, ' '));
       break;
+    }
     case 'google_maps':
       queries.push(`site:maps.google.com ${niche} ${location}`);
       queries.push(`${niche} near ${location} google maps`);
@@ -1090,7 +1359,10 @@ function buildSearchQueries(params: DiscoveryParams): string[] {
     queries.unshift(...sizeQueries);
   }
 
-  return queries;
+  // Provider rate limits make every query cost ~4s of pacing — keep the
+  // total bounded so a job cannot run unbounded, while still leaving room
+  // for expansion. The most valuable (size-targeted) queries run first.
+  return queries.slice(0, 10);
 }
 
 // ===== LLM EXTRACTION =====

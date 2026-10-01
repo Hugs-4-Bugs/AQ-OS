@@ -1,5 +1,21 @@
 'use client';
 
+/** Source filter options — real sources used by discovery/import paths. */
+const LEAD_SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'ai_search', label: 'AI Search' },
+  { value: 'google_maps', label: 'Google Maps' },
+  { value: 'yellow_pages', label: 'Yellow Pages' },
+  { value: 'sulekha', label: 'Sulekha' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'justdial', label: 'JustDial' },
+  { value: 'indiamart', label: 'IndiaMart' },
+  { value: 'yelp', label: 'Yelp' },
+  { value: 'csv_import', label: 'CSV Import' },
+  { value: 'manual', label: 'Manual' },
+];
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -22,6 +38,8 @@ import {
   Loader2,
   SlidersHorizontal,
   Star,
+  ChevronDown,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -71,16 +89,24 @@ import {
 import { fetchLeads, deleteLead, updateLead } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { COUNTRIES } from '@/lib/countries';
 import {
   STAGE_LABELS,
   STAGE_COLORS,
   STAGE_ORDER,
   NICHE_OPTIONS,
-  COUNTRY_OPTIONS,
   type Lead,
   type LeadStage,
   type Niche,
-  type Country,
 } from '@/lib/types';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -122,6 +148,8 @@ export default function LeadsTab() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [nicheFilter, setNicheFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [contactFilter, setContactFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<string>('desc');
 
@@ -155,12 +183,16 @@ export default function LeadsTab() {
 
   // Fetch leads using the search API
   const { data: leadsResult, isLoading, error: leadsError, refetch: refetchLeads } = useQuery({
-    queryKey: ['leads', { search, stage: stageFilter, niche: nicheFilter, country: countryFilter, sortBy, sortOrder, currentPage }],
+    queryKey: ['leads', { search, stage: stageFilter, niche: nicheFilter, country: countryFilter, source: sourceFilter, contact: contactFilter, sortBy, sortOrder, currentPage }],
     queryFn: () => fetchLeads({
       search: search || undefined,
       stage: stageFilter !== 'all' ? (stageFilter as LeadStage) : undefined,
       niche: nicheFilter !== 'all' ? (nicheFilter as Niche) : undefined,
-      country: countryFilter !== 'all' ? (countryFilter as Country) : undefined,
+      country: countryFilter !== 'all' ? countryFilter : undefined,
+      source: sourceFilter !== 'all' ? sourceFilter : undefined,
+      hasEmail: contactFilter === 'email' ? true : undefined,
+      hasPhone: contactFilter === 'phone' ? true : undefined,
+      hasWebsite: contactFilter === 'website' ? true : undefined,
       sortBy,
       sortOrder,
       page: currentPage,
@@ -225,31 +257,46 @@ export default function LeadsTab() {
     },
   });
 
-  // Export handler
-  const handleExport = useCallback(async () => {
+  // Export handler — CSV or Excel (.xlsx); exports ALL matching rows
+  // server-side (not just the current UI page) per spec §11.1
+  const handleExport = useCallback(async (format: 'csv' | 'xlsx' = 'csv') => {
     try {
       const params = new URLSearchParams();
       if (stageFilter !== 'all') params.set('stage', stageFilter);
       if (nicheFilter !== 'all') params.set('niche', nicheFilter);
       if (countryFilter !== 'all') params.set('country', countryFilter);
+      if (sourceFilter !== 'all') params.set('source', sourceFilter);
+      if (contactFilter === 'email') params.set('hasEmail', 'true');
+      if (contactFilter === 'phone') params.set('hasPhone', 'true');
+      if (contactFilter === 'website') params.set('hasWebsite', 'true');
       if (search) params.set('search', search);
-      params.set('format', 'csv');
+      params.set('format', format);
 
       const res = await fetch(`/api/leads/export?${params.toString()}`);
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Export failed');
+      }
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('Export completed');
-    } catch {
-      toast.error('Export failed');
+      // Honest counts (spec §11.4): surface the actual exported record count
+      const recordCount = res.headers.get('X-Record-Count');
+      const truncated = res.headers.get('X-Export-Truncated') === 'true';
+      const note = res.headers.get('X-Export-Note');
+      toast.success(
+        `Export completed${recordCount ? ` — ${recordCount} record${recordCount === '1' ? '' : 's'}` : ''}`,
+        truncated && note ? { description: decodeURIComponent(note) } : undefined
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Export failed');
     }
-  }, [stageFilter, nicheFilter, countryFilter, search]);
+  }, [stageFilter, nicheFilter, countryFilter, sourceFilter, contactFilter, search]);
 
   // Loading skeleton
   if (isLoading) {
@@ -341,15 +388,26 @@ export default function LeadsTab() {
             <Upload className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Import</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-1.5 border-primary/20"
-            onClick={handleExport}
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 border-primary/20"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                <Download className="h-3.5 w-3.5 mr-2" /> Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                <Download className="h-3.5 w-3.5 mr-2" /> Export Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Expandable Filters */}
@@ -385,15 +443,74 @@ export default function LeadsTab() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={countryFilter} onValueChange={(v) => handleFilterChange(setCountryFilter, v)}>
+                {/* Country filter — full ISO dataset (spec §5); the backend
+                    matches canonical names AND legacy aliases so saved leads
+                    keep working. */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-[160px] h-8 justify-between text-xs border-primary/20 font-normal"
+                    >
+                      <span className="truncate">
+                        {countryFilter === 'all' ? 'All Countries' : countryFilter}
+                      </span>
+                      <ChevronDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search countries..." />
+                      <CommandList className="max-h-64 overflow-y-auto">
+                        <CommandEmpty>No country found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="all countries"
+                            onSelect={() => handleFilterChange(setCountryFilter, 'all')}
+                          >
+                            <span className="flex-1">All Countries</span>
+                            {countryFilter === 'all' && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                          </CommandItem>
+                          {COUNTRIES.map((c) => (
+                            <CommandItem
+                              key={c.code}
+                              value={`${c.name} ${c.code}`}
+                              onSelect={() => handleFilterChange(setCountryFilter, c.name)}
+                            >
+                              <span className={cn('flex-1', countryFilter === c.name && 'font-medium')}>{c.name}</span>
+                              {countryFilter === c.name ? (
+                                <CheckCircle2 className="h-4 w-4 text-primary" />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{c.code}</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <Select value={sourceFilter} onValueChange={(v) => handleFilterChange(setSourceFilter, v)}>
                   <SelectTrigger className="w-[130px] h-8 text-xs border-primary/20">
-                    <SelectValue placeholder="Country" />
+                    <SelectValue placeholder="Source" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Countries</SelectItem>
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    {LEAD_SOURCE_OPTIONS.map((src) => (
+                      <SelectItem key={src.value} value={src.value}>{src.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <Select value={contactFilter} onValueChange={(v) => handleFilterChange(setContactFilter, v)}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs border-primary/20">
+                    <SelectValue placeholder="Contact" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any Contact</SelectItem>
+                    <SelectItem value="email">Has Email</SelectItem>
+                    <SelectItem value="phone">Has Phone</SelectItem>
+                    <SelectItem value="website">Has Website</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={sortBy} onValueChange={setSortBy}>

@@ -4,6 +4,7 @@ import { withDualAuthPermission } from '@/lib/auth-middleware';
 import { checkPlanEntitlement, getFeatureUsage } from '@/lib/entitlement-middleware';
 import { withMonitoring } from '@/lib/observability/middleware';
 import { checkApiKeyLeadLimit, recordApiKeyUsage } from '@/lib/api-key-service';
+import { aliasesFor } from '@/lib/countries';
 
 // GET /api/leads - List all leads with filtering, sorting, and pagination
 export const GET = withMonitoring(async (request: NextRequest) => {
@@ -15,6 +16,14 @@ export const GET = withMonitoring(async (request: NextRequest) => {
       const niche = searchParams.get('niche');
       const country = searchParams.get('country');
       const search = searchParams.get('search');
+      // Qualification filters (spec §9) — applied to actual stored rows
+      const source = searchParams.get('source');
+      const city = searchParams.get('city');
+      const hasEmail = searchParams.get('hasEmail');
+      const hasPhone = searchParams.get('hasPhone');
+      const hasWebsite = searchParams.get('hasWebsite');
+      const verificationStatus = searchParams.get('verificationStatus');
+      const websiteStatus = searchParams.get('websiteStatus');
       const sortBy = searchParams.get('sortBy') || 'createdAt';
       const sortOrder = searchParams.get('sortOrder') || 'desc';
       const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
@@ -35,16 +44,36 @@ export const GET = withMonitoring(async (request: NextRequest) => {
       }
       if (stage) where.stage = stage;
       if (niche) where.niche = { contains: niche };
-      if (country) where.country = { contains: country };
-      if (search) {
-        where.OR = [
-          { businessName: { contains: search } },
-          { ownerName: { contains: search } },
-          { email: { contains: search } },
-          { city: { contains: search } },
-          { niche: { contains: search } },
-        ];
+      if (source) where.source = source;
+      if (city) where.city = { contains: city };
+      if (hasEmail === 'true') where.email = { not: null };
+      if (hasPhone === 'true') where.phone = { not: null };
+      if (hasWebsite === 'true') {
+        where.hasWebsite = true;
+        where.website = { not: null };
       }
+      if (verificationStatus) where.verificationStatus = verificationStatus;
+      if (websiteStatus) where.websiteStatus = websiteStatus;
+      // Country filter with alias tolerance (spec §5): legacy saved leads may
+      // store "USA"/"UAE"/"UK" while the worldwide selector sends canonical
+      // ISO names. Match the canonical name AND every known alias — existing
+      // saved lead locations are preserved, never rewritten.
+      const andConds: Array<Record<string, unknown>> = [];
+      if (country) {
+        andConds.push({ OR: aliasesFor(country).map((v) => ({ country: { contains: v } })) });
+      }
+      if (search) {
+        andConds.push({
+          OR: [
+            { businessName: { contains: search } },
+            { ownerName: { contains: search } },
+            { email: { contains: search } },
+            { city: { contains: search } },
+            { niche: { contains: search } },
+          ],
+        });
+      }
+      if (andConds.length > 0) where.AND = andConds;
 
       const validSortFields = ['createdAt', 'updatedAt', 'businessName', 'stage', 'replyScore', 'conversionScore', 'urgencyScore', 'revenuePotentialScore', 'rating'];
       const orderByField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';

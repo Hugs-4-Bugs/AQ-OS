@@ -51,6 +51,16 @@ export interface SourceMeta {
   notes?: string;
   /** Free sources that need zero configuration. */
   noSetupRequired?: boolean;
+  /**
+   * Declared geographic coverage (spec §5: distinguish unsupported
+   * coverage from a genuine zero-result search). Canonical ISO country
+   * names. Absent = worldwide-capable (provider accepts any location).
+   */
+  coverage?: {
+    countries: string[];
+    /** User-facing explanation of the limitation. */
+    note: string;
+  };
 }
 
 export interface SourceStatusInfo extends SourceMeta {
@@ -213,6 +223,10 @@ export const DISCOVERY_SOURCE_REGISTRY: SourceMeta[] = [
     requiredEnvVars: [],
     optionalEnvVars: [],
     noSetupRequired: true,
+    coverage: {
+      countries: ['United States'],
+      note: 'yellowpages.com covers US businesses. Searches in other countries run against this source return no listings — that is a coverage limit, not a system failure.',
+    },
   },
   {
     id: 'sulekha',
@@ -223,6 +237,10 @@ export const DISCOVERY_SOURCE_REGISTRY: SourceMeta[] = [
     requiredEnvVars: [],
     optionalEnvVars: [],
     noSetupRequired: true,
+    coverage: {
+      countries: ['India'],
+      note: 'sulekha.com covers Indian businesses. Searches in other countries run against this source return no listings — that is a coverage limit, not a system failure.',
+    },
   },
 ];
 
@@ -313,4 +331,12 @@ export function getSourceConfigMessage(id: DiscoverySourceId): string {
 /** Statuses for every registered source (for the Settings UI + dropdown hints). */
 export function listSourceStatuses(): SourceStatusInfo[] {
   return DISCOVERY_SOURCE_REGISTRY.map((s) => getSourceStatusInfo(s.id));
+}
+
+/**
+ * Declared coverage metadata for a source, if it has a geographic limit.
+ * (spec §4.5/§5: never imply a source is worldwide when it is not.)
+ */
+export function getSourceCoverage(id: DiscoverySourceId): SourceMeta['coverage'] | undefined {
+  return DISCOVERY_SOURCE_REGISTRY.find((s) => s.id === id)?.coverage;
 }

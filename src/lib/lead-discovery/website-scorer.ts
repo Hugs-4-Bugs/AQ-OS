@@ -9,6 +9,8 @@
 // DYNAMIC IMPORT: cheerio is ~3MB. Load only when scraping to reduce startup memory.
 // This prevents the module from being loaded at server boot.
 
+import { safeFetch } from '@/lib/net/url-guard';
+
 // ===== TYPES =====
 
 export interface WebsiteScore {
@@ -77,84 +79,51 @@ export async function analyzeWebsite(
 
   // ── Check SSL from URL ──────────────────────────────────────────
   const normalizedUrl = normalizeUrl(url.trim());
-  const hasSSL = normalizedUrl.startsWith('https://');
+  // Recomputed from the FINAL validated URL after fetch (redirects may
+  // upgrade or downgrade the scheme); initialized from the requested URL.
+  let hasSSL = normalizedUrl.startsWith('https://');
 
-  // ── Fetch the website ───────────────────────────────────────────
+  // ── Fetch the website (SSRF-safe: every URL comes from provider data
+  // and is therefore attacker-controllable — spec §6.1/§14) ──────────
   let html = '';
   let hasWebsite = false;
   let loadSpeed: 'fast' | 'slow' | 'unknown' = 'unknown';
 
-  const fetchStart = Date.now();
+  const result = await safeFetch(normalizedUrl, {
+    timeoutMs: FETCH_TIMEOUT_MS,
+    maxBytes: MAX_HTML_SIZE,
+  });
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  // Recompute SSL from the FINAL validated URL (redirects may upgrade/downgrade)
+  hasSSL = result.finalUrl.startsWith('https://');
 
-    const response = await fetch(normalizedUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; AcquisitionOS-Bot/1.0; +https://acquisitionos.com)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-      redirect: 'follow',
-    });
+  if (result.ok && !result.error) {
+    const fetchDuration = result.elapsedMs;
 
-    clearTimeout(timeoutId);
-
-    const fetchDuration = Date.now() - fetchStart;
-
-    if (response.ok) {
-      // Check content-length header before downloading full HTML body
-      const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-      if (contentLength > MAX_HTML_SIZE) {
-        console.warn(`[WebsiteScorer] Skipping large page (${(contentLength / 1024).toFixed(0)}KB > 500KB): ${normalizedUrl}`);
-        return {
-          overallScore: 40,
-          hasWebsite: true,
-          isMobile: false,
-          hasSSL,
-          loadSpeed: 'slow',
-          hasContactInfo: false,
-          hasSocialLinks: false,
-          hasOnlineBooking: false,
-          techStack: [],
-          designAge: 'unknown',
-          seoScore: 10,
-          gaps: ['Large page size (content over 500KB)'],
-          opportunityStatement: `${companyName} has a very large website that may need optimization — we can improve their page performance for their ${niche} business.`,
-        };
-      }
-
-      html = await response.text();
-
-      // Additional size check after download in case content-length was missing/incorrect
-      if (html.length > MAX_HTML_SIZE) {
-        console.warn(`[WebsiteScorer] Page too large (${(html.length / 1024).toFixed(0)}KB > 500KB), skipping full analysis: ${normalizedUrl}`);
-        html = null as unknown as string; // Free memory immediately
-        return {
-          overallScore: 40,
-          hasWebsite: true,
-          isMobile: false,
-          hasSSL,
-          loadSpeed: 'slow',
-          hasContactInfo: false,
-          hasSocialLinks: false,
-          hasOnlineBooking: false,
-          techStack: [],
-          designAge: 'unknown',
-          seoScore: 10,
-          gaps: ['Large page size (over 500KB)'],
-          opportunityStatement: `${companyName} has a very large website that may need optimization — we can improve their page performance for their ${niche} business.`,
-        };
-      }
-      hasWebsite = true;
-      loadSpeed = fetchDuration < 3000 ? 'fast' : 'slow';
-    } else {
-      hasWebsite = false;
-      loadSpeed = 'unknown';
+    if (result.truncated) {
+      // Body exceeded the hard cap → very large page, treat as slow/large
+      console.warn(`[WebsiteScorer] Page exceeded ${MAX_HTML_SIZE / 1024}KB cap: ${normalizedUrl}`);
+      return {
+        overallScore: 40,
+        hasWebsite: true,
+        isMobile: false,
+        hasSSL,
+        loadSpeed: 'slow',
+        hasContactInfo: false,
+        hasSocialLinks: false,
+        hasOnlineBooking: false,
+        techStack: [],
+        designAge: 'unknown',
+        seoScore: 10,
+        gaps: ['Large page size (over 500KB)'],
+        opportunityStatement: `${companyName} has a very large website that may need optimization — we can improve their page performance for their ${niche} business.`,
+      };
     }
-  } catch {
+
+    html = result.body;
+    hasWebsite = true;
+    loadSpeed = fetchDuration < 3000 ? 'fast' : 'slow';
+  } else {
     hasWebsite = false;
     loadSpeed = 'unknown';
   }

@@ -55,6 +55,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { COUNTRIES } from '@/lib/countries';
 import { fetchLeads, updateLead } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -567,6 +577,7 @@ export default function DiscoverTab() {
   const [source, setSource] = useState<string>('ai_search');
   const [niche, setNiche] = useState('');
   const [country, setCountry] = useState('');
+  const [countryOpen, setCountryOpen] = useState(false);
   const [city, setCity] = useState('');
 
   // Search mode: classic filters or AI chat
@@ -642,7 +653,7 @@ export default function DiscoverTab() {
     mutationFn: async (vars?: DiscoveryVars) => {
       const payload = {
         niche: (vars?.niche ?? niche).trim(),
-        country: (vars?.country ?? country).trim(),
+        country: (vars?.country ?? country).trim() || undefined,
         city: (vars?.city ?? city).trim() || undefined,
         source: vars?.source ?? source,
         maxResults: vars?.maxResults || undefined,
@@ -668,7 +679,7 @@ export default function DiscoverTab() {
         status: data.status || 'pending',
         source: payload.source,
         niche: payload.niche,
-        country: payload.country,
+        country: payload.country || '',
         city: payload.city,
         totalFound: 0,
         leadsAdded: 0,
@@ -823,8 +834,8 @@ export default function DiscoverTab() {
 
   const canDiscover =
     niche.trim() &&
-    country.trim() &&
     source &&
+    // Country is optional — empty selection = Worldwide (spec §5).
     // An unconfigured source is NEVER run — it cannot return real data
     !selectedSourceBlocked;
   return (
@@ -961,18 +972,68 @@ export default function DiscoverTab() {
               />
             </div>
 
-            {/* Country Input */}
+            {/* Country selector — worldwide dataset (spec §5): searchable,
+                ISO-complete, with an explicit Worldwide option (no country). */}
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 text-primary" />
-                Country
+                Country <span className="text-muted-foreground font-normal">(or Worldwide)</span>
               </label>
-              <Input
-                placeholder="e.g. USA, India, UAE..."
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="border-primary/20 focus:ring-primary/30"
-              />
+              <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={countryOpen}
+                    className="w-full justify-between border-primary/20 focus:ring-primary/30 font-normal"
+                  >
+                    <span className={cn('truncate', !country && 'text-muted-foreground')}>
+                      {country || '🌍 Worldwide (all countries)'}
+                    </span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[320px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search countries..." />
+                    <CommandList className="max-h-64 overflow-y-auto">
+                      <CommandEmpty>No country found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="Worldwide all countries"
+                          onSelect={() => {
+                            setCountry('');
+                            setCountryOpen(false);
+                          }}
+                        >
+                          <Globe className="mr-2 h-4 w-4" />
+                          <span className={cn('flex-1', !country && 'font-medium')}>Worldwide (all countries)</span>
+                          {!country && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                        </CommandItem>
+                      </CommandGroup>
+                      <CommandGroup heading="Countries">
+                        {COUNTRIES.map((c) => (
+                          <CommandItem
+                            key={c.code}
+                            value={`${c.name} ${c.code}`}
+                            onSelect={() => {
+                              setCountry(c.name);
+                              setCountryOpen(false);
+                            }}
+                          >
+                            <span className={cn('flex-1', country === c.name && 'font-medium')}>{c.name}</span>
+                            {country === c.name ? (
+                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{c.code}</span>
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* City Input */}

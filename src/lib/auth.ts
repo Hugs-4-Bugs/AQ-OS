@@ -38,14 +38,18 @@ const OTP_MAX_ATTEMPTS = 5;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
-// ===== SESSION LIFETIME POLICY (P5+P6, permanent fix Sep 2026) =====
-// "Remember me for 30 days" = ABSOLUTE maximum lifetime, with a
-// server-authoritative 48-hour INACTIVITY limit:
-//   - Active users keep their session until the 30-day absolute ceiling.
-//   - A session idle for > 48h is invalidated at the next refresh.
+// ===== SESSION LIFETIME POLICY (P5+P6, permanent fix Sep 2026; idle rule corrected Sep 29) =====
+// "Remember me for 30 days" = ABSOLUTE maximum lifetime:
+//   - A remembered session stays valid until its 30-day absolute ceiling
+//     unless it is explicitly revoked (logout / security action) or the
+//     account is deactivated.
+//   - CORRECTION (Sep 29, 2026): the previous server-authoritative 48-hour
+//     INACTIVITY limit logged remembered users out after a couple of days
+//     away, defeating the advertised 30-day persistence. The idle rule is
+//     removed; lastActivityAt is still tracked for audit purposes.
 // Non-remembered sessions keep the app's normal 30-day session behavior.
 // Access tokens stay short-lived (15m) — refresh is the only lifetime gate.
-export const SESSION_IDLE_MAX_MS = 48 * 60 * 60 * 1000;      // 48 hours
+export const SESSION_IDLE_MAX_MS = 48 * 60 * 60 * 1000;      // retained for legacy reference — no longer enforced
 export const SESSION_REMEMBER_ABSOLUTE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export const SESSION_ACTIVITY_WRITE_THROTTLE_MS = 5 * 60 * 1000; // avoid per-request writes
 
@@ -512,15 +516,11 @@ export async function getSessionState(refreshToken: string): Promise<{
   const absolute = session.absoluteExpiresAt ?? session.expiresAt;
   if (absolute <= now) return { state: 'expired', session: null };
 
-  // Server-authoritative idle limit (P6): remembered sessions die after
-  // 48h WITHOUT authenticated activity. Non-remembered sessions keep the
-  // app's normal behavior (no idle rule).
-  if (
-    session.rememberMe &&
-    now.getTime() - new Date(session.lastActivityAt).getTime() > SESSION_IDLE_MAX_MS
-  ) {
-    return { state: 'idle_expired', session: null };
-  }
+  // NOTE (Sep 29, 2026): the remembered-session 48h idle-expiry rule was
+  // REMOVED — it contradicted the advertised "remember me for 30 days"
+  // persistence by logging users out after two inactive days. A remembered
+  // session now lives until its absolute 30-day ceiling unless explicitly
+  // revoked. lastActivityAt is still maintained for audit trails.
 
   return {
     state: 'valid',

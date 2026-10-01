@@ -476,21 +476,186 @@ Stage Summary:
   credits — not authorized); the exact failing network request verified OK.
 
 ---
-Task ID: monitoring-403-fix-1
+Task ID: two-issue-fix-1
 Agent: Super Z (main agent)
-Task: FIX ONLY Settings → Monitoring HTTP 403 ("Failed to load metrics — HTTP 403") — smallest possible change, preserve security
+Task: STRICT TWO-ISSUE BUG FIX — (1) Remember Me 30-day persistence unreliable; (2) Settings → Monitoring HTTP 403
 
 Work Log:
-- Context: workspace had been platform-restored to a pre-Task-F state (git log: HEAD 7ac46df21, commits 8ff21de/2ca886b absent; src/lib/silent-refresh.ts gone). Monitoring 403 re-appeared because the prior accepted fix was wiped.
-- Root cause (verified): /api/metrics/dashboard guarded by withSuperAdmin (platform super_admin only, exact-match role check in auth-middleware L105-106) while Settings nav shows the Monitoring tab to ALL users (settings-shell SETTINGS_NAV L80, no gating). DB: 32 owners, 1 super_admin, 1 legacy USER; ALL recent live sessions belong to an owner → every Monitoring click = 403 "Super admin access required". getAuthUser resolves role fresh from DB (not stale JWT) — auth chain itself correct.
-- Prior accepted fix recovered as REFERENCE from dangling commit 8ff21de (Task F worklog entry + file blobs); re-applied as forward edits (Edit tool, not git restore). Resulting route.ts byte-identical to the previously-accepted version (diff-verified).
-- Fix (single file + its test): guard withSuperAdmin → withAdmin (super_admin/owner/admin; member/viewer/unauthenticated stay blocked) + ROLE-SCOPED PAYLOAD: super_admin unchanged full platform view; owner/admin business metrics filtered to own userId (real DB aggregates, no fabrication); recentSlowQueries SQL text + traces stripped for non-platform admins (cross-user artifacts).
-- Tests: tests/unit/metrics-dashboard-scope.test.ts 3/3 (super_admin unscoped+artifacts, owner scoped+stripped, unauth 401). ESLint changed files 0 errors.
-- Full suite A/B: baseline (stashed) 30 failed/986 passed; with-fix 36→31 failed/983→988 passed across 2 runs — failing FILE SETS identical (env-dependent SMTP/JWT/credits/onboarding/health files); auth-api integration flake passes 18/18 in isolation with fix. Zero regressions attributable.
-- LIVE E2E (scripts/monitoring-403-e2e.js, JWT minted server-side from .env secret, never printed; DB via readOnly snapshot copy): 11/11 — unauth 401; owner qa***@test.com 200 + scoped (totalLeads=0, totalCredits=50 == own rows; slowQueries/traces stripped; structure intact); super_admin 200 + full (totalLeads=89, activeUsers=47 == platform totals); scoping contrast owner<platform proven.
-- Committed 1007d283a (route.ts +40/−12, new test file 144 lines). No DB writes to real database (snapshot copies only); no other files touched.
+- ISSUE 1 forensics: signin/OTP/magic-link/Google/MFA routes all pass rememberMe
+  correctly (verified in code + DB: today's sessions have rememberMe=1).
+  Session rows: expiresAt=30d + absoluteExpiresAt + lastActivityAt (throttled 5m).
+  Found three verified defects:
+  (a) REFRESH ROTATION RACE — /api/auth/refresh rotates single-use tokens
+      (revoke old session → create new). Any two concurrent refreshes sharing
+      the pre-rotation cookie (multi-tab 14-min intervals, tab-focus refreshes,
+      double-mounted init) → the loser reads a just-REVOKED session →
+      401 SESSION_REVOKED → hard logout. Operator has 22 live sessions
+      (multi-tab user) → routine false logouts.
+  (b) INIT-PATH INFRA FRAGILITY — auth-gate page-restore treated ANY refresh
+      failure (503/network) as signed-out, violating the P11 semantics used
+      elsewhere (transient ≠ logout).
+  (c) 48h IDLE POLICY vs 30-DAY PROMISE — remembered sessions were
+      invalidated after 48h without activity ("Session expired after 48 hours
+      of inactivity"), i.e. a long weekend logged users out despite
+      "Remember me for 30 days".
+- ISSUE 1 fixes (forward-only):
+  NEW src/lib/silent-refresh.ts — shared silent refresh serialized across
+  tabs via Web Locks API (fallback: no lock), 10-min throttle for
+  focus-triggered refreshes, isAuthoritativeLogout() classification
+  (REAL_LOGOUT_CODES; legacy 401-without-code → authoritative; 5xx/network → never).
+  use-token-refresh.ts — interval refresh force=true (keep-alive), visibility
+  refresh throttled; same bounded-backoff semantics.
+  auth-gate.tsx — restore path uses silentRefresh; only authoritative codes
+  clear the user; 503/network keep rehydrated state.
+  settings-shell.tsx — its ad-hoc 401-refresh now goes through silentRefresh
+  (last unserialized caller closed).
+  auth.ts getSessionState — remembered-session 48h idle-expiry REMOVED
+  (policy correction per task requirement: 30-day persistence). Absolute
+  30d ceiling, revocation, logout, deactivation all untouched.
+  NOTE: line 898 `}, [mfaRequired, authPage])` was suspected corrupted —
+  verified via code-point dump it is CORRECT (terminal display ate "[m" as
+  ANSI reset). No change needed there.
+- ISSUE 2 forensics: /api/metrics/dashboard guarded by withSuperAdmin
+  (platform super_admin only, added in e51fdad Sep 21 as security fix for
+  previously-unauthenticated route exposing slow-query SQL text + traces).
+  Settings nav shows Monitoring to ALL users → 33/34 users (all owners)
+  got 403. Operator's account is owner. super_admin account exists (1).
+  Payload contains cross-tenant business metrics + raw SQL text + traces.
+- ISSUE 2 fix: guard withSuperAdmin → withAdmin (super_admin/owner/admin;
+  member/viewer/unauthenticated stay blocked) + ROLE-SCOPED PAYLOAD:
+  super_admin = unchanged full platform view; owner/admin = business
+  metrics filtered to their own userId (real DB queries, nothing fabricated),
+  recentSlowQueries SQL text + traces stripped (cross-user artifacts).
+  UI unchanged. Read-only aggregates — no billing/credit data modified.
+- Tests: NEW tests/unit/remember-me-persistence.test.ts (15) — idle-policy
+  regression, revoked/expired/missing authority, silentRefresh lock+throttle+
+  classification. NEW tests/unit/metrics-dashboard-scope.test.ts (3) —
+  super_admin unscoped + artifacts, owner scoped + stripped, 401 unauthenticated.
+  18/18 pass. Full suite: identical pre-existing env-dependent failure set
+  (30-31 in 9 files, matches documented baseline) — zero regressions.
+- ESLint changed files: 0 errors (2 pre-existing unused-disable warnings in
+  untouched settings-shell lines). npm run build: SUCCESS (all routes +
+  standalone verified). Dev server smoke: /api/auth/config 200, /api/health
+  200, / → 200; /api/metrics/dashboard unauthenticated → 401 (blocked).
+  next-env.d.ts build-artifact flip restored (not part of the fix).
 
 Stage Summary:
-- Root cause: role-guard/visibility mismatch — UI offers Monitoring to everyone, API allowed only platform super_admin; operator-class users (owner) correctly authenticated but rejected at authorization.
-- Fix: withAdmin + role-scoped payload; isolation preserved (own-metrics-only, no SQL/trace leakage); unauthorized still blocked (401 unauth / 403 member-viewer).
-- Out-of-scope observations (NOT touched, disclosed): Task-F Remember-Me files (silent-refresh.ts etc.) also wiped by restore; /api/health 503 = dev-server heap 96.5% (memory pressure, DB healthy); .env/.next tracked by platform auto-commits.
+- Remember Me: rotation-race serialization + init resilience + 30-day idle
+  policy correction → session persists until 30d ceiling unless revoked.
+- Monitoring: 403 resolved for authorized admin-level users via withAdmin +
+  role-scoped payload; isolation preserved (own metrics only, no SQL/traces);
+  unauthorized still blocked (401/403).
+- No DB changes; no user/credit/billing data touched (read-only forensics).
+
+---
+Task ID: otp-verify-fix-1
+Agent: Super Z (main agent)
+Task: OTP VERIFICATION FAILURE FIX — "Unable to verify the code right now. Please try again in a moment." on /api/auth/otp/verify
+
+Work Log:
+- Forensics (read-only): dev.log was a stale EADDRINUSE artifact; live server
+  stdout is a socket. Used DB forensics via node:sqlite on SNAPSHOT copies
+  (never the live file) + AuditLog epoch decoding.
+- Timeline proof: user kattyboy785@gmail.com requested OTP codes 18:33:16 and
+  19:01:58 (both wrote loginOtp + AuditLog 'OTP login code generated'), yet user
+  row ended with loginOtp CLEARED + no session + no success events +
+  lastLoginAt still Sep 22. In verify/route.ts the OTP-clear step (line 152)
+  runs ONLY after a successful secureCompare — so comparison SUCCEEDED and the
+  throw happened in the post-comparison session-creation block.
+- Root cause (proven on a disposable DB copy, scripts/otp-schema-proof.js):
+  db.userSession.create and even userSession.findFirst throw Prisma P2022
+  ("column does not exist"). Physical UserSession table had only 10 columns —
+  rememberMe / lastActivityAt / absoluteExpiresAt (declared in schema.prisma by
+  Task A commit ed256c2, Sep 24) were MISSING. This morning's workspace restore
+  (≈18:31, .env mtime + dev.log EADDRINUSE) rolled db/custom.db back to a
+  pre-Task-A snapshot. createSession is shared by OTP verify, password signin,
+  AND refresh rotation → all three channels were throwing 500/503.
+- prisma migrate diff (read-only) confirmed drift but its repair path emits
+  DROP TABLE "UserSession" (+ SupportTicket creates, Lead alters — other
+  restore casualties, OUT OF SCOPE). db push/migrate = destructive → forbidden.
+- Fix (operational, additive-only, ZERO source-code changes):
+  Backup db/custom.db → db/custom.db.backup-20260929-otp-schema (gitignored).
+  Single transaction on the real DB: ALTER TABLE ADD COLUMN rememberMe
+  BOOLEAN NOT NULL DEFAULT 0; lastActivityAt DATETIME; absoluteExpiresAt
+  DATETIME; backfill lastActivityAt=createdAt. Idempotent, WAL-safe pre-checks,
+  before/after row counts identical (465/34/1234/163/89), integrity_check ok,
+  indexes intact. Proven on a copy FIRST (proof script phases A/B/C).
+- E2E matrix on the LIVE server (qa@test.com fixture; OTP values never
+  printed): health 200; request→OTP stored; invalid→401 no cookies; malformed
+  →400; VALID+rememberMe→200 "Signed in successfully via OTP" +
+  access_token 900s + refresh_token maxAge 2592000 (30d); session row
+  rememberMe=true, absoluteExpiresAt=+30d, lastLoginAt updated; OTP cleared
+  (one-time-use); reuse→400; expired OTP→400; resend→latest code wins;
+  resent verify with rememberMe=false→200 + refresh_token session cookie +
+  session rememberMe=false (unchecked behavior preserved).
+- Refresh channel re-verified: /api/auth/refresh 200, refresh_token_rotated
+  audit rows written, session IDs rotated, rememberMe carried through rotation
+  (route lines 168/200). (Test script initially showed "same token" — JWT
+  second-resolution iat makes consecutive signs byte-identical; DB confirms
+  real rotation. Pre-existing design property, not changed.)
+- Regression: tests/unit auth.test.ts + permanent-auth-fix + remember-me-
+  persistence + infra-failure-auth-semantics → 112/112 PASS.
+- Committed: scripts (forensics/proof/repair/e2e) + this worklog entry.
+
+Stage Summary:
+- Root cause: workspace-restore DB rollback → UserSession missing Task A's
+  rememberMe/lastActivityAt/absoluteExpiresAt columns → Prisma P2022 inside
+  createSession on every login channel → OTP verify returned generic 500.
+- Fix: additive schema repair only (3 columns + backfill); no code changed;
+  no data lost (row counts + integrity verified; backup retained).
+- Remaining (out of scope, disclosed): same restore also dropped OTHER schema
+  pieces (SupportTicket* tables, Lead.employeeCount/employeeRange) — those
+  features will error until a SEPARATE non-destructive repair; password
+  signin untested end-to-end (no known passwords) but shares the now-proven
+  createSession path; 3 test emails sent to fixture qa@test.com; fixture
+  account gained 3 test sessions (left in place, expires naturally).
+
+---
+Task ID: lead-discovery-master-1 (Phase A audit)
+Agent: Super Z (main agent)
+Task: MASTER LEAD DISCOVERY, ENRICHMENT & BULK EXPORT — Phase A: complete existing-system audit (spec: upload/Pasted Content_1790857107308.txt, 965 lines)
+
+Work Log:
+- Verified workspace state first (spec §1): main @ 4dcb5c6, clean tree; prior fixes survived restore (metrics withAdmin, silent-refresh.ts, metrics test present). DB schema matches Prisma (Lead 52 cols, DiscoveryJob 21 cols incl filteredOut). Live: 89 leads / 34 users / 8 completed discovery jobs (92 imported, 11 dup, 17 failed → avg ~11.5/job = "small batch" complaint confirmed).
+- Traced full flow: discover-tab.tsx → POST /api/leads/discover (clamp 1..50) → startDiscoveryJob → processDiscoveryJob (lead-discovery-service.ts, 1274 ln) → ai_search (z-ai web_search+LLM) or runSourceAdapter → hard-criteria gate → per-lead dedup + deductCredits + db.lead.create → status polling.
+- Env facts (names only): configured = GOOGLE_SEARCH_API_KEY, GOOGLE_SEARCH_CX (website verification only, NOT discovery). All other source creds ABSENT (GOOGLE_MAPS_API_KEY, YELP_API_KEY, JUSTDIAL_*, INDIAMART_API_KEY, FACEBOOK_*, INSTAGRAM_*, LINKEDIN_*). Usable now: ai_search (no creds), yellow_pages (scrape, US), sulekha (scrape, IN).
+
+Audit findings (root causes):
+1. LOW VOLUME: every API adapter caps 20 results, single page, NO pagination (Places next_page_token, Yelp offset, FB after-cursor all unused); Yellow Pages only 2 pages (~30 max); API route clamps maxResults≤50; AI-mode 100-request silently halved to 50; "all" merged cap max(maxResults, perSourceLimit*2).
+2. FALSE NO-RESULTS: adapter error kinds exist but single-source adapter throw fails whole job without distinguishing no_results (genuine empty) vs rate_limited vs scrape_failed; sulekha URL-guessing breaks for non-India; yellow_pages hardcodes country='United States'.
+3. ENTITLEMENT BYPASS: lead_discovery limit (free 10/starter 25) enforced ONLY on manual POST /api/leads, never on /api/leads/discover; data_export (free/starter disabled) NOT enforced on /api/leads/export — any plan can export today (disclosed, fix planned Phase G).
+4. CREDIT INTEGRITY: deductCredits per lead has NO idempotencyKey and NO refund if db.lead.create fails after deduction (17 'failed' observed) — §12 violation.
+5. EXPORT: CSV-only via /api/leads/export; getFilteredLeads IGNORES the search filter (bug); EXPORT_MAX_ROWS=5000 silently truncates; NO formula-injection guard; NO xlsx anywhere (Export Center UI claims XLSX/PDF but only fires toasts — façade); NO plan entitlement check.
+6. GEO: Country type = 6 hardcoded values (types.ts:91); discover country input is free-text but Leads filter only knows 6; adapters hardcode US/India; no normalization (USA vs United States mismatch).
+7. SSRF: website-scorer.ts and website-service.ts fetch arbitrary lead-supplied URLs with NO private-IP/redirect-revalidation guard (§6.1 violation).
+8. DEDUP: checkDuplicate loads ALL leads w/ website/phone per candidate; fuzzy scan capped 500; no unique constraints; no merge-fill of missing fields; concurrent jobs can double-insert.
+9. Tests: only discovery-hard-criteria (40+ cases) covers this domain; zero tests for adapters/registry/dedup/export/discover route.
+10. Plan: implement in phases B→H per spec §16 with minimal additive changes; DB additions forward-only additive (prisma migrate diff checked before any push).
+
+Decision log:
+- Skipped fullstack-dev init script (curl|bash): it cp -a's a scaffold tarball OVER the workspace → violates spec §1.3/1.4 (no overwrite/restore). Project already initialized and running.
+- DB changes: additive-only; will verify with prisma migrate diff (read-only) before applying; no resets, no destructive SQL.
+
+Stage Summary:
+- Phase A complete. Root causes identified with file/line evidence. Implementation order: B discovery reliability → C source honesty → D worldwide geo → E website/verification + SSRF → F dedup/filters → G export → H tests+report.
+
+---
+Task ID: lead-discovery-master-2 (Phases B–H implementation + verification)
+Agent: Super Z (main agent)
+Task: Implement lead discovery reliability, worldwide geo, SSRF-safe website analysis, verification labels, dedup merge-fill, plan-aware bulk export; verify with tests + live E2E (spec §16 order).
+
+Work Log:
+- Phase B (discovery reliability): source-adapters.ts — real pagination everywhere (Places next_page_token, Yelp offset 50/pg, LinkedIn start-offset, Facebook/IG after-cursor, Yellow Pages dynamic pages to target); scrape cap 20→50; provider-page ceiling 5; sourceUrl provenance on yelp/fb/yp/sulekha listings. lead-discovery-service.ts — RESULTS_PER_JOB 50→200 (env-overridable); DiscoverySourceError carries provider kind → 'no_results' now COMPLETES the job with the exact reason (blanket-failure bug fixed, §3.4); credits idempotencyKey `${jobId}:lead:${n}` + refundCredits on failed create (§12); bounded intent-preserving query expansion (synonym map, ≤10 queries, §3.3). discover route: clamp 1..500 (service ceiling still applies); free/starter lead_discovery allowance ENFORCED (remaining caps job target, exhausted → 429 upgrade hint) — closes the audited bypass.
+- Phase C (source honesty): registry gained coverage metadata (yellow_pages=US, sulekha=India); adapters pre-flight coverage check resolves the requested country via the new countries module and refuses non-covered searches with an explicit coverage message — coverage limit ≠ zero-result system failure (§5). Facebook/Instagram preserve after-cursor partial results on mid-page failure.
+- Phase D (worldwide): src/lib/countries.ts — full ISO 3166-1 (249), aliases (USA/UK/UAE/…), normalizeCountryName/countryCodeFor/extractCountryFromLocation/aliasesFor/searchCountries; country optional end-to-end (route validation, service params, job record, queries/adapters); canonical country stored at import; Leads page + Discover use searchable worldwide comboboxes (shadcn Popover+Command); GET /api/leads country filter matches canonical + aliases (legacy saved leads stay visible, never rewritten).
+- Phase E (website + verification): src/lib/net/url-guard.ts — SSRF guard (scheme allowlist; DNS-checked private/loopback/link-local/metadata/CGNAT/TEST-NET v4+v6; manual redirects re-validated per hop; 8s timeout; 512KB cap); website-scorer + website-service probes routed through safeFetch. verification.ts — 5 labels (§7.2); import status = unverified, partially_verified only on 2-source corroboration; classifyWebsite → six §6.2 categories from observed evidence (probed-no-website stays "Not Yet Verified", estimates labelled). Schema: additive Lead.sourceUrl/discoveredVia/verificationStatus (migrate diff verified additive-only BEFORE db push; 52→55 cols).
+- Phase F (dedup/filters): mergeFillDuplicate — duplicate sightings fill ONLY empty fields + append bounded provenance note + upgrade verification on independent source (§8, non-destructive, idempotent); GET /api/leads gained source/city/hasEmail/hasPhone/hasWebsite/verificationStatus/websiteStatus filters; Leads UI: source + contact-info selects.
+- Phase G (export): exceljs added; exportXLSX (real .xlsx, text-format phone columns, bold header); CSV UTF-8 BOM; guardFormula injection protection on all cells; search-filter bug FIXED (was accepted, ignored); batched fetch (500/pg) through ALL matching rows; cap 5000→20000 env-overridable; truncation REPORTED (X-Export-Truncated + note), never silent; data_export entitlement enforced (free/starter 403 PLAN_REQUIRED; authz only — no new charges, pricing untouched); X-Record-Count/X-Total-Matching headers; Leads UI: CSV/Excel dropdown + honest counts toast; Export Center façade fixed (real leads downloads; unavailable formats report honestly).
+- Phase H (verification): 96 unit tests green (countries 20, url-guard 17, verification 12, export-safety 10, hard-criteria regression 44 + more); full suite 1056 passed / 30 failed — failing files EXACTLY the pre-existing env-dependent baseline (auth/JWT/SMTP/credits/onboarding), zero in changed areas; ESLint 0 problems on all 19 changed files; tsc: no new error files vs baseline (one file fixed).
+- Live E2E #1 (scripts/lead-discovery-e2e.js, fixture free account): 16/16 — worldwide ai_search job completed; persisted leads carry verificationStatus=unverified + discoveredVia; re-run dedup honest (same 3 companies → 0 re-imported, no double charge); yellow_pages+India completes with coverage message and 0 fabricated leads; free export 403 PLAN_REQUIRED; pro export real XLSX (ZIP magic, X-Record-Count=58 == user's lead count); search=zzz → 400.
+- Live E2E #2 (scripts/lead-discovery-e2e2.js): requested 20, server CAPPED to remaining free allowance 7 (10 limit − 3 existing) — entitlement enforcement proven live; 7 real Canadian coffee shops imported, all with provenance; balance arithmetic 50→40 = exactly 10×(-1) ledger entries grouped by job referenceId (idempotency verified).
+- Commits: c9153e3 (discovery), 7c7e12f (website/SSRF), b4a0aa6 (export/UI), + deps/worklog.
+
+Stage Summary:
+- All 8 spec phases implemented with forward-only additive changes; DB diff verified additive before push; no resets, no billing changes, no existing data modified (only additive columns + new rows created by the controlled E2E on disposable fixture accounts).
+- Remaining disclosures (§20.12/14): source credentials absent for Google Maps/Yelp/Facebook/Instagram/LinkedIn/JustDial/IndiaMART — those sources honestly report not_configured (registry-accurate); Yellow Pages/Sulekha geographic coverage limited by design and now labeled; z-ai web_search has no server-side page param so AI-search volume scales via query expansion (≤10 queries) rather than deep pagination; export cap 20000 default (env EXPORT_MAX_ROWS); starter-plan lead count semantics follow the existing lifetime-count convention (getFeatureUsage unchanged — disclosed, not silently changed); plan-value drift in DB ('PRO' uppercase row) predates this task and is untouched.

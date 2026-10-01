@@ -18,6 +18,7 @@ import {
 } from '@/components/dashboard/auth-pages-v2';
 import LegalPages from '@/components/dashboard/legal-pages';
 import { DevDeliveryNotice, parseDevDelivery } from '@/components/dashboard/dev-delivery-notice';
+import { silentRefresh, isAuthoritativeLogout } from '@/lib/silent-refresh';
 import type { DevDeliveryPayload } from '@/lib/dev-auth';
 import { useLegalStore } from '@/lib/legal-store';
 import { toast } from 'sonner';
@@ -860,19 +861,27 @@ export default function AuthGate() {
           // Access token may simply have expired (15 min). The refresh
           // session lasts 30 days — try one silent refresh before forcing
           // the user back through login, then hydrate the identity again.
+          // RCA 2026-09-29: this refresh is serialized across tabs via
+          // silentRefresh() so a sibling tab's rotation can never make
+          // this restore read a just-revoked session.
           try {
-            const refreshRes = await fetch('/api/auth/refresh', {
-              method: 'POST',
-              credentials: 'include',
-            });
-            if (refreshRes.ok) {
-              const refreshData = await refreshRes.json().catch(() => null);
-              if (refreshData?.user) {
-                setUser(refreshData.user);
+            const refreshResult = await silentRefresh({ force: true });
+            if (refreshResult.ok) {
+              if (refreshResult.user) {
+                setUser(refreshResult.user);
                 ok = true;
               } else {
                 ok = await loadMe();
               }
+            } else if (isAuthoritativeLogout(refreshResult)) {
+              // Authoritative server answer: session expired/revoked or
+              // token invalid — a real logout.
+              ok = false;
+            } else {
+              // 503 / network / transient failure (P11 semantics): a
+              // temporary backend problem is NOT a logout. Keep whatever
+              // restored state exists; the periodic refresh reconciles.
+              ok = !!useAuthStore.getState().user;
             }
           } catch {
             // Refresh failed (network) — fall through to signed-out state.

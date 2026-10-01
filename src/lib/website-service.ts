@@ -23,6 +23,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { safeFetch } from '@/lib/net/url-guard';
 
 // ===== STATUS MODEL =====
 
@@ -205,23 +206,27 @@ export async function probeWebsite(url: string): Promise<PageProbe> {
   const canonical = canonicalizeWebsiteUrl(url);
   if (!canonical) return { reachable: false, definitelyDead: false, error: 'invalid_url' };
 
-  // 1) Direct fetch with redirect following.
+  // 1) Direct fetch with redirect following — SSRF-safe (spec §6.1/§14):
+  // lead-supplied URLs are attacker-controllable, so every hop is
+  // re-validated against private/reserved address ranges via safeFetch.
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const res = await fetch(canonical, {
-      redirect: 'follow',
-      signal: controller.signal,
+    const result = await safeFetch(canonical, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: 512 * 1024,
       headers: { 'User-Agent': BROWSER_UA, Accept: 'text/html,*/*' },
     });
-    clearTimeout(timer);
-    const html = res.status < 400 ? (await res.text().catch(() => '')) : undefined;
-    const guarded = [403, 406, 429, 503].includes(res.status);
+    if (result.status === 0 && result.error) {
+      // Blocked (SSRF guard / DNS failure) or network error — fall through
+      // to the page_reader fallback path before concluding anything.
+      throw new Error(result.error);
+    }
+    const guarded = [403, 406, 429, 503].includes(result.status);
+    const html = result.status < 400 ? result.body : '';
     return {
-      reachable: res.status < 400 || guarded,
-      definitelyDead: [404, 410].includes(res.status),
-      finalUrl: res.url || canonical,
-      statusCode: res.status,
+      reachable: result.status < 400 || guarded,
+      definitelyDead: [404, 410].includes(result.status),
+      finalUrl: result.finalUrl || canonical,
+      statusCode: result.status,
       html,
       text: html ? htmlToText(html).slice(0, PAGE_TEXT_LIMIT) : undefined,
       title: html ? extractTitle(html) : undefined,
