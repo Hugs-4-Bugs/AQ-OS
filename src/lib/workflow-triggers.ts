@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/db';
 import { executeWorkflow } from '@/lib/workflow-engine';
+import { AUTOMATION_PLAN_TIERS } from '@/lib/plan-feature-limits';
 
 // ===== TYPES =====
 
@@ -49,12 +50,15 @@ export async function evaluateTrigger(
   userId: string
 ): Promise<string[]> {
   try {
-    // Find all active workflows with matching trigger type
+    // Find all active workflows with matching trigger type.
+    // Plan Eligibility Correction: event-driven automation fires ONLY for
+    // Pro/Elite owners — Free/Starter workflows are excluded at the DB level.
     const matchingWorkflows = await db.workflowDefinition.findMany({
       where: {
         userId,
         status: 'active',
         triggerType: eventType,
+        user: { plan: { in: AUTOMATION_PLAN_TIERS } },
       },
       select: { id: true, triggerConfig: true, name: true },
     });
@@ -253,11 +257,14 @@ export async function processScheduledTriggers(): Promise<string[]> {
   try {
     const now = new Date();
 
-    // Find all active scheduled workflows
+    // Find all active scheduled workflows.
+    // Plan Eligibility Correction: scheduled automation fires ONLY for
+    // Pro/Elite owners (Free/Starter workflows are skipped, not modified).
     const scheduledWorkflows = await db.workflowDefinition.findMany({
       where: {
         status: 'active',
         triggerType: 'scheduled',
+        user: { plan: { in: AUTOMATION_PLAN_TIERS } },
       },
       select: { id: true, userId: true, triggerConfig: true, name: true },
     });

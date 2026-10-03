@@ -7,6 +7,11 @@ import { db } from '@/lib/db';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { sendEmail } from '@/lib/email';
 import { moveLeadToStage } from '@/lib/pipeline-service';
+import {
+  buildSenderSignatureBlock,
+  applySenderSignature,
+} from '@/lib/ai/sender-signature';
+import { loadSenderProfile } from '@/lib/ai/outreach-generator';
 
 // ===== TYPES =====
 
@@ -17,6 +22,9 @@ export interface ActionContext {
   leadId?: string;
   triggerData?: Record<string, unknown>;
   previousOutputs?: Record<string, unknown>;
+  /** Pre-resolved {{lead.*}} template variables — fetched ONCE per
+   *  execution by the engine and shared by every step. */
+  leadVars?: Record<string, string>;
 }
 
 export interface ActionResult {
@@ -96,12 +104,18 @@ async function executeSendEmail(
     return { success: false, error: 'Email requires to, subject, and body' };
   }
 
-  // Resolve template variables in subject/body
+  // Resolve template variables in to/subject/body — `to` supports
+  // {{lead.email}} so workflows can email the lead in context.
+  const resolvedTo = resolveTemplate(String(to), context);
   const resolvedSubject = resolveTemplate(String(subject), context);
   const resolvedBody = resolveTemplate(String(body), context);
 
+  if (!resolvedTo.trim()) {
+    return { success: false, error: 'Email recipient resolved to an empty address (no lead email in context?)' };
+  }
+
   const result = await sendEmail({
-    to: String(to),
+    to: resolvedTo,
     subject: resolvedSubject,
     html: resolvedBody,
     text: resolvedBody,
@@ -311,6 +325,12 @@ async function executeAiOutreach(
     const outreachStyle = style || 'professional';
     const outreachTone = tone || 'friendly';
 
+    // SENDER IDENTITY: the workflow acts on behalf of the user who owns it.
+    // Real profile goes into the prompt; placeholder tokens the model still
+    // emits are replaced before the draft is stored.
+    const senderProfile = await loadSenderProfile(context.userId);
+    const senderBlock = buildSenderSignatureBlock(senderProfile);
+
     const prompt = `Generate a ${outreachStyle} ${outreachChannel} outreach message for:
       Business: ${lead.businessName}
       Owner: ${lead.ownerName || 'Unknown'}
@@ -318,10 +338,15 @@ async function executeAiOutreach(
       City: ${lead.city || 'Unknown'}
       Tone: ${outreachTone}
       
-      Create a compelling, personalized message that addresses their potential needs.`;
+      Create a compelling, personalized message that addresses their potential needs.
+
+${senderBlock}`;
 
     const response = await chat.sendMessage(prompt);
-    const generatedMessage = response.text || response.content || '';
+    const generatedMessage = applySenderSignature(
+      response.text || response.content || '',
+      senderProfile
+    );
 
     // Create outreach message record
     const message = await db.outreachMessage.create({
@@ -841,6 +866,36 @@ async function executeNotifyTrialEnding(
 
 // ===== TEMPLATE VARIABLE RESOLVER =====
 
+/**
+ * Lead template variables for one execution ({{lead.email}},
+ * {{lead.name}}, {{lead.businessName}}, {{lead.stage}}, {{lead.score}},
+ * {{lead.niche}}, {{lead.city}}, {{lead.country}}). Called ONCE per run
+ * by the engine; empty string (never the literal placeholder) when the
+ * lead has no value, so emails are never sent with raw {{...}} text.
+ */
+export async function getLeadTemplateVars(leadId?: string): Promise<Record<string, string>> {
+  if (!leadId) return {};
+  const lead = await db.lead.findFirst({
+    where: { id: leadId },
+    select: {
+      id: true, email: true, ownerName: true, businessName: true,
+      stage: true, conversionScore: true, niche: true, city: true, country: true,
+    },
+  }).catch(() => null);
+  if (!lead) return {};
+  return {
+    '{{lead.id}}': lead.id || '',
+    '{{lead.email}}': lead.email || '',
+    '{{lead.name}}': lead.ownerName || '',
+    '{{lead.businessName}}': lead.businessName || '',
+    '{{lead.stage}}': lead.stage || '',
+    '{{lead.score}}': lead.conversionScore != null ? String(lead.conversionScore) : '',
+    '{{lead.niche}}': lead.niche || '',
+    '{{lead.city}}': lead.city || '',
+    '{{lead.country}}': lead.country || '',
+  };
+}
+
 function resolveTemplate(template: string, context: ActionContext): string {
   let resolved = template;
 
@@ -852,6 +907,14 @@ function resolveTemplate(template: string, context: ActionContext): string {
     '{{userId}}': context.userId,
   };
 
+  // Lead variables ({{lead.email}}, {{lead.name}}, …) — filled first so
+  // more specific trigger/output values can still override them.
+  if (context.leadVars) {
+    for (const [key, value] of Object.entries(context.leadVars)) {
+      replacements[key] = value;
+    }
+  }
+
   // Add trigger data variables
   if (context.triggerData) {
     for (const [key, value] of Object.entries(context.triggerData)) {
@@ -859,9 +922,16 @@ function resolveTemplate(template: string, context: ActionContext): string {
     }
   }
 
-  // Add previous output variables
+  // Add previous output variables — supports {{output.<stepId>}} AND
+  // structured {{output.<stepId>.<field>}} (e.g. an ai_outreach step's
+  // generatedMessage), keyed by the step's node id.
   if (context.previousOutputs) {
     for (const [key, value] of Object.entries(context.previousOutputs)) {
+      if (value && typeof value === 'object') {
+        for (const [field, fieldValue] of Object.entries(value as Record<string, unknown>)) {
+          replacements[`{{output.${key}.${field}}}`] = String(fieldValue ?? '');
+        }
+      }
       replacements[`{{output.${key}}}`] = String(value ?? '');
     }
   }

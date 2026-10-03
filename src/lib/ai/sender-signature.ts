@@ -82,3 +82,64 @@ export function applySenderSignature(body: string, profile: SenderProfile): stri
 
   return out;
 }
+
+/**
+ * Apply the same placeholder cleanup to every string field of a
+ * structured generation output (e.g. { subject, body } or
+ * { connectionMessage, followUpMessage }). Non-string fields pass
+ * through untouched. Only placeholder tokens are ever replaced —
+ * real content (including the lead's own details) is never rewritten.
+ */
+export function applySenderSignatureToFields<T extends Record<string, unknown>>(
+  fields: T,
+  profile: SenderProfile
+): T {
+  const out = { ...fields };
+  for (const key of Object.keys(out)) {
+    const value = out[key];
+    if (typeof value === 'string' && value) {
+      out[key] = applySenderSignature(value, profile) as T[Extract<keyof T, string>];
+    }
+  }
+  return out;
+}
+
+/**
+ * The canonical signature lines for the authenticated user, in order:
+ * name, company, "Email: …", "Phone: …". Fields with no saved value are
+ * omitted entirely (never an empty label), and any value that ALREADY
+ * appears in the message body (when provided) is skipped so the same
+ * detail is never duplicated between the AI's own sign-off and the
+ * appended signature block.
+ */
+export function buildSignatureLines(
+  profile: SenderProfile,
+  existingBody?: string
+): string[] {
+  const haystack = existingBody ? existingBody.toLowerCase() : null;
+  const seen = (value: string): boolean =>
+    haystack !== null && haystack.includes(value.toLowerCase());
+
+  const lines: string[] = [];
+  const name = profile.name?.trim();
+  const company = profile.company?.trim();
+  const email = profile.email?.trim();
+  const phone = profile.phone?.trim();
+
+  if (name && !seen(name)) lines.push(name);
+  if (company && !seen(company)) lines.push(company);
+  if (email && !seen(email)) lines.push(`Email: ${email}`);
+  if (phone && !seen(phone)) lines.push(`Phone: ${phone}`);
+  return lines;
+}
+
+/**
+ * The signature lines joined as a plain-text block ("" when nothing is
+ * available — callers append nothing in that case).
+ */
+export function buildSignatureBlock(
+  profile: SenderProfile,
+  existingBody?: string
+): string {
+  return buildSignatureLines(profile, existingBody).join('\n');
+}

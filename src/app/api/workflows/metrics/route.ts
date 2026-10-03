@@ -8,9 +8,12 @@ import { withAuth } from '@/lib/auth-middleware';
 import { getExecutionMetrics } from '@/lib/workflow-engine';
 import { getWorkflowUsage } from '@/lib/workflow-credits';
 import { getDeadLetterStats } from '@/lib/workflow-dead-letter';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const { searchParams } = new URL(request.url);
       const detail = searchParams.get('detail');

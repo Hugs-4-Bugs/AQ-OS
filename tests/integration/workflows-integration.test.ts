@@ -58,6 +58,8 @@ vi.mock('@/lib/workflow-dead-letter', () => ({
 
 vi.mock('@/lib/workflow-actions', () => ({
   executeAction: vi.fn(),
+  // Engine fetches lead template vars once per run ({{lead.*}} support).
+  getLeadTemplateVars: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('@/lib/workflow-credits', () => ({

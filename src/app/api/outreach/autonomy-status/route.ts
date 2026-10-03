@@ -15,10 +15,13 @@ import {
   type OutreachAutonomyMode,
 } from '@/lib/autonomous-outreach-service';
 import type { AuthUser } from '@/lib/auth';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // GET /api/outreach/autonomy-status
 export const GET = withApiLogging(async (request: NextRequest) => {
   return withAuth(request, async (user: AuthUser) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const status = await getOutreachAutonomyStatus(user.id);
 
@@ -39,6 +42,8 @@ export const GET = withApiLogging(async (request: NextRequest) => {
 // PUT /api/outreach/autonomy-status
 export const PUT = withApiLogging(async (request: NextRequest) => {
   return withAuth(request, async (user: AuthUser) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { mode } = body;

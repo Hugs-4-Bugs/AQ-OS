@@ -3,6 +3,12 @@ import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { canUserAccessLead } from '@/lib/lead-resolution';
 import ZAI from 'z-ai-web-dev-sdk';
+import {
+  buildSenderSignatureBlock,
+  applySenderSignatureToFields,
+} from '@/lib/ai/sender-signature';
+import { loadSenderProfile } from '@/lib/ai/outreach-generator';
+import { resolveBusinessContext, buildBusinessContextBlock } from '@/lib/business-profile-server';
 
 // POST /api/leads/[id]/outreach - Generate personalized outreach messages
 export async function POST(
@@ -42,6 +48,29 @@ export async function POST(
 
     const zai = await ZAI.create();
 
+    // BUSINESS CONTEXT (spec §3/§4): the authenticated user's selected
+    // business profile (ownership-checked in resolveBusinessContext; falls
+    // back to their default) + optional campaign-specific overrides sent in
+    // the request body. This drives WHAT the sender offers — any industry —
+    // instead of a hardcoded website/software pitch.
+    const { businessProfileId, campaignOverrides } = (body ?? {}) as {
+      businessProfileId?: string | null;
+      campaignOverrides?: Record<string, string | undefined> | null;
+    };
+    const businessContext = await resolveBusinessContext(user.id, businessProfileId ?? null, campaignOverrides ?? null).catch((err) => {
+      console.error('[LeadOutreach] business context resolution failed (continuing without):', err instanceof Error ? err.message : err);
+      return null;
+    });
+
+    // SENDER IDENTITY: the authenticated user's own profile (never the
+    // lead's, never sample data). Injected into the prompt so the model
+    // signs with real details, and every returned string is post-processed
+    // so a model-emitted "[Your Name]" placeholder can never survive.
+    const senderProfile = await loadSenderProfile(user.id);
+    if (businessContext?.companyName) senderProfile.company = businessContext.companyName;
+    const senderBlock = buildSenderSignatureBlock(senderProfile);
+    const senderBusinessBlock = buildBusinessContextBlock(businessContext);
+
     // Build context with analysis
     const leadContext = `
 Business Name: ${lead.businessName}
@@ -72,17 +101,21 @@ Previous Communications: ${lead.communications.length > 0 ? lead.communications.
       messages: [
         {
           role: 'assistant',
-          content: `You are a world-class business development strategist who writes outreach messages that actually get responses. Your messages are:
-- Highly personalized and reference SPECIFIC observations about the target business
-- Mention actual business problems you've identified (not generic pain points)
-- Explain the concrete business impact of those problems
-- Sound human, intelligent, and ROI-focused
-- NEVER use generic spam language like "I hope this email finds you well" or "synergy" or "revolutionize"
-- Show you've done your homework on their business
-- Are concise and respect the reader's time
-- Have a clear, specific, low-pressure call to action
+          content: `You are a world-class business development strategist who writes outreach messages that actually get responses. You write for the SENDER'S OWN business — which can be from ANY industry (wellness, hospitality, retail, consulting, manufacturing, software, marketing, education, …). You NEVER assume the sender sells websites, software, or marketing unless the SENDER BUSINESS CONTEXT says so.
+
+Your messages are:
+- Personalized with SPECIFIC, REAL facts about the target business (from the lead context only)
+- Clear about what the sender offers (from SENDER BUSINESS CONTEXT) and why it may be relevant to THIS recipient
+- Honest: NEVER invent relationships, prior conversations, results, statistics, or recipient problems; do NOT claim the recipient needs a website, redesign, marketing or SEO unless the lead context explicitly shows it
+- Free of generic spam language like "I hope this email finds you well" or "synergy" or "revolutionize"
+- Concise, human, and respectful of the reader's time
+- Ended with the sender's preferred call to action (or a clear, specific, low-pressure one)
 
 ${channelInstructions[channel]}
+
+${senderBusinessBlock}
+
+${senderBlock}
 
 Return ONLY valid JSON.`,
         },
@@ -112,6 +145,11 @@ Return ONLY valid JSON.`,
         { status: 500 }
       );
     }
+
+    // Signature personalization: replace any placeholder tokens the model
+    // still emitted with the user's real profile values (missing fields are
+    // omitted cleanly — the lead's own details are never touched).
+    messages = applySenderSignatureToFields(messages, senderProfile);
 
     // Also generate alternative versions
     const altCompletion = await zai.chat.completions.create({
@@ -146,6 +184,11 @@ Return ONLY valid JSON.`,
     } catch {
       // Alternatives are optional, don't fail
     }
+
+    alternatives = {
+      casual: applySenderSignatureToFields(alternatives.casual || {}, senderProfile),
+      roi_focused: applySenderSignatureToFields(alternatives.roi_focused || {}, senderProfile),
+    };
 
     return NextResponse.json({
       channel,

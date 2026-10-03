@@ -24,6 +24,10 @@ type CreateWorkflowStepInput = {
 export const GET = withMonitoring(async (request: NextRequest) => {
   return withDualAuthPermission(request, 'pipeline:read', async (user, apiKeyInfo) => {
     try {
+      // Plan Eligibility Correction: workflow automation is Pro/Elite only.
+      const entitlementCheck = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+      if (!entitlementCheck.allowed) return entitlementCheck.response!;
+
       const { searchParams } = new URL(request.url);
       const filters = {
         status: searchParams.get('status') || undefined,

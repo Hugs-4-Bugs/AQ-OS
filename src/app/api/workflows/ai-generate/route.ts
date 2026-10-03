@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { deductCredits } from '@/lib/credit-service';
 import ZAI from 'z-ai-web-dev-sdk';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 const AI_WORKFLOW_COST = 5;
 
@@ -214,6 +215,8 @@ function buildWorkflowPayload(gen: GeneratedWorkflow, status: 'draft' | 'active'
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       // ── 1. Elite-only gate (server-side enforcement) ─────────────
       if (user.plan !== 'elite') {

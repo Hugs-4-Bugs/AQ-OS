@@ -216,33 +216,10 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Award bonus credits if just completed
+    // Onboarding no longer grants credits — the TOTAL signup reward is the
+    // 50-credit signup_grant written at account creation (see the matching
+    // change in /api/settings/onboarding). Response shape unchanged.
     let bonusAwarded = false;
-    if (progressData.completed && current && !current.bonusCreditsAwarded) {
-      await db.$transaction(async (tx) => {
-        const fullUser = await tx.user.findUnique({ where: { id: user.id } });
-        if (fullUser) {
-          await tx.user.update({
-            where: { id: user.id },
-            data: { credits: fullUser.credits + 25 },
-          });
-          await tx.onboardingProgress.update({
-            where: { userId: user.id },
-            data: { bonusCreditsAwarded: true },
-          });
-          await tx.creditsLedger.create({
-            data: {
-              userId: user.id,
-              action: 'onboarding_bonus',
-              credits: 25,
-              balance: fullUser.credits + 25,
-              description: 'Onboarding completion bonus credits',
-            },
-          });
-        }
-      });
-      bonusAwarded = true;
-    }
 
     // Audit log
     const completedItems = Object.entries(items)

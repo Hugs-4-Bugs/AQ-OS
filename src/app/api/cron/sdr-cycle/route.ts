@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { executeSDRCycle } from '@/lib/autonomous-sdr-pipeline';
+import { AUTOMATION_PLAN_TIERS } from '@/lib/plan-feature-limits';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,9 +23,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Find all users with SDR enabled (autonomy mode = assisted or autonomous)
+    // Plan Eligibility Correction: automation runs EXCLUSIVELY for Pro/Elite
+    // subscribers — Free/Starter users are filtered out at the DB level here
+    // (defense in depth on top of the PATCH /api/meetings/settings gate).
     const enabledUsers = await db.userSettings.findMany({
       where: {
         meetingAutonomyMode: { in: ['assisted', 'autonomous'] },
+        user: { plan: { in: AUTOMATION_PLAN_TIERS } },
       },
       select: { userId: true },
     });

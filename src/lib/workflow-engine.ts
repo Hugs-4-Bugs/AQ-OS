@@ -5,7 +5,7 @@
 
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
-import { executeAction, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
+import { executeAction, getLeadTemplateVars, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
 import { deductExecutionCredits, getActionCreditCost, checkExecutionLimit } from '@/lib/workflow-credits';
 import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
@@ -207,6 +207,13 @@ async function runSteps(
   const previousOutputs: Record<string, unknown> = {};
   let shouldContinue = true;
 
+  // Lead template variables ({{lead.email}}, {{lead.name}}, …) — fetched
+  // ONCE per execution so every step can address the lead in context
+  // (e.g. send_email to {{lead.email}}) without extra queries.
+  const leadVars = await getLeadTemplateVars(triggerData?.leadId as string | undefined).catch(
+    () => ({}) as Record<string, string>
+  );
+
   for (let i = 0; i < steps.length && shouldContinue; i++) {
     const step = steps[i];
 
@@ -224,6 +231,7 @@ async function runSteps(
       leadId: triggerData?.leadId as string | undefined,
       triggerData,
       previousOutputs,
+      leadVars,
     });
 
     // Store output

@@ -7,7 +7,6 @@ import {
   Circle,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   Rocket,
   Loader2,
   Clock,
@@ -118,12 +117,6 @@ export default function OnboardingChecklistCard() {
                   {summary && summary.completionPercentage < 100 && (
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
                       {summary.completedCount}/{summary.totalCount}
-                    </Badge>
-                  )}
-                  {summary?.bonusCreditsAwarded === false && summary.completionPercentage > 50 && (
-                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] h-5 px-1.5">
-                      <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                      +25 bonus
                     </Badge>
                   )}
                 </CardTitle>
@@ -243,7 +236,7 @@ export default function OnboardingChecklistCard() {
             {summary && !summary.onboardingCompleted && summary.completionPercentage < 100 && (
               <div className="mt-2 pt-2 border-t border-border/50">
                 <p className="text-[11px] text-muted-foreground text-center">
-                  Complete all steps to earn <span className="text-primary font-medium">+25 bonus credits</span>
+                  Complete all steps to personalize your experience
                 </p>
               </div>
             )}

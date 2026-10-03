@@ -386,6 +386,11 @@ async function handleGoogleOAuthCallback(
       }
     } else {
       console.log(`[Google CB2 ${requestId}] Creating new user`);
+      // SIGNUP REWARD: explicit 50-credit starting balance (the TOTAL signup
+      // grant) + audit ledger row. Non-fatal ledger failure — the balance is
+      // already exactly 50 via the explicit field.
+      const creditMod = await import('@/lib/credit-service');
+      const GRANT = creditMod.SIGNUP_GRANT_CREDITS;
       user = await db.user.create({
         data: {
           email: normalizedEmail,
@@ -398,6 +403,8 @@ async function handleGoogleOAuthCallback(
           plan: 'free',
           isTrial: true,
           trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          credits: GRANT,
+          creditsMonthly: GRANT,
           settings: { create: {} },
           subscriptions: {
             create: {
@@ -413,6 +420,12 @@ async function handleGoogleOAuthCallback(
         include: { mfaConfig: true },
       });
       console.log(`[Google CB2 ${requestId}] ✓ New user: id=${user.id}`);
+
+      try {
+        await db.$transaction((tx: Parameters<typeof creditMod.writeSignupGrantLedger>[0]) => creditMod.writeSignupGrantLedger(tx, user!.id));
+      } catch (grantErr) {
+        console.warn(`[Google CB2 ${requestId}] Signup grant ledger row failed (non-fatal, balance remains ${GRANT}):`, grantErr);
+      }
 
       try {
         await logAuthEvent({

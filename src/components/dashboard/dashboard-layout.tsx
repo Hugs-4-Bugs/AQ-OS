@@ -740,21 +740,28 @@ export default function DashboardLayout({
               </DropdownMenu>
             </div>
           </header>
-          {/* Main Content Area */}
-          <main role="main" id="main-content" aria-label={tabTitle(activeTab) || 'Content'} className="flex-1 overflow-auto bg-grid relative min-w-0">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="h-full"
-              >
-                <ErrorBoundary>{renderTab()}</ErrorBoundary>
-              </motion.div>
-            </AnimatePresence>
-          </main>
+          {/* Main Content Area — wrapped in a positioned region that spans
+              exactly between the topbar (desktop) / mobile header and the
+              footer / mobile bottom nav. Detail drawers (metric details,
+              lead details, meeting details) portal HERE, so they are
+              visually bounded by the app shell: they can never cover the
+              topbar, header, footer, or navigation on any viewport. */}
+          <div data-app-content-region className="relative flex flex-col flex-1 min-h-0">
+            <main role="main" id="main-content" aria-label={tabTitle(activeTab) || 'Content'} className="flex-1 overflow-auto bg-grid relative min-w-0">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="h-full"
+                >
+                  <ErrorBoundary>{renderTab()}</ErrorBoundary>
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          </div>
         </div>
       </div>
 

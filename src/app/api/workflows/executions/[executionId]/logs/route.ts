@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { getExecutionLogs } from '@/lib/workflow-service';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 /** GET /api/workflows/executions/[executionId]/logs — Get step logs for an execution */
 export async function GET(
@@ -12,6 +13,8 @@ export async function GET(
   { params }: { params: Promise<{ executionId: string }> }
 ) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const { executionId } = await params;
       const logs = await getExecutionLogs(executionId, user.id);

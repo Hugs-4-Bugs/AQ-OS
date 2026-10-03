@@ -11,11 +11,19 @@
 //  - mode "deals"     : fetchDeals (optionally narrowed client-side)
 //  - mode "breakdown" : label/value rows computed from live stats data
 //
-// Accessible: Radix Sheet focus-trap + ESC, rows are real buttons with
-// visible focus rings, and the drawer is full-width on small screens.
+// SHELL-BOUNDED POSITIONING: the drawer portals into the app shell's
+// content region ([data-app-content-region]) and positions itself with
+// `absolute` inside it — so it sits ABOVE the page content (dim overlay
+// included) but can never cover the topbar, header, footer, or bottom
+// navigation on any viewport. If the region cannot be found (defensive
+// fallback) it falls back to the default body-portal fixed sheet.
+//
+// Accessible: Radix Sheet focus handling + ESC + click-outside-to-close,
+// rows are real buttons with visible focus rings, and the drawer is
+// full-width on small screens.
 // ═══════════════════════════════════════════════════════════════════
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -91,6 +99,18 @@ export default function MetricDetailDrawer({
   const { setActiveTab, setSelectedLeadId } = useAppStore();
   const open = !!detail;
 
+  // ── Shell-bounded portal target ────────────────────────────────
+  // This component renders inside the active tab (inside <main>), so the
+  // closest app-content region ancestor is the shell area between the
+  // topbar/header and the footer/nav. Resolved once on mount; when found,
+  // the drawer + its dim overlay are absolutely positioned within it.
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const region = anchorRef.current?.closest('[data-app-content-region]');
+    setPortalContainer(region instanceof HTMLElement ? region : null);
+  }, []);
+
   // ── Leads mode: exact filter fetch ───────────────────────────────
   const leadsQuery = useQuery({
     queryKey: ['metric-detail-leads', detail?.leadsParams],
@@ -132,12 +152,21 @@ export default function MetricDetailDrawer({
     : [];
 
   return (
-    <Sheet open={open} modal={false} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col"
-        aria-describedby={undefined}
-      >
+    <>
+      <span ref={anchorRef} aria-hidden="true" className="hidden" />
+      <Sheet open={open} modal={false} onOpenChange={(o) => !o && onClose()}>
+        <SheetContent
+          side="right"
+          container={portalContainer}
+          overlayClassName={portalContainer ? '' : undefined}
+          className={cn(
+            'w-full sm:max-w-md p-0 flex flex-col',
+            // Inside the shell region: absolute (bounded by topbar/footer).
+            // Body-portal fallback: keep the default fixed positioning.
+            portalContainer && 'absolute inset-y-0 right-0 h-full'
+          )}
+          aria-describedby={undefined}
+        >
         {detail && (
           <>
             <SheetHeader className="p-4 pb-3 border-b shrink-0 pr-12">
@@ -318,7 +347,8 @@ export default function MetricDetailDrawer({
             </div>
           </>
         )}
-      </SheetContent>
+        </SheetContent>
     </Sheet>
+    </>
   );
 }

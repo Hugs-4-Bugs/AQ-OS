@@ -33,6 +33,11 @@ import {
   sendNotification,
   sendTelegramNotification,
 } from '@/lib/notification-engine';
+import {
+  applySenderSignature,
+  buildSignatureLines,
+  type SenderProfile,
+} from '@/lib/ai/sender-signature';
 
 // ===== TYPES =====
 
@@ -85,7 +90,8 @@ const OUTREACH_ACTION: CreditAction = 'outreach_message';
  */
 export async function generateAndSendOutreach(
   leadId: string,
-  userId: string
+  userId: string,
+  options?: { businessProfileId?: string | null }
 ): Promise<OutreachResult> {
   console.log(`[OutreachSender] Starting outreach for leadId=${leadId}, userId=${userId}`);
 
@@ -110,6 +116,7 @@ export async function generateAndSendOutreach(
       id: true,
       name: true,
       email: true,
+      phone: true,
       company: true,
       settings: {
         select: {
@@ -128,8 +135,37 @@ export async function generateAndSendOutreach(
   }
 
   const userName = user.name || user.settings?.companyName || 'Your Business';
-  const userBusiness = user.settings?.companyName || user.company || '';
-  const userServices = parseServicesFromSettings(user.settings?.targetNiches, user.settings?.targetChannels);
+  // BUSINESS CONTEXT (spec §3/§4): prefer the selected business profile —
+  // ownership-checked in resolveBusinessContext — so ANY industry gets
+  // outreach about its real offer. Falls back to settings-derived context.
+  let userBusiness = user.settings?.companyName || user.company || '';
+  let userServices: string;
+  try {
+    const { resolveBusinessContext } = await import('@/lib/business-profile-server');
+    const bizCtx = await resolveBusinessContext(userId, options?.businessProfileId ?? null, null);
+    if (bizCtx && (bizCtx.productsServices.length > 0 || bizCtx.description)) {
+      userServices = bizCtx.productsServices.length > 0
+        ? bizCtx.productsServices.map((s) => s.name + (s.description ? ` (${s.description})` : '')).join(', ')
+        : (bizCtx.description || '');
+      if (bizCtx.companyName) userBusiness = bizCtx.companyName;
+    } else {
+      userServices = parseServicesFromSettings(user.settings?.targetNiches, user.settings?.targetChannels);
+    }
+  } catch (ctxErr) {
+    console.warn('[OutreachSender] business context resolution failed (falling back to settings):', ctxErr instanceof Error ? ctxErr.message : ctxErr);
+    userServices = parseServicesFromSettings(user.settings?.targetNiches, user.settings?.targetChannels);
+  }
+
+  // Full sender profile for signature personalization (same canonical
+  // resolution as lib/ai/outreach-generator.loadSenderProfile: settings
+  // companyName → primary org is not loaded here — this query already
+  // selects the same columns it stores). Only saved values are used.
+  const senderProfile: SenderProfile = {
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    company: user.settings?.companyName ?? user.company,
+  };
 
   // 1c. Load research results from lead metadata (stored in techStack by company-researcher)
   let researchData: ResearchMetadata = {};
@@ -262,6 +298,19 @@ export async function generateAndSendOutreach(
 
   console.log(`[OutreachSender] Generated email: subject="${generatedEmail.subject}" (${latencyMs}ms)`);
 
+  // ── STEP 2f: Signature personalization ──────────────────────
+  // 1. Replace any "[Your Name]"-style placeholder the model emitted with
+  //    the authenticated user's real profile values (missing fields are
+  //    omitted cleanly).
+  // 2. Build the signature block from the fields NOT already present in the
+  //    body — the same detail is never duplicated between the AI's own
+  //    sign-off and the appended signature.
+  const personalizedBody = applySenderSignature(generatedEmail.body, senderProfile);
+  const signatureLines = buildSignatureLines(senderProfile, personalizedBody);
+  const textBody = signatureLines.length > 0
+    ? `${personalizedBody}\n\n${signatureLines.join('\n')}`
+    : personalizedBody;
+
   // ── STEP 3: Send the email ───────────────────────────────────────
 
   // Try user's connected email account first, otherwise system default
@@ -278,8 +327,11 @@ export async function generateAndSendOutreach(
   const emailPayload: EmailPayload = {
     to: lead.email,
     subject: generatedEmail.subject,
-    html: buildOutreachHtml(generatedEmail.body, userName, userBusiness),
-    text: generatedEmail.body,
+    // HTML: personalized body + styled signature block (lines not already
+    // present in the body). Text: same content with the signature appended
+    // as plain lines. Both versions carry each detail exactly once.
+    html: buildOutreachHtml(personalizedBody, signatureLines),
+    text: textBody,
   };
 
   // FIX (2026-09-09): Send a copy of the outreach email to the user
@@ -603,13 +655,14 @@ ${userName}`;
 /**
  * Build a professional HTML email for the outreach body.
  * Keeps the email looking personal (not like marketing).
+ * The signature block is built from the sender's REAL profile lines that
+ * are not already present in the body (name, company, email, phone —
+ * each exactly once, empty fields omitted). Values are HTML-escaped.
  */
-function buildOutreachHtml(body: string, userName: string, userBusiness: string): string {
+function buildOutreachHtml(body: string, signatureLines: string[]): string {
   // Simple, personal email format — no heavy branding
   // Cold outreach should look like a regular email, not a marketing blast
-  const signature = userBusiness
-    ? `${userName}<br />${userBusiness}`
-    : userName;
+  const signature = signatureLines.map((line) => escapeHtml(line)).join('<br />');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -620,9 +673,9 @@ function buildOutreachHtml(body: string, userName: string, userBusiness: string)
 <body style="margin:0; padding:0; background-color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; color:#1e293b; line-height:1.6;">
   <div style="max-width:600px; margin:0 auto; padding:20px;">
     <div style="font-size:15px; line-height:24px; color:#1e293b; white-space:pre-line;">${escapeHtml(body)}</div>
-    <div style="margin-top:24px; padding-top:16px; border-top:1px solid #e2e8f0; font-size:14px; color:#64748b;">
+    ${signature ? `<div style="margin-top:24px; padding-top:16px; border-top:1px solid #e2e8f0; font-size:14px; color:#64748b;">
       ${signature}
-    </div>
+    </div>` : ''}
   </div>
 </body>
 </html>`;

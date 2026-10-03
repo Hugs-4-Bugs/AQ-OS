@@ -5,11 +5,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 import ZAI from 'z-ai-web-dev-sdk';
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (user) => {
     try {
+      const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+      if (!gate.allowed) return gate.response!;
       const body = await request.json();
       const { instruction } = body;
 

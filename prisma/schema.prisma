@@ -136,6 +136,8 @@ model User {
   competitorAnalyses       CompetitorAnalysis[]
   aiChatSessions           AiChatSession[]
   settings                 UserSettings?
+  businessProfiles         BusinessProfile[]
+  websiteResearches        WebsiteResearch[]
   auditLogs                AuditLog[]
   notifications            Notification[]
   notificationPrefs        NotificationPreferences?
@@ -383,6 +385,10 @@ model CreditsLedger {
   balance     Int // balance after transaction
   description String?
   referenceId String? // ID of related entity (lead, deal, etc.)
+  // Retry-safe operations: at most one ledger row per (user, idempotencyKey).
+  // Checked by deductCredits() before applying a keyed deduction so retries,
+  // replayed callbacks, and duplicated requests can never double-charge.
+  idempotencyKey String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -392,6 +398,7 @@ model CreditsLedger {
   @@index([action])
   @@index([createdAt])
   @@index([referenceId])
+  @@index([userId, idempotencyKey])
 }
 
 model CreditAddon {
@@ -1818,6 +1825,78 @@ model UserSettings {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// BUSINESS PROFILES — multiple user-owned sender identities
+// ═══════════════════════════════════════════════════════════════════
+// Each user can maintain several business profiles (e.g. a wellness studio
+// AND a software consultancy) and pick one as the context for discovery,
+// website research and outreach. Ownership is enforced server-side: every
+// read/write is scoped by userId. JSON-ish fields follow the existing
+// UserSettings convention of stringified JSON (SQLite-friendly, additive).
+model BusinessProfile {
+  id                String    @id @default(cuid())
+  userId            String
+  label             String // display name of this profile ("Wellness Studio")
+  companyName       String?
+  industry          String?
+  website           String?
+  description       String? // what the business does, company details
+  valueProposition  String?
+  // [{ name: string, description: string }] — products/services/offers
+  productsServices  String    @default("[]")
+  // { industries: string[], roles: string[], icp: string } — ideal customers
+  targetAudience    String    @default("{}")
+  // [string] — geographic service areas
+  serviceAreas      String    @default("[]")
+  goals             String? // business goals / preferred outreach outcomes
+  toneStyle         String? // preferred communication tone and style
+  language          String? // preferred outreach language
+  // [string] — differentiators, proof points, relevant experience
+  differentiators   String    @default("[]")
+  preferredCta      String?
+  additionalContext String? // free-text context / custom instructions
+  isDefault         Boolean   @default(false)
+  archivedAt        DateTime? // soft delete
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WEBSITE RESEARCH — evidence-grounded per-lead research reports (spec §5)
+// ═══════════════════════════════════════════════════════════════════
+// Stores what was OBSERVED on the lead's website (fetched pages, extracted
+// contacts with per-field source + verification status) separately from
+// AI INTERPRETATION (opportunities, outreach angles). Additive history:
+// multiple runs per lead are kept, newest first in queries.
+model WebsiteResearch {
+  id           String   @id @default(cuid())
+  leadId       String
+  userId       String
+  // completed | partial | failed
+  status       String   @default("completed")
+  // { observedFacts: string[], business: {...}, opportunities: [...],
+  //   aiInterpretation: {...}, limitations: string[] }
+  reportJson   String?
+  // [{ field: 'email'|'phone'|..., value, sources: [url], verificationStatus,
+  //    conflictWith?: string }] — per-field provenance (spec §5)
+  contactsJson String?
+  // [url] — pages actually fetched during this run
+  pagesFetched String   @default("[]")
+  notes        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // GOOGLE CALENDAR TOKEN TABLE
 // ═══════════════════════════════════════════════════════════════════
 
@@ -1970,6 +2049,27 @@ model DiscoveryJob {
   resultData   String? // JSON: { leads: [...] }
   startedAt    DateTime?
   completedAt  DateTime?
+  // Business context: which of the user's profiles this job runs as + the
+  // campaign-specific overrides (spec §3). Persisted so later research and
+  // outreach replay the SAME context. Ownership enforced on read.
+  businessProfileId String?
+  // Credit-integrity identity (one discovery operation → one job → one
+  // billing sequence). The client sends a UUID per logical start; a
+  // replayed/retried POST returns the SAME job instead of creating a
+  // second chargeable one.
+  idempotencyKey String?
+  // EXPLICIT None semantics for business context: false = the user chose
+  // "None" in the profile selector, so this job (and its later replays)
+  // must run WITHOUT any business profile — null businessProfileId no
+  // longer means "use the default profile" when this is false.
+  useBusinessContext Boolean @default(true)
+  campaignObjective String?
+  campaignAudience  String?
+  campaignOffer     String?
+  campaignOutcome   String?
+  campaignCta       String?
+  campaignTone      String?
+  campaignInstructions String?
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
@@ -1983,6 +2083,7 @@ model DiscoveryJob {
   @@index([status])
   @@index([source])
   @@index([orgId])
+  @@index([userId, idempotencyKey])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2657,6 +2758,14 @@ model AcquisitionCampaign {
   tone               String?
   maxLeads           Int?
   customInstructions String?
+  // Business context (spec §3): the selected profile + campaign overrides
+  // resolved through resolveBusinessContext (ownership enforced on read).
+  businessProfileId  String?
+  campaignObjective  String?
+  campaignAudience   String?
+  campaignOffer      String?
+  campaignOutcome    String?
+  campaignCta        String?
   errorMessage       String?
   discoveryJobId     String?
   autoSend           Boolean   @default(false)

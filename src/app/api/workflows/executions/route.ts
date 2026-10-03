@@ -6,9 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { getExecutionHistory } from '@/lib/workflow-engine';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const { searchParams } = new URL(request.url);
       const filters = {

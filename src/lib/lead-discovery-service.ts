@@ -77,6 +77,28 @@ export interface DiscoveryParams {
    * provider results arrive — AI ranking can never override them.
    */
   criteria?: HardCriteria | null;
+  /** Business context (spec §3): which of the user's business profiles this
+   * job runs as + campaign-specific overrides. Ownership is verified in
+   * resolveBusinessContext when the context is USED (never trusted blindly). */
+  businessProfileId?: string | null;
+  /** EXPLICIT None (spec §8): when false, the job runs WITHOUT business
+   * context — null businessProfileId must NOT fall back to the default. */
+  useBusinessContext?: boolean;
+  campaign?: {
+    objective?: string;
+    audience?: string;
+    offer?: string;
+    outcome?: string;
+    cta?: string;
+    tone?: string;
+    instructions?: string;
+  } | null;
+  /**
+   * Credit-integrity identity for this logical operation (client-generated
+   * UUID). When supplied, a replayed start returns the SAME job instead of
+   * creating a second chargeable one (one operation → one billing event).
+   */
+  idempotencyKey?: string | null;
 }
 
 export interface DiscoveredLead {
@@ -274,6 +296,21 @@ export async function startDiscoveryJob(
       imported: 0,
       duplicates: 0,
       failed: 0,
+      // Business context (spec §3) — persisted with the job so later
+      // research and outreach replay the SAME context.
+      businessProfileId: params.businessProfileId || null,
+      campaignObjective: params.campaign?.objective || null,
+      campaignAudience: params.campaign?.audience || null,
+      campaignOffer: params.campaign?.offer || null,
+      campaignOutcome: params.campaign?.outcome || null,
+      campaignCta: params.campaign?.cta || null,
+      campaignTone: params.campaign?.tone || null,
+      campaignInstructions: params.campaign?.instructions || null,
+      // Operation identity — enables request-level dedupe upstream.
+      idempotencyKey: params.idempotencyKey || null,
+      // EXPLICIT None — persisted so later replays also skip the default
+      // profile instead of silently re-attaching business context.
+      useBusinessContext: params.useBusinessContext === false ? false : true,
     },
   });
 
@@ -500,7 +537,36 @@ export async function processDiscoveryJob(
     let duplicates = 0;
     let failedCount = 0;
 
-    for (const leadData of discoveredLeads) {
+    // Evidence-based verification tally (spec §7.2): the summary must state
+    // HOW the stored verification labels were derived, never a blanket
+    // "verified" claim. Corroboration by 2+ sources → partially_verified;
+    // single-source imports stay unverified until a real verification
+    // workflow assesses them.
+    let partiallyVerifiedCount = 0;
+    let unverifiedCount = 0;
+
+    // Bounded, evidence-based website reachability checks (no AI, no
+    // credits, fail-open). Findings are stored per lead as an evidence note
+    // (+ websiteStatus on success) — a failed probe is recorded as an
+    // observation that may be temporary, never as a permanent judgment.
+    let websiteProbes = new Map<string, WebsiteProbeOutcome>();
+    try {
+      websiteProbes = await probeWebsitesForEvidence(discoveredLeads);
+      if (websiteProbes.size > 0) {
+        console.log(`[DiscoveryService] website reachability probes: ${websiteProbes.size} domain(s) checked`);
+      }
+    } catch (probeErr) {
+      console.warn('[DiscoveryService] website probe step failed (continuing without probe evidence):', probeErr instanceof Error ? probeErr.message : probeErr);
+    }
+
+    // Key the credit slot on the CANDIDATE INDEX (stable per job), not on
+    // the mutable `imported` counter: when a lead create fails and is
+    // refunded, the counter does not advance, so a counter key would make
+    // the NEXT candidate collide with the refunded row and import free.
+    // With a stable slot index every candidate has its own billing slot
+    // and a replayed job can never double-charge any slot.
+    for (let leadSlot = 0; leadSlot < discoveredLeads.length; leadSlot++) {
+      const leadData = discoveredLeads[leadSlot];
       try {
         // Check for duplicates
         const dupCheck = await checkDuplicate(userId, {
@@ -529,7 +595,7 @@ export async function processDiscoveryJob(
           action: 'lead_discovery',
           cost: CREDIT_COST_PER_LEAD,
           referenceId: jobId,
-          idempotencyKey: `${jobId}:lead:${imported}`,
+          idempotencyKey: `${jobId}:lead:${leadSlot}`,
         });
 
         if (!creditResult.success) {
@@ -541,6 +607,33 @@ export async function processDiscoveryJob(
         // value when it cannot be confidently resolved, never guesses.
         const rawCountry = leadData.country || params.country;
         const canonicalCountry = normalizeCountryName(rawCountry) || rawCountry;
+
+        // Honest import-time verification label: corroboration by 2+
+        // independent sources during this run → partially_verified;
+        // everything else → unverified (discovered, not yet assessed).
+        const importVerificationStatus = deriveImportVerificationStatus(!!leadData.corroborated);
+        if (importVerificationStatus === 'partially_verified') partiallyVerifiedCount++;
+        else unverifiedCount++;
+
+        // Website probe evidence for THIS lead (when its domain was probed)
+        let websiteStatus: string | null = null;
+        let probeNote = '';
+        if (leadData.website) {
+          let host: string | null = null;
+          try {
+            host = new URL(leadData.website).host.replace(/^www\./, '');
+          } catch {
+            host = null;
+          }
+          const probe = host ? websiteProbes.get(host) : undefined;
+          if (probe?.reachable) {
+            // The site answered — that is real, time-stamped evidence.
+            websiteStatus = 'VERIFIED';
+            probeNote = `Website responded to discovery reachability check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}).`;
+          } else if (probe) {
+            probeNote = `Website did not respond during discovery check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}) — may be a temporary or regional issue, not yet verified.`;
+          }
+        }
 
         try {
           // Create lead — tag with the lead's own source so "all" mode shows the real origin
@@ -573,8 +666,11 @@ export async function processDiscoveryJob(
               employeeRange: leadData.employeeRange || null,
               sourceUrl: leadData.sourceUrl || null,
               discoveredVia: leadData.discoveredVia || null,
-              verificationStatus: deriveImportVerificationStatus(!!leadData.corroborated),
-              notes: leadData.address ? `Address: ${leadData.address}` : null,
+              verificationStatus: importVerificationStatus,
+              notes: [leadData.address ? `Address: ${leadData.address}` : '', probeNote]
+                .filter(Boolean)
+                .join(' ') || null,
+              websiteStatus,
             },
           });
         } catch (createErr) {
@@ -616,7 +712,7 @@ export async function processDiscoveryJob(
       },
     });
 
-    // Audit log
+    // Audit log — includes the verification tally for traceability
     await logAuditEvent(userId, 'discovery_completed', {
       jobId,
       source: params.source,
@@ -624,27 +720,45 @@ export async function processDiscoveryJob(
       imported,
       duplicates,
       failed: failedCount,
+      verificationTally: {
+        partially_verified: partiallyVerifiedCount,
+        unverified: unverifiedCount,
+      },
     });
 
-    // User-facing notification (deduped per discovery job) — honest counts:
-    // verified imports vs hard-filter rejections are always distinguished.
-    const skippedSuffix =
-      skippedSourceNotes.length > 0
-        ? ` Skipped: ${skippedSourceNotes.slice(0, 3).map((n) => n.split(':')[0]).join(', ')}${skippedSourceNotes.length > 3 ? ` +${skippedSourceNotes.length - 3} more` : ''}.`
-        : '';
-    const criteriaSuffix = hardCriteria
-      ? ` Hard filters applied (${describeHardCriteria(hardCriteria)}): ${filteredOut} candidate${filteredOut === 1 ? '' : 's'} rejected${filterReasons.size > 0 ? ' — ' + Array.from(filterReasons.entries()).slice(0, 3).map(([r, n]) => `${n} ${describeRejectReason(r)}`).join(', ') : ''}.`
-      : '';
+    // User-facing notification (deduped per discovery job) — HONEST counts:
+    // the summary distinguishes corroboration-based "partially verified"
+    // from single-source "not yet verified" and never calls AI-discovered
+    // records "verified" (spec §7.2: verification requires a method).
+    const summaryMessage = buildDiscoveryCompletionMessage({
+      source: params.source || '',
+      imported,
+      partiallyVerified: partiallyVerifiedCount,
+      unverified: unverifiedCount,
+      duplicates,
+      filteredOut,
+      filterReasonFragments:
+        hardCriteria && filterReasons.size > 0
+          ? Array.from(filterReasons.entries()).slice(0, 3).map(([r, n]) => `${n} ${describeRejectReason(r)}`)
+          : [],
+      skippedSourceFragments: skippedSourceNotes.map((n) => n.split(':')[0].trim()).filter(Boolean),
+    });
     await createNotificationOnce({
       userId,
       type: 'discovery_completed',
       title: 'Lead discovery completed',
-      message:
-        imported > 0
-          ? `Discovery finished: ${imported} verified lead${imported === 1 ? '' : 's'} imported from ${params.source || 'your sources'}${duplicates > 0 ? ` (${duplicates} duplicate${duplicates === 1 ? '' : 's'} skipped)` : ''}.${criteriaSuffix}${skippedSuffix}`
-          : `Discovery finished for ${params.source || 'your sources'} — no verified leads were found this time.${criteriaSuffix}${skippedSuffix}`,
+      message: summaryMessage,
       actionUrl: imported > 0 ? '/business-ai/leads' : '/business-ai/discover',
-      metadata: { jobId, source: params.source, totalFound: discoveredLeads.length, imported, duplicates, failed: failedCount, filteredOut },
+      metadata: {
+        jobId,
+        source: params.source,
+        totalFound: discoveredLeads.length,
+        imported,
+        duplicates,
+        failed: failedCount,
+        filteredOut,
+        verificationTally: { partially_verified: partiallyVerifiedCount, unverified: unverifiedCount },
+      },
       dedupeKey: `discovery:${jobId}:completed`,
     }).catch(() => {
       // Never fail the discovery path because of a notification problem
@@ -781,11 +895,19 @@ async function discoverFromSource(
 /**
  * Universal lead validation (applies to EVERY source, including AI search):
  *   1. A lead without a business name is discarded.
- *   2. Per-source duplicates are removed.
+ *   2. Malformed / junk records are discarded (names that are actually URLs,
+ *      email addresses, or pathologically long strings — clearly not a
+ *      business identity).
+ *   3. A candidate that EXPLICITLY contradicts the requested geography is
+ *      discarded (its own stated country resolves to a different country
+ *      than the one the user asked for). Candidates with NO stated country,
+ *      or an unresolvable one, are kept — absence of evidence is not a
+ *      contradiction (worldwide searches legitimately return such leads).
+ *   4. Per-source duplicates are removed.
  *
- * NOTE — location is intentionally NOT a rejection criterion. The previous
- * rule ("a lead without any location information — its own, or the
- * search's — is discarded") could only ever fire on WORLDWIDE searches:
+ * NOTE — location is intentionally NOT a rejection criterion otherwise.
+ * The previous rule ("a lead without any location information — its own, or
+ * the search's — is discarded") could only ever fire on WORLDWIDE searches:
  * when the search itself had a location, `params.city`/`params.country`
  * made every candidate pass. On worldwide runs (no country/city selected)
  * candidates legitimately carry no location, so the rule silently
@@ -802,9 +924,37 @@ export function sanitizeDiscoveredLeads(
   const seen = new Set<string>();
   const out: DiscoveredLead[] = [];
 
+  const requestedCountry = params.country
+    ? normalizeCountryName(params.country)?.toLowerCase() || null
+    : null;
+
   for (const lead of leads) {
     const name = (lead.businessName || '').trim();
     if (!name || name.length < 2) continue;
+
+    // Malformed identity guard: a "business name" that is actually a URL,
+    // an email address, or a >120-char fragment is extraction noise, not a
+    // real business. Conservative — only unambiguous junk is dropped.
+    const lowered = name.toLowerCase();
+    if (
+      lowered.includes('http://') ||
+      lowered.includes('https://') ||
+      lowered.startsWith('www.') ||
+      lowered.includes('@') ||
+      name.length > 120
+    ) {
+      continue;
+    }
+
+    // Geography contradiction: the candidate EXPLICITLY states a country
+    // that is different from the requested one. When either side cannot be
+    // confidently canonicalized, the check is skipped (never guesses).
+    if (requestedCountry && lead.country) {
+      const candidateCountry = normalizeCountryName(lead.country)?.toLowerCase() || null;
+      if (candidateCountry && candidateCountry !== requestedCountry) {
+        continue;
+      }
+    }
 
     const key = `${name.toLowerCase()}|${(lead.phone || lead.website || lead.city || '').toLowerCase()}`;
     if (seen.has(key)) continue;
@@ -902,6 +1052,132 @@ async function mergeFillDuplicate(leadId: string, incoming: DiscoveredLead): Pro
     // Merge-fill is best-effort: the duplicate is still counted, never fatal
     console.warn('[DiscoveryService] merge-fill skipped:', mergeErr instanceof Error ? mergeErr.message : mergeErr);
   }
+}
+
+// ===== WEBSITE REACHABILITY PROBE (spec §6: evidence-based, bounded) =====
+
+const WEBSITE_PROBE_TIMEOUT_MS = 4000;
+const WEBSITE_PROBE_MAX_PER_JOB = parseInt(process.env.DISCOVERY_WEBSITE_PROBE_MAX || '20', 10);
+
+interface WebsiteProbeOutcome {
+  /** The server answered (any HTTP status) — network-level reachability. */
+  reachable: boolean;
+  /** Human-readable evidence: HTTP status, or the network error. */
+  detail: string;
+}
+
+/**
+ * Probe ONE website for network reachability. ANY HTTP response (including
+ * 401/403 bot blocks and 5xx) counts as "reachable" — the server answered.
+ * Only network-level failures (DNS, refused, TLS, timeout) are unreachable.
+ * A temporary failure is never stored as a permanent judgment: the evidence
+ * note explicitly says the site may be temporarily unavailable.
+ */
+async function probeWebsiteOnce(url: string): Promise<WebsiteProbeOutcome> {
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(WEBSITE_PROBE_TIMEOUT_MS),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AcquisitionOS-Bot/1.0; +https://acquisitionos.com)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      redirect: 'follow',
+    });
+    return { reachable: true, detail: `HTTP ${response.status}` };
+  } catch (err) {
+    const detail = err instanceof Error
+      ? (err.name === 'TimeoutError' || /timeout|abort/i.test(err.message) ? 'timed out' : err.message.slice(0, 120))
+      : 'network error';
+    return { reachable: false, detail };
+  }
+}
+
+/**
+ * Bounded reachability check for discovered leads that HAVE a website:
+ * sequential, domain-deduplicated, capped per job (fail-open — any probe
+ * problem never blocks the import). No AI calls, no credits.
+ */
+async function probeWebsitesForEvidence(
+  leads: DiscoveredLead[],
+  maxProbes = WEBSITE_PROBE_MAX_PER_JOB
+): Promise<Map<string, WebsiteProbeOutcome>> {
+  const byDomain = new Map<string, string>();
+  for (const lead of leads) {
+    const site = (lead.website || '').trim();
+    if (!site) continue;
+    try {
+      const host = new URL(site).host.replace(/^www\./, '');
+      if (!byDomain.has(host)) byDomain.set(host, site);
+    } catch {
+      // Unparseable URL — skip probing; the lead keeps its raw website value
+    }
+  }
+
+  const outcomes = new Map<string, WebsiteProbeOutcome>();
+  let probed = 0;
+  for (const [host, url] of byDomain) {
+    if (probed >= maxProbes) break;
+    probed++;
+    outcomes.set(host, await probeWebsiteOnce(url));
+    await sleep(300); // small stagger between probes
+  }
+  return outcomes;
+}
+
+// ===== HONEST COMPLETION SUMMARY (spec §7.2 / §10) =====
+
+export interface DiscoveryCompletionSummary {
+  source: string;
+  imported: number;
+  /** Leads tagged partially_verified (corroborated by 2+ sources). */
+  partiallyVerified: number;
+  /** Leads tagged unverified — discovered, not yet assessed. */
+  unverified: number;
+  duplicates: number;
+  filteredOut: number;
+  /** Preformatted rejection-reason fragments, e.g. ["12 unknown employee count"]. */
+  filterReasonFragments: string[];
+  /** Preformatted skipped-source fragments, e.g. ["yelp: not configured"]. */
+  skippedSourceFragments: string[];
+}
+
+/**
+ * Build the user-facing completion message. The word "verified" is NEVER
+ * used for leads whose stored status is unverified — corroboration by 2+
+ * sources is reported as "partially verified", single-source imports as
+ * "not yet verified". This is the honest summary required by spec §7.2:
+ * AI extraction alone is discovery, not verification.
+ */
+export function buildDiscoveryCompletionMessage(s: DiscoveryCompletionSummary): string {
+  const source = s.source || 'your sources';
+  if (s.imported <= 0) {
+    let message = `Discovery finished for ${source} — no leads were imported this time.`;
+    if (s.filteredOut > 0) {
+      message += ` ${s.filteredOut} candidate${s.filteredOut === 1 ? '' : 's'} rejected by hard filters${s.filterReasonFragments.length ? ' — ' + s.filterReasonFragments.slice(0, 3).join(', ') : ''}.`;
+    }
+    if (s.skippedSourceFragments.length > 0) {
+      message += ` Skipped: ${s.skippedSourceFragments.slice(0, 3).join(', ')}${s.skippedSourceFragments.length > 3 ? ` +${s.skippedSourceFragments.length - 3} more` : ''}.`;
+    }
+    return message;
+  }
+
+  const parts: string[] = [
+    `Discovery finished: ${s.imported} lead${s.imported === 1 ? '' : 's'} imported from ${source}`,
+  ];
+  if (s.partiallyVerified > 0 || s.unverified > 0) {
+    parts.push(
+      `${s.partiallyVerified} partially verified (same business seen in 2+ sources), ${s.unverified} not yet verified (single source — pending assessment)`
+    );
+  }
+  if (s.duplicates > 0) parts.push(`${s.duplicates} duplicate${s.duplicates === 1 ? '' : 's'} skipped`);
+  let message = parts.join(' — ') + '.';
+  if (s.filteredOut > 0) {
+    message += ` Hard filters rejected ${s.filteredOut} candidate${s.filteredOut === 1 ? '' : 's'}${s.filterReasonFragments.length ? ' — ' + s.filterReasonFragments.slice(0, 3).join(', ') : ''}.`;
+  }
+  if (s.skippedSourceFragments.length > 0) {
+    message += ` Skipped: ${s.skippedSourceFragments.slice(0, 3).join(', ')}${s.skippedSourceFragments.length > 3 ? ` +${s.skippedSourceFragments.length - 3} more` : ''}.`;
+  }
+  return message;
 }
 
 // ===== LEAD EVIDENCE ENRICHMENT =====
@@ -1280,6 +1556,16 @@ export function buildSearchQueries(params: DiscoveryParams): string[] {
   const location = [city, country].filter(Boolean).join(', ');
   const queries: string[] = [];
 
+  // BUSINESS-CONTEXT QUERIES (spec §3/§6): when a campaign override or the
+  // selected business profile says WHO the user targets, add 1-2 intent-
+  // driven queries so discovery surfaces prospects relevant to the SENDER'S
+  // offer — e.g. "corporate wellness providers partnering with hospitals" —
+  // while keeping every query on-niche and on-location.
+  const offerHint = params.campaign?.offer?.trim() || params.campaign?.audience?.trim() || '';
+  const contextQuery = offerHint && source === 'ai_search'
+    ? `${niche} businesses serving ${offerHint}${location ? ` in ${location}` : ''}`.replace(/\s+/g, ' ')
+    : '';
+
   switch (source) {
     case 'ai_search': {
       queries.push(`${niche} businesses${location ? ` in ${location}` : ''}`);
@@ -1295,6 +1581,7 @@ export function buildSearchQueries(params: DiscoveryParams): string[] {
       // Directory/list phrasing surfaces company-list pages that single-
       // result pages miss — still strictly on-niche and on-location.
       queries.push(`${niche} companies directory list ${location}`.replace(/\s+/g, ' '));
+      if (contextQuery) queries.unshift(contextQuery);
       break;
     }
     case 'google_maps':

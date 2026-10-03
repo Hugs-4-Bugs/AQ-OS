@@ -13,10 +13,13 @@ import {
   generateDailySummary,
   getSDRStatus,
 } from '@/lib/autonomous-sdr-pipeline';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // POST /api/sdr
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user: AuthUser) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { action, config } = body;
@@ -89,6 +92,8 @@ export async function POST(request: NextRequest) {
 // GET /api/sdr
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user: AuthUser) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const status = await getSDRStatus(user.id);
 

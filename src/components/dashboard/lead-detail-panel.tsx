@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Globe,
@@ -71,6 +71,7 @@ import { cn } from '@/lib/utils';
 import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER, type Lead, type LeadStage } from '@/lib/types';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import WebsiteResearchSection from './website-research-section';
 
 // ─── Helper Functions ────────────────────────────────────
 function getScoreColor(score: number): string {
@@ -419,11 +420,37 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
     stageMutation.mutate(newStage as LeadStage);
   }, [lead, stageMutation]);
 
+  // ── Shell-bounded portal target ─────────────────────────────
+  // Same pattern as MetricDetailDrawer: when the app shell's content
+  // region is an ancestor, the panel + dim overlay render absolutely
+  // INSIDE it — above the page content but never covering the topbar,
+  // header, footer, or navigation. Falls back to the default body-portal
+  // fixed sheet when the region is absent.
+  // (Hooks must run unconditionally — this sits above the early return.)
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const region = anchorRef.current?.closest('[data-app-content-region]');
+    setPortalContainer(region instanceof HTMLElement ? region : null);
+  }, [lead?.id, open]);
+  // ↑ RE-RESOLVE FIX (detail-panel overlap root cause): this component
+  // mounts ONCE with lead=null and the early return below keeps the
+  // anchor span OUT of the DOM, so the previous one-shot [] effect
+  // resolved null forever — every lead then opened as a viewport-fixed
+  // body-portal sheet that slid OVER the translucent navbar, dimmed the
+  // sidebar/footer, and hid its own "Back to leads" row under the mobile
+  // top bar. The effect now re-runs when a lead is actually opened: the
+  // anchor exists by that commit, the shell region resolves, and the
+  // panel renders ABSOLUTE inside the dashboard shell (below the topbar,
+  // beside the sidebar) exactly like MetricDetailDrawer.
+
   if (!lead) return null;
 
   const currentStageIndex = STAGE_ORDER.indexOf(lead.stage);
 
   return (
+    <>
+      <span ref={anchorRef} aria-hidden="true" className="hidden" />
     // CRITICAL FIX (FIX 8): modal={false} — Radix modal dialogs apply
     // `pointer-events: none` to document.body outside the dialog, which
     // FROZE the entire navbar (notifications, settings, profile, theme)
@@ -433,7 +460,12 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
     <Sheet open={open} modal={false} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-lg p-0 flex flex-col"
+        container={portalContainer}
+        overlayClassName={portalContainer ? '' : undefined}
+        className={cn(
+          'w-full sm:max-w-lg p-0 flex flex-col',
+          portalContainer && 'absolute inset-y-0 right-0 h-full'
+        )}
         // CRITICAL FIX (FIX 8): Previously this used onInteractOutside={e => e.preventDefault()}
         // which kept the Sheet open but ALSO swallowed all clicks on the navbar
         // (notifications, settings, profile, theme) because the Sheet's overlay
@@ -931,6 +963,9 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
                   </section>
                 )}
 
+                {/* Website Research (evidence-grounded report, spec §5) */}
+                <WebsiteResearchSection leadId={lead.id} />
+
                 {/* Enrich Button */}
                 <Button
                   className="w-full gap-2 mt-4"
@@ -974,5 +1009,6 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
         </AlertDialog>
       </SheetContent>
     </Sheet>
+    </>
   );
 }

@@ -4,6 +4,12 @@ import ZAI from 'z-ai-web-dev-sdk';
 import { withPermission } from '@/lib/auth-middleware';
 import { canUserAccessLead } from '@/lib/lead-resolution';
 import { detectMeetingIntent } from '@/lib/meeting-orchestration-service';
+import {
+  buildSenderSignatureBlock,
+  applySenderSignature,
+  applySenderSignatureToFields,
+} from '@/lib/ai/sender-signature';
+import { loadSenderProfile } from '@/lib/ai/outreach-generator';
 
 // ─── System Prompt Builders ──────────────────────────────────
 
@@ -123,6 +129,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, leadId, message, context, salesCoachMode, currentPage, leadContext: clientLeadContext } = body;
 
+    // SENDER IDENTITY: every generated message on this route (assistant
+    // suggested reply, coach reply options, proposals) is written on behalf
+    // of the AUTHENTICATED user. The block gives the model the user's real
+    // profile; the post-processing below guarantees a model-emitted
+    // "[Your Name]"-style placeholder can never reach the user.
+    const senderProfile = await loadSenderProfile(user.id);
+    const senderBlock = buildSenderSignatureBlock(senderProfile);
+
     // ─── AI Proposal Generation ────────────────────────────────
     if (action === 'generate_proposal') {
       const { dealId } = body;
@@ -226,7 +240,9 @@ Adjust timeline based on the project scope and type.
 ## Next Steps
 Clear call-to-action with 3-4 concrete next steps. Include a deadline for response if appropriate.
 
-Make the proposal feel personalized and specific to this business. Use industry-specific language. Be professional yet warm. Do NOT use generic filler - every sentence should add value.`,
+Make the proposal feel personalized and specific to this business. Use industry-specific language. Be professional yet warm. Do NOT use generic filler - every sentence should add value.
+
+${senderBlock}`,
           },
           {
             role: 'user',
@@ -265,13 +281,18 @@ Generate a complete, compelling proposal that this prospect can't ignore.`,
         );
       }
 
+      // Placeholder cleanup — the model may still emit "[Your Name]"-style
+      // tokens; they are replaced with the user's real profile values (or
+      // removed cleanly when a field is not on file).
+      const proposal = applySenderSignature(proposalText, senderProfile);
+
       // Save the proposal content to the deal
       await db.deal.update({
         where: { id: dealId },
-        data: { proposalContent: proposalText },
+        data: { proposalContent: proposal },
       });
 
-      return NextResponse.json({ proposal: proposalText });
+      return NextResponse.json({ proposal });
     }
 
     // ─── Sales Assistant / Sales Coach (default action) ──────
@@ -328,9 +349,11 @@ ${lead.deals.length > 0 ? `- Latest Deal: ${lead.deals[0].projectType} - ${lead.
 
     // Choose system prompt based on mode
     const isSalesCoach = salesCoachMode === true;
-    const systemPrompt = isSalesCoach
-      ? buildSalesCoachSystemPrompt(leadContext, currentPage || '')
-      : buildDefaultSystemPrompt(leadContext, currentPage || '');
+    const systemPrompt =
+      (isSalesCoach
+        ? buildSalesCoachSystemPrompt(leadContext, currentPage || '')
+        : buildDefaultSystemPrompt(leadContext, currentPage || '')) +
+      `\n\n${senderBlock}`;
 
     const zai = await ZAI.create();
 
@@ -408,7 +431,7 @@ ${lead.deals.length > 0 ? `- Latest Deal: ${lead.deals[0].projectType} - ${lead.
 
       return NextResponse.json({
         mode: 'sales_coach',
-        content: responseText,
+        content: applySenderSignature(responseText, senderProfile),
         dealProbability,
         meetingIntent,
       });
@@ -432,8 +455,13 @@ ${lead.deals.length > 0 ? `- Latest Deal: ${lead.deals[0].projectType} - ${lead.
       );
     }
 
+    // Placeholder cleanup for the suggested reply (a sendable message the
+    // user can copy) — model-emitted signature placeholders are replaced
+    // with the authenticated user's real profile values.
+    const cleaned = applySenderSignatureToFields(result, senderProfile);
+
     return NextResponse.json({
-      ...result,
+      ...cleaned,
       meetingIntent,
     });
   } catch (error) {

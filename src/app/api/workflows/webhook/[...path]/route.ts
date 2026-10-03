@@ -48,6 +48,19 @@ export async function POST(
       return NextResponse.json({ error: message }, { status: 403 });
     }
 
+    // Plan Eligibility Correction: the workflow OWNER is on Free/Starter —
+    // automation is Pro/Elite only (see workflow-executor.handleWebhookTrigger).
+    if (message.includes('requires a Pro or Elite plan')) {
+      return NextResponse.json(
+        {
+          error: message,
+          code: 'PLAN_REQUIRED',
+          requiredPlan: 'pro',
+        },
+        { status: 403 }
+      );
+    }
+
     console.error('[Workflows API] Webhook error:', error);
     return NextResponse.json(
       { error: 'Webhook trigger failed' },

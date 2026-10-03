@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/lib/assistant-chat-store.ts",
+    "src/lib/lead-discovery-service.ts",
+    "src/lib/api.ts",
+    "src/app/api/leads/discover/route.ts",
+    "src/app/api/leads/discover/status/[jobId]/route.ts",
+    "src/app/api/discovery/status/route.ts",
+    "src/components/providers.tsx",
+    "src/components/dashboard/discover-tab.tsx",
+    "src/components/dashboard/ai-chat-bubble.tsx",
+    "src/components/dashboard/assistant-tab.tsx",
+    "src/components/dashboard/lead-detail-panel.tsx",
+    "src/components/dashboard/outreach-tab.tsx",
+    "src/components/dashboard/plan-gate.tsx"
+  ]
+}

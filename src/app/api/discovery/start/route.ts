@@ -145,18 +145,43 @@ async function runFullPipeline(
       data: { totalFound: discoveryResult.discovered, total: discoveryResult.leads.length },
     });
 
-    // Build user profile for research step
+    // Build user profile for research step. BUSINESS CONTEXT (spec §3/§4):
+    // use the user's selected business profile (ownership-checked) instead of
+    // fabricating the sender's business from the SEARCH NICHE — previously
+    // `businessType: niche, services: targetGap` made a wellness user look
+    // like a "website improvement" vendor to the research AI.
     const userRecord = await db.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true, company: true },
     });
 
-    const userProfile: UserProfile = {
+    let userProfile: UserProfile = {
       name: userRecord?.name || userRecord?.email || 'User',
       businessType: niche,
       services: targetGap,
       location,
     };
+    try {
+      const { resolveBusinessContext } = await import('@/lib/business-profile-server');
+      const job = await db.discoveryJob.findUnique({ where: { id: jobId }, select: { businessProfileId: true, useBusinessContext: true } });
+      // EXPLICIT None: jobs persisted with useBusinessContext=false run
+      // WITHOUT any business profile (no default fallback).
+      const bizCtx = await resolveBusinessContext(userId, job?.businessProfileId ?? null, null, {
+        skip: job?.useBusinessContext === false,
+      });
+      if (bizCtx && (bizCtx.description || bizCtx.productsServices.length > 0 || bizCtx.industry)) {
+        userProfile = {
+          name: userRecord?.name || userRecord?.email || 'User',
+          businessType: bizCtx.industry || bizCtx.description?.slice(0, 120) || niche,
+          services: bizCtx.productsServices.length > 0
+            ? bizCtx.productsServices.map((s) => s.name).join(', ')
+            : (bizCtx.valueProposition || bizCtx.description || targetGap),
+          location: bizCtx.serviceAreas || location,
+        };
+      }
+    } catch (ctxErr) {
+      console.warn('[Pipeline] business context resolution failed (using niche-based fallback):', ctxErr instanceof Error ? ctxErr.message : ctxErr);
+    }
 
     // ── STEP 2: Process each lead SEQUENTIALLY ───────────────────
     const processedLeads: Array<{

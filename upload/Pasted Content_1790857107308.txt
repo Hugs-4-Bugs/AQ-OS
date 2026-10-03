@@ -1,0 +1,965 @@
+# ACQUISITIONOS — MASTER LEAD DISCOVERY, ENRICHMENT & BULK EXPORT IMPLEMENTATION
+
+## 0. PROJECT AUTHORITY AND OBJECTIVE
+
+You are working on AcquisitionOS, an existing SaaS application for discovering, analyzing, qualifying, and managing business acquisition and customer acquisition opportunities.
+
+**Authoritative repository:**
+https://github.com/Hugs-4-Bugs/AQ-OS
+
+**Authoritative branch:** `main`
+
+Use the current state of this repository as the reference for the application's existing implementation.
+
+Your task is to audit, repair, and improve the existing lead discovery system so it reliably discovers substantial numbers of relevant leads across supported sources, analyzes their business and website quality, enriches their details, categorizes them, and supports bulk export according to the user's subscription plan.
+
+The current implementation sometimes:
+
+* Returns only 2, 4, 6, 10, or 12 leads when users expect bulk results.
+* Fails to discover leads despite having valid search criteria.
+* Displays "No suitable leads found" without adequately explaining the reason.
+* Fails to discover relevant businesses with missing, broken, outdated, or poor-quality websites.
+* Does not consistently provide complete, verified, enriched lead information.
+* Has limited country options instead of worldwide search.
+* Does not provide a sufficiently reliable bulk discovery and export experience.
+
+**Fix the underlying problems. Do not merely increase a displayed result count or change the UI while the backend still returns insufficient data.**
+
+The objective is a reliable, scalable, plan-aware lead acquisition system that delivers useful, evidence-backed business prospects rather than generic company lists that users could obtain from a basic ChatGPT or Gemini prompt.
+
+---
+
+# 1. ABSOLUTE CODEBASE AND DATA PROTECTION RULES
+
+These rules apply to every implementation step.
+
+1. Inspect the current repository and working tree before making changes.
+2. Confirm the current `main` branch HEAD and determine whether the working workspace contains legitimate changes.
+3. Do not blindly overwrite the current workspace or discard uncommitted work.
+4. Do not restore an older version, use an old snapshot, roll back, reset, or revert.
+5. Do not replace the application with a new project or rewrite the entire architecture.
+6. Do not delete, reset, recreate, or truncate the database.
+7. Do not modify, remove, or regenerate existing users, leads, subscriptions, credit balances, payment history, usage history, or other persisted application data.
+8. Do not change existing subscription prices, credit allocations, billing rules, Stripe/Razorpay integration, or payment webhooks.
+9. Do not bypass subscription entitlements, authentication, authorization, usage limits, or rate limits.
+10. Do not hardcode API keys, credentials, source responses, fake leads, or fabricated metrics.
+11. Do not introduce unrelated refactoring, dependency upgrades, UI redesigns, or features outside this objective.
+12. Preserve existing working functionality, routing, application design, integrations, and user workflows.
+13. Make small, forward-only, reviewable changes.
+14. Use existing architecture, components, services, database conventions, and API patterns wherever possible.
+15. Do not claim functionality is implemented, active, verified, or production-ready unless that is supported by actual implementation and testing.
+
+**If a required change risks existing data, billing, authentication, or unrelated functionality, stop and explain the risk before proceeding.**
+
+---
+
+# 2. PHASE ONE — COMPLETE EXISTING-SYSTEM AUDIT
+
+Before writing code, inspect the actual current implementation.
+
+Trace the entire lead discovery flow:
+
+* Discover page and search form.
+* Filter Mode and AI Chat Mode.
+* Source selection dropdown.
+* Niche, keywords, country, city, and location filters.
+* Frontend request construction.
+* Backend discovery endpoints.
+* Source adapters and provider integrations.
+* API credentials and environment configuration.
+* Search pagination and result limits.
+* Batch processing and concurrency.
+* Lead normalization and deduplication.
+* Enrichment and verification services.
+* Website-quality analysis.
+* Lead scoring and categorization.
+* Database persistence.
+* Leads page filters and search.
+* Subscription entitlements and credit consumption.
+* Excel/CSV export implementation, if present.
+* Error handling, retries, logging, and usage reporting.
+
+Identify exactly why the current application returns small batches, zero results, incomplete details, or inaccurate classifications.
+
+Inspect existing database schemas and API contracts before proposing changes.
+
+### Required audit report
+
+Document:
+
+1. The actual current architecture.
+2. Existing source adapters and which are functional.
+3. Which sources are configured and usable.
+4. Which sources require credentials or external access.
+5. The real cause of low-volume results.
+6. The real cause of false "No suitable leads found" responses.
+7. Existing plan limits and export entitlements.
+8. Existing database fields and missing fields.
+9. Existing tests and important regressions to prevent.
+10. A minimal implementation plan with dependencies and acceptance criteria.
+
+Do not stop after producing the audit. Proceed with implementation unless an essential decision, unavailable credential, or destructive risk requires clarification.
+
+---
+
+# 3. BULK LEAD DISCOVERY ENGINE
+
+## 3.1 Core behavior
+
+Users must be able to discover leads in bulk based on:
+
+* Business niche and industry.
+* Search keywords and phrases.
+* Country.
+* State, province, or region.
+* City.
+* Postal code, where supported.
+* Specific location or geographic radius, where supported.
+* Business type.
+* Website status and quality.
+* Additional existing filters supported by AcquisitionOS.
+
+The system should retrieve as many relevant, distinct leads as it can reasonably obtain from the selected sources, within the user's plan limits, provider quotas, legal restrictions, and available resources.
+
+Do not hardcode a tiny global result limit such as 10 or 12 when the provider and user's plan permit more results.
+
+Do not remove legitimate limits imposed by a provider or subscription plan.
+
+## 3.2 Pagination and batch processing
+
+Implement or repair the existing pagination and batch-processing mechanisms.
+
+* Retrieve subsequent pages when the provider supports pagination.
+* Continue discovery until the target is reached, the provider is exhausted, the user cancels, or a genuine quota/resource limit is reached.
+* Respect provider pagination tokens and continuation cursors.
+* Support bounded concurrent requests where appropriate.
+* Use configurable batch sizes and concurrency limits.
+* Prevent duplicate requests and uncontrolled parallel execution.
+* Handle provider rate limits with appropriate backoff.
+* Preserve completed results if a later batch fails.
+* Support safe retry of failed batches without duplicating saved leads.
+* Show actual progress: discovered, processed, rejected, saved, and remaining where known.
+* Allow long-running jobs to complete without requiring the browser to remain continuously active, where compatible with the existing architecture.
+* Support cancellation without corrupting completed results.
+
+Do not simulate progress or report requested result counts as actual discovered results.
+
+## 3.3 Search expansion
+
+When the initial query returns few results, intelligently expand discovery using relevant query variants.
+
+Examples:
+
+* Industry synonyms.
+* Business-category alternatives.
+* Local-language keywords where supported.
+* Relevant service and product terms.
+* City, region, and nearby geographic variations.
+* Relevant commercial phrases.
+
+Query expansion must preserve the user's actual intent.
+
+Do not broaden a narrowly defined search into unrelated industries merely to increase the count.
+
+Record which query or search variation produced each lead where feasible.
+
+## 3.4 No-result behavior
+
+Do not immediately display "No suitable leads found" simply because one source or one query returned zero results.
+
+Before returning a final no-results state:
+
+1. Check whether the source request actually succeeded.
+2. Distinguish an empty result from a failed request.
+3. Check pagination and continuation behavior.
+4. Check whether the query and location were passed correctly.
+5. Run relevant query expansions when appropriate.
+6. Try other sources only when the user selected them or explicitly enabled multi-source discovery.
+7. Deduplicate and qualify any additional results.
+
+If no results are available, explain the actual reason where known:
+
+* No matching businesses found.
+* Provider returned no results.
+* API credentials are missing.
+* Provider quota has been reached.
+* Provider is temporarily unavailable.
+* Search filters are too restrictive.
+* Results were rejected by qualification rules.
+
+Provide actionable suggestions without inventing leads.
+
+---
+
+# 4. SOURCE INTEGRATIONS
+
+The confirmed source priorities are:
+
+1. Google Search / AI Search.
+2. Yellow Pages.
+3. Sulekha.
+4. Facebook.
+
+Audit the existing source implementations before creating or replacing adapters.
+
+## 4.1 Google Search / AI Search
+
+* Use the existing supported search integration wherever possible.
+* Discover relevant business websites, business listings, contact pages, and other legitimate public business information.
+* Support query expansion and pagination when available.
+* Preserve source URLs and provenance.
+* Distinguish AI-generated suggestions from businesses actually discovered in a source.
+* Never treat an AI-generated business name, email, phone number, address, or website as verified evidence.
+* Verify discovered businesses against available source evidence before assigning verification status.
+
+## 4.2 Yellow Pages
+
+* Repair and activate the existing integration where possible.
+* Support relevant categories and geographic searches.
+* Retrieve available business details and source listing URLs.
+* Use pagination where available.
+* Preserve the original source and retrieval timestamp.
+* Do not fabricate missing details.
+
+## 4.3 Sulekha
+
+* Repair and activate the existing integration where possible.
+* Support relevant service categories, niches, and locations.
+* Retrieve available public business details.
+* Preserve source references and timestamps.
+* Handle unavailable pages, rate limits, and incomplete listings correctly.
+
+## 4.4 Facebook
+
+* Audit the existing Facebook integration and its permitted access method.
+* Use supported APIs and authorized public business-page data where available.
+* Retrieve available business-page details, categories, websites, and public contact information within the granted permissions.
+* Respect platform terms, access restrictions, privacy requirements, and rate limits.
+* Do not bypass login restrictions, CAPTCHAs, access controls, or technical protections.
+* Do not scrape private profiles or private personal information.
+* If required permissions or credentials are unavailable, identify the exact requirement instead of claiming the integration is active.
+
+## 4.5 Source activation and health
+
+A source must not be labelled "Active" merely because it appears in the dropdown.
+
+For each source, track and expose an accurate status such as:
+
+* Configured and operational.
+* Configured but temporarily unavailable.
+* Missing credentials or permissions.
+* Rate limited.
+* Disabled.
+* Not implemented.
+
+Use the existing UI conventions where possible.
+
+Never display fake successful results when a provider fails.
+
+Do not silently fall back to a different source if doing so would violate the user's selected source, privacy expectations, or source-specific behavior.
+
+---
+
+# 5. WORLDWIDE GEOGRAPHIC SEARCH
+
+Remove the current restriction to a small, hardcoded list of countries.
+
+Implement worldwide country selection across the Discover page and relevant Leads page filters.
+
+Requirements:
+
+* Support a complete, maintained country dataset.
+* Use standard country names and ISO country codes.
+* Support searching and selecting countries by name.
+* Support worldwide searches without requiring a country selection.
+* Support country, region/state, city, and postal-code filters where the source provides the data.
+* Avoid hardcoded lists of only five or six countries.
+* Preserve existing saved lead locations and search configurations.
+* Normalize country names and codes consistently.
+* Handle alternate spellings and common aliases without duplicating leads.
+* Do not assume every source supports every country equally.
+* Clearly distinguish unsupported geographic coverage from a genuine zero-result search.
+
+The geographic filter must work with the actual backend query and not merely change the displayed country label.
+
+---
+
+# 6. WEBSITE PRESENCE AND QUALITY ANALYSIS
+
+A key AcquisitionOS use case is identifying businesses that may need a better website or a new website.
+
+The system must identify and categorize businesses with:
+
+* No website found.
+* Website URL present but unreachable.
+* Broken or invalid website.
+* HTTPS/TLS problems.
+* Persistent server errors.
+* Redirect loops or excessive redirects.
+* Domain or DNS resolution failures.
+* Very slow responses.
+* Mobile usability concerns, when measurable.
+* Outdated or incomplete website content, where reliable evidence is available.
+* Missing basic business information.
+* Weak online presence despite an otherwise relevant business.
+
+## 6.1 Website checks
+
+Use safe, bounded checks:
+
+* Normalize and validate URLs.
+* Resolve redirects safely.
+* Record HTTP status where available.
+* Check HTTPS and certificate errors.
+* Measure response time.
+* Distinguish a genuine failure from a temporary network error.
+* Handle blocked requests, bot protection, timeouts, and unavailable pages.
+* Avoid repeated checks that overload a target website.
+* Prevent SSRF and requests to private, loopback, link-local, or otherwise prohibited network addresses.
+* Revalidate resolved destinations after redirects to prevent SSRF bypasses.
+* Use bounded timeouts, response sizes, and concurrency.
+* Do not execute arbitrary website JavaScript or download unrestricted content.
+
+## 6.2 Website quality classification
+
+Create transparent, evidence-based classifications such as:
+
+* No Website Found.
+* Website Unreachable.
+* Website Health Issue.
+* Potential Improvement Opportunity.
+* Website Appears Functional.
+* Not Yet Verified.
+
+Do not classify a website as "bad" or "outdated" based solely on a missing response or a failed automated request.
+
+For subjective assessments, record the observable reasons and label them as estimates.
+
+Do not claim mobile responsiveness, accessibility, SEO quality, or visual quality has been verified unless the relevant checks were actually performed.
+
+## 6.3 Opportunity relevance
+
+Prioritize businesses whose website status and business category match the user's target.
+
+For example, if the user searches for dental clinics in a particular city, relevant results should include dental clinics in that location, with website issues clearly identified.
+
+Do not rank unrelated businesses higher simply because they have no website.
+
+---
+
+# 7. LEAD ENRICHMENT AND DATA CORRECTNESS
+
+Gather all legitimately available, relevant business details supported by the source and permitted access.
+
+Use the existing lead schema and extend it only where necessary.
+
+Potential fields include:
+
+### Business identity
+
+* Business name.
+* Business category and subcategory.
+* Industry.
+* Business description.
+* Public business type.
+
+### Location
+
+* Country and country code.
+* State/province/region.
+* City.
+* Postal code.
+* Public business address.
+* Coordinates, only when reliably available.
+
+### Contact information
+
+* Public business phone.
+* Public business email.
+* Official website.
+* Public business contact page.
+* Public business social profiles.
+* Public contact person's name and role, only when lawfully and reliably available.
+
+### Online presence
+
+* Google/search result URL.
+* Source listing URL.
+* Facebook business page, where available.
+* Other public business profiles discovered through the selected sources.
+* Website status and quality findings.
+
+### Verification and provenance
+
+* Source name.
+* Original source URL.
+* Discovery timestamp.
+* Last verification timestamp.
+* Verification status.
+* Verification method.
+* Evidence supporting the field.
+* Confidence level.
+* Data freshness.
+* Missing-field indicators.
+
+Do not require every field to be populated when the source does not provide it.
+
+Do not fill missing data with guessed values.
+
+## 7.1 Field-level correctness
+
+Treat each field independently.
+
+A verified business name does not automatically make its email, phone number, address, or website verified.
+
+Normalize phone numbers and email addresses where possible, but do not alter the underlying evidence.
+
+Use authoritative evidence and independent corroboration where available.
+
+For uncertain fields, retain the value only with an appropriate status and source.
+
+## 7.2 Verification labels
+
+At minimum, support:
+
+* Verified.
+* Partially Verified.
+* Unverified.
+* Verification Failed.
+* Conflicting Information.
+
+Define explicit verification rules for each field.
+
+Examples:
+
+* A website URL was found in a business listing: URL discovered, not necessarily verified as the official site.
+* A website returned a successful response: reachable at the check time, not necessarily owned by the business.
+* A phone number appears in one listing: discovered, not necessarily confirmed.
+* A business is present in two independent sources: corroborated identity, not proof that every field is correct.
+
+Never use the word "verified" as a blanket claim without a documented basis.
+
+---
+
+# 8. DEDUPLICATION AND DATA QUALITY
+
+Implement robust deduplication across selected sources.
+
+Use appropriate combinations of:
+
+* Normalized business name.
+* Website/domain.
+* Phone number.
+* Address.
+* Geographic location.
+* Source listing identifiers.
+* Other existing stable identifiers.
+
+Requirements:
+
+* Prevent duplicate records when a business appears in multiple query variations.
+* Prevent duplicate records when a business appears on multiple sources.
+* Preserve useful source references from duplicate listings.
+* Merge non-conflicting information without overwriting stronger evidence with weaker evidence.
+* Preserve conflicting values with provenance where appropriate.
+* Do not merge unrelated businesses merely because they share a name.
+* Avoid creating duplicates during retries, pagination, and repeated searches.
+* Preserve existing saved lead IDs and relationships.
+* Use safe, idempotent database operations.
+
+Do not delete existing leads to implement deduplication.
+
+If merging existing records is necessary, propose a safe, reversible strategy and obtain approval before any destructive merge.
+
+---
+
+# 9. LEAD CATEGORIZATION, FILTERS, AND SCORING
+
+Every discovered lead should be categorized using its actual data and evidence.
+
+Support useful categories such as:
+
+* Industry and niche.
+* Country, region, and city.
+* Source.
+* Website status.
+* Verification status.
+* Data completeness.
+* Business relevance.
+* Lead quality.
+* Opportunity type.
+* Contact information availability.
+
+Add or improve filters where they materially help users qualify leads.
+
+Examples:
+
+* No website.
+* Broken/unreachable website.
+* Website improvement opportunity.
+* Verified only.
+* Unverified only.
+* Partially verified.
+* Has public email.
+* Has public phone.
+* Has official website.
+* Has source listing.
+* Country.
+* City.
+* Industry.
+* Source.
+* Discovery date.
+
+Ensure filters apply to actual stored/query results and work together correctly.
+
+## 9.1 Explainable lead scoring
+
+Use a transparent scoring model based on evidence such as:
+
+* Match to the requested niche.
+* Geographic match.
+* Website status.
+* Availability of relevant public contact information.
+* Business identity confidence.
+* Data completeness.
+* Source reliability.
+* Recency of verification.
+
+Keep business relevance, data confidence, and website opportunity as distinct concepts.
+
+Do not treat an unverified lead as high-confidence simply because it matches the search query.
+
+Make the score explainable through its contributing factors.
+
+Do not present estimates as facts.
+
+---
+
+# 10. LEADS PAGE AND SEARCH EXPERIENCE
+
+Preserve the current AcquisitionOS design system and improve only the functionality required for this workflow.
+
+Ensure:
+
+* Discover searches return actual backend results.
+* Results appear in the correct location.
+* Bulk results are paginated or virtualized efficiently.
+* Search results do not disappear because the UI reads only the first small batch.
+* Users can filter and sort large result sets.
+* Search progress and source health are visible.
+* Users can distinguish newly discovered leads from previously saved leads.
+* Existing saved leads remain available.
+* Repeated searches do not silently overwrite user data.
+* Empty states explain what happened and offer useful next steps.
+* Partial provider failures do not discard valid results from successful providers.
+
+Keep the existing navigation, layouts, and other pages intact.
+
+---
+
+# 11. PLAN-AWARE BULK EXPORT
+
+Implement reliable bulk Excel export using the application's existing subscription and entitlement system.
+
+Do not invent or change subscription plans, prices, credits, or entitlements.
+
+First inspect the actual Free, Starter, Pro, and Elite plan definitions in the current codebase.
+
+Use those definitions as the source of truth.
+
+## 11.1 Export behavior
+
+Users should be able to select and export multiple leads in one operation.
+
+Support, where appropriate to the existing implementation:
+
+* Export selected leads.
+* Export all leads matching current filters.
+* Export a saved lead collection.
+* Export a completed discovery batch.
+* Export in Excel-compatible `.xlsx` format.
+* CSV export if already supported or if it can be added safely.
+
+The export must contain actual lead records—not only the first page currently visible in the UI.
+
+Use server-side pagination/batching for large exports rather than requiring all rows to be loaded in the browser.
+
+## 11.2 Plan entitlements
+
+* Free: enforce the existing Free plan's export eligibility, lead limits, field access, and other entitlements.
+* Starter: export all fields and records permitted by the actual Starter plan.
+* Pro: export all fields and records permitted by the actual Pro plan.
+* Elite: export all fields and records permitted by the actual Elite plan.
+
+These are entitlement examples, not permission to invent new plan rules.
+
+If the current plan defines different limits, preserve them unless a separate approved requirement explicitly changes them.
+
+Do not expose higher-tier fields or records to lower-tier users.
+
+Do not enforce plan restrictions only in the frontend. Enforce them on the server.
+
+## 11.3 Export columns
+
+Include all fields that the user's plan is entitled to access, including applicable fields for:
+
+* Business identity.
+* Industry and category.
+* Country, city, and address.
+* Public contact details.
+* Website and website status.
+* Source URLs.
+* Verification status.
+* Data confidence.
+* Website-quality findings.
+* Lead score and its explanation.
+* Discovery and verification timestamps.
+* Other existing plan-eligible fields.
+
+Do not include internal secrets, credentials, authentication tokens, private internal notes, or fields the user is not authorized to export.
+
+## 11.4 Export correctness
+
+* Correctly escape Excel/CSV cell values.
+* Protect against spreadsheet formula injection.
+* Handle Unicode and international characters.
+* Preserve phone numbers, postal codes, and identifiers as text when necessary.
+* Handle large exports safely.
+* Prevent duplicate rows.
+* Respect current filters and selection.
+* Provide clear progress, completion, and error states.
+* Do not silently truncate exports.
+* Report the actual number of exported records.
+* Apply existing usage/credit rules correctly; do not invent new charges.
+
+---
+
+# 12. CREDITS, SUBSCRIPTIONS, AND USAGE ACCOUNTING
+
+Lead discovery and export must integrate with the existing billing and entitlement architecture.
+
+Before changing usage logic, inspect the current implementation.
+
+* Preserve existing plan limits.
+* Preserve existing credit balances.
+* Do not deduct credits twice for retries.
+* Do not charge for a failed operation unless the existing documented policy explicitly requires it.
+* Ensure usage accounting is idempotent.
+* Ensure concurrent requests cannot bypass plan limits.
+* Ensure a failed provider does not accidentally charge the user for leads never delivered, contrary to the existing policy.
+* Do not change plan pricing or payment processing.
+* Do not modify Stripe/Razorpay webhooks.
+* Do not create test payments or real charges.
+* Do not manually adjust any user's credit balance.
+
+If current usage rules are ambiguous, report the ambiguity instead of inventing a new billing policy.
+
+---
+
+# 13. RELIABILITY AND ERROR HANDLING
+
+Implement reliable behavior for:
+
+* Missing API credentials.
+* Invalid credentials.
+* Provider timeouts.
+* Rate limits.
+* Provider outages.
+* Malformed responses.
+* Partial results.
+* Pagination failures.
+* Network interruptions.
+* Duplicate requests.
+* Worker failures.
+* Browser refresh during a long-running job.
+* Export failures.
+* Database errors.
+
+Requirements:
+
+* Use bounded retries with exponential backoff and jitter where appropriate.
+* Avoid retrying permanent errors indefinitely.
+* Preserve successful partial results.
+* Avoid logging secrets or personal data unnecessarily.
+* Provide actionable, truthful error messages.
+* Use structured logs and request/job identifiers where appropriate.
+* Ensure provider failures are observable.
+* Avoid unbounded concurrency, memory use, and request duration.
+* Keep source-specific failures separate so one failed provider does not erase results from another successful provider.
+
+Do not hide errors by returning fake empty responses or hardcoded success states.
+
+---
+
+# 14. SECURITY, PRIVACY, AND SOURCE COMPLIANCE
+
+All discovery and enrichment must comply with applicable laws, source terms, and access restrictions.
+
+* Use supported APIs and authorized access.
+* Respect provider rate limits and permissions.
+* Do not bypass CAPTCHAs, authentication, access controls, or anti-abuse protections.
+* Do not access private personal information.
+* Collect only data relevant to legitimate business use.
+* Preserve source provenance.
+* Protect API keys and secrets on the server.
+* Validate and sanitize all inputs.
+* Enforce authentication, authorization, and workspace ownership.
+* Prevent SSRF in website checks.
+* Prevent SQL injection and unsafe query construction.
+* Prevent spreadsheet formula injection.
+* Do not expose one customer's leads or exports to another customer.
+* Apply appropriate retention and deletion policies already present in the application.
+
+Do not weaken security to increase lead volume.
+
+---
+
+# 15. DATABASE AND MIGRATION SAFETY
+
+Prefer the existing schema.
+
+Add new fields or tables only when the audit proves they are required.
+
+If a schema change is necessary:
+
+1. Explain why it is necessary.
+2. Use a forward-only migration.
+3. Preserve all existing records.
+4. Provide safe defaults for existing data.
+5. Avoid destructive column changes.
+6. Ensure rollback is not required to preserve data.
+7. Test migration behavior against a safe development/test database.
+8. Never reset or recreate the production database.
+
+Do not execute destructive SQL.
+
+Do not alter existing user balances, subscriptions, payments, or saved leads.
+
+---
+
+# 16. IMPLEMENTATION ORDER
+
+Implement in small, verifiable phases.
+
+### Phase A — Audit and root-cause fixes
+
+* Trace discovery and result pagination.
+* Identify why results are capped or missing.
+* Identify source configuration and failure handling.
+* Inspect worldwide location filters.
+* Inspect lead schema and export entitlements.
+* Produce the audit report.
+
+### Phase B — Discovery reliability
+
+* Fix pagination and batch processing.
+* Fix false no-results behavior.
+* Implement safe query expansion.
+* Ensure partial results survive provider failures.
+* Verify real bulk result counts.
+
+### Phase C — Source integrations
+
+* Repair Google Search/AI Search.
+* Repair Yellow Pages.
+* Repair Sulekha.
+* Repair Facebook.
+* Report actual credentials and permissions required.
+* Do not label unconfigured sources as active.
+
+### Phase D — Worldwide geography
+
+* Implement complete country selection.
+* Normalize country codes and locations.
+* Connect filters to actual backend queries.
+* Test representative locations worldwide.
+
+### Phase E — Enrichment and website analysis
+
+* Add or repair website health checks.
+* Identify missing and broken websites.
+* Add evidence-backed classifications.
+* Enrich public business data.
+* Add field-level verification and provenance.
+
+### Phase F — Deduplication and categorization
+
+* Implement idempotent deduplication.
+* Preserve source provenance.
+* Improve filters and explainable scoring.
+* Protect existing saved lead records.
+
+### Phase G — Bulk export
+
+* Inspect current plan entitlements.
+* Implement bulk `.xlsx` export.
+* Enforce field and record access server-side.
+* Test large exports and spreadsheet safety.
+
+### Phase H — Regression and production-readiness verification
+
+* Run all relevant tests.
+* Run build, type checks, and lint checks available in the project.
+* Verify the entire discovery-to-export workflow.
+* Report remaining limitations honestly.
+
+Do not begin broad unrelated work while implementing these phases.
+
+---
+
+# 17. REQUIRED TESTS AND ACCEPTANCE CRITERIA
+
+Use automated tests wherever practical and safe.
+
+## Discovery
+
+* [ ] A valid niche and location can produce real results.
+* [ ] Results are not artificially capped at a tiny fixed count.
+* [ ] Pagination retrieves subsequent provider pages.
+* [ ] Query expansion is relevant to the original intent.
+* [ ] Duplicate leads are not repeatedly saved.
+* [ ] Partial source failures preserve successful results.
+* [ ] No-result messages distinguish empty results from provider failures.
+* [ ] Search cancellation does not corrupt completed results.
+* [ ] Retries do not duplicate records or consume credits twice.
+
+## Sources
+
+* [ ] Google Search/AI Search works with valid configuration.
+* [ ] Yellow Pages works with valid configuration.
+* [ ] Sulekha works with valid configuration.
+* [ ] Facebook works with valid permissions and configuration.
+* [ ] Missing credentials produce a truthful status.
+* [ ] Provider errors are handled without fabricated leads.
+* [ ] Source attribution is preserved.
+
+## Worldwide filters
+
+* [ ] The country selector is not limited to five or six countries.
+* [ ] Country search works by name.
+* [ ] Country codes are normalized.
+* [ ] Worldwide searches work without an explicit country.
+* [ ] Country and city filters affect actual results.
+* [ ] Existing saved leads remain visible and intact.
+
+## Website analysis
+
+* [ ] Businesses without a discovered website are identified correctly.
+* [ ] Broken and unreachable websites are distinguished from temporary failures.
+* [ ] Website checks use safe timeouts and resource limits.
+* [ ] Website findings include evidence and timestamps.
+* [ ] A reachable website is not automatically classified as high quality.
+* [ ] Unverified website claims are not presented as facts.
+
+## Data correctness
+
+* [ ] Each field has an appropriate verification status.
+* [ ] Source URLs and timestamps are preserved.
+* [ ] Missing data is not fabricated.
+* [ ] Conflicting values are handled transparently.
+* [ ] Duplicate records are handled safely.
+
+## Excel export
+
+* [ ] Bulk export includes all records in the requested authorized selection.
+* [ ] Export is not limited to the currently loaded UI page.
+* [ ] `.xlsx` files open correctly.
+* [ ] Unicode and international characters are preserved.
+* [ ] Spreadsheet formula injection is mitigated.
+* [ ] Plan restrictions are enforced on the server.
+* [ ] Unauthorized fields are excluded.
+* [ ] Exported record counts are accurate.
+* [ ] Large exports do not exhaust application resources.
+
+## Regression and safety
+
+* [ ] Existing authentication continues to work.
+* [ ] Billing and payment flows remain unchanged.
+* [ ] Existing subscription prices and entitlements remain unchanged unless already defined by the current implementation.
+* [ ] Credit balances remain unchanged except for legitimate, correctly accounted usage.
+* [ ] Existing user accounts and saved leads remain intact.
+* [ ] No database reset or destructive migration occurs.
+* [ ] Existing unrelated features continue to work.
+* [ ] Build and relevant tests pass, or failures are reported accurately.
+
+---
+
+# 18. REAL-WORLD VALIDATION
+
+Do not validate only with mocked responses.
+
+Use the project's existing test framework for automated coverage, and use actual provider integrations only when valid credentials, permissions, and safe test conditions are available.
+
+For real provider validation:
+
+* Use a small number of controlled, representative searches first.
+* Verify source responses and pagination.
+* Compare returned records with their source pages.
+* Verify that the website status checks match observed responses.
+* Confirm that duplicate handling works across sources.
+* Confirm that the exported spreadsheet contains the correct records and fields.
+
+Do not run uncontrolled high-volume searches against external providers during testing.
+
+Do not spend real user credits, initiate payments, or modify production customer data during tests.
+
+If a source cannot be tested because credentials, permissions, or quotas are unavailable, mark that test as blocked. Do not claim the integration is verified.
+
+---
+
+# 19. DEFINITION OF DONE
+
+The task is complete only when:
+
+1. The root causes of low-volume discovery and false no-results behavior have been identified and addressed.
+2. Bulk discovery retrieves all relevant results available through the configured, permitted sources, within real limits.
+3. The four confirmed source integrations are accurately represented as working, unavailable, or requiring configuration.
+4. Worldwide country filtering works in the backend and frontend.
+5. Website presence and quality analysis is evidence-based.
+6. Lead details include source provenance and field-level verification.
+7. Deduplication and categorization work reliably.
+8. Bulk Excel export includes the fields and records permitted by each user's existing plan.
+9. Existing plan limits and credit accounting remain intact.
+10. Security and data-isolation protections remain intact.
+11. Relevant tests and build checks have been executed.
+12. Any blocked integrations or remaining limitations are documented.
+
+**Do not declare the system 100% accurate or perfectly reliable. Report actual measured results, known limitations, and verified behavior.**
+
+---
+
+# 20. FINAL REPORT REQUIRED
+
+After implementation, provide:
+
+1. Summary of the original root causes.
+2. Architecture and source adapters inspected.
+3. Exact files changed and why.
+4. Changes implemented in each phase.
+5. Database/schema changes, if any, with migration details.
+6. Source-by-source status and required credentials/permissions.
+7. Actual bulk discovery test results, including requested and returned counts.
+8. Worldwide geography test results.
+9. Website-quality and field-verification test results.
+10. Deduplication test results.
+11. Export test results for each existing plan.
+12. Actual tests, type checks, lint checks, and build results.
+13. Confirmation that existing users, leads, subscriptions, billing, and data were preserved.
+14. Known limitations and blocked tests.
+15. Any required environment variables, documented by name only—never expose secret values.
+
+Do not claim success for untested behavior.
+
+Do not mark an external source as active unless it is genuinely configured and operational.
+
+Do not silently leave broken features behind while reporting completion.
+
+---
+
+# FINAL INSTRUCTION
+
+Implement a genuinely useful, evidence-based, bulk lead discovery and qualification system in the existing AcquisitionOS codebase.
+
+Prioritize relevant business opportunities, website-quality signals, correct data, source transparency, worldwide search, and reliable bulk export.
+
+**Make the smallest safe changes necessary to achieve the objective. Preserve all unrelated functionality and existing data. Diagnose first, implement incrementally, and verify every feature before declaring it complete.**

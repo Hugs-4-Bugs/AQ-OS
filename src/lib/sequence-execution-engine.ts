@@ -18,6 +18,7 @@ import { db } from '@/lib/db';
 import { sendNotification } from '@/lib/notification-engine';
 import { logAuditEvent } from '@/lib/lead-audit';
 import { deductCredits } from '@/lib/credit-service';
+import { AUTOMATION_PLAN_TIERS } from '@/lib/plan-feature-limits';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & INTERFACES
@@ -1028,15 +1029,22 @@ export async function processSequenceSteps(
   let completed = 0;
 
   try {
-    // Find all due enrollments
+    // Find all due enrollments.
+    // Plan Eligibility Correction: sequence automation runs EXCLUSIVELY for
+    // Pro/Elite sequence owners — Free/Starter enrollments are skipped at the
+    // DB level (they stay active and untouched; processing resumes on upgrade).
     const enrollmentWhere: Record<string, unknown> = {
       status: 'active',
       nextSendAt: { lte: new Date() },
+      sequence: { user: { plan: { in: AUTOMATION_PLAN_TIERS } } },
     };
 
     // If userId is specified, only process that user's enrollments
     if (userId) {
-      enrollmentWhere.sequence = { userId };
+      enrollmentWhere.sequence = {
+        ...(enrollmentWhere.sequence as Record<string, unknown>),
+        userId,
+      };
     }
 
     const dueEnrollments = await db.sequenceEnrollment.findMany({

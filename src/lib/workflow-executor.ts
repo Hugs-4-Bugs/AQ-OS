@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
 import { createNotificationOnce } from '@/lib/notification-service';
+import { hasFeatureAccess, type PlanType } from '@/lib/entitlement-service';
 import {
   type WorkflowNode,
   type WorkflowEdge,
@@ -884,6 +885,17 @@ export async function handleWebhookTrigger(
 
   if (!workflow) {
     throw new Error('No active workflow found for this webhook path');
+  }
+
+  // Plan Eligibility Correction: automation is Pro/Elite only — enforced on
+  // the OWNER's plan (webhook callers are external systems, not the user).
+  // Same entitlement semantics as the route gates (unknown values fail closed).
+  const owner = await db.user.findUnique({
+    where: { id: workflow.userId },
+    select: { plan: true },
+  });
+  if (!hasFeatureAccess((owner?.plan ?? 'free') as PlanType, 'workflow_access')) {
+    throw new Error('Workflow automation requires a Pro or Elite plan');
   }
 
   // ACCOUNT ISOLATION (SECURITY HARDENING): a webhook secret is now

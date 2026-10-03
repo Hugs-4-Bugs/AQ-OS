@@ -25,6 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import PlanGate from '@/components/dashboard/plan-gate';
+import { useSubscriptionSync } from '@/hooks/use-subscription-sync';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -192,6 +194,10 @@ const AUTONOMY_MODES = [
 
 export default function MeetingSettingsPage() {
   const router = useRouter();
+  // Standalone page (outside DashboardLayout) — run the subscription sync here
+  // so the autonomy-mode PlanGate can verify the plan instead of spinning on
+  // "Checking your subscription…" forever.
+  useSubscriptionSync();
   const [settings, setSettings] = useState<MeetingSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -628,6 +634,16 @@ export default function MeetingSettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
+            {/* Plan Eligibility Correction: autonomous meeting orchestration
+                (assisted/autonomous modes — the SDR automation acts on these)
+                is available exclusively to Pro and Elite subscribers. Free and
+                Starter keep the manual "approval" mode. The backend enforces
+                the same rule on PATCH /api/meetings/settings. */}
+            <PlanGate
+              requiredPlan="pro"
+              featureName="Autonomous Meeting Orchestration"
+              onUpgrade={() => router.push('/dashboard/billing')}
+            >
             <RadioGroup
               value={autonomyMode}
               onValueChange={handleAutonomyModeChange}
@@ -669,6 +685,7 @@ export default function MeetingSettingsPage() {
                 );
               })}
             </RadioGroup>
+            </PlanGate>
 
             {/* Autonomous Mode Confirmation Dialog */}
             <AlertDialog open={pendingAutonomyMode === 'autonomous'} onOpenChange={(open) => !open && setPendingAutonomyMode(null)}>

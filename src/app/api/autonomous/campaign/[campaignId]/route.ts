@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { getCampaignStatus } from '@/lib/autonomous-outreach-engine';
 import { db } from '@/lib/db';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // ===== GET: Get Campaign Status =====
 
@@ -16,6 +17,8 @@ export async function GET(
   { params }: { params: Promise<{ campaignId: string }> }
 ) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const { campaignId } = await params;
 
@@ -53,6 +56,8 @@ export async function POST(
   { params }: { params: Promise<{ campaignId: string }> }
 ) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const { campaignId } = await params;
 

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { duplicateWorkflow } from '@/lib/workflow-service';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 /** POST /api/workflows/[id]/duplicate — Duplicate a workflow */
 export async function POST(
@@ -12,6 +13,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const { id } = await params;
       const workflow = await duplicateWorkflow(id, user.id);

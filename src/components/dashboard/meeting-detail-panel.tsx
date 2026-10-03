@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -229,6 +229,21 @@ export default function MeetingDetailPanel({
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleDuration, setRescheduleDuration] = useState(30);
 
+  // ── Shell-bounded portal target ─────────────────────────────
+  // Same pattern as MetricDetailDrawer: when the app shell's content
+  // region is an ancestor, the panel + dim overlay render absolutely
+  // INSIDE it — above the page content but never covering the topbar,
+  // header, footer, or navigation. The panel was previously modal
+  // (default), which both covered the topbar/footer AND froze them via
+  // Radix's body pointer-events lock; modal={false} + the local dim
+  // overlay keeps every shell surface visible and interactive.
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const region = anchorRef.current?.closest('[data-app-content-region]');
+    setPortalContainer(region instanceof HTMLElement ? region : null);
+  }, []);
+
   // Fetch meeting details
   const fetchMeeting = useCallback(async () => {
     if (!meetingId) return;
@@ -455,8 +470,16 @@ export default function MeetingDetailPanel({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <span ref={anchorRef} aria-hidden="true" className="hidden" />
+      <Sheet open={open} modal={false} onOpenChange={onOpenChange}>
+        <SheetContent
+          container={portalContainer}
+          overlayClassName={portalContainer ? '' : undefined}
+          className={cn(
+            'w-full sm:max-w-lg overflow-y-auto',
+            portalContainer && 'absolute inset-y-0 right-0 h-full'
+          )}
+        >
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <div className="rounded-lg p-1.5 bg-gradient-to-br from-teal-500 to-emerald-600 text-white">

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
+import { hasFeatureAccess, type PlanType } from '@/lib/entitlement-service';
 import { createHmac, createHash } from 'crypto';
 
 export async function POST(
@@ -25,6 +26,26 @@ export async function POST(
       return NextResponse.json(
         { error: 'Workflow not found or not a webhook trigger' },
         { status: 404 }
+      );
+    }
+
+    // Plan Eligibility Correction: autonomous workflow execution is Pro/Elite
+    // only. Webhook callers are external systems, so the OWNER's plan is
+    // enforced here — a Free/Starter owner's workflow can never fire. Uses
+    // the same entitlement semantics as the route gates (unknown/legacy plan
+    // values fail closed).
+    const owner = await db.user.findUnique({
+      where: { id: workflow.userId },
+      select: { plan: true },
+    });
+    if (!hasFeatureAccess((owner?.plan ?? 'free') as PlanType, 'workflow_access')) {
+      return NextResponse.json(
+        {
+          error: 'Workflow automation requires a Pro or Elite plan',
+          code: 'PLAN_REQUIRED',
+          requiredPlan: 'pro',
+        },
+        { status: 403 }
       );
     }
 

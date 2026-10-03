@@ -14,6 +14,7 @@ import { db } from '@/lib/db';
 import { logCreditEvent } from '@/lib/billing-audit';
 import { createNotificationOnce } from '@/lib/notification-service';
 import { PLAN_CREDITS, type PlanType } from '@/lib/entitlement-service';
+import type { Prisma } from '@prisma/client';
 
 // ===== CREDIT COSTS MAPPING =====
 
@@ -37,6 +38,37 @@ export const CREDIT_COSTS: Record<CreditAction, number> = {
   competitor_analysis: 8,
   data_export: 5,
 };
+
+// ===== SIGNUP REWARD (exactly 50 — the only signup grant) =====
+// Every newly registered account receives exactly SIGNUP_GRANT_CREDITS
+// credits as its TOTAL signup reward. There is no additional signup-adjacent
+// grant (onboarding completion/skip no longer adds credits). The grant is
+// written in the SAME transaction as user creation, so user creation itself
+// is the idempotency boundary: one user → at most one signup_grant row.
+export const SIGNUP_GRANT_CREDITS = 50;
+export const SIGNUP_GRANT_ACTION = 'signup_grant';
+
+/**
+ * Write the signup-grant audit ledger row inside the user-creation
+ * transaction. Callers must have set the user's starting balance to
+ * SIGNUP_GRANT_CREDITS explicitly. Never call outside user creation —
+ * this helper is intentionally not a balance mutation.
+ */
+export async function writeSignupGrantLedger(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  await tx.creditsLedger.create({
+    data: {
+      userId,
+      action: SIGNUP_GRANT_ACTION,
+      credits: SIGNUP_GRANT_CREDITS,
+      balance: SIGNUP_GRANT_CREDITS,
+      description: 'Signup reward credits (initial grant)',
+      referenceId: userId,
+    },
+  });
+}
 
 // ===== INTERFACES =====
 
@@ -120,12 +152,13 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
       return { success: false, newBalance: 0, error: 'Cost must be greater than 0' };
     }
 
-    // Check idempotency key if provided
+    // Check idempotency key if provided — the key is stored on the ledger
+    // row itself, so a retried/replayed request can never double-charge.
     if (idempotencyKey) {
       const existingLedger = await db.creditsLedger.findFirst({
         where: {
           userId,
-          action: `${action}_idempotent_${idempotencyKey}`,
+          idempotencyKey,
         },
       });
 
@@ -165,8 +198,9 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
         data: { credits: newBalance },
       });
 
-      // Create ledger entry
-      const ledgerAction = idempotencyKey ? `${action}_idempotent_${idempotencyKey}` : action;
+      // Create ledger entry. The idempotency key (when provided) is stored
+      // on the row and checked above, making keyed deductions retry-safe.
+      // The public `action` stays clean for analytics/aggregation.
       const ledgerEntry = await tx.creditsLedger.create({
         data: {
           userId,
@@ -175,6 +209,7 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
           balance: newBalance,
           description: `Deducted ${cost} credits for ${action}`,
           referenceId: referenceId || null,
+          idempotencyKey: idempotencyKey || null,
         },
       });
 

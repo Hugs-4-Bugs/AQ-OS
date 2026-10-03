@@ -13,6 +13,7 @@ import {
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
 import { withRateLimit } from '@/lib/security/rate-limiter';
+import { SIGNUP_GRANT_CREDITS, writeSignupGrantLedger } from '@/lib/credit-service';
 
 export async function POST(request: NextRequest) {
   // Rate limit: 5 auth requests per minute per IP to prevent bulk account creation
@@ -92,7 +93,13 @@ export async function POST(request: NextRequest) {
     const verificationOtpExpiry = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
     // ── Create user (ALWAYS requires email verification) ────────
-    const user = await db.user.create({
+    // SIGNUP REWARD: the starting balance is set explicitly to 50 and the
+    // matching `signup_grant` ledger row is written in the SAME transaction.
+    // One user creation → exactly one grant (atomic, retry-safe). The
+    // onboarding flow no longer adds any credits, so 50 is the TOTAL signup
+    // reward. Existing users' balances are untouched by this change.
+    const user = await db.$transaction(async (tx) => {
+      const created = await tx.user.create({
       data: {
         name: name.trim(),
         email: normalizedEmail,
@@ -103,6 +110,8 @@ export async function POST(request: NextRequest) {
         emailVerified: false,
         emailVerificationOtp: verificationOtp,
         emailVerificationOtpExpiry: verificationOtpExpiry,
+        credits: SIGNUP_GRANT_CREDITS,
+        creditsMonthly: SIGNUP_GRANT_CREDITS,
         isTrial: true,
         trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
         settings: { create: {} },
@@ -118,6 +127,10 @@ export async function POST(request: NextRequest) {
         },
       },
       include: { mfaConfig: { select: { isEnabled: true } } },
+      });
+
+      await writeSignupGrantLedger(tx, created.id);
+      return created;
     });
 
     // ── Audit logging ───────────────────────────────────────────

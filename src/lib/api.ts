@@ -372,7 +372,7 @@ export async function discoverBusinesses(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ niche, country, city }),
-  }, { errorMessage: 'Failed to discover businesses', retryCount: 1 });
+  }, { errorMessage: 'Failed to discover businesses' });
   return data.leads.map(transformLead);
 }
 

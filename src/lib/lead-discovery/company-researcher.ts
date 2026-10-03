@@ -91,7 +91,8 @@ export async function researchCompany(
       websiteScore,
       `Insufficient credits. Need ${RESEARCH_CREDIT_COST}, have ${sufficiency.balance}.`,
       0,
-      sufficiency.balance
+      sufficiency.balance,
+      userProfile
     );
   }
 
@@ -109,7 +110,8 @@ export async function researchCompany(
       websiteScore,
       `Credit deduction failed: ${deduction.error}`,
       0,
-      deduction.newBalance
+      deduction.newBalance,
+      userProfile
     );
   }
 
@@ -190,14 +192,14 @@ export async function researchCompany(
     newCreditBalance = postRefund.balance;
     usedProvider = 'fallback';
     // Use fallback data but continue to update DB and create activity
-    researchData = buildFallbackResearchData(websiteScore);
+    researchData = buildFallbackResearchData(websiteScore, userProfile);
   } else {
     try {
-      researchData = parseAIResponse(result.content, websiteScore);
+      researchData = parseAIResponse(result.content, websiteScore, userProfile);
     } catch (parseError) {
       console.error('[CompanyResearcher] JSON parse failed, using fallback:', parseError);
       console.error(`[CompanyResearcher] Raw AI content that failed parsing (first 500 chars): ${result.content.substring(0, 500)}`);
-      researchData = buildFallbackResearchData(websiteScore);
+      researchData = buildFallbackResearchData(websiteScore, userProfile);
       usedProvider = 'fallback';
     }
   }
@@ -384,7 +386,8 @@ Return ONLY valid JSON:
  */
 function parseAIResponse(
   content: string,
-  websiteScore: WebsiteScore
+  websiteScore: WebsiteScore,
+  userProfile?: UserProfile
 ): Omit<CompanyResearchResult, 'aiProvider' | 'creditsDeducted' | 'newCreditBalance'> {
   // LOG: Capture raw AI response BEFORE any processing (first 300 chars — permanent diagnostic log)
   console.log(`[CompanyResearcher:parseAIResponse] RAW input (first 300 chars): "${content.slice(0, 300)}"`);
@@ -434,13 +437,31 @@ function parseAIResponse(
       }))
     : [];
 
-  // Ensure at least 1 challenge
+  // Ensure at least 1 challenge — BUT only when the measured website score
+  // actually shows digital-presence gaps (spec §4 honesty: never fabricate a
+  // recipient problem the evidence doesn't show, and never default to a
+  // "website redesign" pitch for senders whose offer isn't web work).
   if (challenges.length === 0) {
-    challenges.push({
-      challenge: 'Poor digital presence based on website analysis',
-      solution: 'Professional website redesign and optimization',
-      value: 'Increased customer acquisition and brand trust',
-    });
+    if (websiteScore.gaps.length > 0) {
+      challenges.push({
+        challenge: `Website gaps observed during research: ${websiteScore.gaps.slice(0, 3).join(', ')}`,
+        solution: userProfile?.services
+          ? `Explore how ${userProfile.name}'s services could address these gaps`
+          : 'Share the observed gaps and ask whether improving them is a priority',
+        value: 'Relevance based on measured website evidence, not assumptions',
+      });
+    } else {
+      // No measured gaps and no AI-returned challenges → stay honest:
+      // describe the known facts and ask a discovery question instead of
+      // inventing a problem.
+      challenges.push({
+        challenge: 'No specific pain points could be verified from available sources',
+        solution: userProfile?.services
+          ? `Introduce ${userProfile.name}'s offer (${userProfile.services.slice(0, 120)}) and ask about current priorities`
+          : 'Ask about the business\'s current priorities before proposing anything',
+        value: 'Honest first-touch framing that preserves credibility',
+      });
+    }
   }
 
   const validTemperatures = ['hot', 'warm', 'cold'] as const;
@@ -480,9 +501,10 @@ function buildFallbackResult(
   websiteScore: WebsiteScore,
   errorReason: string,
   creditsDeducted: number,
-  newCreditBalance: number
+  newCreditBalance: number,
+  userProfile?: UserProfile
 ): CompanyResearchResult {
-  const fallbackData = buildFallbackResearchData(websiteScore);
+  const fallbackData = buildFallbackResearchData(websiteScore, userProfile);
 
   return {
     ...fallbackData,
@@ -497,7 +519,8 @@ function buildFallbackResult(
  * cannot be parsed. Uses opportunityStatement for companyDescription.
  */
 function buildFallbackResearchData(
-  websiteScore: WebsiteScore
+  websiteScore: WebsiteScore,
+  userProfile?: UserProfile
 ): Omit<CompanyResearchResult, 'aiProvider' | 'creditsDeducted' | 'newCreditBalance'> {
   const leadTemperature = inferTemperatureFromScore(websiteScore.overallScore);
   const leadScore = inferScoreFromTemperature(leadTemperature, websiteScore.overallScore);
@@ -505,10 +528,16 @@ function buildFallbackResearchData(
 
   return {
     companyDescription: websiteScore.opportunityStatement,
+    // Honest fallback: only reference gaps the measured website score actually
+    // shows, and frame the solution around the SENDER'S real services (any
+    // industry) rather than a hardcoded website-redesign pitch. If the sender
+    // offers nothing related, ask a discovery question instead of claiming a fix.
     challenges: websiteScore.gaps.slice(0, 3).map((gap) => ({
       challenge: gap,
-      solution: `Our services can address: ${gap.toLowerCase()}`,
-      value: 'Improved digital presence and customer acquisition',
+      solution: userProfile?.services
+        ? `Discuss whether ${userProfile.services.split(',').slice(0, 3).join(', ').trim()} could address: ${gap.toLowerCase()}`
+        : 'Ask whether addressing this is a current priority',
+      value: 'Evidence-based relevance from measured website analysis',
     })),
     approachAngle,
     leadTemperature,

@@ -133,18 +133,53 @@ export async function enrichLead(leadId: string, userId: string): Promise<Enrich
 
     // Step 2: Try to read the lead's website if available
     let websiteContent = '';
+    let websiteHtml = '';
     if (lead.website) {
       try {
         const pageResult = await zai.functions.invoke('page_reader', {
           url: lead.website,
         });
         if (pageResult?.data?.html) {
-          // Truncate HTML to avoid token limits
-          websiteContent = pageResult.data.html.substring(0, 5000);
+          // Keep the full HTML for deterministic contact extraction; truncate
+          // only what goes to the LLM (token limits).
+          websiteHtml = String(pageResult.data.html);
+          websiteContent = websiteHtml.substring(0, 5000);
         }
       } catch {
         // Continue without website content
       }
+    }
+
+    // Step 2b: DETERMINISTIC contact extraction from the fetched HTML
+    // (spec §5) — mailto:/tel:/JSON-LD/keyword-context regexes. Fill-if-empty
+    // only: never overwrite an existing email/phone with a lower-confidence
+    // web extraction. Applied BEFORE the LLM step so the LLM output below
+    // cannot remove it (updateLeadWithEnrichment is also fill-if-empty).
+    try {
+      if (websiteHtml) {
+        const { extractContactsFromHtml, mergeExtractedContacts } = await import('@/lib/lead-discovery/contact-extractor');
+        const extracted = extractContactsFromHtml(websiteHtml, { sourceLabel: 'enrichment:homepage' });
+        const { updates, provenance } = mergeExtractedContacts(
+          { email: lead.email, phone: lead.phone },
+          extracted,
+          null,
+        );
+        if (Object.keys(updates).length > 0) {
+          const noteLines = Object.entries(provenance)
+            .map(([field, p]) => `${field}=${p!.value} (source: ${p!.source})`)
+            .join('; ');
+          await db.lead.update({
+            where: { id: lead.id },
+            data: {
+              ...updates,
+              notes: [lead.notes?.trim(), `[enrichment research] ${noteLines}`].filter(Boolean).join('\n').slice(-2000),
+            },
+          });
+        }
+      }
+    } catch (contactErr) {
+      // Contact extraction is best-effort — never fail the enrichment.
+      console.warn('[Enrichment] contact extraction failed:', contactErr instanceof Error ? contactErr.message : contactErr);
     }
 
     // Step 3: LLM extraction

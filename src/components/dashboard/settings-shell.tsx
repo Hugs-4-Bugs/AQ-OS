@@ -35,6 +35,7 @@ import {
   X,
   QrCode,
   Briefcase,
+  Building2,
   Plus,
   LifeBuoy,
 } from 'lucide-react';
@@ -62,13 +63,15 @@ import { useSettingsStore } from '@/lib/settings-store';
 import { toast } from 'sonner';
 import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
 import OfferProfileSettings from '@/components/dashboard/offer-profile-settings';
+import BusinessProfilesSettings from '@/components/dashboard/business-profiles-settings';
 import { useLegalStore } from '@/lib/legal-store';
 import ObservabilityDashboard from '@/components/dashboard/observability-dashboard';
 
-type SettingsSection = 'profile' | 'offer' | 'notifications' | 'billing' | 'security' | 'appearance' | 'integrations' | 'api' | 'data' | 'legal' | 'monitoring';
+type SettingsSection = 'profile' | 'offer' | 'business-profiles' | 'notifications' | 'billing' | 'security' | 'appearance' | 'integrations' | 'api' | 'data' | 'legal' | 'monitoring';
 
 const SETTINGS_NAV = [
   { id: 'profile' as const, label: 'Profile', icon: User },
+  { id: 'business-profiles' as const, label: 'Business Profiles', icon: Building2 },
   { id: 'offer' as const, label: 'My Offer', icon: Briefcase },
   { id: 'notifications' as const, label: 'Notifications', icon: Bell },
   { id: 'billing' as const, label: 'Billing', icon: CreditCard },
@@ -115,7 +118,7 @@ export default function SettingsShell() {
   const pendingSection = useAppStore((s) => s.pendingSettingsSection);
   const clearPendingSettingsSection = useAppStore((s) => s.clearPendingSettingsSection);
   const VALID_SECTIONS: SettingsSection[] = [
-    'profile', 'offer', 'notifications', 'billing', 'security',
+    'profile', 'business-profiles', 'offer', 'notifications', 'billing', 'security',
     'appearance', 'integrations', 'api', 'data', 'legal', 'monitoring',
   ];
   useEffect(() => {
@@ -1139,6 +1142,20 @@ useEffect(() => {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* ═══ BUSINESS PROFILES (who is reaching out — context for discovery/research/outreach) ═══ */}
+          {activeSection === 'business-profiles' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold">Business Profiles</h3>
+                <p className="text-sm text-muted-foreground">
+                  Multiple businesses, one account. Pick the profile the AI should use as your
+                  identity for lead discovery, website research and outreach.
+                </p>
+              </div>
+              <BusinessProfilesSettings />
             </div>
           )}
 

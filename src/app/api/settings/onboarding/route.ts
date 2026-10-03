@@ -124,9 +124,12 @@ export async function PUT(request: NextRequest) {
     if (allStepsComplete || completed) {
       progressData.completed = true;
     }
-    // Bonus credits are awarded once per account — remember the pre-update
-    // award flag so first-time completion (no prior row) is still eligible.
-    const previouslyAwarded = currentProgress?.bonusCreditsAwarded ?? false;
+    // SIGNUP REWARD POLICY (fixed): the TOTAL signup reward is exactly the
+    // 50-credit signup_grant written at account creation. Onboarding
+    // completion/skip no longer adds any credits — previously a +25 bonus was
+    // granted here (even when onboarding was SKIPPED), inflating new-user
+    // balances to 75. `bonusAwarded` stays in the API response (always false)
+    // so existing clients keep working. Existing balances/ledger are untouched.
 
     if (Object.keys(progressData).length > 0 || !currentProgress) {
       await db.onboardingProgress.upsert({
@@ -168,35 +171,9 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Award bonus credits on completion
+    // Onboarding no longer grants credits (see SIGNUP REWARD POLICY note
+    // above). Kept as a constant so the API response shape is unchanged.
     let bonusAwarded = false;
-    if (progressData.completed && !previouslyAwarded) {
-      await db.$transaction(async (tx) => {
-        const fullUser = await tx.user.findUnique({ where: { id: user.id } });
-        if (fullUser) {
-          await tx.user.update({
-            where: { id: user.id },
-            data: { credits: fullUser.credits + 25 },
-          });
-
-          await tx.onboardingProgress.update({
-            where: { userId: user.id },
-            data: { bonusCreditsAwarded: true },
-          });
-
-          await tx.creditsLedger.create({
-            data: {
-              userId: user.id,
-              action: 'onboarding_bonus',
-              credits: 25,
-              balance: fullUser.credits + 25,
-              description: 'Onboarding completion bonus credits',
-            },
-          });
-        }
-      });
-      bonusAwarded = true;
-    }
 
     // Audit log
     if (progressData.completed) {

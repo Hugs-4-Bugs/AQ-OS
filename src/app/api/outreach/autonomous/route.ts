@@ -10,9 +10,12 @@ import { withAuth } from '@/lib/auth-middleware';
 import { withApiLogging } from '@/lib/observability/api-logger';
 import { autonomousOutreach, type OutreachAutonomyMode } from '@/lib/autonomous-outreach-service';
 import type { AuthUser } from '@/lib/auth';
+import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 export const POST = withApiLogging(async (request: NextRequest) => {
   return withAuth(request, async (user: AuthUser) => {
+    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { leadId, channel, autonomyMode, tone, customInstructions } = body;

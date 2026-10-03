@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
+import { db } from '@/lib/db';
 import { startDiscoveryJob, type DiscoverySource } from '@/lib/lead-discovery-service';
 import { getEntitlements, type PlanType } from '@/lib/entitlement-service';
 import { getFeatureUsage } from '@/lib/entitlement-middleware';
@@ -51,6 +52,55 @@ export async function POST(request: NextRequest) {
       const sanitizedNiche = niche.trim().substring(0, 200);
       const sanitizedCountry = country && typeof country === 'string' ? country.trim().substring(0, 100) : undefined;
       const sanitizedCity = city ? String(city).trim().substring(0, 100) : undefined;
+
+      // ── DISCOVERY OPERATION IDENTITY (credit integrity) ───────────
+      // One logical start = one requestId = one job = one billing event.
+      // A replayed POST (network retry, React Query retry, remount race,
+      // double-click) must NEVER create a second chargeable job.
+      const requestId = typeof body.requestId === 'string' ? body.requestId.trim().substring(0, 120) : '';
+      if (requestId) {
+        const sameOperation = await db.discoveryJob.findFirst({
+          where: { userId: user.id, idempotencyKey: requestId },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (sameOperation) {
+          // Observe the existing operation — do not start (or charge) again.
+          return NextResponse.json(
+            {
+              jobId: sameOperation.id,
+              status: sameOperation.status,
+              message: 'Discovery already in progress — returning the existing job.',
+              deduped: true,
+            },
+            { status: 202 }
+          );
+        }
+      }
+      // Defense in depth: an IDENTICAL search that is still pending/running
+      // is returned instead of silently starting a second chargeable job.
+      // Completed/failed jobs never match — a deliberate re-run is fine.
+      const identicalActive = await db.discoveryJob.findFirst({
+        where: {
+          userId: user.id,
+          status: { in: ['pending', 'running'] },
+          source,
+          niche: sanitizedNiche,
+          country: sanitizedCountry || '',
+          city: sanitizedCity || null,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (identicalActive) {
+        return NextResponse.json(
+          {
+            jobId: identicalActive.id,
+            status: identicalActive.status,
+            message: 'An identical discovery is already running — showing its progress instead of starting a duplicate.',
+            deduped: true,
+          },
+          { status: 202 }
+        );
+      }
       // Upper bound 500 — the effective ceiling stays RESULTS_PER_JOB (200
       // unless env-overridden) inside the service; the route bound only
       // rejects absurd inputs (spec §3.1: no tiny hardcoded caps).
@@ -99,6 +149,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Start discovery job
+      // BUSINESS CONTEXT (spec §3): optional selected business profile +
+      // campaign overrides — persisted with the job, resolved (and
+      // ownership-checked) when used for search/research/outreach.
+      const campaign = body.campaign && typeof body.campaign === 'object' ? body.campaign : null;
       const result = await startDiscoveryJob(user.id, {
         niche: sanitizedNiche,
         country: sanitizedCountry || undefined,
@@ -107,6 +161,21 @@ export async function POST(request: NextRequest) {
         maxResults: effectiveMaxResults,
         requirements: sanitizedRequirements,
         criteria: effectiveCriteria ?? EMPTY_CRITERIA,
+        businessProfileId: typeof body.businessProfileId === 'string' ? body.businessProfileId : null,
+        // EXPLICIT None (spec §8): useBusinessContext:false means the user
+        // chose "None" — run WITHOUT any business profile; never substitute
+        // the default profile. Absent/undefined keeps existing behavior.
+        useBusinessContext: body.useBusinessContext === false ? false : undefined,
+        campaign: campaign ? {
+          objective: typeof campaign.objective === 'string' ? campaign.objective.trim().substring(0, 500) || undefined : undefined,
+          audience: typeof campaign.audience === 'string' ? campaign.audience.trim().substring(0, 500) || undefined : undefined,
+          offer: typeof campaign.offer === 'string' ? campaign.offer.trim().substring(0, 500) || undefined : undefined,
+          outcome: typeof campaign.outcome === 'string' ? campaign.outcome.trim().substring(0, 500) || undefined : undefined,
+          cta: typeof campaign.cta === 'string' ? campaign.cta.trim().substring(0, 300) || undefined : undefined,
+          tone: typeof campaign.tone === 'string' ? campaign.tone.trim().substring(0, 200) || undefined : undefined,
+          instructions: typeof campaign.instructions === 'string' ? campaign.instructions.trim().substring(0, 1000) || undefined : undefined,
+        } : null,
+        idempotencyKey: requestId || null,
       }, user.orgId ?? undefined);
 
       if (result.status === 'failed') {

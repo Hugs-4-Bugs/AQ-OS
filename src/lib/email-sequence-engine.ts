@@ -12,6 +12,7 @@
 
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
+import { AUTOMATION_PLAN_TIERS } from '@/lib/plan-feature-limits';
 import { logger } from '@/lib/observability/logger';
 
 // ===== TYPES =====
@@ -192,11 +193,14 @@ export class EmailSequenceEngine {
   async processDueSteps(): Promise<{ processed: number; errors: number }> {
     const now = new Date();
 
-    // Find all active enrollments where nextSendAt <= now
+    // Find all active enrollments where nextSendAt <= now.
+    // Plan Eligibility Correction: sequence automation runs EXCLUSIVELY for
+    // Pro/Elite sequence owners — Free/Starter enrollments are skipped.
     const dueEnrollments = await db.sequenceEnrollment.findMany({
       where: {
         status: 'active',
         nextSendAt: { lte: now },
+        sequence: { user: { plan: { in: AUTOMATION_PLAN_TIERS } } },
       },
       include: {
         sequence: {

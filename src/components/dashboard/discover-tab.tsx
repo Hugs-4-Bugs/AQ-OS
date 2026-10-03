@@ -72,6 +72,7 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { Lead, LeadStage } from '@/lib/types';
 import LeadImportDialog from './lead-import-dialog';
+import BusinessProfileSelector, { type ProfileSelection } from './business-profile-selector';
 import { toast } from 'sonner';
 
 // ─── Discovery Source Config ─────────────────────────────
@@ -161,6 +162,16 @@ function normalizeJobFromApi(raw: Partial<DiscoveryJob> & Record<string, unknown
   };
 }
 
+/** One logical discovery start = one request id (sent to the server so a
+ *  replayed POST returns the SAME job instead of creating + charging a
+ *  second one). crypto.randomUUID is unavailable on non-secure origins. */
+function newRequestId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 // ─── AI Chat Mode Types ─────────────────────────────────
 interface ParsedIntent {
   niche: string;
@@ -195,6 +206,8 @@ interface DiscoveryVars {
   maxResults?: number;
   requirements?: string;
   criteria?: ParsedIntent['criteria'];
+  /** Server-side operation identity — reused across retries of this start. */
+  requestId?: string;
 }
 
 /** Human label for the parsed hard criteria (badges + honest notices). */
@@ -629,6 +642,14 @@ export default function DiscoverTab() {
 
   // Search mode: classic filters or AI chat
   const [searchMode, setSearchMode] = useState<'filters' | 'ai'>('filters');
+  // BUSINESS CONTEXT (spec §3/§7): selected business profile + campaign
+  // overrides, sent with every discovery job and persisted with it.
+  // mode 'none' = the user explicitly chose NO business context.
+  const [profileSelection, setProfileSelection] = useState<ProfileSelection>({
+    mode: 'default',
+    businessProfileId: null,
+    overrides: {},
+  });
   const [aiQuery, setAiQuery] = useState('');
   const [aiParsing, setAiParsing] = useState(false);
   const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
@@ -671,6 +692,37 @@ export default function DiscoverTab() {
     } catch {}
   }, []);
 
+  // RESUME, NEVER RESTART: on mount, reconcile with SERVER-side job state.
+  // Tab switches unmount this component while a chargeable job keeps
+  // running server-side; returning must re-attach to the SAME job (same
+  // id, same polling, same completion path) — never start a new one and
+  // never charge again. Server truth (DB) is the source; localStorage is
+  // display history only.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/discovery/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data?.jobId || !data?.running) return;
+        setActiveJob(normalizeJobFromApi({
+          id: data.jobId,
+          status: data.status,
+          source: data.source ?? 'ai_search',
+          niche: data.niche ?? '',
+          country: data.country ?? '',
+          city: data.city ?? undefined,
+          totalFound: data.totalFound ?? 0,
+          createdAt: data.createdAt ?? new Date().toISOString(),
+        }));
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Fetch recently discovered leads
   const { data: allLeadsResult } = useQuery({
     queryKey: ['leads', { source: 'discovery' }],
@@ -707,6 +759,19 @@ export default function DiscoverTab() {
         requirements: vars?.requirements || undefined,
         // Structured HARD criteria from the AI parser — enforced server-side
         criteria: vars?.criteria || undefined,
+        // BUSINESS CONTEXT (spec §3): selected profile + campaign overrides,
+        // persisted with the job and resolved (ownership-checked) server-side.
+        // EXPLICIT None: mode 'none' sends useBusinessContext:false so the
+        // server never substitutes the default profile.
+        businessProfileId:
+          profileSelection.mode === 'none' ? null : profileSelection.businessProfileId,
+        useBusinessContext: profileSelection.mode === 'none' ? false : undefined,
+        campaign: Object.fromEntries(
+          Object.entries(profileSelection.overrides).filter(([, v]) => (v ?? '').trim()),
+        ),
+        // Operation identity: retries of THIS start reuse the same key, so
+        // the server returns the same job instead of charging again.
+        requestId: vars?.requestId,
       };
       const res = await fetch('/api/leads/discover', {
         method: 'POST',
@@ -741,26 +806,49 @@ export default function DiscoverTab() {
       try {
         const stored = localStorage.getItem('acquisitionos_discovery_jobs');
         const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
-        jobs.unshift(job);
-        localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+        if (!jobs.some((j) => j.id === job.id)) {
+          jobs.unshift(job);
+          localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+        }
       } catch {}
 
-      toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
+      if (data.deduped) {
+        // The server recognized this operation (retry/replay/identical
+        // active search) and returned the SAME job — no new start, no new
+        // charge. Say so instead of pretending a new job began.
+        toast.info('Discovery already running', {
+          description: data.message || 'Showing the progress of the existing discovery job.',
+        });
+      } else {
+        toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
+      }
     },
     onError: (error: Error) => {
       toast.error('Failed to start discovery', { description: error.message });
     },
   });
 
-  // Central start handler — "All Sources" requires a credit-cost confirmation first
+  // Central start handler — "All Sources" requires a credit-cost confirmation first.
+  // Every logical start gets ONE request id; retries and the confirm dialog
+  // reuse it so the server can never create a second chargeable job.
   const handleStartDiscovery = useCallback((vars?: DiscoveryVars) => {
+    const withId: DiscoveryVars = {
+      niche: vars?.niche ?? niche,
+      country: vars?.country ?? country,
+      city: vars?.city,
+      source: vars?.source ?? source,
+      maxResults: vars?.maxResults,
+      requirements: vars?.requirements,
+      criteria: vars?.criteria,
+      requestId: vars?.requestId ?? newRequestId(),
+    };
     if ((vars?.source ?? source) === 'all') {
-      setPendingStart(vars);
+      setPendingStart(withId);
       setAllSourcesConfirmOpen(true);
       return;
     }
-    discoverMutation.mutate(vars);
-  }, [source, discoverMutation]);
+    discoverMutation.mutate(withId);
+  }, [source, niche, country, discoverMutation]);
 
   // ── AI Chat Mode handlers ────────────────────────────────
   const handleAiParse = async () => {
@@ -946,6 +1034,10 @@ export default function DiscoverTab() {
 
           {searchMode === 'filters' ? (
             <>
+          {/* Business profile + campaign context (collapses to one row when compact) */}
+          <div className="rounded-lg border border-border/50 bg-muted/10 p-3">
+            <BusinessProfileSelector value={profileSelection} onChange={setProfileSelection} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Source Selection */}
             <div className="space-y-2">

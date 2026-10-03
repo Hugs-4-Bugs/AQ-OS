@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import PlanGate from './plan-gate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -463,8 +464,20 @@ export default function OutreachTab() {
         {/* ═══════════════════════════════════════════════════════════
             CAMPAIGNS VIEW
             ═══════════════════════════════════════════════════════════ */}
+        {/* INLINE PLAN GATE: automated outreach sequences are a Pro/Elite
+            capability (backend `outreach_sequences` entitlement enforces
+            403 PLAN_REQUIRED on POST /api/outreach, /enroll, /execute —
+            the backend remains the source of truth). Free/Starter see the
+            upgrade explanation inline instead of discovering the
+            restriction through a failed API call. Manual outreach in the
+            Direct Messages view below stays available on every plan. */}
         {viewMode === 'campaigns' && (
-          <>
+          <PlanGate
+            requiredPlan="pro"
+            featureName="Automated Outreach Sequences"
+            onUpgrade={() => window.dispatchEvent(new CustomEvent('open-upgrade-modal'))}
+          >
+            <>
             {/* Campaign Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card className="hover-lift">
@@ -628,7 +641,8 @@ export default function OutreachTab() {
               }))
               }
             </div>
-          </>
+            </>
+          </PlanGate>
         )}
 
         {/* ═══════════════════════════════════════════════════════════

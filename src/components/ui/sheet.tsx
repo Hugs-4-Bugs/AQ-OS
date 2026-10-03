@@ -23,9 +23,10 @@ function SheetClose({
 }
 
 function SheetPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+  return <SheetPrimitive.Portal data-slot="sheet-portal" container={container} {...props} />
 }
 
 function SheetOverlay({
@@ -48,13 +49,41 @@ function SheetContent({
   className,
   children,
   side = "right",
+  container,
+  overlayClassName,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
+  /**
+   * Optional portal target. When provided (e.g. the app shell's content
+   * region), the sheet renders INSIDE that element instead of document.body,
+   * so `absolute`-positioned content can respect the shell's header, footer
+   * and navigation bounds instead of spanning the full viewport.
+   */
+  container?: HTMLElement | null
+  /**
+   * Renders a local dim overlay (absolute inset-0 by default) as a plain
+   * sibling inside the portal. Radix renders its built-in Overlay ONLY in
+   * modal mode, so non-modal shell-confined sheets (modal={false}) use this
+   * prop to get a visible "above the page" layer that never covers the
+   * topbar/footer. Only pass it together with `container` and modal={false}.
+   */
+  overlayClassName?: string
 }) {
   return (
-    <SheetPortal>
-      <SheetOverlay />
+    <SheetPortal container={container}>
+      {overlayClassName !== undefined ? (
+        <div
+          data-slot="sheet-local-overlay"
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 z-40 bg-black/50 animate-in fade-in-0 duration-200",
+            overlayClassName
+          )}
+        />
+      ) : (
+        <SheetOverlay />
+      )}
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(

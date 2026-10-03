@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "skipLibCheck": true
+  },
+  "files": [
+    "src/components/dashboard/leads-tab.tsx",
+    "tests/unit/leads-search-focus.test.tsx"
+  ]
+}
