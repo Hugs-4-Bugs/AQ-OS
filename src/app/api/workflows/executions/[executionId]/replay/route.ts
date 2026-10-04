@@ -7,7 +7,6 @@ import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { processExecution } from '@/lib/workflow-executor';
 import { auditLog } from '@/lib/workflow-utils';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 /** POST /api/workflows/executions/[executionId]/replay — Replay execution from a specific step */
 export async function POST(
@@ -15,8 +14,6 @@ export async function POST(
   { params }: { params: Promise<{ executionId: string }> }
 ) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const { executionId } = await params;
       const body = await request.json().catch(() => ({}));

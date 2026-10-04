@@ -20,6 +20,7 @@
 
 import { db } from '@/lib/db';
 import { executeAICompletion, type AICompletionRequest } from '@/lib/ai/ai-provider';
+import { buildPersonalContextBlockForUser } from '@/lib/personal-context';
 import { logAIAudit } from '@/lib/ai/ai-audit';
 import {
   deductCredits,
@@ -90,8 +91,7 @@ const OUTREACH_ACTION: CreditAction = 'outreach_message';
  */
 export async function generateAndSendOutreach(
   leadId: string,
-  userId: string,
-  options?: { businessProfileId?: string | null }
+  userId: string
 ): Promise<OutreachResult> {
   console.log(`[OutreachSender] Starting outreach for leadId=${leadId}, userId=${userId}`);
 
@@ -135,26 +135,8 @@ export async function generateAndSendOutreach(
   }
 
   const userName = user.name || user.settings?.companyName || 'Your Business';
-  // BUSINESS CONTEXT (spec §3/§4): prefer the selected business profile —
-  // ownership-checked in resolveBusinessContext — so ANY industry gets
-  // outreach about its real offer. Falls back to settings-derived context.
-  let userBusiness = user.settings?.companyName || user.company || '';
-  let userServices: string;
-  try {
-    const { resolveBusinessContext } = await import('@/lib/business-profile-server');
-    const bizCtx = await resolveBusinessContext(userId, options?.businessProfileId ?? null, null);
-    if (bizCtx && (bizCtx.productsServices.length > 0 || bizCtx.description)) {
-      userServices = bizCtx.productsServices.length > 0
-        ? bizCtx.productsServices.map((s) => s.name + (s.description ? ` (${s.description})` : '')).join(', ')
-        : (bizCtx.description || '');
-      if (bizCtx.companyName) userBusiness = bizCtx.companyName;
-    } else {
-      userServices = parseServicesFromSettings(user.settings?.targetNiches, user.settings?.targetChannels);
-    }
-  } catch (ctxErr) {
-    console.warn('[OutreachSender] business context resolution failed (falling back to settings):', ctxErr instanceof Error ? ctxErr.message : ctxErr);
-    userServices = parseServicesFromSettings(user.settings?.targetNiches, user.settings?.targetChannels);
-  }
+  const userBusiness = user.settings?.companyName || user.company || '';
+  const userServices = parseServicesFromSettings(user.settings?.targetNiches, user.settings?.targetChannels);
 
   // Full sender profile for signature personalization (same canonical
   // resolution as lib/ai/outreach-generator.loadSenderProfile: settings
@@ -237,16 +219,21 @@ export async function generateAndSendOutreach(
   }
 
   // 2c. Build AI prompt
-  const prompt = buildOutreachPrompt({
-    userName,
-    companyName: lead.businessName,
-    companyDescription,
-    topGap,
-    personalizedPitch,
-    approachAngle,
-    niche: lead.niche || 'local business',
-    website: lead.website || '',
-  });
+  // USER PERSONAL CONTEXT: the user's self-provided description of what they
+  // do, their services and positioning is authoritative for personalization —
+  // same canonical block as the manual outreach path.
+  const personalContextBlock = await buildPersonalContextBlockForUser(userId);
+  const prompt =
+    buildOutreachPrompt({
+      userName,
+      companyName: lead.businessName,
+      companyDescription,
+      topGap,
+      personalizedPitch,
+      approachAngle,
+      niche: lead.niche || 'local business',
+      website: lead.website || '',
+    }) + personalContextBlock;
 
   // 2d. Execute AI completion via existing Z-AI infrastructure
   const startTime = Date.now();

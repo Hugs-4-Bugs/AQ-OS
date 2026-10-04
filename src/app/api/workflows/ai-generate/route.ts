@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — POST /api/workflows/ai-generate
-// Enhancement: AI Workflow Creation via Prompt (ELITE ONLY).
+// Enhancement: AI Workflow Creation via Prompt (Pro & Elite — gated by the
+// existing 'workflow_access' entitlement, the same key that gates manual
+// workflow creation in POST /api/workflows).
 // Parses a plain-English workflow description into a structured workflow
 // (name, trigger, steps, conditions, wait times) using Z-AI, then returns
 // it as a preview payload. The client saves it through the standard
@@ -11,8 +13,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { deductCredits } from '@/lib/credit-service';
+import {
+  hasFeatureAccess,
+  getUpgradeRequiredPlan,
+  type PlanType,
+} from '@/lib/entitlement-service';
+import { logEntitlementEvent } from '@/lib/billing-audit';
+import { loadPersonalContextForAi } from '@/lib/personal-context';
 import ZAI from 'z-ai-web-dev-sdk';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 const AI_WORKFLOW_COST = 5;
 
@@ -215,16 +223,30 @@ function buildWorkflowPayload(gen: GeneratedWorkflow, status: 'draft' | 'active'
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
-      // ── 1. Elite-only gate (server-side enforcement) ─────────────
-      if (user.plan !== 'elite') {
+      // ── 1. Entitlement gate (server-side enforcement) ─────────────
+      // AI workflow creation requires the 'workflow_access' entitlement —
+      // enabled on Pro and Elite, disabled on Free and Starter (single
+      // source of truth: ENTITLEMENTS in entitlement-service). This keeps
+      // backend authorization consistent with the UI gate and with manual
+      // workflow creation.
+      const userPlan = (user.plan || 'free') as PlanType;
+      if (!hasFeatureAccess(userPlan, 'workflow_access')) {
+        const requiredPlan = getUpgradeRequiredPlan(userPlan, 'workflow_access');
+        await logEntitlementEvent(user.id, 'feature_blocked', {
+          feature: 'workflow_access',
+          plan: userPlan,
+          reason: `Feature 'workflow_access' is not available on the ${userPlan} plan`,
+          requiredPlan: requiredPlan || undefined,
+        });
         return NextResponse.json(
           {
-            error: 'Upgrade to Elite to use AI workflow creation',
-            code: 'ELITE_REQUIRED',
-            requiredPlan: 'elite',
+            error: 'AI workflow creation is available on the Pro and Elite plans',
+            code: 'FEATURE_REQUIRED',
+            feature: 'workflow_access',
+            currentPlan: userPlan,
+            requiredPlan: requiredPlan || 'pro',
+            upgradeUrl: '/api/subscriptions/upgrade-preview',
           },
           { status: 403 }
         );
@@ -261,11 +283,21 @@ export async function POST(request: NextRequest) {
 
       // ── 3. Parse the description with Z-AI ───────────────────────
       try {
+        // Personalize with the user's self-provided context (Settings → My
+        // Context). Empty for users who never filled it in — no behaviour
+        // change for them. Loaded AFTER the credit gate/deduction so this
+        // can never be used to skip entitlement or billing checks.
+        const { block: userContextBlock } = await loadPersonalContextForAi(user.id);
         const zai = await ZAI.create();
         const response = await zai.chat.completions.create({
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: description },
+            {
+              role: 'user',
+              content: userContextBlock
+                ? `${description}\n\n${userContextBlock}`
+                : description,
+            },
           ],
           model: 'auto',
         });

@@ -7,13 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import type { AuthUser } from '@/lib/auth';
 import { enrollLeadInSequence } from '@/lib/sequence-execution-engine';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // POST /api/outreach/enroll
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user: AuthUser) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'outreach_sequences');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { sequenceId, leadId, startAt, variables } = body;

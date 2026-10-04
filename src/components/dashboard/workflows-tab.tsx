@@ -159,11 +159,6 @@ interface ExecutionDetail {
   retryCount: number;
   maxRetries: number;
   triggerData?: Record<string, unknown>;
-  triggerEvent?: string;
-  pausedAt?: string;
-  resumedAt?: string;
-  deadLettered?: boolean;
-  deadLetterReason?: string;
   stepLogs: StepLog[];
 }
 
@@ -176,7 +171,6 @@ interface StepLog {
   output?: Record<string, unknown>;
   error?: string;
   durationMs: number;
-  retryAttempt?: number;
   createdAt: string;
 }
 
@@ -300,10 +294,6 @@ function getStatusBadge(status: string): { variant: 'default' | 'secondary' | 'd
     case 'cancelled':
       return { variant: 'outline', className: 'bg-slate-500/10 text-slate-500 border-slate-200', label: 'Cancelled' };
     case 'dead_lettered':
-      return { variant: 'destructive', className: 'bg-red-900/10 text-red-800 border-red-300', label: 'Dead Lettered' };
-    case 'queued':
-      return { variant: 'secondary', className: 'bg-sky-500/10 text-sky-600 border-sky-200', label: 'Queued' };
-    case 'dead_letter':
       return { variant: 'destructive', className: 'bg-red-900/10 text-red-800 border-red-300', label: 'Dead Lettered' };
     default:
       return { variant: 'outline', className: '', label: status };
@@ -554,66 +544,6 @@ function TemplateCardSkeleton() {
 
 // ===== WORKFLOW BUILDER =====
 
-/** Per-click operation identity for workflow Run/Rerun — the execution
- *  route forwards it and the engine dedupes on it, so a double-click or
- *  a retried request can never start two chargeable executions. */
-function newOperationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `wfexec-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-/** What the engine ACTUALLY charges today: a flat 1 credit per executed
- *  action/AI step (deductExecutionCredits keys on the NODE type) and 0
- *  for waits/conditions. Shown so the UI never overstates — the server
- *  remains the source of truth. */
-function describeStepCredits(nodeType: string): string {
-  if (nodeType === 'action' || nodeType === 'ai_action') return '1 credit when executed';
-  return 'no credits';
-}
-
-/** Plain-language description of what a step does, from the engine's real
- *  implementations (src/lib/workflow-actions.ts) — never fabricated. */
-function describeStep(node: WorkflowNode): string {
-  const cfg = node.config || {};
-  const actionType = String(cfg.actionType || node.type);
-  switch (actionType) {
-    case 'send_email': return `Sends the email "${String(cfg.subject || '(no subject)')}" to ${String(cfg.to || '{{lead.email}}')} via the connected mail service.`;
-    case 'create_gmail_draft': return 'Creates a Gmail DRAFT in your connected mailbox — nothing is sent until you review and send it yourself.';
-    case 'send_telegram': return 'Sends a Telegram message to the lead (requires a connected Telegram integration).';
-    case 'send_whatsapp': return 'Sends a WhatsApp message to the lead (requires a connected WhatsApp integration).';
-    case 'ai_analysis': return 'AI reads the lead and runs a structured analysis (the analysis engine charges its own deep-analysis credits).';
-    case 'ai_outreach': return `AI writes a personalized ${String(cfg.channel || 'email')} outreach message and stores it as a DRAFT for your review — this step never auto-sends.`;
-    case 'move_lead_stage': return `Moves the lead to the "${String(cfg.targetStage || cfg.stage || 'contacted')}" pipeline stage.`;
-    case 'update_tags': return `Adds the tags ${(Array.isArray(cfg.tags) ? (cfg.tags as string[]).join(', ') : String(cfg.tags || '')) || '(none set)'} to the lead.`;
-    case 'create_notification': return `Creates an in-app notification "${String(cfg.title || '(untitled)')}".`;
-    case 'wait_delay': return `Waits ${String(cfg.duration || 1)} ${String(cfg.unit || 'hours')} before the next step.`;
-    case 'conditional_branch': return `Checks whether ${String(cfg.field || 'the field')} ${String(cfg.operator || '>')} ${String(cfg.value || '')} — skips the NEXT step when the condition is false.`;
-    case 'webhook_call': return `Calls your webhook URL (${String(cfg.method || 'POST')}).`;
-    case 'export_data': return 'Exports the current lead data.';
-    case 'score_lead': return "AI scores the lead's conversion potential and stores the score on the lead.";
-    case 'add_note': return "Adds a note to the lead's timeline.";
-    case 'notify_low_credits': return `Notifies you when the credit balance falls below ${String(cfg.threshold ?? 10)}.`;
-    case 'notify_trial_ending': return 'Notifies you when a trial is about to end.';
-    default: return node.title;
-  }
-}
-
-/** What the trigger actually starts, from the real event wiring. */
-function describeTrigger(triggerType: string): string {
-  switch (triggerType) {
-    case 'manual': return 'You click Run — the workflow executes once for the lead you pick.';
-    case 'lead_discovered': return 'Fires when a new lead is discovered by Lead Discovery (event wiring required).';
-    case 'lead_moved': return 'Fires when a lead moves pipeline stage (event wiring required).';
-    case 'lead_reply': return 'Fires when a lead replies (Gmail reply processing / reply intelligence detects it).';
-    case 'ai_completed': return 'Fires when an AI action completes elsewhere in the product (autonomous outreach).';
-    case 'webhook': return "Fires when an external system calls the workflow's webhook URL.";
-    case 'scheduled': return 'Time-based trigger — requires the scheduled-trigger processor to run (currently not wired to a scheduler, so it will not fire on its own).';
-    case 'gmail_connected': case 'email_received': case 'telegram_received': case 'whatsapp_received': case 'payment_success': case 'trial_ending': case 'credits_low':
-      return 'Event trigger — fires when the corresponding event reaches the workflow engine.';
-    default: return 'Runs when the engine receives its trigger event.';
-  }
-}
-
 interface WorkflowBuilderProps {
   workflow?: Workflow | null;
   onSave: (data: {
@@ -631,7 +561,6 @@ interface WorkflowBuilderProps {
 }
 
 function WorkflowBuilder({ workflow, onSave, onCancel, saving }: WorkflowBuilderProps) {
-  const { toast } = useToast();
   const [name, setName] = useState(workflow?.name || '');
   const [description, setDescription] = useState(workflow?.description || '');
   const [triggerType, setTriggerType] = useState(workflow?.triggerType || 'lead_discovered');
@@ -692,72 +621,11 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }: WorkflowBuilder
 
   const handleSave = () => {
     if (!name.trim()) return;
-
-    // SAVE-TIME VALIDATION — fail fast here instead of at execution time
-    // (the engine fails a run when required config is missing/empty).
-    for (const n of nodes) {
-      const actionType = String(n.config.actionType || '');
-      if (n.type === 'condition' || actionType === 'conditional_branch') {
-        if (!String(n.config.field || '').trim() || !String(n.config.value || '').trim()) {
-          toast({
-            title: 'Condition incomplete',
-            description: `"${n.title}" needs both a field and a value. Clear the condition node if it is not needed.`,
-            variant: 'destructive',
-          });
-          setSelectedNodeId(n.id);
-          return;
-        }
-      }
-      if (actionType === 'send_email' || actionType === 'create_gmail_draft') {
-        if (!String(n.config.to || '').trim() || !String(n.config.subject || '').trim() || !String(n.config.body || '').trim()) {
-          toast({
-            title: 'Email step incomplete',
-            description: `"${n.title}" needs a recipient (use {{lead.email}}), a subject, and a body.`,
-            variant: 'destructive',
-          });
-          setSelectedNodeId(n.id);
-          return;
-        }
-      }
-      if (actionType === 'update_tags') {
-        const tags = Array.isArray(n.config.tags)
-          ? (n.config.tags as string[])
-          : String(n.config.tags || '').split(',').map(s => s.trim()).filter(Boolean);
-        if (tags.length === 0) {
-          toast({
-            title: 'Tags step incomplete',
-            description: `"${n.title}" needs at least one tag, or remove the step.`,
-            variant: 'destructive',
-          });
-          setSelectedNodeId(n.id);
-          return;
-        }
-      }
-    }
-
-    // Normalize step configs to the engine's contracts:
-    // • update_tags: the editor collects a comma-separated string; the
-    //   engine requires an ARRAY.
-    // • optional overrides chosen as "inherit" are dropped (undefined)
-    //   instead of sent as empty strings.
-    const steps = nodes.map((n, i) => {
-      let config: Record<string, unknown> = { ...n.config };
-      if (config.actionType === 'update_tags' && typeof config.tags === 'string') {
-        config = {
-          ...config,
-          tags: (config.tags as string).split(',').map(s => s.trim()).filter(Boolean),
-        };
-      }
-      for (const key of Object.keys(config)) {
-        if (config[key] === undefined || (typeof config[key] === 'string' && (config[key] as string).trim() === '' && key !== 'message' && key !== 'body')) {
-          delete config[key];
-        }
-      }
-      return { type: n.type, name: n.title, config, order: i };
-    });
-    const normalizedNodes = nodes.map((n, i) => ({
-      ...n,
-      config: steps[i].config,
+    const steps = nodes.map((n, i) => ({
+      type: n.type,
+      name: n.title,
+      config: n.config,
+      order: i,
     }));
     const edges = nodes.map((n, i) => ({
       id: `e_${i}`,
@@ -771,7 +639,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }: WorkflowBuilder
       triggerConfig,
       nodes: [
         { id: 'trigger', type: 'trigger', title: getTriggerLabel(triggerType), config: triggerConfig },
-        ...normalizedNodes,
+        ...nodes,
       ],
       edges,
       steps,
@@ -1052,18 +920,6 @@ function renderActionConfig(
       {(actionType === 'send_email' || actionType === 'create_gmail_draft') && (
         <>
           <div>
-            <Label className="text-xs">Recipient (To)</Label>
-            <Input
-              value={String(node.config.to || '')}
-              onChange={e => updateConfig(nodeId, { to: e.target.value })}
-              placeholder="{{lead.email}}"
-              className="mt-1"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Use <code className="bg-muted px-1 rounded">{'{{lead.email}}'}</code> to email the lead in context, or a fixed address.
-            </p>
-          </div>
-          <div>
             <Label className="text-xs">Subject</Label>
             <Input
               value={String(node.config.subject || '')}
@@ -1122,12 +978,11 @@ function renderActionConfig(
         <div>
           <Label className="text-xs">Tags (comma-separated)</Label>
           <Input
-            value={Array.isArray(node.config.tags) ? (node.config.tags as string[]).join(', ') : String(node.config.tags || '')}
+            value={String(node.config.tags || '')}
             onChange={e => updateConfig(nodeId, { tags: e.target.value })}
             placeholder="tag1, tag2, tag3"
             className="mt-1"
           />
-          <p className="text-[10px] text-muted-foreground mt-1">Stored as a list; leave empty means no tags (the step is skipped at save).</p>
         </div>
       )}
       {actionType === 'create_notification' && (
@@ -1198,14 +1053,10 @@ function renderActionConfig(
           <Label className="text-xs">Threshold</Label>
           <Input
             type="number"
-            // Explicit None semantics: empty = "use the default (10)"; a
-            // typed 0 must stay 0 (the old `|| 10` coerced 0 into 10).
-            value={node.config.threshold === undefined || node.config.threshold === null ? '' : String(node.config.threshold)}
-            onChange={e => updateConfig(nodeId, { threshold: e.target.value === '' ? undefined : Number(e.target.value) })}
-            placeholder="Default: 10"
+            value={String(node.config.threshold || 10)}
+            onChange={e => updateConfig(nodeId, { threshold: Number(e.target.value) })}
             className="mt-1"
           />
-          <p className="text-[10px] text-muted-foreground mt-1">Leave empty to use the default (10). 0 is allowed.</p>
         </div>
       )}
     </>
@@ -1253,21 +1104,19 @@ function renderAIActionConfig(
           <div>
             <Label className="text-xs">Style</Label>
             <Select
-              value={String(node.config.style || '__inherit')}
-              onValueChange={v => updateConfig(nodeId, v === '__inherit' ? { style: undefined } : { style: v })}
+              value={String(node.config.style || 'professional')}
+              onValueChange={v => updateConfig(nodeId, { style: v })}
             >
               <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__inherit">None (inherit profile tone)</SelectItem>
                 <SelectItem value="professional">Professional</SelectItem>
                 <SelectItem value="friendly">Friendly</SelectItem>
                 <SelectItem value="casual">Casual</SelectItem>
                 <SelectItem value="follow-up">Follow-up</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-muted-foreground mt-1">Choosing None uses your saved business profile tone instead of an override.</p>
           </div>
         </>
       )}
@@ -1347,12 +1196,9 @@ function renderConditionConfig(
         <Input
           value={String(node.config.field || '')}
           onChange={e => updateConfig(nodeId, { field: e.target.value })}
-          placeholder="leadStage or leadScore"
+          placeholder="e.g. leadScore"
           className="mt-1"
         />
-        <p className="text-[10px] text-muted-foreground mt-1">
-          <code className="bg-muted px-1 rounded">leadStage</code> = pipeline stage, <code className="bg-muted px-1 rounded">leadScore</code> = AI conversion score, or a previous step&apos;s output key.
-        </p>
       </div>
       <div>
         <Label className="text-xs">Operator</Label>
@@ -1513,12 +1359,7 @@ function WorkflowList({
     try {
       // Lead-scoped runs carry the trusted execution context (leadId) picked
       // by the user; the server re-verifies ownership before every step.
-      // idempotencyKey: one click = one execution — a retried/double-fired
-      // request returns the SAME execution instead of charging twice.
-      const body = {
-        idempotencyKey: newOperationId(),
-        ...(lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {}),
-      };
+      const body = lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {};
       const result = await apiFetch<{ executionId: string; status: string }>(
         `/api/workflows/${wf.id}/execute`,
         { method: 'POST', body: JSON.stringify(body) }
@@ -1748,7 +1589,7 @@ function WorkflowList({
   );
 }
 
-// ===== AI WORKFLOW GENERATION (ELITE ONLY) =====
+// ===== AI WORKFLOW GENERATION (PRO & ELITE) =====
 
 interface GeneratedStep {
   nodeType: string;
@@ -1872,7 +1713,7 @@ function AiGenerateWorkflowModal({
             Create Workflow with AI
           </DialogTitle>
           <DialogDescription>
-            Describe your automation in plain English and AI will build it. Elite feature — costs 5 credits per generation.
+            Describe your automation in plain English and AI will build it. Pro & Elite feature — costs 5 credits per generation.
           </DialogDescription>
         </DialogHeader>
 
@@ -2014,12 +1855,8 @@ function WorkflowDetail({
     setExecuting(true);
     try {
       // Lead-scoped runs carry the trusted execution context (leadId);
-      // the server re-verifies ownership before every step. One click =
-      // one execution (operation identity, deduped server-side).
-      const body = {
-        idempotencyKey: newOperationId(),
-        ...(lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {}),
-      };
+      // the server re-verifies ownership before every step.
+      const body = lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {};
       const result = await apiFetch<{ executionId: string; status: string }>(
         `/api/workflows/${workflow.id}/execute`,
         { method: 'POST', body: JSON.stringify(body) }
@@ -2164,48 +2001,6 @@ function WorkflowDetail({
               );
             })}
           </div>
-
-          {/* AUTOMATION OVERVIEW — what this workflow actually does, step by
-              step, using the engine's real behavior (no fabricated steps). */}
-          <div className="mt-6 rounded-lg border bg-muted/20 p-4">
-            <h4 className="text-sm font-semibold flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-purple-500" />
-              How this workflow automates client acquisition
-            </h4>
-            <ol className="mt-3 space-y-2.5">
-              <li className="text-sm flex gap-2">
-                <span className="shrink-0 h-5 w-5 rounded-full bg-purple-500/15 text-purple-600 text-[10px] font-bold flex items-center justify-center">1</span>
-                <div>
-                  <p className="font-medium text-sm">Trigger</p>
-                  <p className="text-xs text-muted-foreground">{describeTrigger(workflow.triggerType)}</p>
-                </div>
-              </li>
-              {(workflow.nodes || [])
-                .filter(n => n.type !== 'trigger')
-                .map((node, i) => (
-                  <li key={node.id} className="text-sm flex gap-2">
-                    <span className="shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
-                      {i + 2}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm flex items-center gap-2 flex-wrap">
-                        {node.title}
-                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-normal">
-                          runs automatically · {describeStepCredits(node.type)}
-                        </Badge>
-                      </p>
-                      <p className="text-xs text-muted-foreground">{describeStep(node)}</p>
-                    </div>
-                  </li>
-                ))}
-            </ol>
-            <p className="mt-3 text-[11px] text-muted-foreground border-t pt-2">
-              Every step above executes server-side on the workflow engine. Steps that produce drafts or notifications
-              (Gmail draft, AI outreach) are your human-approval points — nothing goes out without the engine being
-              configured to send it, and outreach drafts always wait for your review. You can watch each run unfold in
-              the Executions tab.
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>
@@ -2223,8 +2018,6 @@ function ExecutionsTab() {
   const [executionDetail, setExecutionDetail] = useState<ExecutionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [rerunPick, setRerunPick] = useState<{ workflowId: string; workflowName: string } | null>(null);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
-  const [rerunningId, setRerunningId] = useState<string | null>(null);
 
   const fetchExecutions = useCallback(async () => {
     try {
@@ -2278,15 +2071,9 @@ function ExecutionsTab() {
   };
 
   const handleRetry = async (execId: string) => {
-    if (retryingId) return;
-    setRetryingId(execId);
     try {
-      // The dedicated retry route (workflow-executor.retryExecution)
-      // accepts failed/cancelled executions. The previous call targeted
-      // the engine's RESUME endpoint, which only accepts paused
-      // executions — so Retry on a failed run always 400'd.
-      await apiFetch(`/api/workflows/executions/${execId}/retry`, { method: 'POST' });
-      toast({ title: 'Execution retried', description: 'The execution is being retried from the failed step.' });
+      await apiFetch(`/api/workflows/${execId}/resume`, { method: 'POST' });
+      toast({ title: 'Execution retried', description: 'The execution has been retried.' });
       fetchExecutions();
     } catch (err) {
       toast({
@@ -2294,8 +2081,6 @@ function ExecutionsTab() {
         description: err instanceof Error ? err.message : 'Failed to retry',
         variant: 'destructive',
       });
-    } finally {
-      setRetryingId(null);
     }
   };
 
@@ -2314,8 +2099,6 @@ function ExecutionsTab() {
   };
 
   const handleRerun = async (workflowId: string) => {
-    if (rerunningId) return;
-    setRerunningId(workflowId);
     try {
       // Re-run must respect lead context the same way as a fresh Run:
       // fetch the definition and ask for a lead when its steps need one.
@@ -2324,10 +2107,7 @@ function ExecutionsTab() {
         setRerunPick({ workflowId, workflowName: wf.name });
         return;
       }
-      await apiFetch(`/api/workflows/${workflowId}/execute`, {
-        method: 'POST',
-        body: JSON.stringify({ idempotencyKey: newOperationId() }),
-      });
+      await apiFetch(`/api/workflows/${workflowId}/execute`, { method: 'POST', body: JSON.stringify({}) });
       toast({ title: 'Workflow re-executed', description: 'A new execution has been started.' });
       fetchExecutions();
     } catch (err) {
@@ -2336,8 +2116,6 @@ function ExecutionsTab() {
         description: err instanceof Error ? err.message : 'Failed to rerun',
         variant: 'destructive',
       });
-    } finally {
-      setRerunningId(null);
     }
   };
 
@@ -2345,15 +2123,10 @@ function ExecutionsTab() {
     if (!rerunPick) return;
     const { workflowId } = rerunPick;
     setRerunPick(null);
-    if (rerunningId) return;
-    setRerunningId(workflowId);
     try {
       await apiFetch(`/api/workflows/${workflowId}/execute`, {
         method: 'POST',
-        body: JSON.stringify({
-          idempotencyKey: newOperationId(),
-          triggerData: { leadId: lead.id, leadName: lead.businessName },
-        }),
+        body: JSON.stringify({ triggerData: { leadId: lead.id, leadName: lead.businessName } }),
       });
       toast({ title: 'Workflow re-executed', description: `Running for ${lead.businessName}.` });
       fetchExecutions();
@@ -2363,8 +2136,6 @@ function ExecutionsTab() {
         description: err instanceof Error ? err.message : 'Failed to rerun',
         variant: 'destructive',
       });
-    } finally {
-      setRerunningId(null);
     }
   };
 
@@ -2390,9 +2161,6 @@ function ExecutionsTab() {
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="failed">Failed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="queued">Queued</SelectItem>
-            <SelectItem value="dead_letter">Dead Lettered</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -2445,11 +2213,6 @@ function ExecutionsTab() {
                     <Badge variant={statusBadge.variant} className={statusBadge.className}>
                       {statusBadge.label}
                     </Badge>
-                    {exec.deadLettered && exec.status !== 'dead_letter' && (
-                      <Badge variant="destructive" className="bg-red-900/10 text-red-800 border-red-300">
-                        Dead Lettered
-                      </Badge>
-                    )}
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span>{exec.currentStep}/{exec.totalSteps} steps</span>
                     </div>
@@ -2486,13 +2249,13 @@ function ExecutionsTab() {
                         {/* Execution actions */}
                         <div className="flex items-center gap-2 flex-wrap">
                           {(exec.status === 'failed' || exec.status === 'cancelled') && (
-                            <Button variant="outline" size="sm" onClick={() => handleRetry(exec.id)} disabled={retryingId === exec.id}>
-                              <RotateCcw className="h-3.5 w-3.5 mr-1" /> {retryingId === exec.id ? 'Retrying…' : 'Retry'}
+                            <Button variant="outline" size="sm" onClick={() => handleRetry(exec.id)}>
+                              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Retry
                             </Button>
                           )}
                           {exec.status === 'completed' && (
-                            <Button variant="outline" size="sm" onClick={() => handleRerun(exec.workflowId)} disabled={rerunningId === exec.workflowId}>
-                              <Play className="h-3.5 w-3.5 mr-1" /> {rerunningId === exec.workflowId ? 'Starting…' : 'Rerun'}
+                            <Button variant="outline" size="sm" onClick={() => handleRerun(exec.workflowId)}>
+                              <Play className="h-3.5 w-3.5 mr-1" /> Rerun
                             </Button>
                           )}
                           {exec.status === 'running' && (
@@ -2550,29 +2313,6 @@ function ExecutionsTab() {
                                       <span>{log.error}</span>
                                     </div>
                                   )}
-                                  {typeof log.retryAttempt === 'number' && log.retryAttempt > 0 && (
-                                    <div className="mt-1.5">
-                                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                                        Retry attempt #{log.retryAttempt}
-                                      </Badge>
-                                    </div>
-                                  )}
-                                  {log.input && Object.keys(log.input).length > 0 && (
-                                    <div className="mt-1.5">
-                                      <button
-                                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                                        onClick={(e) => {
-                                          const target = e.currentTarget.nextElementSibling;
-                                          if (target) target.classList.toggle('hidden');
-                                        }}
-                                      >
-                                        <Eye className="h-3 w-3" /> View Input
-                                      </button>
-                                      <pre className="hidden mt-1 text-[10px] bg-muted/50 rounded p-2 overflow-auto max-h-32">
-                                        {JSON.stringify(log.input, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
                                   {log.output && (
                                     <div className="mt-1.5">
                                       <button
@@ -2610,26 +2350,6 @@ function ExecutionsTab() {
                           <div>
                             <span className="font-medium">Trigger:</span> {getTriggerLabel(executionDetail.triggerType)}
                           </div>
-                          {executionDetail.triggerEvent && (
-                            <div>
-                              <span className="font-medium">Event:</span> {executionDetail.triggerEvent}
-                            </div>
-                          )}
-                          {executionDetail.pausedAt && (
-                            <div>
-                              <span className="font-medium">Paused:</span> {formatDate(executionDetail.pausedAt)}
-                            </div>
-                          )}
-                          {executionDetail.resumedAt && (
-                            <div>
-                              <span className="font-medium">Resumed:</span> {formatDate(executionDetail.resumedAt)}
-                            </div>
-                          )}
-                          {executionDetail.deadLettered && (
-                            <div className="col-span-2 sm:col-span-4 text-destructive">
-                              <span className="font-medium">Dead letter:</span> {executionDetail.deadLetterReason || 'Execution exceeded its retry budget and was parked.'}
-                            </div>
-                          )}
                         </div>
                       </div>
                     ) : (
@@ -2861,9 +2581,12 @@ function TemplatesTab({ onTemplateUsed }: { onTemplateUsed: () => void }) {
 
 export default function WorkflowsTab() {
   const { toast } = useToast();
-  const currentPlan = useSubscriptionStore((s) => s.currentPlan);
   // P3: only trust the plan when an authoritative sync verified it
   const syncState = useSubscriptionStore((s) => s.syncState);
+  // Entitlement check reuses the authoritative store map (synced from
+  // /api/subscriptions/entitlements) — same 'workflow_access' key that the
+  // backend gate enforces. No duplicate plan logic here.
+  const hasWorkflowAccess = useSubscriptionStore((s) => s.hasFeatureAccess('workflow_access'));
   const [subTab, setSubTab] = useState<'workflows' | 'executions' | 'templates'>('workflows');
   const [builderMode, setBuilderMode] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
@@ -2880,9 +2603,11 @@ export default function WorkflowsTab() {
   };
 
   const handleCreateWithAi = () => {
-    // Visible to all — functional for Elite only.
+    // Visible to all — functional for plans whose entitlements include
+    // workflow_access (Pro and Elite).
     // P3: while the subscription state is not verified (loading/failed
-    // lookup) do NOT deny with an upgrade prompt — the plan may be Elite.
+    // lookup) do NOT deny with an upgrade prompt — the plan may be
+    // Pro/Elite. The backend entitlement gate remains the source of truth.
     if (syncState !== 'verified') {
       toast({
         title: 'Subscription status is being verified',
@@ -2890,10 +2615,10 @@ export default function WorkflowsTab() {
       });
       return;
     }
-    if (currentPlan !== 'elite') {
+    if (!hasWorkflowAccess) {
       toast({
-        title: 'Upgrade to Elite to use AI workflow creation',
-        description: 'AI workflow generation is available on the Elite plan.',
+        title: 'Upgrade to Pro to use AI workflow creation',
+        description: 'AI workflow generation is available on the Pro and Elite plans.',
         variant: 'destructive',
       });
       return;
@@ -3063,7 +2788,7 @@ export default function WorkflowsTab() {
         </div>
       </Tabs>
 
-      {/* AI Workflow Generation modal (Elite only) */}
+      {/* AI Workflow Generation modal (Pro & Elite) */}
       <AiGenerateWorkflowModal
         open={aiModalOpen}
         onOpenChange={setAiModalOpen}

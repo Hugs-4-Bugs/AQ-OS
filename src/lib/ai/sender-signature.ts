@@ -13,11 +13,20 @@
 // hardcodes any user data; an empty profile leaves no placeholders.
 // ═══════════════════════════════════════════════════════════════════
 
+import type { PersonalContext } from '@/lib/personal-context';
+
 export interface SenderProfile {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
   company?: string | null;
+  /**
+   * User Preference / Personal Business Context (Settings → My Context).
+   * DISTINCT from the signature fields above — carried along by
+   * loadSenderProfile so AI generation call-sites can personalize for the
+   * user; never rendered as a signature placeholder.
+   */
+  personalContext?: PersonalContext;
 }
 
 /** Placeholder tokens the model may emit, mapped to the profile field. */

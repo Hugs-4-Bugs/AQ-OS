@@ -1,0 +1,274 @@
+{
+  "$schema_note": "ACQUISITIONOS_CODEBASE_MANIFEST.json \u2014 integrity manifest per AGENTS.md section 6. Purpose: detect CURRENT CODE != OLD CODE before an agent continues from a stale workspace. Hashes are first-16-hex of SHA256 recorded at generation time.",
+  "generatedAtUTC": "2026-10-04T06:29:54Z",
+  "generatedByAgentSession": "product-requirements-audit session (credit idempotency fix + discovery resume + assistant durable history + business profiles end-to-end + workflow scheduler/timezone/approval + signup 50 + hardening)",
+  "workspace": {
+    "path": "/home/z/my-project",
+    "branch": "main",
+    "headCommit": "51fdcff5c8f67a19fdf7d9094ac547c04abfb9ce (pre-task; implementation done on top as uncommitted forward work)",
+    "priorRecordedHead": "9895a0056e7997295c6a3842459f8424c52f4519",
+    "direction": "FORWARD (audit + forward-only implementation; no rollback, no reset, additive schema only)",
+    "headCommitSubject": "3fb6a37f-0ed8-404c-902f-206e5f382428",
+    "headCommitDateUTC": "2026-10-04T01:15:08Z"
+  },
+  "implementationMilestone": "AUDIT+IMPLEMENT: deductCredits/refundCredits idempotency write-path fixed; discovery resume-on-navigation (discovery-resume.ts + mount re-attach + poll failure cutoff); assistant durable conversation store (assistant-conversation-store.ts + restore + regenerate guard); Business Profiles end-to-end (BusinessProfile model additive, business_profiles entitlement free=1/starter=1/pro=3/elite=7, /api/business-profiles CRUD, settings section, discover profile-mode, workflow profileId association); workflow scheduler wired (/api/cron/workflow-scheduler + timezone-aware catch-up + stuck-run recovery + execute/duplicate entitlement + requiresApproval human-approval gate + starter limits); signup EXACTLY 50 credits + signup_reward ledger + onboarding +25 removed; personal context in workflow ai_outreach/outreach-sender/lead-outreach/sales-assistant; anti-fabrication prompt hardening; robots.txt compliance; prompt-injection sanitization; phone validation on leads API; gmail send lead-ownership; sequence AI sends draft-by-default; AI no longer auto-marks closed_lost; batch-research repaired against current schema",
+  "criticalFeatureMarkers": {
+    "ai_workflow_creation_entitlement": {
+      "verdict": "EXISTS \u2014 Pro+Elite allowed, Free/Starter 403",
+      "files": [
+        "src/app/api/workflows/ai-generate/route.ts",
+        "src/lib/entitlement-service.ts",
+        "src/components/dashboard/workflows-tab.tsx",
+        "src/app/api/workflows/route.ts",
+        "tests/integration/workflow-ai-generate-entitlement.test.ts"
+      ],
+      "marker": "hasFeatureAccess(userPlan, 'workflow_access') + entitlement table pro/elite enabled:true, free/starter enabled:false"
+    },
+    "phone_profile": {
+      "verdict": "EXISTS \u2014 241 countries, 10-digit local max, digits-only, legacy round-trip",
+      "files": [
+        "src/lib/phone.ts",
+        "src/app/api/settings/profile/route.ts",
+        "src/components/dashboard/settings-shell.tsx",
+        "src/__tests__/lib/phone.test.ts"
+      ],
+      "marker": "MAX_LOCAL_PHONE_DIGITS = 10; COUNTRY_CALLING_CODES (241 entries); validateSubmittedPhone shared client+server"
+    },
+    "lead_discovery": {
+      "verdict": "EXISTS \u2014 active path /api/leads/discover",
+      "files": [
+        "src/components/dashboard/discover-tab.tsx",
+        "src/lib/lead-discovery-service.ts",
+        "src/app/api/leads/discover/route.ts",
+        "src/app/api/leads/discover/status/[jobId]/route.ts",
+        "src/app/api/discovery/parse-intent/route.ts",
+        "src/lib/discovery/hard-criteria.ts"
+      ],
+      "marker": "startDiscoveryJob + idempotencyKey `${jobId}:lead:${n}` + refundCredits + checkDuplicate"
+    },
+    "workflow_automation": {
+      "verdict": "EXISTS \u2014 full engine",
+      "files": [
+        "src/lib/workflow-engine.ts",
+        "src/lib/workflow-executor.ts",
+        "src/lib/workflow-triggers.ts",
+        "src/lib/workflow-actions.ts",
+        "src/lib/workflow-credits.ts",
+        "src/lib/workflow-service.ts",
+        "src/lib/workflow-templates.ts",
+        "prisma/schema.prisma (WorkflowDefinition/Step/Execution/Log/Template)"
+      ],
+      "marker": "executeWorkflow + scheduled trigger check + DLQ + pause/resume/retry/replay"
+    },
+    "user_preference_personal_context": {
+      "verdict": "EXISTS \u2014 merged forward 2026-10-04 per explicit PART 18 authorization (exact previous impl unrecoverable: absent from workspace, git history, upload specs, download artifacts)",
+      "files": [
+        "src/lib/personal-context.ts",
+        "src/app/api/settings/personal-context/route.ts",
+        "src/components/dashboard/personal-context-settings.tsx",
+        "src/components/dashboard/settings-shell.tsx (context section)",
+        "src/lib/ai/outreach-generator.ts (loadSenderProfile + prompt block)",
+        "src/app/api/workflows/ai-generate/route.ts (prompt block)",
+        "src/app/api/leads/[id]/analyze/route.ts (prompt block)",
+        "src/lib/prospecting/pipeline-steps.ts (runStepMatch block)",
+        "prisma/schema.prisma (UserSettings.personalContext)"
+      ],
+      "marker": "parsePersonalContext + buildPersonalContextBlock + /api/settings/personal-context"
+    },
+    "discover_context_campaign_selector": {
+      "verdict": "EXISTS \u2014 merged forward 2026-10-04 per explicit PART 18 authorization (same recovery conclusion)",
+      "files": [
+        "src/components/dashboard/discover-tab.tsx (context selector, both search modes, localStorage persistence)",
+        "src/app/api/leads/discover/route.ts (body.context: ownership check + instruction merge)",
+        "src/lib/lead-discovery-service.ts (DiscoveryParams.context + contextJson persistence)",
+        "prisma/schema.prisma (DiscoveryJob.contextJson)"
+      ],
+      "marker": "DiscoveryJobContext {mode:'none'|'campaign'|'business'} + context.campaignId ownership verified server-side"
+    },
+    "lead_detail_shell_bounded_portal": {
+      "verdict": "FIXED 2026-10-04 \u2014 anchor now rendered in null branch so portal target resolves; dialog renders inside [data-app-content-region]",
+      "files": [
+        "src/components/dashboard/lead-detail-panel.tsx",
+        "src/__tests__/components/lead-detail-portal.test.tsx (regression test)"
+      ],
+      "marker": "if (!lead) return <span ref={anchorRef} .../> \u2014 anchor unconditional like MetricDetailDrawer"
+    },
+    "business_profiles": {
+      "verdict": "EXISTS \u2014 multi-profile per user, server-side plan limits (free=1/starter=1/pro=3/elite=7 active), ownership enforced",
+      "files": [
+        "prisma/schema.prisma",
+        "src/app/api/business-profiles/route.ts",
+        "src/app/api/business-profiles/[id]/route.ts",
+        "src/components/dashboard/business-profile-settings.tsx",
+        "src/components/dashboard/settings-shell.tsx",
+        "src/lib/entitlement-service.ts",
+        "tests/integration/business-profiles.test.ts"
+      ],
+      "marker": "canPerformAction(plan,'business_profiles',activeCount) in POST/PUT; BusinessProfile model; @@index([userId, status])"
+    },
+    "discovery_idempotency": {
+      "verdict": "FIXED \u2014 ledger row now written under the composite idempotent action the pre-check queries; refund idempotent too",
+      "files": [
+        "src/lib/credit-service.ts",
+        "src/lib/lead-discovery-service.ts",
+        "src/__tests__/lib/credit-service.test.ts"
+      ],
+      "marker": "ledgerAction written as action: ledgerAction; refundCredits(idempotencyKey) `${action}_refund_idempotent_${key}`"
+    },
+    "discovery_resume_on_navigation": {
+      "verdict": "EXISTS \u2014 mount re-attach from persisted snapshot without re-POST",
+      "files": [
+        "src/lib/discovery-resume.ts",
+        "src/components/dashboard/discover-tab.tsx",
+        "src/__tests__/lib/discovery-resume.test.ts"
+      ],
+      "marker": "pickResumableJobFromStorage(localStorage) on mount; poll failure cutoff MAX_POLL_FAILURES=5"
+    },
+    "assistant_durable_history": {
+      "verdict": "EXISTS \u2014 durable store + mount restore + regenerate double-fire guard",
+      "files": [
+        "src/lib/assistant-conversation-store.ts",
+        "src/components/dashboard/assistant-tab.tsx",
+        "src/__tests__/lib/assistant-conversation-store.test.ts"
+      ],
+      "marker": "acq-os-assistant-conversations store; restore-on-mount; persist-on-change effect"
+    },
+    "workflow_scheduler": {
+      "verdict": "EXISTS \u2014 server-side cron heartbeat + timezone catch-up + restart recovery + approval gate",
+      "files": [
+        "src/app/api/cron/workflow-scheduler/route.ts",
+        "src/lib/workflow-triggers.ts",
+        "src/lib/workflow-engine.ts",
+        "src/lib/workflow-actions.ts",
+        "tests/unit/workflow-schedule-timezone.test.ts"
+      ],
+      "marker": "POST /api/cron/workflow-scheduler (CRON_SECRET); shouldFireSchedule zoned w/ SCHEDULE_CATCHUP_MINUTES=15; WorkflowDefinition.requiresApproval; execute/duplicate entitlement gates"
+    },
+    "signup_credit_reward": {
+      "verdict": "FIXED \u2014 exactly 50 credits, explicit in user.create + signup_reward ledger row; onboarding +25 future award removed",
+      "files": [
+        "src/app/api/auth/signup/route.ts",
+        "src/app/api/settings/onboarding/route.ts",
+        "src/lib/credit-service.ts"
+      ],
+      "marker": "SIGNUP_REWARD_CREDITS=50; action signup_reward ledger"
+    }
+  },
+  "files": {
+    "AGENTS.md": {
+      "sha256_16": "34475d5e48a0c340",
+      "bytes": 26375,
+      "role": "permanent safety contract (42 sections, extended this session from 20)"
+    },
+    "ACQUISITIONOS_CURRENT_STATE.md": {
+      "sha256_16": "SEE_FILE_SELF_NOTE",
+      "bytes": null,
+      "role": "latest known state checkpoint (created this session)"
+    },
+    "src/lib/phone.ts": {
+      "sha256_16": "9c7da7c91ef7b10e",
+      "bytes": 15635,
+      "role": "phone utilities: country codes + validation (PART 1B core)"
+    },
+    "src/lib/entitlement-service.ts": "0d9a839d89d69788",
+    "src/lib/plan-gates.ts": {
+      "sha256_16": "3240e1c281f16b96",
+      "bytes": 16866,
+      "role": "reusable plan gate helpers (withPlan/withFeature/withCredits)"
+    },
+    "src/lib/credit-service.ts": "45ee4f96eb1398ff",
+    "src/app/api/workflows/ai-generate/route.ts": {
+      "sha256_16": "8187cc286111a79b",
+      "bytes": 13257,
+      "role": "AI workflow generation: entitlement gate + 5-credit cost + refund (PART 1A core)"
+    },
+    "src/app/api/workflows/route.ts": "315898e314d104d2",
+    "src/app/api/settings/profile/route.ts": {
+      "sha256_16": "9ff9f8195ebe6cca",
+      "bytes": 5543,
+      "role": "server-side phone validation + legacy round-trip preservation (PART 1B)"
+    },
+    "src/components/dashboard/settings-shell.tsx": "2e84406fcb13be70",
+    "src/components/dashboard/workflows-tab.tsx": {
+      "sha256_16": "02525451a3df0fcf",
+      "bytes": 103852,
+      "role": "Workflows UI incl. AI-generate modal + client entitlement gate (PART 1A)"
+    },
+    "src/components/dashboard/discover-tab.tsx": "90863931323d8438",
+    "src/lib/lead-discovery-service.ts": "780ba7052a7468d6",
+    "prisma/schema.prisma": "65e11c5fb4c54224",
+    "tests/integration/workflow-ai-generate-entitlement.test.ts": {
+      "sha256_16": "2a787f9f696525f6",
+      "bytes": 5897,
+      "role": "entitlement matrix test (PART 1A)"
+    },
+    "src/__tests__/lib/phone.test.ts": {
+      "sha256_16": "f63cd5fc8762e60d",
+      "bytes": 6202,
+      "role": "phone validation unit tests (PART 1B)"
+    },
+    "package.json": {
+      "sha256_16": "dc4c7269f2d26fd8",
+      "bytes": 5152,
+      "role": "scripts: test = vitest run"
+    },
+    "vitest.config.ts": {
+      "sha256_16": "6e00e24179378f4b",
+      "bytes": 690,
+      "role": "vitest jsdom setup, mocked env"
+    },
+    "src/lib/workflow-triggers.ts": "c1179eae8c201e0f",
+    "src/lib/workflow-engine.ts": "9221b442e819cbff",
+    "src/lib/workflow-actions.ts": "6dd2ccfb93df1276",
+    "src/lib/workflow-service.ts": "95e54c38ec1d7eba",
+    "src/lib/workflow-credits.ts": "25ebe67b01ae8995",
+    "src/lib/discovery-resume.ts": "a988c8cc398a10ac",
+    "src/lib/assistant-conversation-store.ts": "9efb2d64b11c1759",
+    "src/lib/personal-context.ts": "87ca3b63592a7ec0",
+    "src/lib/prospecting/batch-research.ts": "860264a2b57b495f",
+    "src/lib/prospecting/website-fetch.ts": "9792884083df9439",
+    "src/lib/prospecting/pipeline-steps.ts": "f7ce177cbe1db4dd",
+    "src/lib/reply-intelligence-service.ts": "5dff2398b4a82a07",
+    "src/lib/gap-analysis-service.ts": "e78f53e58bc563e8",
+    "src/lib/ai/prompt-manager.ts": "74cbd62bfe47fe3f",
+    "src/lib/gmail-reply-processor.ts": "db42ed84a625e2ac",
+    "src/lib/sequence-execution-engine.ts": "a4df9ba6d825426f",
+    "src/lib/lead-discovery/outreach-sender.ts": "25dcfdd7bf52a335",
+    "src/app/api/business-profiles/route.ts": "d4d08b7cbfca0336",
+    "src/app/api/business-profiles/[id]/route.ts": "78c866109a434e76",
+    "src/app/api/cron/workflow-scheduler/route.ts": "00bab0def91aa441",
+    "src/app/api/leads/discover/route.ts": "03afa68c0ad7353f",
+    "src/app/api/leads/route.ts": "93a756a507bc69ae",
+    "src/app/api/auth/signup/route.ts": "f520161ff12b1410",
+    "src/app/api/settings/onboarding/route.ts": "d717409afedc0852",
+    "src/app/api/gmail/send/route.ts": "9b1dc35d3e32626a",
+    "src/app/api/workflows/[id]/execute/route.ts": "3ec1926b17bc88b3",
+    "src/app/api/workflows/[id]/duplicate/route.ts": "36d809690f8fca3d",
+    "src/app/api/sales-assistant/route.ts": "e63544fc7df025bc",
+    "src/components/dashboard/assistant-tab.tsx": "c1f470a8e419443a",
+    "src/components/dashboard/business-profile-settings.tsx": "875d068f20970827",
+    "src/components/dashboard/onboarding-checklist-card.tsx": "1ddd5b830999e167",
+    "src/__tests__/lib/credit-service.test.ts": "4abf061fc3953698",
+    "src/__tests__/lib/discovery-resume.test.ts": "e983938371f72d0b",
+    "src/__tests__/lib/assistant-conversation-store.test.ts": "cff5b2206a3403de",
+    "tests/integration/business-profiles.test.ts": "d241fee530da5ca2",
+    "tests/unit/workflow-schedule-timezone.test.ts": "d15e84c0c57755a8"
+  },
+  "untrackedApplicationFiles": [
+    "ACQUISITIONOS_CURRENT_STATE.md (created this session)",
+    "ACQUISITIONOS_CODEBASE_MANIFEST.json (this file)"
+  ],
+  "database": {
+    "path": "db/custom.db",
+    "note": "LIVE database \u2014 hash intentionally NOT recorded (changes during normal app operation). Never reset (AGENTS.md sections 20-21). Size at previous session: 4,861,952 bytes. Any schema change must be additive + forward-only."
+  },
+  "prohibitedOperationsReminder": [
+    "git reset / revert / checkout-old / restore-from-history",
+    "prisma migrate reset / db push --force-reset / --accept-data-loss",
+    "DROP / TRUNCATE / mass DELETE / destructive seed",
+    "force-push / history rewrite",
+    "deleting untracked/unfamiliar files (section 33)",
+    "template reinitialization of /home/z/my-project (section 34)"
+  ],
+  "verificationInstructions": "After any restart: recompute sha256 of the files above, compare with recorded values, verify criticalFeatureMarkers still resolve, then read ACQUISITIONOS_CURRENT_STATE.md. Any mismatch means investigate FIRST (AGENTS.md section 4) \u2014 never continue coding blindly."
+}

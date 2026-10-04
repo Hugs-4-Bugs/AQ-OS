@@ -198,10 +198,8 @@ export default function WorkflowDocumentationPage() {
                       trigger.
                     </li>
                     <li>
-                      Add actions in the visual builder. It is a vertical,
-                      ordered flow: click the <strong>+</strong> button after the
-                      trigger (or after any step) to add an action, condition,
-                      delay, or AI action, then configure it in the side panel.
+                      Add actions in the visual builder. Drag from the right-hand
+                      palette onto the canvas, then connect them to your trigger.
                     </li>
                     <li>
                       Click <strong>Save</strong>. The workflow is now in <Badge variant="outline" className="ml-1">Draft</Badge> status — it won&apos;t run automatically yet, but you can <em>execute it manually</em> for testing.
@@ -234,12 +232,9 @@ export default function WorkflowDocumentationPage() {
               <Card className="bg-card text-card-foreground">
                 <CardContent className="prose prose-sm dark:prose-invert max-w-none p-4 sm:p-6">
                   <p>
-                    The builder shows the workflow as a vertical, ordered flow:
-                    exactly one trigger node (the entry point) followed by one or
-                    more action/condition/delay/AI nodes that execute in order.
-                    The engine walks this list top to bottom — there is no
-                    free-form canvas; branching is expressed with condition nodes
-                    that skip the next step when the condition is false.
+                    The builder is a node-and-edge canvas. Each workflow has exactly one
+                    trigger node (the entry point) and one or more action/condition/delay
+                    nodes that execute in order. Edges define the flow of execution.
                   </p>
                   <h3 className="text-base font-semibold mt-6 mb-2">Node types</h3>
                   <ul className="list-disc pl-5 space-y-1.5">
@@ -260,10 +255,9 @@ export default function WorkflowDocumentationPage() {
                   <h3 className="text-base font-semibold mt-6 mb-2">Versioning</h3>
                   <p>
                     Each meaningful edit (name, trigger, nodes, edges) bumps the
-                    workflow&apos;s <code>version</code> counter. Executions store the
-                    definition they ran inline (trigger + step logs), which is
-                    always visible from the Executions tab; they do not record a
-                    version number.
+                    workflow&apos;s <code>version</code> counter. Executions record the
+                    version they ran against, so you can always tell which definition
+                    produced a given run.
                   </p>
                 </CardContent>
               </Card>
@@ -290,18 +284,19 @@ export default function WorkflowDocumentationPage() {
                         </tr>
                       </thead>
                       <tbody className="text-muted-foreground">
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Lead Discovered</td><td className="py-2 pr-4">A new lead enters your pipeline (event wiring required).</td><td className="py-2">—</td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Lead Moved</td><td className="py-2 pr-4">A lead moves to a different stage (event wiring required).</td><td className="py-2"><code>stage</code></td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Lead Reply</td><td className="py-2 pr-4">A lead replies — detected by Gmail reply processing / reply intelligence.</td><td className="py-2">—</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Lead Discovered</td><td className="py-2 pr-4">A new lead enters your pipeline.</td><td className="py-2">—</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Lead Moved</td><td className="py-2 pr-4">A lead moves to a different stage.</td><td className="py-2"><code>stage</code></td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Lead Reply</td><td className="py-2 pr-4">A lead replies to an outreach email.</td><td className="py-2">—</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Score Change</td><td className="py-2 pr-4">Lead&apos;s AI score crosses a threshold.</td><td className="py-2"><code>threshold</code></td></tr>
                         <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Gmail Connected</td><td className="py-2 pr-4">User links a Gmail account.</td><td className="py-2">—</td></tr>
                         <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Email Received</td><td className="py-2 pr-4">Inbound email arrives from a tracked lead.</td><td className="py-2">—</td></tr>
                         <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Telegram / WhatsApp Received</td><td className="py-2 pr-4">A message arrives on a connected channel.</td><td className="py-2">—</td></tr>
                         <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Payment Success</td><td className="py-2 pr-4">A payment succeeds (subscription or one-off).</td><td className="py-2">—</td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Trial Ending</td><td className="py-2 pr-4">Trial expires soon.</td><td className="py-2">—</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Trial Ending</td><td className="py-2 pr-4">Trial expires in &lt; 24h.</td><td className="py-2">—</td></tr>
                         <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Credits Low</td><td className="py-2 pr-4">Credit balance drops below a threshold.</td><td className="py-2"><code>threshold</code></td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">AI Completed</td><td className="py-2 pr-4">An AI job finishes (autonomous outreach engine).</td><td className="py-2">—</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">AI Completed</td><td className="py-2 pr-4">A long-running AI job finishes.</td><td className="py-2">—</td></tr>
                         <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Webhook</td><td className="py-2 pr-4">External HTTP request hits <code>/api/workflows/webhook/…</code>.</td><td className="py-2"><code>path</code></td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Scheduled</td><td className="py-2 pr-4">Time-based (cron). <em>Requires the scheduled-trigger processor to run — it is not wired to a scheduler yet, so scheduled triggers currently do not fire on their own.</em></td><td className="py-2"><code>schedule</code></td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Scheduled</td><td className="py-2 pr-4">Time-based: hourly / daily / weekly / monthly.</td><td className="py-2"><code>schedule</code></td></tr>
                         <tr><td className="py-2 pr-4 font-medium text-foreground">Manual</td><td className="py-2 pr-4">User clicks <em>Execute Now</em> or calls the API.</td><td className="py-2">—</td></tr>
                       </tbody>
                     </table>
@@ -429,23 +424,11 @@ export default function WorkflowDocumentationPage() {
                   </ul>
                   <h3 className="text-base font-semibold mt-6 mb-2">Retries &amp; timeouts</h3>
                   <p>
-                    Every execution record carries a <code>maxRetries</code> (default 3)
-                    and <code>timeoutMs</code> (default 300 000 ms). The inline engine
-                    does <strong>not</strong> auto-retry a failed step — a failing step
-                    fails the run and you are notified. You retry deliberately:
-                    <strong>Retry</strong> re-runs the execution from the failed step via
-                    the retry endpoint; <strong>Replay</strong> re-runs the whole
-                    workflow from step 0 with the same trigger data. Runs that exceed
-                    their retry budget in the executor path are dead-lettered for
-                    manual review.
-                  </p>
-                  <h3 className="text-base font-semibold mt-6 mb-2">Run identity &amp; duplicates</h3>
-                  <p>
-                    Every manual Run / Rerun sends an operation idempotency key. If the
-                    same request is ever replayed (double-click, network retry), the
-                    engine returns the existing execution instead of starting and
-                    charging a second one. Polling, refreshing, or re-opening the page
-                    only <em>observes</em> execution state — it never re-executes a step.
+                    Every execution carries a <code>maxRetries</code> (default 3, env:
+                    <code>WORKFLOW_MAX_RETRIES</code>) and <code>timeoutMs</code> (default
+                    300 000 ms, env: <code>WORKFLOW_TIMEOUT</code>). When a step fails the
+                    engine retries up to <code>maxRetries</code> times with backoff. After
+                    all retries are spent, the execution is dead-lettered.
                   </p>
                   <h3 className="text-base font-semibold mt-6 mb-2">What you can do with an execution</h3>
                   <ul className="list-disc pl-5 space-y-1.5">
@@ -483,12 +466,10 @@ export default function WorkflowDocumentationPage() {
                   </p>
                   <h3 className="text-base font-semibold mt-6 mb-2">Featured templates</h3>
                   <ul className="list-disc pl-5 space-y-1.5">
-                    <li><strong>End-to-End Client Acquisition (10 steps, flagship)</strong> — manual run for a lead → AI research &amp; analysis → conversion scoring → score gate → personalized AI outreach <em>draft</em> (your approval point) → notification → email delivery → reply-gated WhatsApp follow-up → pipeline update.</li>
-                    <li><strong>Lead Nurture Sequence (5 steps)</strong> — lead discovered → wait → welcome email → wait → WhatsApp follow-up → stage move.</li>
-                    <li><strong>AI Lead Enrichment (4 steps)</strong> — lead discovered → AI analysis → AI score → score-gated stage move.</li>
-                    <li><strong>Outreach Sequence (5 steps)</strong> — lead discovered → AI outreach → email → wait → no-reply WhatsApp follow-up.</li>
-                    <li><strong>Lead Reply Follow-up (3 steps)</strong> — reply → wait 2h → AI outreach → follow-up email.</li>
-                    <li><strong>Low Credit Alert</strong> and <strong>Trial Ending Reminder</strong> — plan-health notifications.</li>
+                    <li><strong>New Lead Nurture (5 steps)</strong> — discover → AI score → wait 1d → email #1 → wait 3d → email #2.</li>
+                    <li><strong>Reply-to-Meeting (4 steps)</strong> — reply → AI summarise → notify sales → create draft reply.</li>
+                    <li><strong>Stale Lead Wake-up (3 steps)</strong> — scheduled weekly → score &gt; 70 → re-engage email.</li>
+                    <li><strong>Trial Expiry Reminder (2 steps)</strong> — trial ending → notify + offer upgrade.</li>
                   </ul>
                 </CardContent>
               </Card>
@@ -506,15 +487,14 @@ export default function WorkflowDocumentationPage() {
                 <CardContent className="prose prose-sm dark:prose-invert max-w-none p-4 sm:p-6">
                   <p>
                     Workflow executions and AI actions consume <strong>credits</strong>.
-                    Your monthly credit allowance depends on your plan (Free / Starter /
-                    Pro / Elite). Unused credits roll over up to a cap; they reset on the
+                    Your monthly credit allowance depends on your plan (Free / Pro /
+                    Elite). Unused credits roll over up to a cap; they reset on the
                     monthly billing date.
                   </p>
                   <h3 className="text-base font-semibold mt-6 mb-2">What consumes credits</h3>
                   <ul className="list-disc pl-5 space-y-1.5">
-                    <li>Every executed <strong>action or AI step</strong> inside a workflow: <strong>1 credit</strong> per step (the engine charges per executed step).</li>
-                    <li><strong>Wait and condition steps cost nothing.</strong></li>
-                    <li>Deep AI analysis triggered by an AI analysis step is charged by the analysis engine per its own rate.</li>
+                    <li>Every workflow execution: <strong>1 credit</strong> base cost.</li>
+                    <li>Every AI action inside a workflow: <strong>+1 credit</strong>.</li>
                     <li>AI scoring / enrichment outside workflows: credits per call.</li>
                   </ul>
                   <h3 className="text-base font-semibold mt-6 mb-2">Plan limits</h3>
@@ -529,10 +509,9 @@ export default function WorkflowDocumentationPage() {
                         </tr>
                       </thead>
                       <tbody className="text-muted-foreground">
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Free</td><td className="py-2 pr-4">50</td><td className="py-2 pr-4">no workflow access</td><td className="py-2">—</td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Starter</td><td className="py-2 pr-4">150</td><td className="py-2 pr-4">no workflow access</td><td className="py-2">—</td></tr>
-                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Pro</td><td className="py-2 pr-4">750</td><td className="py-2 pr-4">25</td><td className="py-2">unlimited*</td></tr>
-                        <tr><td className="py-2 pr-4 font-medium text-foreground">Elite</td><td className="py-2 pr-4">2,000</td><td className="py-2 pr-4">unlimited</td><td className="py-2">unlimited*</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Free</td><td className="py-2 pr-4">100</td><td className="py-2 pr-4">3</td><td className="py-2">50</td></tr>
+                        <tr className="border-b"><td className="py-2 pr-4 font-medium text-foreground">Pro</td><td className="py-2 pr-4">2,000</td><td className="py-2 pr-4">25</td><td className="py-2">unlimited*</td></tr>
+                        <tr><td className="py-2 pr-4 font-medium text-foreground">Elite</td><td className="py-2 pr-4">10,000</td><td className="py-2 pr-4">unlimited</td><td className="py-2">unlimited*</td></tr>
                       </tbody>
                     </table>
                   </div>

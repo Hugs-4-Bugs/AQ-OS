@@ -12,6 +12,7 @@ import {
   applySenderSignature,
 } from '@/lib/ai/sender-signature';
 import { loadSenderProfile } from '@/lib/ai/outreach-generator';
+import { buildPersonalContextBlockForUser } from '@/lib/personal-context';
 
 // ===== TYPES =====
 
@@ -22,9 +23,9 @@ export interface ActionContext {
   leadId?: string;
   triggerData?: Record<string, unknown>;
   previousOutputs?: Record<string, unknown>;
-  /** Pre-resolved {{lead.*}} template variables — fetched ONCE per
-   *  execution by the engine and shared by every step. */
-  leadVars?: Record<string, string>;
+  /** Workflow-level human-approval gate: send actions create a draft +
+   *  notification instead of sending (a human approves before delivery). */
+  requiresApproval?: boolean;
 }
 
 export interface ActionResult {
@@ -104,18 +105,51 @@ async function executeSendEmail(
     return { success: false, error: 'Email requires to, subject, and body' };
   }
 
-  // Resolve template variables in to/subject/body — `to` supports
-  // {{lead.email}} so workflows can email the lead in context.
-  const resolvedTo = resolveTemplate(String(to), context);
+  // Resolve template variables in subject/body
   const resolvedSubject = resolveTemplate(String(subject), context);
   const resolvedBody = resolveTemplate(String(body), context);
 
-  if (!resolvedTo.trim()) {
-    return { success: false, error: 'Email recipient resolved to an empty address (no lead email in context?)' };
+  // ── Human-approval gate (workflow.requiresApproval) ──
+  // Outbound delivery is NEVER automatic when the workflow is configured to
+  // require approval: the message is parked as a DRAFT (the existing approval
+  // queue in Outreach) and the owner is notified. A human must send it from
+  // the Outreach tab — AI can never approve its own outbound action.
+  if (context.requiresApproval) {
+    const draft = await db.outreachMessage.create({
+      data: {
+        leadId: context.leadId || '',
+        userId: context.userId,
+        channel: 'email',
+        direction: 'outbound',
+        subject: resolvedSubject,
+        content: resolvedBody,
+        status: 'draft',
+        generatedByAI: false,
+      },
+    });
+
+    await db.notification.create({
+      data: {
+        userId: context.userId,
+        type: 'workflow',
+        title: 'Approval required: outreach draft ready',
+        message: `A workflow prepared an email${to ? ` to ${to}` : ''} and is waiting for your approval. Review and send it from the Outreach tab.`,
+        actionUrl: '/business-ai/outreach',
+        deliveredVia: 'in_app',
+      },
+    }).catch(() => {
+      // Notification is best-effort; the draft itself is the source of truth.
+    });
+
+    return {
+      success: true,
+      output: { approvalRequired: true, draftId: draft.id, to: String(to) },
+      creditsUsed: 0,
+    };
   }
 
   const result = await sendEmail({
-    to: resolvedTo,
+    to: String(to),
     subject: resolvedSubject,
     html: resolvedBody,
     text: resolvedBody,
@@ -331,6 +365,12 @@ async function executeAiOutreach(
     const senderProfile = await loadSenderProfile(context.userId);
     const senderBlock = buildSenderSignatureBlock(senderProfile);
 
+    // USER PERSONAL CONTEXT: workflow-generated outreach must be personalized
+    // exactly like the manual path — the user's own description of what they
+    // do, their services, audience and positioning is authoritative and the
+    // model may never invent facts beyond it.
+    const personalContextBlock = await buildPersonalContextBlockForUser(context.userId);
+
     const prompt = `Generate a ${outreachStyle} ${outreachChannel} outreach message for:
       Business: ${lead.businessName}
       Owner: ${lead.ownerName || 'Unknown'}
@@ -340,7 +380,7 @@ async function executeAiOutreach(
       
       Create a compelling, personalized message that addresses their potential needs.
 
-${senderBlock}`;
+${senderBlock}${personalContextBlock}`;
 
     const response = await chat.sendMessage(prompt);
     const generatedMessage = applySenderSignature(
@@ -866,36 +906,6 @@ async function executeNotifyTrialEnding(
 
 // ===== TEMPLATE VARIABLE RESOLVER =====
 
-/**
- * Lead template variables for one execution ({{lead.email}},
- * {{lead.name}}, {{lead.businessName}}, {{lead.stage}}, {{lead.score}},
- * {{lead.niche}}, {{lead.city}}, {{lead.country}}). Called ONCE per run
- * by the engine; empty string (never the literal placeholder) when the
- * lead has no value, so emails are never sent with raw {{...}} text.
- */
-export async function getLeadTemplateVars(leadId?: string): Promise<Record<string, string>> {
-  if (!leadId) return {};
-  const lead = await db.lead.findFirst({
-    where: { id: leadId },
-    select: {
-      id: true, email: true, ownerName: true, businessName: true,
-      stage: true, conversionScore: true, niche: true, city: true, country: true,
-    },
-  }).catch(() => null);
-  if (!lead) return {};
-  return {
-    '{{lead.id}}': lead.id || '',
-    '{{lead.email}}': lead.email || '',
-    '{{lead.name}}': lead.ownerName || '',
-    '{{lead.businessName}}': lead.businessName || '',
-    '{{lead.stage}}': lead.stage || '',
-    '{{lead.score}}': lead.conversionScore != null ? String(lead.conversionScore) : '',
-    '{{lead.niche}}': lead.niche || '',
-    '{{lead.city}}': lead.city || '',
-    '{{lead.country}}': lead.country || '',
-  };
-}
-
 function resolveTemplate(template: string, context: ActionContext): string {
   let resolved = template;
 
@@ -907,14 +917,6 @@ function resolveTemplate(template: string, context: ActionContext): string {
     '{{userId}}': context.userId,
   };
 
-  // Lead variables ({{lead.email}}, {{lead.name}}, …) — filled first so
-  // more specific trigger/output values can still override them.
-  if (context.leadVars) {
-    for (const [key, value] of Object.entries(context.leadVars)) {
-      replacements[key] = value;
-    }
-  }
-
   // Add trigger data variables
   if (context.triggerData) {
     for (const [key, value] of Object.entries(context.triggerData)) {
@@ -922,16 +924,9 @@ function resolveTemplate(template: string, context: ActionContext): string {
     }
   }
 
-  // Add previous output variables — supports {{output.<stepId>}} AND
-  // structured {{output.<stepId>.<field>}} (e.g. an ai_outreach step's
-  // generatedMessage), keyed by the step's node id.
+  // Add previous output variables
   if (context.previousOutputs) {
     for (const [key, value] of Object.entries(context.previousOutputs)) {
-      if (value && typeof value === 'object') {
-        for (const [field, fieldValue] of Object.entries(value as Record<string, unknown>)) {
-          replacements[`{{output.${key}.${field}}}`] = String(fieldValue ?? '');
-        }
-      }
       replacements[`{{output.${key}}}`] = String(value ?? '');
     }
   }

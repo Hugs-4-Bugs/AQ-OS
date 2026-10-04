@@ -854,6 +854,11 @@ Return a JSON object with this exact structure:
   "estimatedRevenueImpact": "Brief description of revenue potential and risk"
 }
 
+EVIDENCE & HONESTY RULES (binding):
+- Every gap must cite concrete evidence from the lead data. Never speculate.
+- Do NOT fabricate revenue figures, profit, customer counts, percentages, conversion rates, ROI, or payback periods. Numbers like conversionProbability/impactOnConversion are your internal qualitative PRIORITIZATION scores derived from the evidence — they must never be presented to users as measured outcomes.
+- If revenue impact cannot be reliably quantified with the available evidence, write exactly that in estimatedRevenueImpact.
+
 Be specific and actionable. Focus on gaps that directly impact conversion probability.
 Return ONLY the JSON object. No markdown, no explanations.`;
 

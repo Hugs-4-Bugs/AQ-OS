@@ -124,12 +124,12 @@ export async function PUT(request: NextRequest) {
     if (allStepsComplete || completed) {
       progressData.completed = true;
     }
-    // SIGNUP REWARD POLICY (fixed): the TOTAL signup reward is exactly the
-    // 50-credit signup_grant written at account creation. Onboarding
-    // completion/skip no longer adds any credits — previously a +25 bonus was
-    // granted here (even when onboarding was SKIPPED), inflating new-user
-    // balances to 75. `bonusAwarded` stays in the API response (always false)
-    // so existing clients keep working. Existing balances/ledger are untouched.
+    // SIGNUP REWARD POLICY (updated): every new account receives EXACTLY
+    // SIGNUP_REWARD_CREDITS (50) at signup — including a matching ledger entry
+    // (action `signup_reward`). No additional signup/onboarding grant is
+    // stacked on top of it, so completing onboarding no longer awards bonus
+    // credits. The historical `bonusCreditsAwarded` flag and any previously
+    // awarded rows are preserved untouched — existing balances never change.
 
     if (Object.keys(progressData).length > 0 || !currentProgress) {
       await db.onboardingProgress.upsert({
@@ -171,9 +171,8 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Onboarding no longer grants credits (see SIGNUP REWARD POLICY note
-    // above). Kept as a constant so the API response shape is unchanged.
-    let bonusAwarded = false;
+    // (Historical onboarding bonus removed — see signup reward policy above.)
+    const bonusAwarded = false;
 
     // Audit log
     if (progressData.completed) {

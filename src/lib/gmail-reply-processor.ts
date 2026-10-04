@@ -540,18 +540,20 @@ async function updateLeadFromClassification(
       if (currentLevel < 3) newStage = 'interested';
     }
 
-    // Not interested → only close if very negative
+    // Not interested → DO NOT auto-close the deal. Product rule: AI
+    // recommendations must never automatically mark a deal Won/Lost/
+    // Negotiation — only actual human/customer decisions do. Instead the
+    // reply is logged and the owner is nudged to decide (handled below by
+    // the reply activity + notification pipeline).
     if (classification.intent === 'not_interested' || classification.intent === 'unsubscribe_request') {
-      if (classification.sentiment === 'frustrated' || classification.sentiment === 'negative') {
-        newStage = 'closed_lost';
-      }
+      newStage = null; // stay in the current stage; no AI-driven closing
     }
 
-    // Only update if we have a new stage and it's a progression (or closing)
+    // Only update if we have a new stage and it's a forward progression
     if (newStage && newStage !== lead.stage) {
       const newLevel = stageProgression[newStage] ?? 0;
-      // Allow any forward progression, or closing as lost
-      if (newLevel > currentLevel || newStage === 'closed_lost') {
+      // Allow forward progression only — AI never closes deals
+      if (newLevel > currentLevel) {
         await db.lead.update({
           where: { id: leadId },
           data: {

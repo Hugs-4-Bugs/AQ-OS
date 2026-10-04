@@ -34,14 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
         retry: 2,
       },
       mutations: {
-        // FINANCIAL-STYLE INTEGRITY: chargeable POSTs (lead discovery,
-        // website research, outreach, workflow runs, AI analyses) must
-        // NEVER be auto-replayed — a network blip after the server already
-        // processed the request would otherwise duplicate the billing
-        // event. Retries are deliberate (user clicks again); the server
-        // additionally dedupes by requestId where an operation identity
-        // exists.
-        retry: 0,
+        retry: 1,
       },
     },
   }));

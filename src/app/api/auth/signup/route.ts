@@ -12,8 +12,8 @@ import {
 } from '@/lib/auth';
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
+import { SIGNUP_REWARD_CREDITS } from '@/lib/credit-service';
 import { withRateLimit } from '@/lib/security/rate-limiter';
-import { SIGNUP_GRANT_CREDITS, writeSignupGrantLedger } from '@/lib/credit-service';
 
 export async function POST(request: NextRequest) {
   // Rate limit: 5 auth requests per minute per IP to prevent bulk account creation
@@ -93,25 +93,22 @@ export async function POST(request: NextRequest) {
     const verificationOtpExpiry = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
     // ── Create user (ALWAYS requires email verification) ────────
-    // SIGNUP REWARD: the starting balance is set explicitly to 50 and the
-    // matching `signup_grant` ledger row is written in the SAME transaction.
-    // One user creation → exactly one grant (atomic, retry-safe). The
-    // onboarding flow no longer adds any credits, so 50 is the TOTAL signup
-    // reward. Existing users' balances are untouched by this change.
-    const user = await db.$transaction(async (tx) => {
-      const created = await tx.user.create({
+    // Signup reward is EXPLICIT (not an implicit schema default): every new
+    // user gets exactly SIGNUP_REWARD_CREDITS (50) — never more, and the
+    // grant is auditable through the CreditsLedger entry created below.
+    const user = await db.user.create({
       data: {
         name: name.trim(),
         email: normalizedEmail,
         passwordHash: hashedPassword,
         role: 'owner',
         plan: 'free',
+        credits: SIGNUP_REWARD_CREDITS,
+        creditsMonthly: SIGNUP_REWARD_CREDITS,
         authProvider: 'email',
         emailVerified: false,
         emailVerificationOtp: verificationOtp,
         emailVerificationOtpExpiry: verificationOtpExpiry,
-        credits: SIGNUP_GRANT_CREDITS,
-        creditsMonthly: SIGNUP_GRANT_CREDITS,
         isTrial: true,
         trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
         settings: { create: {} },
@@ -127,11 +124,31 @@ export async function POST(request: NextRequest) {
         },
       },
       include: { mfaConfig: { select: { isEnabled: true } } },
-      });
-
-      await writeSignupGrantLedger(tx, created.id);
-      return created;
     });
+
+    // ── Signup reward ledger entry (auditable, idempotent) ─────
+    // The user row above was just created for this unique email, so this
+    // grant happens exactly once per account; the ledger lookup also makes
+    // any hypothetical retry safe. A ledger failure must never fail signup.
+    try {
+      const existingReward = await db.creditsLedger.findFirst({
+        where: { userId: user.id, action: 'signup_reward' },
+      });
+      if (!existingReward) {
+        await db.creditsLedger.create({
+          data: {
+            userId: user.id,
+            action: 'signup_reward',
+            credits: SIGNUP_REWARD_CREDITS,
+            balance: SIGNUP_REWARD_CREDITS,
+            description: `Signup reward — ${SIGNUP_REWARD_CREDITS} credits granted to new account`,
+            referenceId: user.id,
+          },
+        });
+      }
+    } catch (ledgerError) {
+      console.error('[Signup] Failed to write signup_reward ledger entry (balance unaffected):', ledgerError);
+    }
 
     // ── Audit logging ───────────────────────────────────────────
     const ip = getClientIp(request);

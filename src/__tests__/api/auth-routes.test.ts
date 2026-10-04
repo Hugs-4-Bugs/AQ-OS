@@ -10,25 +10,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/db', () => {
   return {
     db: {
-      $transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) =>
-        fn({
-          user: {
-            create: (...args: unknown[]) => (db.user.create as ReturnType<typeof vi.fn>)(...args),
-          },
-          creditsLedger: {
-            create: (...args: unknown[]) => (db.creditsLedger.create as ReturnType<typeof vi.fn>)(...args),
-          },
-        }),
-      ),
       user: {
         findUnique: vi.fn(),
         findFirst: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
         count: vi.fn().mockResolvedValue(0),
-      },
-      creditsLedger: {
-        create: vi.fn().mockResolvedValue({ id: 'ledger-1' }),
       },
       userSession: {
         create: vi.fn(),
@@ -222,38 +209,6 @@ describe('POST /api/auth/signup', () => {
     expect(createCall.data.creditsMonthly).toBe(50);
     expect(createCall.data.role).toBe('owner');
     expect(createCall.data.authProvider).toBe('email');
-  });
-
-  it('should write exactly one signup_grant ledger row with balance 50 in the creation transaction', async () => {
-    (db.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (db.user.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (db.user.create as ReturnType<typeof vi.fn>).mockImplementation((args: { data: Record<string, unknown> }) => ({
-      id: 'new-user-id',
-      ...args.data,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
-
-    const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        email: 'ledgeruser@test.com',
-        password: 'TestPass123!',
-        name: 'Ledger User',
-      }),
-    });
-
-    await POST(request);
-
-    // The transaction callback receives a tx client whose creditsLedger.create
-    // is wired to db.creditsLedger.create in the mock above — assert the grant.
-    const ledgerCreate = db.creditsLedger.create as ReturnType<typeof vi.fn>;
-    expect(ledgerCreate).toHaveBeenCalledTimes(1);
-    const ledgerData = ledgerCreate.mock.calls[0][0].data;
-    expect(ledgerData.action).toBe('signup_grant');
-    expect(ledgerData.credits).toBe(50);
-    expect(ledgerData.balance).toBe(50);
   });
 
   it('should reject duplicate email registration', async () => {

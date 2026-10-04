@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { withApiLogging } from '@/lib/observability/api-logger';
 import { db } from '@/lib/db';
-import { hasFeatureAccess, type PlanType } from '@/lib/entitlement-service';
 
 // ── Helper: Parse JSON string field safely ──────────────────────
 
@@ -189,23 +188,6 @@ export const PUT = withApiLogging(async (request: NextRequest) => {
           return NextResponse.json(
             { error: 'Autonomy mode must be one of: approval, assisted, autonomous' },
             { status: 400 }
-          );
-        }
-        // Plan Eligibility Correction: autonomous handling ('assisted' /
-        // 'autonomous' — the SDR cron acts on these) is Pro/Elite only.
-        // Free/Starter keep the manual 'approval' mode; basic meeting
-        // settings are unaffected. Entitlement semantics match the route
-        // gates (unknown/legacy plan values fail closed).
-        const hasAutomation = hasFeatureAccess((user.plan ?? 'free') as PlanType, 'workflow_access');
-        if (body.meetingAutonomyMode !== 'approval' && !hasAutomation) {
-          return NextResponse.json(
-            {
-              error: 'Autonomous meeting orchestration requires a Pro or Elite plan',
-              code: 'PLAN_REQUIRED',
-              feature: 'workflow_access',
-              requiredPlan: 'pro',
-            },
-            { status: 403 }
           );
         }
       }

@@ -1,0 +1,953 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — Workflow Executor
+     3→// Heavy module: execution engine, action executor, execution control
+     4→// Only imported by routes that need to execute/control workflows
+     5→// ═══════════════════════════════════════════════════════════════════
+     6→
+     7→import { db } from '@/lib/db';
+     8→import { resolveLeadForExecution } from '@/lib/lead-resolution';
+     9→import { publishWorkflowEvent } from '@/lib/realtime-engine';
+    10→import { createNotificationOnce } from '@/lib/notification-service';
+    11→import {
+    12→  type WorkflowNode,
+    13→  type WorkflowEdge,
+    14→  generateIdempotencyKey,
+    15→  generateWebhookPath,
+    16→  auditLog,
+    17→  syncSteps,
+    18→  getWorkflow,
+    19→} from '@/lib/workflow-utils';
+    20→
+    21→/**
+    22→ * Single reliable lead resolution for executor steps: every lead access is
+    23→ * OWNER-SCOPED (same rule as the main engine + AI pipeline). A workflow step
+    24→ * may only operate on a lead that belongs to the user who started the run.
+    25→ */
+    26→async function requireOwnedLead(userId: string | undefined, leadId: string) {
+    27→  if (!userId) throw new Error('Lead not found');
+    28→  const resolution = await resolveLeadForExecution(userId, leadId);
+    29→  if (!resolution.ok) throw new Error('Lead not found');
+    30→  return resolution.lead;
+    31→}
+    32→
+    33→// ── Execution Engine ──────────────────────────────────────────────
+    34→
+    35→/** Queue a workflow for execution */
+    36→export async function executeWorkflow(
+    37→  workflowId: string,
+    38→  userId: string,
+    39→  triggerData?: Record<string, unknown>,
+    40→  idempotencyKey?: string
+    41→) {
+    42→  // Check workflow exists and is active
+    43→  const workflow = await db.workflowDefinition.findFirst({
+    44→    where: { id: workflowId, status: 'active' },
+    45→  });
+    46→
+    47→  if (!workflow) {
+    48→    throw new Error('Workflow not found or not active');
+    49→  }
+    50→
+    51→  // Check idempotency
+    52→  const key = idempotencyKey || generateIdempotencyKey();
+    53→  if (idempotencyKey) {
+    54→    const existing = await db.workflowExecution.findFirst({
+    55→      where: { idempotencyKey: key },
+    56→    });
+    57→    if (existing) {
+    58→      return existing; // Already queued/running
+    59→    }
+    60→  }
+    61→
+    62→  // Check concurrency limit
+    63→  const runningCount = await db.workflowExecution.count({
+    64→    where: {
+    65→      workflowId,
+    66→      status: { in: ['queued', 'running'] },
+    67→    },
+    68→  });
+    69→
+    70→  if (workflow.maxConcurrency !== null && runningCount >= workflow.maxConcurrency) {
+    71→    throw new Error('Workflow concurrency limit reached');
+    72→  }
+    73→
+    74→  const nodes: WorkflowNode[] = JSON.parse(workflow.nodes);
+    75→  const actionNodes = nodes.filter((n) => n.type !== 'trigger');
+    76→
+    77→  // Create execution record
+    78→  const execution = await db.workflowExecution.create({
+    79→    data: {
+    80→      workflowId,
+    81→      userId,
+    82→      status: 'queued',
+    83→      triggerData: triggerData ? JSON.stringify(triggerData) : null,
+    84→      currentStep: 0,
+    85→      totalSteps: actionNodes.length,
+    86→      maxRetries: workflow.maxRetries ?? undefined,
+    87→      idempotencyKey: key,
+    88→    },
+    89→  });
+    90→
+    91→  await auditLog(userId, 'workflow_executed', workflowId, {
+    92→    executionId: execution.id,
+    93→    triggerType: workflow.triggerType,
+    94→  });
+    95→
+    96→  // Process execution asynchronously (non-blocking)
+    97→  processExecution(execution.id).catch((err) => {
+    98→    console.error('[WorkflowService] processExecution error:', err);
+    99→  });
+   100→
+   101→  return execution;
+   102→}
+   103→
+   104→/** The CORE execution engine — processes a single execution */
+   105→export async function processExecution(executionId: string): Promise<void> {
+   106→  const execution = await db.workflowExecution.findUnique({
+   107→    where: { id: executionId },
+   108→    include: { workflow: true },
+   109→  });
+   110→
+   111→  if (!execution || execution.status === 'cancelled') return;
+   112→
+   113→  const workflow = execution.workflow;
+   114→  const nodes: WorkflowNode[] = JSON.parse(workflow.nodes);
+   115→  const edges: WorkflowEdge[] = JSON.parse(workflow.edges);
+   116→  const actionNodes = nodes.filter((n) => n.type !== 'trigger');
+   117→
+   118→  // Mark as running
+   119→  if (execution.status === 'queued') {
+   120→    await db.workflowExecution.update({
+   121→      where: { id: executionId },
+   122→      data: {
+   123→        status: 'running',
+   124→        startedAt: new Date(),
+   125→        totalSteps: actionNodes.length,
+   126→      },
+   127→    });
+   128→  }
+   129→
+   130→  const startTime = Date.now();
+   131→  let currentStep = execution.currentStep;
+   132→  let lastError: string | null = null;
+   133→
+   134→  // Build a map for edge traversal
+   135→  const edgeMap = new Map<string, WorkflowEdge[]>();
+   136→  for (const edge of edges) {
+   137→    const existing = edgeMap.get(edge.source) || [];
+   138→    existing.push(edge);
+   139→    edgeMap.set(edge.source, existing);
+   140→  }
+   141→
+   142→  // Get trigger data for context
+   143→  const triggerData = execution.triggerData ? JSON.parse(execution.triggerData) : {};
+   144→  const stepResults: Record<string, unknown> = {};
+   145→  const context: Record<string, unknown> = { triggerData, stepResults };
+   146→
+   147→  // Find starting node (first non-trigger node connected from trigger)
+   148→  let currentNode: WorkflowNode | null = null;
+   149→  const triggerNode = nodes.find((n) => n.type === 'trigger');
+   150→  if (triggerNode) {
+   151→    const triggerEdges = edgeMap.get(triggerNode.id) || [];
+   152→    if (triggerEdges.length > 0) {
+   153→      const firstTarget = triggerEdges[0].target;
+   154→      currentNode = actionNodes.find((n) => n.id === firstTarget) || actionNodes[0] || null;
+   155→    }
+   156→  }
+   157→  if (!currentNode && actionNodes.length > 0) {
+   158→    currentNode = actionNodes[0];
+   159→  }
+   160→
+   161→  // Execute steps sequentially
+   162→  let stepIndex = currentStep;
+   163→  const nodesToProcess = actionNodes.slice(stepIndex);
+   164→
+   165→  for (const step of nodesToProcess) {
+   166→    // Check if execution was paused or cancelled
+   167→    const currentExec = await db.workflowExecution.findUnique({
+   168→      where: { id: executionId },
+   169→    });
+   170→    if (!currentExec) break;
+   171→    if (currentExec.status === 'paused') return;
+   172→    if (currentExec.status === 'cancelled') return;
+   173→
+   174→    const stepStartTime = Date.now();
+   175→    let attempt = 0;
+   176→    const maxRetries = workflow.maxRetries ?? 0;
+   177→    let stepSuccess = false;
+   178→    let stepOutput: Record<string, unknown> = {};
+   179→    let stepError: string | null = null;
+   180→
+   181→    while (attempt <= maxRetries && !stepSuccess) {
+   182→      try {
+   183→        const result = await executeStepAction(step, context, execution.userId || undefined);
+   184→        stepOutput = result;
+   185→        stepSuccess = true;
+   186→        stepResults[step.id] = result;
+   187→      } catch (error) {
+   188→        attempt++;
+   189→        stepError = error instanceof Error ? error.message : String(error);
+   190→
+   191→        if (attempt <= maxRetries) {
+   192→          // Wait before retry (exponential backoff)
+   193→          const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
+   194→          await new Promise((resolve) => setTimeout(resolve, delayMs));
+   195→        }
+   196→      }
+   197→    }
+   198→
+   199→    const durationMs = Date.now() - stepStartTime;
+   200→
+   201→    // Create log entry
+   202→    await db.workflowLog.create({
+   203→      data: {
+   204→        executionId,
+   205→        stepName: step.title,
+   206→        stepType: step.type,
+   207→        status: stepSuccess ? 'success' : 'failed',
+   208→        input: JSON.stringify(step.config),
+   209→        output: stepSuccess ? JSON.stringify(stepOutput) : null,
+   210→        error: stepError,
+   211→        durationMs,
+   212→        retryAttempt: attempt > 0 ? attempt - 1 : 0,
+   213→        userId: execution.userId,
+   214→      },
+   215→    });
+   216→
+   217→    // Update current step
+   218→    await db.workflowExecution.update({
+   219→      where: { id: executionId },
+   220→      data: { currentStep: stepIndex + 1 },
+   221→    });
+   222→
+   223→    stepIndex++;
+   224→
+   225→    if (!stepSuccess) {
+   226→      // Step failed after all retries
+   227→      lastError = stepError;
+   228→
+   229→      // Check if this is a conditional branch — if so, follow failure path
+   230→      if (step.type === 'condition' || step.type === 'conditional_branch') {
+   231→        // Try to follow the failure/false branch
+   232→        const failEdges = (edgeMap.get(step.id) || []).filter(
+   233→          (e) => e.sourceHandle === 'false' || e.sourceHandle === 'failure'
+   234→        );
+   235→        if (failEdges.length > 0) {
+   236→          // Continue on the failure branch instead of failing
+   237→          continue;
+   238→        }
+   239→      }
+   240→
+   241→      // Mark execution as failed / dead letter
+   242→      const isDeadLetter = attempt > maxRetries;
+   243→      await db.workflowExecution.update({
+   244→        where: { id: executionId },
+   245→        data: {
+   246→          status: 'failed',
+   247→          error: lastError,
+   248→          completedAt: new Date(),
+   249→          durationMs: Date.now() - startTime,
+   250→          isDeadLetter,
+   251→          deadLetterReason: isDeadLetter ? `Step "${step.title}" failed after ${maxRetries} retries: ${lastError}` : null,
+   252→        },
+   253→      });
+   254→
+   255→      // Update workflow stats
+   256→      await updateWorkflowStats(workflow.id, false, Date.now() - startTime);
+   257→
+   258→      // User-facing notification — only for real users (skip the synthetic
+   259→      // 'system' owner), safe message (raw error stays in the execution row).
+   260→      const failedOwner = execution.userId || 'system';
+   261→      if (failedOwner !== 'system') {
+   262→        await createNotificationOnce({
+   263→          userId: failedOwner,
+   264→          type: 'workflow_failed',
+   265→          title: 'Workflow execution failed',
+   266→          message: `A workflow run stopped at step "${step.title || 'unknown'}" after ${maxRetries} retr${maxRetries === 1 ? 'y' : 'ies'}. You can retry it from the Workflows page.`,
+   267→          actionUrl: '/business-ai/workflows',
+   268→          metadata: { workflowId: workflow.id, executionId, failedStep: step.title, isDeadLetter },
+   269→          dedupeKey: `wfexec:${executionId}:failed`,
+   270→        }).catch(() => {
+   271→          // Never fail the execution path because of a notification problem
+   272→        });
+   273→      }
+   274→
+   275→      await publishWorkflowEvent(execution.userId || 'system', 'step_failed', {
+   276→        workflowId: workflow.id,
+   277→        executionId,
+   278→        stepName: step.title,
+   279→        error: lastError,
+   280→      });
+   281→
+   282→      await auditLog(execution.userId || 'system', 'workflow_failed', workflow.id, {
+   283→        executionId,
+   284→        stepName: step.title,
+   285→        error: lastError,
+   286→        isDeadLetter,
+   287→      });
+   288→
+   289→      return;
+   290→    }
+   291→
+   292→    // For conditional branches, determine the next node via edges
+   293→    if (step.type === 'condition' || step.type === 'conditional_branch') {
+   294→      const branchResult = stepOutput.branch || 'true';
+   295→      const handleKey = branchResult === 'true' ? 'true' : 'false';
+   296→      const branchEdges = (edgeMap.get(step.id) || []).filter(
+   297→        (e) => e.sourceHandle === handleKey
+   298→      );
+   299→
+   300→      if (branchEdges.length > 0) {
+   301→        const nextNodeId = branchEdges[0].target;
+   302→        const nextIdx = actionNodes.findIndex((n) => n.id === nextNodeId);
+   303→        if (nextIdx >= 0) {
+   304→          // Skip to that step
+   305→          stepIndex = nextIdx;
+   306→        }
+   307→      }
+   308→    }
+   309→
+   310→    // For delay steps, we just record and continue (in real prod this would schedule)
+   311→  }
+   312→
+   313→  // All steps completed successfully
+   314→  const totalDuration = Date.now() - startTime;
+   315→
+   316→  await db.workflowExecution.update({
+   317→    where: { id: executionId },
+   318→    data: {
+   319→      status: 'completed',
+   320→      completedAt: new Date(),
+   321→      durationMs: totalDuration,
+   322→    },
+   323→  });
+   324→
+   325→  // Update workflow stats
+   326→  await updateWorkflowStats(workflow.id, true, totalDuration);
+   327→
+   328→  // Update lastRunAt
+   329→  await db.workflowDefinition.update({
+   330→    where: { id: workflow.id },
+   331→    data: { lastRunAt: new Date() },
+   332→  });
+   333→
+   334→  await publishWorkflowEvent(execution.userId || 'system', 'execution_completed', {
+   335→    workflowId: workflow.id,
+   336→    executionId,
+   337→    durationMs: totalDuration,
+   338→  });
+   339→
+   340→  // User-facing notification — only for real users (skip 'system' owner);
+   341→  // deduped per execution so replay/retry cannot double-notify.
+   342→  const completedOwner = execution.userId || 'system';
+   343→  if (completedOwner !== 'system') {
+   344→    await createNotificationOnce({
+   345→      userId: completedOwner,
+   346→      type: 'workflow_completed',
+   347→      title: 'Workflow completed',
+   348→      message: `A workflow run finished successfully in ${totalDuration < 1000 ? `${totalDuration}ms` : `${Math.round(totalDuration / 1000)}s`}.`,
+   349→      actionUrl: '/business-ai/workflows',
+   350→      metadata: { workflowId: workflow.id, executionId, durationMs: totalDuration },
+   351→      dedupeKey: `wfexec:${executionId}:completed`,
+   352→    }).catch(() => {
+   353→      // Never fail the execution path because of a notification problem
+   354→    });
+   355→  }
+   356→
+   357→  await auditLog(execution.userId || 'system', 'workflow_completed', workflow.id, {
+   358→    executionId,
+   359→    durationMs: totalDuration,
+   360→  });
+   361→}
+   362→
+   363→/** Execute a single step action based on its type and config */
+   364→async function executeStepAction(
+   365→  step: WorkflowNode,
+   366→  context: Record<string, unknown>,
+   367→  userId?: string
+   368→): Promise<Record<string, unknown>> {
+   369→  const config = step.config;
+   370→  const triggerData = (context.triggerData || {}) as Record<string, unknown>;
+   371→  const leadId = (config.leadId as string) || (triggerData.leadId as string) || null;
+   372→
+   373→  // Resolve the effective action type from config if step.type is a category
+   374→  const effectiveType = (step.config?.actionType as string) || step.type;
+   375→
+   376→  switch (effectiveType) {
+   377→    case 'send_email': {
+   378→      if (!leadId) throw new Error('No lead ID for send_email step');
+   379→      const lead = await requireOwnedLead(userId, leadId);
+   380→
+   381→      const message = await db.outreachMessage.create({
+   382→        data: {
+   383→          leadId,
+   384→          userId: userId || null,
+   385→          channel: 'email',
+   386→          direction: 'outbound',
+   387→          subject: (config.subject as string) || 'Outreach',
+   388→          content: (config.content as string) || `Email to ${lead.businessName}`,
+   389→          status: 'queued',
+   390→          generatedByAI: false,
+   391→          metadata: JSON.stringify({ workflowStepId: step.id }),
+   392→        },
+   393→      });
+   394→
+   395→      return { messageId: message.id, channel: 'email', leadId };
+   396→    }
+   397→
+   398→    case 'send_whatsapp': {
+   399→      if (!leadId) throw new Error('No lead ID for send_whatsapp step');
+   400→      const message = await db.messageDelivery.create({
+   401→        data: {
+   402→          userId: userId || 'system',
+   403→          leadId,
+   404→          channel: 'whatsapp',
+   405→          direction: 'outbound',
+   406→          status: 'pending',
+   407→          content: (config.content as string) || 'WhatsApp message',
+   408→          recipientId: (config.recipient as string) || null,
+   409→        },
+   410→      });
+   411→
+   412→      return { deliveryId: message.id, channel: 'whatsapp', leadId };
+   413→    }
+   414→
+   415→    case 'send_telegram': {
+   416→      const message = await db.messageDelivery.create({
+   417→        data: {
+   418→          userId: userId || 'system',
+   419→          leadId,
+   420→          channel: 'telegram',
+   421→          direction: 'outbound',
+   422→          status: 'pending',
+   423→          content: (config.content as string) || 'Telegram message',
+   424→          recipientId: (config.recipient as string) || null,
+   425→        },
+   426→      });
+   427→
+   428→      // Update with tracking info
+   429→      await db.messageDelivery.update({
+   430→        where: { id: message.id },
+   431→        data: {
+   432→          providerMessageId: `tg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+   433→          metadata: JSON.stringify({
+   434→            workflowStepId: step.id,
+   435→            trackingEnabled: true,
+   436→            sentVia: 'workflow',
+   437→          }),
+   438→        },
+   439→      });
+   440→
+   441→      return { deliveryId: message.id, channel: 'telegram', trackingEnabled: true };
+   442→    }
+   443→
+   444→    case 'send_gmail_reply': {
+   445→      if (!leadId) throw new Error('No lead ID for send_gmail_reply step');
+   446→      const lead = await requireOwnedLead(userId, leadId);
+   447→
+   448→      // Find the most recent email thread for this lead
+   449→      const lastEmail = await db.outreachMessage.findFirst({
+   450→        where: { leadId, channel: 'email', direction: 'outbound' },
+   451→        orderBy: { createdAt: 'desc' },
+   452→      });
+   453→
+   454→      const message = await db.outreachMessage.create({
+   455→        data: {
+   456→          leadId,
+   457→          userId: userId || null,
+   458→          channel: 'email',
+   459→          direction: 'outbound',
+   460→          subject: lastEmail ? `Re: ${lastEmail.subject}` : ((config.subject as string) || 'Reply'),
+   461→          content: (config.content as string) || `Reply to ${lead.businessName}`,
+   462→          status: 'queued',
+   463→          generatedByAI: false,
+   464→          metadata: JSON.stringify({
+   465→            workflowStepId: step.id,
+   466→            type: 'gmail_reply',
+   467→            replyToId: lastEmail?.id || null,
+   468→          }),
+   469→        },
+   470→      });
+   471→
+   472→      return { messageId: message.id, channel: 'gmail', leadId, status: 'reply', replyToId: lastEmail?.id };
+   473→    }
+   474→
+   475→    case 'move_to_stage': {
+   476→      if (!leadId) throw new Error('No lead ID for move_to_stage step');
+   477→      const targetStage = (config.targetStage as string) || (config.stage as string);
+   478→      if (!targetStage) throw new Error('No target stage specified');
+   479→
+   480→      const lead = await requireOwnedLead(userId, leadId);
+   481→
+   482→      await db.lead.update({
+   483→        where: { id: leadId },
+   484→        data: { stage: targetStage },
+   485→      });
+   486→
+   487→      await db.leadActivity.create({
+   488→        data: {
+   489→          leadId,
+   490→          type: 'stage_change',
+   491→          description: `Moved to ${targetStage} via workflow`,
+   492→          metadata: JSON.stringify({ fromStage: lead.stage, toStage: targetStage }),
+   493→        },
+   494→      });
+   495→
+   496→      return { leadId, previousStage: lead.stage, newStage: targetStage };
+   497→    }
+   498→
+   499→    case 'add_note': {
+   500→      if (!leadId) throw new Error('No lead ID for add_note step');
+   501→      const content = (config.content as string) || 'Note added by workflow';
+   502→
+   503→      // ACCOUNT ISOLATION: notes are written onto the lead — it must be
+   504→      // owned by the workflow owner (previously unscoped).
+   505→      await requireOwnedLead(userId, leadId);
+   506→
+   507→      const note = await db.leadNote.create({
+   508→        data: {
+   509→          leadId,
+   510→          userId: userId || 'system',
+   511→          content,
+   512→        },
+   513→      });
+   514→
+   515→      return { noteId: note.id, leadId };
+   516→    }
+   517→
+   518→    case 'add_tag': {
+   519→      if (!leadId) throw new Error('No lead ID for add_tag step');
+   520→      const tagsToAdd = (config.tags as string[]) || [];
+   521→      if (tagsToAdd.length === 0) throw new Error('No tags specified');
+   522→
+   523→      const lead = await requireOwnedLead(userId, leadId);
+   524→
+   525→      const existingTags: string[] = JSON.parse(lead.tags || '[]');
+   526→      const merged = Array.from(new Set([...existingTags, ...tagsToAdd]));
+   527→
+   528→      await db.lead.update({
+   529→        where: { id: leadId },
+   530→        data: { tags: JSON.stringify(merged) },
+   531→      });
+   532→
+   533→      return { leadId, tags: merged, added: tagsToAdd };
+   534→    }
+   535→
+   536→    case 'generate_ai_message': {
+   537→      const prompt = (config.prompt as string) || 'Generate a professional outreach message';
+   538→      const contextStr = (config.context as string) || '';
+   539→
+   540→      try {
+   541→        const ZAI = (await import('z-ai-web-dev-sdk')).default;
+   542→        const zai = await ZAI.create();
+   543→        const response = await zai.chat.completions.create({
+   544→          messages: [
+   545→            {
+   546→              role: 'system',
+   547→              content: 'You are a professional outreach assistant. Generate concise, personalized messages.',
+   548→            },
+   549→            { role: 'user', content: `${prompt}\n\nContext: ${contextStr}` },
+   550→          ],
+   551→          thinking: { type: 'disabled' },
+   552→        });
+   553→
+   554→        const generatedMessage = response.choices?.[0]?.message?.content || 'Generated message';
+   555→
+   556→        return { generatedMessage, prompt };
+   557→      } catch (error) {
+   558→        // If AI SDK fails, return a fallback
+   559→        console.error('[WorkflowService] AI message generation failed:', error);
+   560→        return { generatedMessage: 'AI message generation failed — manual review needed', prompt, error: String(error) };
+   561→      }
+   562→    }
+   563→
+   564→    case 'conditional_branch':
+   565→    case 'condition': {
+   566→      const field = (config.field as string) || 'score';
+   567→      const operator = (config.operator as string) || '>';
+   568→      const value = (config.value as string) || '0';
+   569→
+   570→      // Get the actual value from trigger data or lead
+   571→      let actualValue: unknown = triggerData[field];
+   572→      if (leadId && actualValue === undefined) {
+   573→        // ACCOUNT ISOLATION: read the field from the caller's OWN lead
+   574→        // only (requireOwnedLead keeps condition evaluation owner-scoped).
+   575→        const lead = await requireOwnedLead(userId, leadId);
+   576→        if (lead) {
+   577→          actualValue = (lead as Record<string, unknown>)[field];
+   578→        }
+   579→      }
+   580→
+   581→      let conditionMet = false;
+   582→      const numValue = Number(value);
+   583→      const numActual = Number(actualValue);
+   584→
+   585→      if (!isNaN(numValue) && !isNaN(numActual)) {
+   586→        switch (operator) {
+   587→          case '>': conditionMet = numActual > numValue; break;
+   588→          case '>=': conditionMet = numActual >= numValue; break;
+   589→          case '<': conditionMet = numActual < numValue; break;
+   590→          case '<=': conditionMet = numActual <= numValue; break;
+   591→          case '==': case '===': conditionMet = numActual === numValue; break;
+   592→          case '!=': case '!==': conditionMet = numActual !== numValue; break;
+   593→        }
+   594→      } else {
+   595→        const strActual = String(actualValue || '');
+   596→        switch (operator) {
+   597→          case '==': case '===': conditionMet = strActual === value; break;
+   598→          case '!=': case '!==': conditionMet = strActual !== value; break;
+   599→          case 'contains': conditionMet = strActual.includes(value); break;
+   600→          case 'not_in': conditionMet = !value.split(',').includes(strActual); break;
+   601→          case 'in': conditionMet = value.split(',').includes(strActual); break;
+   602→        }
+   603→      }
+   604→
+   605→      return { branch: conditionMet ? 'true' : 'false', field, operator, value, actualValue };
+   606→    }
+   607→
+   608→    case 'wait_delay':
+   609→    case 'delay': {
+   610→      const duration = Number(config.duration) || 1;
+   611→      const unit = (config.unit as string) || 'minutes';
+   612→
+   613→      // In production, this would schedule continuation. For now, we record the delay.
+   614→      // We don't actually block the process — the delay is logged.
+   615→      let delayMs = duration * 60 * 1000; // default minutes
+   616→      if (unit === 'seconds') delayMs = duration * 1000;
+   617→      if (unit === 'hours') delayMs = duration * 60 * 60 * 1000;
+   618→      if (unit === 'days') delayMs = duration * 24 * 60 * 60 * 1000;
+   619→
+   620→      return { duration, unit, delayMs, note: 'Delay recorded in workflow log' };
+   621→    }
+   622→
+   623→    case 'webhook_call': {
+   624→      const url = (config.url as string) || '';
+   625→      const method = (config.method as string) || 'POST';
+   626→      const body = config.body || triggerData;
+   627→
+   628→      if (!url) throw new Error('No URL specified for webhook call');
+   629→
+   630→      try {
+   631→        const response = await fetch(url, {
+   632→          method,
+   633→          headers: { 'Content-Type': 'application/json' },
+   634→          body: JSON.stringify(body),
+   635→        });
+   636→
+   637→        const responseText = await response.text();
+   638→        return { statusCode: response.status, response: responseText.slice(0, 1000) };
+   639→      } catch (error) {
+   640→        throw new Error(`Webhook call failed: ${error instanceof Error ? error.message : String(error)}`);
+   641→      }
+   642→    }
+   643→
+   644→    case 'send_gmail_draft': {
+   645→      if (!leadId) throw new Error('No lead ID for send_gmail_draft step');
+   646→      // ACCOUNT ISOLATION: the draft references the lead and stores its
+   647→      // business name — it must be owned by the workflow owner.
+   648→      const lead = await requireOwnedLead(userId, leadId);
+   649→
+   650→      const message = await db.outreachMessage.create({
+   651→        data: {
+   652→          leadId,
+   653→          userId: userId || null,
+   654→          channel: 'email',
+   655→          direction: 'outbound',
+   656→          subject: (config.subject as string) || 'Draft',
+   657→          content: (config.content as string) || `Draft email to ${lead.businessName}`,
+   658→          status: 'draft',
+   659→          generatedByAI: false,
+   660→          metadata: JSON.stringify({ workflowStepId: step.id, type: 'gmail_draft' }),
+   661→        },
+   662→      });
+   663→
+   664→      return { messageId: message.id, channel: 'gmail', leadId, status: 'draft' };
+   665→    }
+   666→
+   667→    case 'ai_analyze': {
+   668→      if (!leadId) throw new Error('No lead ID for ai_analyze step');
+   669→
+   670→      // ACCOUNT ISOLATION: analysis is written onto the lead — owner only.
+   671→      const lead = await requireOwnedLead(userId, leadId);
+   672→
+   673→      try {
+   674→        const ZAI = (await import('z-ai-web-dev-sdk')).default;
+   675→        const zai = await ZAI.create();
+   676→        const response = await zai.chat.completions.create({
+   677→          messages: [
+   678→            {
+   679→              role: 'system',
+   680→              content: 'You are a lead analysis AI. Analyze the lead and provide scores (0-100) for: replyScore, conversionScore, urgencyScore, revenuePotentialScore. Return JSON only.',
+   681→            },
+   682→            {
+   683→              role: 'user',
+   684→              content: `Analyze this lead: ${JSON.stringify({
+   685→                businessName: lead.businessName,
+   686→                niche: lead.niche,
+   687→                website: lead.website,
+   688→                city: lead.city,
+   689→                country: lead.country,
+   690→                stage: lead.stage,
+   691→              })}`,
+   692→            },
+   693→          ],
+   694→          thinking: { type: 'disabled' },
+   695→        });
+   696→
+   697→        const content = response.choices?.[0]?.message?.content || '{}';
+   698→        let scores: Record<string, number> = {};
+   699→        try {
+   700→          const parsed = JSON.parse(content);
+   701→          scores = parsed;
+   702→        } catch {
+   703→          // If AI didn't return valid JSON, use defaults
+   704→          scores = { replyScore: 50, conversionScore: 50, urgencyScore: 50, revenuePotentialScore: 50 };
+   705→        }
+   706→
+   707→        // Update lead scores
+   708→        await db.lead.update({
+   709→          where: { id: leadId },
+   710→          data: {
+   711→            replyScore: scores.replyScore || lead.replyScore,
+   712→            conversionScore: scores.conversionScore || lead.conversionScore,
+   713→            urgencyScore: scores.urgencyScore || lead.urgencyScore,
+   714→            revenuePotentialScore: scores.revenuePotentialScore || lead.revenuePotentialScore,
+   715→          },
+   716→        });
+   717→
+   718→        return { leadId, scores, analysis: content };
+   719→      } catch (error) {
+   720→        console.error('[WorkflowService] AI analyze failed:', error);
+   721→        return { leadId, error: String(error) };
+   722→      }
+   723→    }
+   724→
+   725→    case 'update_lead_field': {
+   726→      if (!leadId) throw new Error('No lead ID for update_lead_field step');
+   727→      const field = (config.field as string) || '';
+   728→      const value = config.value;
+   729→
+   730→      if (!field) throw new Error('No field specified');
+   731→
+   732→      const allowedFields = [
+   733→        'stage', 'emailStatus', 'estimatedQuality', 'estimatedRevenue',
+   734→        'websiteQuality', 'bestContactPerson', 'bestChannel', 'bestTiming',
+   735→        'outreachStyle', 'niche', 'city', 'country', 'notes',
+   736→      ];
+   737→
+   738→      if (!allowedFields.includes(field)) {
+   739→        throw new Error(`Field "${field}" is not allowed to be updated via workflow`);
+   740→      }
+   741→
+   742→      await db.lead.update({
+   743→        where: { id: leadId },
+   744→        data: { [field]: value },
+   745→      });
+   746→
+   747→      return { leadId, field, value };
+   748→    }
+   749→
+   750→    case 'credit_check': {
+   751→      if (!userId) throw new Error('No user ID for credit_check step');
+   752→      const threshold = Number(config.threshold) || 10;
+   753→
+   754→      const user = await db.user.findUnique({ where: { id: userId } });
+   755→      if (!user) throw new Error(`User ${userId} not found`);
+   756→
+   757→      const sufficient = user.credits >= threshold;
+   758→
+   759→      return { credits: user.credits, threshold, sufficient };
+   760→    }
+   761→
+   762→    default:
+   763→      return { note: `Unknown step type: ${effectiveType}`, config };
+   764→  }
+   765→}
+   766→
+   767→/** Update workflow stats after execution */
+   768→async function updateWorkflowStats(
+   769→  workflowId: string,
+   770→  success: boolean,
+   771→  durationMs: number
+   772→): Promise<void> {
+   773→  const workflow = await db.workflowDefinition.findUnique({
+   774→    where: { id: workflowId },
+   775→  });
+   776→  if (!workflow) return;
+   777→
+   778→  const runCount = workflow.runCount + 1;
+   779→  const successCount = workflow.successCount + (success ? 1 : 0);
+   780→  const failureCount = workflow.failureCount + (success ? 0 : 1);
+   781→  const avgRuntimeMs = Math.round(
+   782→    ((workflow.avgRuntimeMs ?? 0) * workflow.runCount + durationMs) / runCount
+   783→  );
+   784→
+   785→  await db.workflowDefinition.update({
+   786→    where: { id: workflowId },
+   787→    data: {
+   788→      runCount,
+   789→      successCount,
+   790→      failureCount,
+   791→      avgRuntimeMs,
+   792→    },
+   793→  });
+   794→}
+   795→
+   796→// ── Execution Control ──────────────────────────────────────────────
+   797→
+   798→/** Ownership check shared by all execution-control operations.
+   799→ *  ACCOUNT ISOLATION: an execution must belong to the caller via its
+   800→ *  workflow's userId (WorkflowExecution.userId is untrustworthy for
+   801→ *  legacy rows; workflow.userId is the authoritative owner). */
+   802→async function assertExecutionOwnership(executionId: string, userId: string) {
+   803→  const execution = await db.workflowExecution.findUnique({
+   804→    where: { id: executionId },
+   805→    select: {
+   806→      id: true,
+   807→      status: true,
+   808→      workflowId: true,
+   809→      retryCount: true,
+   810→      workflow: { select: { userId: true } },
+   811→    },
+   812→  });
+   813→  if (!execution) throw new Error('Execution not found');
+   814→  if (execution.workflow.userId !== userId) {
+   815→    // Same generic error as "not found" — never reveal existence.
+   816→    throw new Error('Execution not found');
+   817→  }
+   818→  return execution;
+   819→}
+   820→
+   821→/** Pause a running execution */
+   822→export async function pauseExecution(executionId: string, userId: string) {
+   823→  const execution = await assertExecutionOwnership(executionId, userId);
+   824→  if (execution.status !== 'running') throw new Error('Execution is not running');
+   825→
+   826→  await db.workflowExecution.update({
+   827→    where: { id: executionId },
+   828→    data: { status: 'paused', pausedAt: new Date() },
+   829→  });
+   830→
+   831→  await auditLog(userId, 'workflow_paused', execution.workflowId, { executionId });
+   832→
+   833→  return { id: executionId, status: 'paused' };
+   834→}
+   835→
+   836→/** Resume a paused execution */
+   837→export async function resumeExecution(executionId: string, userId: string) {
+   838→  const execution = await assertExecutionOwnership(executionId, userId);
+   839→  if (execution.status !== 'paused') throw new Error('Execution is not paused');
+   840→
+   841→  await db.workflowExecution.update({
+   842→    where: { id: executionId },
+   843→    data: { status: 'running', resumedAt: new Date() },
+   844→  });
+   845→
+   846→  await auditLog(userId, 'workflow_resumed', execution.workflowId, { executionId });
+   847→
+   848→  // Continue processing
+   849→  processExecution(executionId).catch((err) => {
+   850→    console.error('[WorkflowService] Resume processExecution error:', err);
+   851→  });
+   852→
+   853→  return { id: executionId, status: 'running' };
+   854→}
+   855→
+   856→/** Cancel an execution */
+   857→export async function cancelExecution(executionId: string, userId: string) {
+   858→  const execution = await assertExecutionOwnership(executionId, userId);
+   859→  if (!['queued', 'running', 'paused'].includes(execution.status)) {
+   860→    throw new Error('Execution cannot be cancelled in current state');
+   861→  }
+   862→
+   863→  await db.workflowExecution.update({
+   864→    where: { id: executionId },
+   865→    data: { status: 'cancelled', completedAt: new Date() },
+   866→  });
+   867→
+   868→  await auditLog(userId, 'workflow_cancelled', execution.workflowId, { executionId });
+   869→
+   870→  return { id: executionId, status: 'cancelled' };
+   871→}
+   872→
+   873→// ── Webhook Trigger ──────────────────────────────────────────────
+   874→
+   875→/** Handle webhook trigger */
+   876→export async function handleWebhookTrigger(
+   877→  webhookPath: string,
+   878→  body: Record<string, unknown>,
+   879→  options?: { rawBody?: string; signature?: string }
+   880→) {
+   881→  const workflow = await db.workflowDefinition.findFirst({
+   882→    where: { webhookPath, status: 'active' },
+   883→  });
+   884→
+   885→  if (!workflow) {
+   886→    throw new Error('No active workflow found for this webhook path');
+   887→  }
+   888→
+   889→  // ACCOUNT ISOLATION (SECURITY HARDENING): a webhook secret is now
+   890→  // MANDATORY for path-based webhook triggers. Every call must present a
+   891→  // valid HMAC-SHA256 signature over the raw request body. Without this,
+   892→  // anyone who guesses the path could execute another user's workflow and
+   893→  // consume their credits.
+   894→  let config: Record<string, unknown> = {};
+   895→  if (workflow.triggerConfig) {
+   896→    try {
+   897→      config = JSON.parse(workflow.triggerConfig) as Record<string, unknown>;
+   898→    } catch {
+   899→      config = {};
+   900→    }
+   901→  }
+   902→
+   903→  if (!config.webhookSecret) {
+   904→    throw new Error('Webhook secret not configured');
+   905→  }
+   906→
+   907→  {
+   908→    const { createHmac } = await import('crypto');
+   909→    const expected = createHmac('sha256', String(config.webhookSecret))
+   910→      .update(options?.rawBody ?? '')
+   911→      .digest('hex');
+   912→    const provided = options?.signature || '';
+   913→    if (provided !== `sha256=${expected}` && provided !== expected) {
+   914→      throw new Error('Invalid webhook signature');
+   915→    }
+   916→  }
+   917→
+   918→  return executeWorkflow(workflow.id, workflow.userId, body);
+   919→}
+   920→
+   921→// ── Retry Execution ──────────────────────────────────────────────
+   922→
+   923→/** Retry a failed execution */
+   924→export async function retryExecution(executionId: string, userId: string) {
+   925→  const execution = await assertExecutionOwnership(executionId, userId);
+   926→  if (!['failed', 'dead_letter'].includes(execution.status)) {
+   927→    throw new Error('Execution is not in a retryable state');
+   928→  }
+   929→
+   930→  await db.workflowExecution.update({
+   931→    where: { id: executionId },
+   932→    data: {
+   933→      status: 'queued',
+   934→      currentStep: 0,
+   935→      error: null,
+   936→      retryCount: execution.retryCount + 1,
+   937→      lastRetryAt: new Date(),
+   938→    },
+   939→  });
+   940→
+   941→  // Clear old step logs
+   942→  await db.workflowLog.deleteMany({ where: { executionId } });
+   943→
+   944→  await auditLog(userId, 'workflow_retried', execution.workflowId, { executionId });
+   945→
+   946→  // Process again
+   947→  processExecution(executionId).catch((err) => {
+   948→    console.error('[WorkflowService] Retry processExecution error:', err);
+   949→  });
+   950→
+   951→  return { id: executionId, status: 'queued' };
+   952→}
+   953→

@@ -18,7 +18,6 @@ import { db } from '@/lib/db';
 import { sendNotification } from '@/lib/notification-engine';
 import { logAuditEvent } from '@/lib/lead-audit';
 import { deductCredits } from '@/lib/credit-service';
-import { AUTOMATION_PLAN_TIERS } from '@/lib/plan-feature-limits';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES & INTERFACES
@@ -574,6 +573,59 @@ async function executeAIStep(params: {
 
     const personalizedContent = result.content.trim();
 
+    // ── Human-approval gate (default-on for AI-generated outbound) ──
+    // Product rule: the default external outbound behavior requires HUMAN
+    // APPROVAL before sending. AI-generated sequence messages are only
+    // delivered automatically when the owner has EXPLICITLY configured
+    // autonomy mode 'autonomous'. Otherwise the message is parked as a
+    // DRAFT (the existing review queue in Outreach) and the owner is
+    // notified — the AI can never approve its own outbound action.
+    let autonomyMode: string | null = null;
+    try {
+      const settings = await db.userSettings.findUnique({
+        where: { userId: params.userId },
+        select: { outreachAutonomyMode: true },
+      });
+      autonomyMode = settings?.outreachAutonomyMode ?? null;
+    } catch {
+      autonomyMode = null; // fail safe: treat as manual (draft, no send)
+    }
+
+    if (autonomyMode !== 'autonomous') {
+      const sendChannel = params.channel === CHANNEL_AI ? CHANNEL_EMAIL : params.channel;
+      await db.outreachMessage.create({
+        data: {
+          leadId: params.leadId,
+          userId: params.userId,
+          channel: sendChannel,
+          direction: 'outbound',
+          subject:
+            sendChannel === CHANNEL_EMAIL
+              ? substituteTemplateVariables(params.subject || 'Outreach', params.variables)
+              : null,
+          content: personalizedContent,
+          status: 'draft',
+          generatedByAI: true,
+        },
+      });
+      await db.notification
+        .create({
+          data: {
+            userId: params.userId,
+            type: 'sequence',
+            title: 'Approval required: AI outreach draft ready',
+            message:
+              'An automated sequence generated a personalized message. Review and send it from the Outreach tab (autonomy mode is not set to autonomous).',
+            actionUrl: '/business-ai/outreach',
+            deliveredVia: 'in_app',
+          },
+        })
+        .catch(() => {
+          // Notification is best-effort; the draft is the source of truth.
+        });
+      return { success: true };
+    }
+
     // Now send via the appropriate channel
     const sendChannel = params.channel === CHANNEL_AI ? CHANNEL_EMAIL : params.channel;
 
@@ -1029,22 +1081,15 @@ export async function processSequenceSteps(
   let completed = 0;
 
   try {
-    // Find all due enrollments.
-    // Plan Eligibility Correction: sequence automation runs EXCLUSIVELY for
-    // Pro/Elite sequence owners — Free/Starter enrollments are skipped at the
-    // DB level (they stay active and untouched; processing resumes on upgrade).
+    // Find all due enrollments
     const enrollmentWhere: Record<string, unknown> = {
       status: 'active',
       nextSendAt: { lte: new Date() },
-      sequence: { user: { plan: { in: AUTOMATION_PLAN_TIERS } } },
     };
 
     // If userId is specified, only process that user's enrollments
     if (userId) {
-      enrollmentWhere.sequence = {
-        ...(enrollmentWhere.sequence as Record<string, unknown>),
-        userId,
-      };
+      enrollmentWhere.sequence = { userId };
     }
 
     const dueEnrollments = await db.sequenceEnrollment.findMany({

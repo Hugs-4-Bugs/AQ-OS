@@ -43,6 +43,25 @@ export const POST = withApiLogging(async (request: NextRequest) => {
       // Get valid Gmail access token (refreshes if expired)
       const { accessToken, emailAccount } = await getValidGmailAccessToken(user.id);
 
+      // ── Ownership check: a leadId may only be attached when the lead
+      // belongs to the authenticated user (prevents cross-user thread
+      // association and lead leakage via the thread-recording path). ──
+      if (leadId) {
+        const lead = await db.lead.findFirst({
+          where: {
+            id: leadId,
+            OR: [{ userId: user.id }, ...(user.orgId ? [{ orgId: user.orgId }] : [])],
+          },
+          select: { id: true },
+        });
+        if (!lead) {
+          return NextResponse.json(
+            { error: 'Lead not found for this account — cannot associate the sent email with it' },
+            { status: 403 }
+          );
+        }
+      }
+
       // Build RFC 2822 raw email message
       const fromEmail = emailAccount.gmailEmail;
       const rawMessage = [

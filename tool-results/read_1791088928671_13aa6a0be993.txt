@@ -1,0 +1,1630 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useEffect, useCallback, useRef } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import {
+     7→  Search,
+     8→  Sparkles,
+     9→  Plus,
+    10→  Loader2,
+    11→  MapPin,
+    12→  Tag,
+    13→  Building2,
+    14→  Zap,
+    15→  FileUp,
+    16→  Clock,
+    17→  Eye,
+    18→  Trash2,
+    19→  TrendingUp,
+    20→  Globe,
+    21→  CheckCircle2,
+    22→  XCircle,
+    23→  AlertCircle,
+    24→  RefreshCw,
+    25→  ChevronDown,
+    26→  ExternalLink,
+    27→  Layers,
+    28→  PencilLine,
+    29→  SlidersHorizontal,
+    30→  Users,
+    31→  ShieldCheck,
+    32→  Mail,
+    33→  Phone,
+    34→} from 'lucide-react';
+    35→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    36→import { Input } from '@/components/ui/input';
+    37→import { Button } from '@/components/ui/button';
+    38→import { Badge } from '@/components/ui/badge';
+    39→import { Skeleton } from '@/components/ui/skeleton';
+    40→import { Separator } from '@/components/ui/separator';
+    41→import { Progress } from '@/components/ui/progress';
+    42→import { ScrollArea } from '@/components/ui/scroll-area';
+    43→import {
+    44→  AlertDialog,
+    45→  AlertDialogAction,
+    46→  AlertDialogCancel,
+    47→  AlertDialogContent,
+    48→  AlertDialogDescription,
+    49→  AlertDialogFooter,
+    50→  AlertDialogHeader,
+    51→  AlertDialogTitle,
+    52→} from '@/components/ui/alert-dialog';
+    53→import {
+    54→  Select,
+    55→  SelectContent,
+    56→  SelectItem,
+    57→  SelectTrigger,
+    58→  SelectValue,
+    59→} from '@/components/ui/select';
+    60→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+    61→import {
+    62→  Command,
+    63→  CommandEmpty,
+    64→  CommandGroup,
+    65→  CommandInput,
+    66→  CommandItem,
+    67→  CommandList,
+    68→} from '@/components/ui/command';
+    69→import { COUNTRIES } from '@/lib/countries';
+    70→import { fetchLeads, updateLead } from '@/lib/api';
+    71→import { useAppStore } from '@/lib/store';
+    72→import { cn } from '@/lib/utils';
+    73→import type { Lead, LeadStage } from '@/lib/types';
+    74→import LeadImportDialog from './lead-import-dialog';
+    75→import { toast } from 'sonner';
+    76→
+    77→// ─── Discovery Source Config ─────────────────────────────
+    78→const DISCOVERY_SOURCES = [
+    79→  { value: 'all', label: 'All Sources', icon: Layers, color: 'text-primary' },
+    80→  { value: 'ai_search', label: 'AI Search', icon: Sparkles, color: 'text-violet-500' },
+    81→  { value: 'google_maps', label: 'Google Maps', icon: MapPin, color: 'text-red-500' },
+    82→  { value: 'google_business', label: 'Google Business', icon: Globe, color: 'text-blue-500' },
+    83→  { value: 'justdial', label: 'JustDial', icon: Search, color: 'text-yellow-500' },
+    84→  { value: 'indiamart', label: 'IndiaMart', icon: Building2, color: 'text-orange-500' },
+    85→  { value: 'yelp', label: 'Yelp', icon: Star, color: 'text-red-400' },
+    86→  { value: 'yellow_pages', label: 'Yellow Pages', icon: Search, color: 'text-yellow-600' },
+    87→  { value: 'sulekha', label: 'Sulekha', icon: Globe, color: 'text-teal-500' },
+    88→  { value: 'linkedin', label: 'LinkedIn', icon: Building2, color: 'text-blue-600' },
+    89→  { value: 'instagram', label: 'Instagram', icon: Globe, color: 'text-pink-500' },
+    90→  { value: 'facebook', label: 'Facebook', icon: Globe, color: 'text-blue-500' },
+    91→] as const;
+    92→
+    93→// Sources fanned out when "All Sources" is selected (must match server-side ALL_DISCOVERY_SOURCES)
+    94→const ALL_SOURCES_COUNT = 7;
+    95→
+    96→function Star(props: React.SVGProps<SVGSVGElement>) {
+    97→  return (
+    98→    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    99→      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+   100→    </svg>
+   101→  );
+   102→}
+   103→
+   104→// ─── Discovery Source Status (real-time from server env) ─────
+   105→interface DiscoverySourceStatus {
+   106→  id: string;
+   107→  label: string;
+   108→  type: 'ai' | 'api' | 'scrape';
+   109→  description: string;
+   110→  status: 'connected' | 'not_configured' | 'error';
+   111→  configMessage: string;
+   112→  requiredEnvVars: Array<{ name: string; label: string; required: boolean }>;
+   113→  optionalEnvVars: Array<{ name: string; label: string; required: boolean }>;
+   114→  signupUrl: string | null;
+   115→  notes: string | null;
+   116→  noSetupRequired: boolean;
+   117→}
+   118→
+   119→// ─── Discovery Job Types ─────────────────────────────────
+   120→interface DiscoveryJob {
+   121→  id: string;
+   122→  status: 'pending' | 'running' | 'completed' | 'failed';
+   123→  source: string;
+   124→  niche: string;
+   125→  country: string;
+   126→  city?: string;
+   127→  totalFound: number;
+   128→  leadsAdded: number;
+   129→  duplicatesSkipped: number;
+   130→  errors: number;
+   131→  /** Candidates rejected by the server-side hard-criteria validator. */
+   132→  filteredOut?: number;
+   133→  resultData?: Array<{
+   134→    businessName: string;
+   135→    ownerName?: string;
+   136→    niche?: string;
+   137→    city?: string;
+   138→    country?: string;
+   139→    email?: string;
+   140→    phone?: string;
+   141→    website?: string;
+   142→    rating?: number;
+   143→    employeeCount?: number | null;
+   144→    employeeRange?: string | null;
+   145→  }>;
+   146→  createdAt: string;
+   147→  completedAt?: string;
+   148→  message?: string;
+   149→  errorMessage?: string;
+   150→}
+   151→
+   152→/** The status API returns imported/duplicates/failed — normalize once so
+   153→ *  the UI never renders "undefined leads found" after completion. */
+   154→function normalizeJobFromApi(raw: Partial<DiscoveryJob> & Record<string, unknown>): DiscoveryJob {
+   155→  return {
+   156→    ...(raw as unknown as DiscoveryJob),
+   157→    leadsAdded: (raw.leadsAdded as number | undefined) ?? (raw.imported as number | undefined) ?? 0,
+   158→    duplicatesSkipped: (raw.duplicatesSkipped as number | undefined) ?? (raw.duplicates as number | undefined) ?? 0,
+   159→    errors: (raw.errors as number | undefined) ?? (raw.failed as number | undefined) ?? 0,
+   160→    filteredOut: (raw.filteredOut as number | undefined) ?? 0,
+   161→  };
+   162→}
+   163→
+   164→// ─── AI Chat Mode Types ─────────────────────────────────
+   165→interface ParsedIntent {
+   166→  niche: string;
+   167→  location: string;
+   168→  country: string;
+   169→  city: string;
+   170→  /**
+   171→   * Explicitly requested lead count, or null when the user did not state
+   172→   * one. Mirrors the parser contract: no invented default — the job then
+   173→   * runs until the provider/data limits are exhausted instead of stopping
+   174→   * at 20.
+   175→   */
+   176→  count: number | null;
+   177→  requirements: string;
+   178→  /** Structured HARD criteria — enforced server-side after discovery. */
+   179→  criteria?: {
+   180→    employeeMin: number | null;
+   181→    employeeMax: number | null;
+   182→    exactEmployeeCount: number | null;
+   183→    website: 'required' | 'absent' | 'any';
+   184→    excludeTypes: string[];
+   185→    growthSignals: boolean;
+   186→    hiringSignals: boolean;
+   187→  };
+   188→}
+   189→
+   190→interface DiscoveryVars {
+   191→  niche: string;
+   192→  country: string;
+   193→  city?: string;
+   194→  source: string;
+   195→  maxResults?: number;
+   196→  requirements?: string;
+   197→  criteria?: ParsedIntent['criteria'];
+   198→}
+   199→
+   200→/** Human label for the parsed hard criteria (badges + honest notices). */
+   201→function describeCriteria(criteria?: ParsedIntent['criteria']): string {
+   202→  if (!criteria) return '';
+   203→  const parts: string[] = [];
+   204→  if (criteria.exactEmployeeCount != null) parts.push(`exactly ${criteria.exactEmployeeCount} employees`);
+   205→  else if (criteria.employeeMin != null && criteria.employeeMax != null) parts.push(`${criteria.employeeMin}–${criteria.employeeMax} employees`);
+   206→  else if (criteria.employeeMin != null) parts.push(`≥ ${criteria.employeeMin} employees`);
+   207→  else if (criteria.employeeMax != null) parts.push(`≤ ${criteria.employeeMax} employees`);
+   208→  if (criteria.website === 'required') parts.push('website required');
+   209→  if (criteria.website === 'absent') parts.push('no website');
+   210→  if (criteria.excludeTypes?.length) parts.push(`excludes: ${criteria.excludeTypes.join(', ')}`);
+   211→  return parts.join(' · ');
+   212→}
+   213→
+   214→// ─── Helper Functions ────────────────────────────────────
+   215→function getScoreBorderColor(score: number): string {
+   216→  if (score >= 70) return 'border-t-emerald-500';
+   217→  if (score >= 40) return 'border-t-amber-500';
+   218→  return 'border-t-red-500';
+   219→}
+   220→
+   221→function getScoreBarClass(score: number): string {
+   222→  if (score >= 70) return 'bg-emerald-500';
+   223→  if (score >= 40) return 'bg-amber-500';
+   224→  return 'bg-red-500';
+   225→}
+   226→
+   227→function formatRelativeTime(dateStr: string): string {
+   228→  const date = new Date(dateStr);
+   229→  const now = new Date();
+   230→  const diffMs = now.getTime() - date.getTime();
+   231→  const diffMins = Math.floor(diffMs / 60000);
+   232→  const diffHours = Math.floor(diffMins / 60);
+   233→  const diffDays = Math.floor(diffHours / 24);
+   234→  if (diffMins < 1) return 'Just now';
+   235→  if (diffMins < 60) return `${diffMins}m ago`;
+   236→  if (diffHours < 24) return `${diffHours}h ago`;
+   237→  if (diffDays === 1) return 'Yesterday';
+   238→  if (diffDays < 7) return `${diffDays}d ago`;
+   239→  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+   240→}
+   241→
+   242→const STATUS_STYLES: Record<string, string> = {
+   243→  pending: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/25',
+   244→  running: 'bg-blue-500/15 text-blue-500 border-blue-500/25',
+   245→  completed: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/25',
+   246→  failed: 'bg-red-500/15 text-red-500 border-red-500/25',
+   247→};
+   248→
+   249→const STATUS_ICONS: Record<string, React.ElementType> = {
+   250→  pending: Clock,
+   251→  running: Loader2,
+   252→  completed: CheckCircle2,
+   253→  failed: XCircle,
+   254→};
+   255→
+   256→// ─── Recent Discovery Jobs List ──────────────────────────
+   257→function DiscoveryJobsList({ onJobClick }: { onJobClick: (job: DiscoveryJob) => void }) {
+   258→  const [jobs, setJobs] = useState<DiscoveryJob[]>(() => {
+   259→    if (typeof window === 'undefined') return [];
+   260→    try {
+   261→      const stored = localStorage.getItem('acquisitionos_discovery_jobs');
+   262→      return stored ? JSON.parse(stored) : [];
+   263→    } catch { return []; }
+   264→  });
+   265→  const loading = false;
+   266→
+   267→  if (loading) {
+   268→    return (
+   269→      <div className="space-y-2">
+   270→        {Array.from({ length: 3 }).map((_, i) => (
+   271→          <Skeleton key={i} className="h-16 w-full rounded-lg" />
+   272→        ))}
+   273→      </div>
+   274→    );
+   275→  }
+   276→
+   277→  if (jobs.length === 0) return null;
+   278→
+   279→  return (
+   280→    <div className="space-y-2">
+   281→      {jobs.slice(0, 5).map((job) => {
+   282→        const StatusIcon = STATUS_ICONS[job.status] || Clock;
+   283→        return (
+   284→          <motion.button
+   285→            key={job.id}
+   286→            initial={{ opacity: 0, x: -10 }}
+   287→            animate={{ opacity: 1, x: 0 }}
+   288→            onClick={() => onJobClick(job)}
+   289→            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/20 transition-colors text-left"
+   290→          >
+   291→            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 shrink-0">
+   292→              <StatusIcon className={cn('h-4 w-4', job.status === 'running' && 'animate-spin', STATUS_STYLES[job.status]?.split(' ')[1])} />
+   293→            </div>
+   294→            <div className="flex-1 min-w-0">
+   295→              <p className="text-xs font-medium truncate">
+   296→                {job.niche} · {job.country}{job.city ? ` · ${job.city}` : ''}
+   297→              </p>
+   298→              <div className="flex items-center gap-2 mt-0.5">
+   299→                <Badge variant="outline" className={cn('text-[9px] border', STATUS_STYLES[job.status])}>
+   300→                  {job.status}
+   301→                </Badge>
+   302→                {job.status === 'completed' && (
+   303→                  <span className="text-[10px] text-muted-foreground">
+   304→                    {job.leadsAdded} leads found
+   305→                  </span>
+   306→                )}
+   307→              </div>
+   308→            </div>
+   309→            <div className="shrink-0 text-right">
+   310→              <p className="text-[10px] text-muted-foreground">
+   311→                {formatRelativeTime(job.createdAt)}
+   312→              </p>
+   313→            </div>
+   314→          </motion.button>
+   315→        );
+   316→      })}
+   317→    </div>
+   318→  );
+   319→}
+   320→
+   321→// ─── Discovery Job Progress Card ─────────────────────────
+   322→function DiscoveryJobProgress({
+   323→  job,
+   324→  onComplete,
+   325→}: {
+   326→  job: DiscoveryJob;
+   327→  onComplete: (job: DiscoveryJob) => void;
+   328→}) {
+   329→  const [currentJob, setCurrentJob] = useState<DiscoveryJob>(job);
+   330→  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+   331→
+   332→  useEffect(() => {
+   333→    if (currentJob.status !== 'running' && currentJob.status !== 'pending') return;
+   334→
+   335→    intervalRef.current = setInterval(async () => {
+   336→      try {
+   337→        const res = await fetch(`/api/leads/discover/status/${currentJob.id}`);
+   338→        if (res.ok) {
+   339→          const data = await res.json();
+   340→          const updatedJob = normalizeJobFromApi(data.job);
+   341→          setCurrentJob(updatedJob);
+   342→
+   343→          if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+   344→            if (intervalRef.current) clearInterval(intervalRef.current);
+   345→            onComplete(updatedJob);
+   346→
+   347→            // Update localStorage
+   348→            try {
+   349→              const stored = localStorage.getItem('acquisitionos_discovery_jobs');
+   350→              const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
+   351→              const idx = jobs.findIndex(j => j.id === updatedJob.id);
+   352→              if (idx >= 0) jobs[idx] = updatedJob;
+   353→              else jobs.unshift(updatedJob);
+   354→              localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+   355→            } catch {}
+   356→          }
+   357→        }
+   358→      } catch {}
+   359→    }, 3000);
+   360→
+   361→    return () => {
+   362→      if (intervalRef.current) clearInterval(intervalRef.current);
+   363→    };
+   364→  }, [currentJob.id, currentJob.status, onComplete]);
+   365→
+   366→  const progress = currentJob.status === 'completed' ? 100 :
+   367→    currentJob.status === 'running' ? 60 :
+   368→    currentJob.status === 'pending' ? 10 : 0;
+   369→
+   370→  const progressSteps = [
+   371→    { label: 'Connecting', done: progress >= 10 },
+   372→    { label: 'Searching', done: progress >= 40 },
+   373→    { label: 'Analyzing', done: progress >= 60 },
+   374→    { label: 'Complete', done: progress >= 100 },
+   375→  ];
+   376→
+   377→  return (
+   378→    <Card className="border-primary/20 overflow-hidden">
+   379→      <CardContent className="p-4 space-y-3">
+   380→        <div className="flex items-center justify-between">
+   381→          <div className="flex items-center gap-2">
+   382→            {currentJob.status === 'running' || currentJob.status === 'pending' ? (
+   383→              <div className="relative">
+   384→                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+   385→                <div className="absolute inset-0 rounded-full animate-ping bg-primary/20" />
+   386→              </div>
+   387→            ) : currentJob.status === 'completed' ? (
+   388→              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+   389→            ) : (
+   390→              <XCircle className="h-4 w-4 text-red-500" />
+   391→            )}
+   392→            <span className="text-sm font-medium">
+   393→              {currentJob.status === 'pending' ? 'Queuing discovery...' :
+   394→                currentJob.status === 'running' ? 'Discovering leads...' :
+   395→                currentJob.status === 'completed' ? 'Discovery complete!' :
+   396→                'Discovery failed'}
+   397→            </span>
+   398→          </div>
+   399→          <Badge variant="outline" className={cn('text-[10px] border', STATUS_STYLES[currentJob.status])}>
+   400→            {currentJob.status}
+   401→          </Badge>
+   402→        </div>
+   403→        <Progress value={progress} className="h-2" />
+   404→        {/* Progress steps */}
+   405→        <div className="flex items-center gap-1">
+   406→          {progressSteps.map((step, i) => (
+   407→            <div key={step.label} className="flex items-center gap-1 flex-1">
+   408→              <div className={cn(
+   409→                'h-1.5 w-1.5 rounded-full shrink-0 transition-colors',
+   410→                step.done ? 'bg-primary' : 'bg-muted-foreground/20'
+   411→              )} />
+   412→              <span className={cn(
+   413→                'text-[9px] truncate transition-colors',
+   414→                step.done ? 'text-primary font-medium' : 'text-muted-foreground/50'
+   415→              )}>{step.label}</span>
+   416→              {i < progressSteps.length - 1 && (
+   417→                <div className={cn('flex-1 h-px', step.done ? 'bg-primary/40' : 'bg-muted-foreground/10')} />
+   418→              )}
+   419→            </div>
+   420→          ))}
+   421→        </div>
+   422→        <div className="flex items-center justify-between text-xs text-muted-foreground">
+   423→          <span>{currentJob.niche} · {currentJob.country}{currentJob.city ? ` · ${currentJob.city}` : ''}</span>
+   424→          {currentJob.status === 'completed' && (
+   425→            <span className="text-emerald-500 font-medium">
+   426→              {currentJob.leadsAdded} verified lead{currentJob.leadsAdded === 1 ? '' : 's'} found
+   427→              {currentJob.filteredOut ? ` · ${currentJob.filteredOut} rejected by hard filters` : ''}
+   428→            </span>
+   429→          )}
+   430→          {currentJob.status === 'failed' && (currentJob.errorMessage || currentJob.message) && (
+   431→            <span className="text-red-500 truncate max-w-[280px]" title={currentJob.errorMessage || currentJob.message}>
+   432→              {currentJob.errorMessage || currentJob.message}
+   433→            </span>
+   434→          )}
+   435→        </div>
+   436→      </CardContent>
+   437→    </Card>
+   438→  );
+   439→}
+   440→
+   441→// ─── Discovered Lead Card ────────────────────────────────
+   442→function DiscoveredLeadCard({
+   443→  lead,
+   444→  onAddToPipeline,
+   445→  onViewDetails,
+   446→  isAdding,
+   447→  isAdded,
+   448→}: {
+   449→  lead: Lead;
+   450→  onAddToPipeline: (id: string) => void;
+   451→  onViewDetails: (id: string) => void;
+   452→  isAdding: boolean;
+   453→  isAdded: boolean;
+   454→}) {
+   455→  const scoreBorder = getScoreBorderColor(lead.conversionScore);
+   456→
+   457→  return (
+   458→    <motion.div
+   459→      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+   460→      animate={{ opacity: 1, y: 0, scale: 1 }}
+   461→      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   462→    >
+   463→      <Card className={cn('card-glow card-shine border-t-4 hover-lift transition-all cursor-pointer group', scoreBorder)}
+   464→        onClick={() => onViewDetails(lead.id)}
+   465→      >
+   466→        <CardContent className="p-4 space-y-3">
+   467→          <div className="flex items-start gap-2">
+   468→            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10 text-primary font-bold text-sm shrink-0 group-hover:bg-primary/20 transition-colors">
+   469→              {lead.businessName.charAt(0).toUpperCase()}
+   470→            </div>
+   471→            <div className="flex-1 min-w-0">
+   472→              <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{lead.businessName}</h4>
+   473→              {lead.ownerName && (
+   474→                <p className="text-xs text-muted-foreground mt-0.5">{lead.ownerName}</p>
+   475→              )}
+   476→            </div>
+   477→            {lead.source && (
+   478→              <Badge variant="outline" className="text-[10px] shrink-0">
+   479→                {lead.source}
+   480→              </Badge>
+   481→            )}
+   482→          </div>
+   483→
+   484→          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   485→            <MapPin className="h-3 w-3 shrink-0" />
+   486→            {[lead.city, lead.country].filter(Boolean).join(', ') || 'Unknown location'}
+   487→          </div>
+   488→
+   489→          {/* CONTACT AVAILABILITY — honest, per-field badges from REAL stored
+   490→              data only. A lead without an email is never discarded: it stays
+   491→              fully usable for phone-based or manual follow-up. Nothing here
+   492→              is inferred or fabricated: a channel is shown ONLY when the
+   493→              corresponding field was actually returned by the source.
+   494→              verificationStatus distinguishes verified from unverified
+   495→              contact details (single-source listings are unverified). */}
+   496→          <div className="flex flex-wrap items-center gap-1.5">
+   497→            {lead.email ? (
+   498→              <Badge variant="outline" className="text-[10px] gap-1 bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400">
+   499→                <Mail className="h-3 w-3" /> Email
+   500→              </Badge>
+   501→            ) : (
+   502→              <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+   503→                <XCircle className="h-3 w-3" /> No email
+   504→              </Badge>
+   505→            )}
+   506→            {lead.phone && (
+   507→              <Badge variant="outline" className="text-[10px] gap-1 bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400">
+   508→                <Phone className="h-3 w-3" /> Phone
+   509→              </Badge>
+   510→            )}
+   511→            {lead.website && (
+   512→              <Badge variant="outline" className="text-[10px] gap-1 bg-violet-500/10 border-violet-500/25 text-violet-600 dark:text-violet-400">
+   513→                <Globe className="h-3 w-3" /> Website
+   514→              </Badge>
+   515→            )}
+   516→            {(!lead.email && !lead.phone) && (
+   517→              <span className="text-[10px] text-muted-foreground">
+   518→                Manual / research follow-up required
+   519→              </span>
+   520→            )}
+   521→            {lead.verificationStatus === 'unverified' && (
+   522→              <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+   523→                <AlertCircle className="h-3 w-3" /> Unverified
+   524→              </Badge>
+   525→            )}
+   526→          </div>
+   527→
+   528→          {/* ACTUAL employee data from the provider — never the requested range.
+   529→              A range (e.g. "51-100") is shown honestly as a provider range. */}
+   530→          {(typeof lead.employeeCount === 'number' || lead.employeeRange) && (
+   531→            <div className="flex items-center gap-2 text-xs">
+   532→              <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+   533→              <span className="font-medium text-foreground">
+   534→                Employees: {typeof lead.employeeCount === 'number'
+   535→                  ? lead.employeeCount.toLocaleString()
+   536→                  : `${lead.employeeRange} (provider range)`}
+   537→              </span>
+   538→            </div>
+   539→          )}
+   540→
+   541→          {lead.rating && (
+   542→            <div className="flex items-center gap-1">
+   543→              <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+   544→              <span className="text-xs font-medium">{lead.rating.toFixed(1)}</span>
+   545→            </div>
+   546→          )}
+   547→
+   548→          <div className="space-y-2">
+   549→            <div className="space-y-1">
+   550→              <div className="flex justify-between text-xs">
+   551→                <span className="text-muted-foreground">Conversion</span>
+   552→                <span className="font-mono font-medium text-emerald-500">{lead.conversionScore}%</span>
+   553→              </div>
+   554→              <div className="w-full bg-muted rounded-full h-1.5">
+   555→                <div
+   556→                  className={cn('rounded-full h-1.5 transition-all', getScoreBarClass(lead.conversionScore))}
+   557→                  style={{ width: `${lead.conversionScore}%` }}
+   558→                />
+   559→              </div>
+   560→            </div>
+   561→          </div>
+   562→
+   563→          <Separator />
+   564→
+   565→          <div className="flex gap-2">
+   566→            <Button
+   567→              size="sm"
+   568→              variant="secondary"
+   569→              className="flex-1 gap-1 active:scale-95 transition-all min-h-[36px]"
+   570→              disabled={isAdded || isAdding}
+   571→              onClick={(e) => {
+   572→                e.stopPropagation();
+   573→                onAddToPipeline(lead.id);
+   574→              }}
+   575→            >
+   576→              {isAdding ? (
+   577→                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+   578→              ) : isAdded ? (
+   579→                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+   580→              ) : (
+   581→                <Plus className="h-3.5 w-3.5" />
+   582→              )}
+   583→              {isAdded ? 'In Pipeline' : 'Add to Pipeline'}
+   584→            </Button>
+   585→            <Button
+   586→              size="sm"
+   587→              variant="outline"
+   588→              onClick={(e) => {
+   589→                e.stopPropagation();
+   590→                onViewDetails(lead.id);
+   591→              }}
+   592→              className="gap-1 border-primary/20 hover:bg-primary/10 active:scale-95 transition-all min-h-[36px]"
+   593→            >
+   594→              <Eye className="h-3.5 w-3.5" />
+   595→              View
+   596→            </Button>
+   597→          </div>
+   598→        </CardContent>
+   599→      </Card>
+   600→    </motion.div>
+   601→  );
+   602→}
+   603→
+   604→// ─── Main Discover Tab Component ─────────────────────────
+   605→export default function DiscoverTab() {
+   606→  const queryClient = useQueryClient();
+   607→  const { setSelectedLeadId, setActiveTab } = useAppStore();
+   608→
+   609→  // Fetch real-time source configuration status (drives dropdown hints + config banner)
+   610→  const { data: sourceStatusData } = useQuery<DiscoverySourceStatus[]>({
+   611→    queryKey: ['discovery-source-status'],
+   612→    queryFn: async () => {
+   613→      const res = await fetch('/api/discovery/sources');
+   614→      if (!res.ok) throw new Error('Failed to load source status');
+   615→      const data = await res.json();
+   616→      return data.sources as DiscoverySourceStatus[];
+   617→    },
+   618→    staleTime: 60_000,
+   619→  });
+   620→  const sourceStatuses = sourceStatusData ?? [];
+   621→  const sourceStatusById = new Map(sourceStatuses.map((s) => [s.id, s]));
+   622→
+   623→  // Form state
+   624→  const [source, setSource] = useState<string>('ai_search');
+   625→  const [niche, setNiche] = useState('');
+   626→  const [country, setCountry] = useState('');
+   627→  const [countryOpen, setCountryOpen] = useState(false);
+   628→  const [city, setCity] = useState('');
+   629→
+   630→  // ── Context / campaign selector (Discover page context feature) ────
+   631→  // 'none' = no override. Applies to BOTH filter and AI search modes;
+   632→  // resolved + ownership-checked server-side on /api/leads/discover.
+   633→  // Selection persists across visits (localStorage).
+   634→  const [contextMode, setContextMode] = useState<'none' | 'campaign' | 'business'>('none');
+   635→  const [contextCampaignId, setContextCampaignId] = useState<string>('');
+   636→  useEffect(() => {
+   637→    try {
+   638→      const stored = localStorage.getItem('acquisitionos_discovery_context');
+   639→      if (stored) {
+   640→        const parsed = JSON.parse(stored) as { mode?: string; campaignId?: string };
+   641→        if (parsed.mode === 'campaign' || parsed.mode === 'business' || parsed.mode === 'none') {
+   642→          setContextMode(parsed.mode);
+   643→          if (parsed.campaignId) setContextCampaignId(parsed.campaignId);
+   644→        }
+   645→      }
+   646→    } catch {
+   647→      // Corrupted stored selection → fall back to 'none'.
+   648→    }
+   649→  }, []);
+   650→  useEffect(() => {
+   651→    try {
+   652→      localStorage.setItem(
+   653→        'acquisitionos_discovery_context',
+   654→        JSON.stringify({ mode: contextMode, campaignId: contextCampaignId })
+   655→      );
+   656→    } catch {}
+   657→  }, [contextMode, contextCampaignId]);
+   658→  const { data: contextCampaigns } = useQuery({
+   659→    queryKey: ['discovery-context-campaigns'],
+   660→    queryFn: async () => {
+   661→      const res = await fetch('/api/autonomous/campaign?limit=50');
+   662→      if (!res.ok) return [] as Array<{ id: string; niche: string | null; status: string }>;
+   663→      const data = await res.json();
+   664→      return (Array.isArray(data.campaigns) ? data.campaigns : []) as Array<{
+   665→        id: string;
+   666→        niche: string | null;
+   667→        status: string;
+   668→      }>;
+   669→    },
+   670→    staleTime: 60_000,
+   671→  });
+   672→  const selectedContextCampaign = (contextCampaigns ?? []).find((c) => c.id === contextCampaignId);
+   673→
+   674→  // Search mode: classic filters or AI chat
+   675→  const [searchMode, setSearchMode] = useState<'filters' | 'ai'>('filters');
+   676→  const [aiQuery, setAiQuery] = useState('');
+   677→  const [aiParsing, setAiParsing] = useState(false);
+   678→  const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
+   679→
+   680→  // "All Sources" credit-cost confirmation
+   681→  const [allSourcesConfirmOpen, setAllSourcesConfirmOpen] = useState(false);
+   682→  const [pendingStart, setPendingStart] = useState<DiscoveryVars | undefined>(undefined);
+   683→
+   684→  // The exact config message for the currently selected source (empty when usable).
+   685→  // Unconfigured sources are shown in the dropdown but can NEVER run — no fake data.
+   686→  const selectedSourceStatus =
+   687→    source !== 'all' ? sourceStatusById.get(source) : undefined;
+   688→  const selectedSourceBlocked =
+   689→    !!selectedSourceStatus && selectedSourceStatus.status !== 'connected';
+   690→  const selectedSourceConfigMessage = selectedSourceBlocked
+   691→    ? selectedSourceStatus!.configMessage ||
+   692→      `${selectedSourceStatus!.label} requires API configuration. Go to Settings → Integrations to connect this source.`
+   693→    : '';
+   694→
+   695→  // Jobs state
+   696→  const [activeJob, setActiveJob] = useState<DiscoveryJob | null>(null);
+   697→  const [discoveredLeads, setDiscoveredLeads] = useState<Lead[]>([]);
+   698→  // Honest verified-matches notice — shown when hard filters returned fewer
+   699→  // verified companies than requested. Never padded with unverified leads.
+   700→  const [honestMatchNotice, setHonestMatchNotice] = useState<string | null>(null);
+   701→  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+   702→  const [pipelineAddingIds, setPipelineAddingIds] = useState<Set<string>>(new Set());
+   703→  const [importOpen, setImportOpen] = useState(false);
+   704→
+   705→  // Discovery history
+   706→  const [discoveryHistory, setDiscoveryHistory] = useState<Array<{
+   707→    niche: string; country: string; city: string; resultCount: number; timestamp: number;
+   708→  }>>([]);
+   709→
+   710→  // Load history
+   711→  useEffect(() => {
+   712→    try {
+   713→      const stored = localStorage.getItem('acquisitionos_discovery_history');
+   714→      if (stored) setDiscoveryHistory(JSON.parse(stored));
+   715→    } catch {}
+   716→  }, []);
+   717→
+   718→  // Fetch recently discovered leads
+   719→  const { data: allLeadsResult } = useQuery({
+   720→    queryKey: ['leads', { source: 'discovery' }],
+   721→    queryFn: () => fetchLeads({ limit: 20 }),
+   722→  });
+   723→
+   724→  const recentlyDiscovered = allLeadsResult?.leads
+   725→    ?.filter((l: Lead) => l.source === 'discovery')
+   726→    ?.sort((a: Lead, b: Lead) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+   727→    ?.slice(0, 5) ?? [];
+   728→
+   729→  // Popular niches from lead data
+   730→  const popularNiches = (() => {
+   731→    if (!allLeadsResult?.leads) return [];
+   732→    const nicheCounts: Record<string, number> = {};
+   733→    allLeadsResult.leads.forEach((l: Lead) => {
+   734→      if (l.niche) nicheCounts[l.niche] = (nicheCounts[l.niche] || 0) + 1;
+   735→    });
+   736→    return Object.entries(nicheCounts)
+   737→      .map(([name, count]) => ({ name, count }))
+   738→      .sort((a, b) => b.count - a.count)
+   739→      .slice(0, 8);
+   740→  })();
+   741→
+   742→  // Start discovery mutation — accepts explicit variables (AI Chat Mode) or falls back to filter state
+   743→  const discoverMutation = useMutation({
+   744→    mutationFn: async (vars?: DiscoveryVars) => {
+   745→      const payload = {
+   746→        niche: (vars?.niche ?? niche).trim(),
+   747→        country: (vars?.country ?? country).trim() || undefined,
+   748→        city: (vars?.city ?? city).trim() || undefined,
+   749→        source: vars?.source ?? source,
+   750→        maxResults: vars?.maxResults || undefined,
+   751→        requirements: vars?.requirements || undefined,
+   752→        // Structured HARD criteria from the AI parser — enforced server-side
+   753→        criteria: vars?.criteria || undefined,
+   754→        // Context / campaign selector override (server validates ownership;
+   755→        // 'none' sends nothing so legacy behaviour is byte-identical)
+   756→        context:
+   757→          contextMode === 'campaign' && contextCampaignId
+   758→            ? { mode: 'campaign', campaignId: contextCampaignId }
+   759→            : contextMode === 'business'
+   760→              ? { mode: 'business' }
+   761→              : undefined,
+   762→      };
+   763→      const res = await fetch('/api/leads/discover', {
+   764→        method: 'POST',
+   765→        headers: { 'Content-Type': 'application/json' },
+   766→        body: JSON.stringify(payload),
+   767→      });
+   768→      if (!res.ok) {
+   769→        const data = await res.json().catch(() => ({}));
+   770→        throw new Error(data.error || 'Failed to start discovery');
+   771→      }
+   772→      const data = await res.json();
+   773→      return { data, payload };
+   774→    },
+   775→    onSuccess: ({ data, payload }) => {
+   776→      const job: DiscoveryJob = {
+   777→        id: data.jobId,
+   778→        status: data.status || 'pending',
+   779→        source: payload.source,
+   780→        niche: payload.niche,
+   781→        country: payload.country || '',
+   782→        city: payload.city,
+   783→        totalFound: 0,
+   784→        leadsAdded: 0,
+   785→        duplicatesSkipped: 0,
+   786→        errors: 0,
+   787→        createdAt: new Date().toISOString(),
+   788→        message: data.message,
+   789→      };
+   790→      setActiveJob(job);
+   791→
+   792→      // Save to localStorage
+   793→      try {
+   794→        const stored = localStorage.getItem('acquisitionos_discovery_jobs');
+   795→        const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
+   796→        jobs.unshift(job);
+   797→        localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+   798→      } catch {}
+   799→
+   800→      toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
+   801→    },
+   802→    onError: (error: Error) => {
+   803→      toast.error('Failed to start discovery', { description: error.message });
+   804→    },
+   805→  });
+   806→
+   807→  // Central start handler — "All Sources" requires a credit-cost confirmation first
+   808→  const handleStartDiscovery = useCallback((vars?: DiscoveryVars) => {
+   809→    if ((vars?.source ?? source) === 'all') {
+   810→      setPendingStart(vars);
+   811→      setAllSourcesConfirmOpen(true);
+   812→      return;
+   813→    }
+   814→    discoverMutation.mutate(vars);
+   815→  }, [source, discoverMutation]);
+   816→
+   817→  // ── AI Chat Mode handlers ────────────────────────────────
+   818→  const handleAiParse = async () => {
+   819→    const query = aiQuery.trim();
+   820→    if (!query || aiParsing) return;
+   821→    setAiParsing(true);
+   822→    setParsedIntent(null);
+   823→    try {
+   824→      const res = await fetch('/api/discovery/parse-intent', {
+   825→        method: 'POST',
+   826→        headers: { 'Content-Type': 'application/json' },
+   827→        body: JSON.stringify({ query }),
+   828→      });
+   829→      const data = await res.json().catch(() => ({}));
+   830→      if (!res.ok) throw new Error(data.error || 'Failed to read your request');
+   831→      setParsedIntent(data.parsed as ParsedIntent);
+   832→    } catch (err) {
+   833→      toast.error('Could not read your request', {
+   834→        description: err instanceof Error ? err.message : 'Please try rephrasing your description.',
+   835→      });
+   836→    } finally {
+   837→      setAiParsing(false);
+   838→    }
+   839→  };
+   840→
+   841→  const handleEditFilters = () => {
+   842→    // Fill the existing filter fields with the parsed values and switch to Filter Mode
+   843→    if (parsedIntent) {
+   844→      setNiche(parsedIntent.niche);
+   845→      setCountry(parsedIntent.country);
+   846→      setCity(parsedIntent.city || '');
+   847→    }
+   848→    setSearchMode('filters');
+   849→  };
+   850→
+   851→  // Credit-cost estimate shown in the "All Sources" confirmation
+   852→  const allSourcesCreditsEstimate = (() => {
+   853→    const explicitCount = searchMode === 'ai' && parsedIntent ? parsedIntent.count ?? 0 : 0;
+   854→    const perSource = explicitCount > 0 ? Math.max(5, Math.ceil(explicitCount / ALL_SOURCES_COUNT)) : 10;
+   855→    return ALL_SOURCES_COUNT * perSource;
+   856→  })();
+   857→
+   858→  // Handle job completion
+   859→  const handleJobComplete = useCallback((completedJob: DiscoveryJob) => {
+   860→    setActiveJob(completedJob);
+   861→
+   862→    if (completedJob.status === 'completed') {
+   863→      toast.success('Discovery complete!', {
+   864→        description: `Found ${completedJob.leadsAdded} verified leads${completedJob.filteredOut ? ` (${completedJob.filteredOut} rejected by hard filters)` : ''}`,
+   865→      });
+   866→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   867→
+   868→      // Honest verified-matches notice: when the user asked for N companies
+   869→      // and hard-filter enforcement returned fewer, say so explicitly —
+   870→      // the remaining slots are NEVER filled with loosely-related companies.
+   871→      const requested = searchMode === 'ai' ? parsedIntent?.count ?? undefined : undefined;
+   872→      if (requested && completedJob.leadsAdded < requested) {
+   873→        setHonestMatchNotice(
+   874→          `${completedJob.leadsAdded} verified match${completedJob.leadsAdded === 1 ? '' : 'es'} found. We couldn't verify additional companies that meet all your criteria.`
+   875→        );
+   876→      } else {
+   877→        setHonestMatchNotice(null);
+   878→      }
+   879→
+   880→      // Refresh discovered leads
+   881→      fetchLeads({ limit: 50 }).then((result) => {
+   882→        const newDiscovered = result.leads
+   883→          .filter((l: Lead) => l.source === 'discovery' || l.stage === 'discovered')
+   884→          .sort((a: Lead, b: Lead) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+   885→          .slice(0, 20);
+   886→        setDiscoveredLeads(newDiscovered);
+   887→      });
+   888→
+   889→      // Add to history
+   890→      try {
+   891→        const history = [...discoveryHistory];
+   892→        history.unshift({
+   893→          niche: completedJob.niche,
+   894→          country: completedJob.country,
+   895→          city: completedJob.city || '',
+   896→          resultCount: completedJob.leadsAdded,
+   897→          timestamp: Date.now(),
+   898→        });
+   899→        const trimmed = history.slice(0, 10);
+   900→        setDiscoveryHistory(trimmed);
+   901→        localStorage.setItem('acquisitionos_discovery_history', JSON.stringify(trimmed));
+   902→      } catch {}
+   903→    } else if (completedJob.status === 'failed') {
+   904→      toast.error('Discovery failed', {
+   905→        description: completedJob.message || 'Unknown error',
+   906→      });
+   907→    }
+   908→  }, [queryClient, discoveryHistory, searchMode, parsedIntent]);
+   909→
+   910→  // Add lead to pipeline
+   911→  const handleAddToPipeline = useCallback(async (leadId: string) => {
+   912→    setPipelineAddingIds(prev => new Set(prev).add(leadId));
+   913→    try {
+   914→      await updateLead(leadId, { stage: 'analyzed' as LeadStage });
+   915→      setAddedIds(prev => new Set(prev).add(leadId));
+   916→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   917→      toast.success('Lead added to pipeline');
+   918→    } catch {
+   919→      toast.error('Failed to add lead to pipeline');
+   920→    } finally {
+   921→      setPipelineAddingIds(prev => {
+   922→        const next = new Set(prev);
+   923→        next.delete(leadId);
+   924→        return next;
+   925→      });
+   926→    }
+   927→  }, [queryClient]);
+   928→
+   929→  const handleViewDetails = useCallback((leadId: string) => {
+   930→    setSelectedLeadId(leadId);
+   931→    setActiveTab('leads');
+   932→  }, [setSelectedLeadId, setActiveTab]);
+   933→
+   934→  const canDiscover =
+   935→    niche.trim() &&
+   936→    source &&
+   937→    // Country is optional — empty selection = Worldwide (spec §5).
+   938→    // An unconfigured source is NEVER run — it cannot return real data
+   939→    !selectedSourceBlocked;
+   940→  return (
+   941→    <div className="p-4 lg:p-6 space-y-6 pb-20 lg:pb-6">
+   942→      {/* Discovery Form */}
+   943→      <Card className="card-glow overflow-hidden">
+   944→        <div className="gradient-bg-animated px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
+   945→          <div className="flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-primary/20">
+   946→            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+   947→          </div>
+   948→          <div>
+   949→            <CardTitle className="text-base sm:text-lg text-foreground">Lead Discovery Engine</CardTitle>
+   950→            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+   951→              Find and analyze potential acquisition targets
+   952→            </p>
+   953→          </div>
+   954→        </div>
+   955→
+   956→        <CardContent className="pt-5 space-y-4">
+   957→          {/* Search mode toggle: Filter Mode | AI Chat Mode */}
+   958→          <div className="flex items-center justify-between gap-3 flex-wrap">
+   959→            <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-muted/60 border border-border/50" role="tablist" aria-label="Search mode">
+   960→              <button
+   961→                type="button"
+   962→                role="tab"
+   963→                aria-selected={searchMode === 'filters'}
+   964→                onClick={() => setSearchMode('filters')}
+   965→                className={cn(
+   966→                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors active:scale-95',
+   967→                  searchMode === 'filters'
+   968→                    ? 'bg-background text-foreground shadow-sm'
+   969→                    : 'text-muted-foreground hover:text-foreground'
+   970→                )}
+   971→              >
+   972→                <SlidersHorizontal className="h-3.5 w-3.5" />
+   973→                Filter Mode
+   974→              </button>
+   975→              <button
+   976→                type="button"
+   977→                role="tab"
+   978→                aria-selected={searchMode === 'ai'}
+   979→                onClick={() => setSearchMode('ai')}
+   980→                className={cn(
+   981→                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors active:scale-95',
+   982→                  searchMode === 'ai'
+   983→                    ? 'bg-background text-foreground shadow-sm'
+   984→                    : 'text-muted-foreground hover:text-foreground'
+   985→                )}
+   986→              >
+   987→                <Sparkles className="h-3.5 w-3.5 text-primary" />
+   988→                AI Chat Mode
+   989→              </button>
+   990→            </div>
+   991→            {searchMode === 'ai' && (
+   992→              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+   993→                <Sparkles className="h-3 w-3 text-primary" />
+   994→                Available on all plans
+   995→              </span>
+   996→            )}
+   997→          </div>
+   998→
+   999→          {/* Context / campaign selector — visible in BOTH search modes.
+  1000→              'None' keeps default behaviour; a campaign merges its custom
+  1001→              instructions into this discovery run (ownership verified
+  1002→              server-side); 'My business context' uses the user's own
+  1003→              business/context settings for targeting. */}
+  1004→          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+  1005→            <label className="text-sm font-medium flex items-center gap-1.5 shrink-0">
+  1006→              <Layers className="h-3.5 w-3.5 text-primary" />
+  1007→              Context
+  1008→              <span className="text-muted-foreground font-normal hidden sm:inline">(optional override)</span>
+  1009→            </label>
+  1010→            <Select
+  1011→              value={contextMode === 'campaign' ? `campaign:${contextCampaignId}` : contextMode}
+  1012→              onValueChange={(v) => {
+  1013→                if (v === 'none' || v === 'business') {
+  1014→                  setContextMode(v);
+  1015→                  setContextCampaignId('');
+  1016→                } else if (v.startsWith('campaign:')) {
+  1017→                  setContextMode('campaign');
+  1018→                  setContextCampaignId(v.slice('campaign:'.length));
+  1019→                }
+  1020→              }}
+  1021→            >
+  1022→              <SelectTrigger className="w-full sm:max-w-sm border-primary/20 focus:ring-primary/30">
+  1023→                <SelectValue placeholder="No context override" />
+  1024→              </SelectTrigger>
+  1025→              <SelectContent>
+  1026→                <SelectItem value="none">None — no override</SelectItem>
+  1027→                <SelectItem value="business">My business context</SelectItem>
+  1028→                {(contextCampaigns ?? []).length > 0 && (
+  1029→                  <div className="px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
+  1030→                    Campaigns
+  1031→                  </div>
+  1032→                )}
+  1033→                {(contextCampaigns ?? []).map((c) => (
+  1034→                  <SelectItem key={c.id} value={`campaign:${c.id}`}>
+  1035→                    Campaign — {c.niche?.trim() || `ID ${c.id.slice(-6)}`}
+  1036→                    {c.status ? ` (${c.status})` : ''}
+  1037→                  </SelectItem>
+  1038→                ))}
+  1039→              </SelectContent>
+  1040→            </Select>
+  1041→            {contextMode === 'campaign' && !selectedContextCampaign && (
+  1042→              <span className="text-[11px] text-yellow-600 dark:text-yellow-500">
+  1043→                Selected campaign not in the recent list — it will still be resolved server-side.
+  1044→              </span>
+  1045→            )}
+  1046→          </div>
+  1047→
+  1048→          {searchMode === 'filters' ? (
+  1049→            <>
+  1050→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  1051→            {/* Source Selection */}
+  1052→            <div className="space-y-2">
+  1053→              <label className="text-sm font-medium flex items-center gap-1.5">
+  1054→                <Globe className="h-3.5 w-3.5 text-primary" />
+  1055→                Source
+  1056→              </label>
+  1057→              <Select value={source} onValueChange={setSource}>
+  1058→                <SelectTrigger className="border-primary/20 focus:ring-primary/30">
+  1059→                  <SelectValue placeholder="Select source..." />
+  1060→                </SelectTrigger>
+  1061→                <SelectContent>
+  1062→                  {DISCOVERY_SOURCES.map((s) => {
+  1063→                    const Icon = s.icon;
+  1064→                    const st = s.value === 'all' ? undefined : sourceStatusById.get(s.value);
+  1065→                    return (
+  1066→                      <SelectItem key={s.value} value={s.value}>
+  1067→                        <div className="flex items-center gap-2">
+  1068→                          <Icon className={cn('h-3.5 w-3.5', s.color)} />
+  1069→                          {s.label}
+  1070→                          {st && st.status !== 'connected' && (
+  1071→                            <span
+  1072→                              className="h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0"
+  1073→                              title={`${st.label} requires API configuration`}
+  1074→                            />
+  1075→                          )}
+  1076→                          {st && st.noSetupRequired && (
+  1077→                            <span
+  1078→                              className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"
+  1079→                              title="No setup required"
+  1080→                            />
+  1081→                          )}
+  1082→                        </div>
+  1083→                      </SelectItem>
+  1084→                    );
+  1085→                  })}
+  1086→                </SelectContent>
+  1087→              </Select>
+  1088→
+  1089→              {/* Configuration notice — shown when the selected source has no API
+  1090→                  credentials. The source stays in the dropdown but discovery is
+  1091→                  blocked server-side too: it can never return fake data. */}
+  1092→              {selectedSourceBlocked && (
+  1093→                <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5">
+  1094→                  <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5 shrink-0" />
+  1095→                  <div className="space-y-0.5">
+  1096→                    <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+  1097→                      {selectedSourceConfigMessage}
+  1098→                    </p>
+  1099→                    {selectedSourceStatus!.requiredEnvVars.length > 0 && (
+  1100→                      <p className="text-[11px] text-yellow-600/80 dark:text-yellow-500/70">
+  1101→                        Required: {selectedSourceStatus!.requiredEnvVars.map((v) => v.name).join(', ')}
+  1102→                      </p>
+  1103→                    )}
+  1104→                  </div>
+  1105→                </div>
+  1106→              )}
+  1107→            </div>
+  1108→
+  1109→            {/* Niche Input */}
+  1110→            <div className="space-y-2">
+  1111→              <label className="text-sm font-medium flex items-center gap-1.5">
+  1112→                <Tag className="h-3.5 w-3.5 text-primary" />
+  1113→                Niche
+  1114→              </label>
+  1115→              <Input
+  1116→                placeholder="e.g. Restaurant, Dental, Gym..."
+  1117→                value={niche}
+  1118→                onChange={(e) => setNiche(e.target.value)}
+  1119→                className="border-primary/20 focus:ring-primary/30"
+  1120→              />
+  1121→            </div>
+  1122→
+  1123→            {/* Country selector — worldwide dataset (spec §5): searchable,
+  1124→                ISO-complete, with an explicit Worldwide option (no country). */}
+  1125→            <div className="space-y-2">
+  1126→              <label className="text-sm font-medium flex items-center gap-1.5">
+  1127→                <MapPin className="h-3.5 w-3.5 text-primary" />
+  1128→                Country <span className="text-muted-foreground font-normal">(or Worldwide)</span>
+  1129→              </label>
+  1130→              <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+  1131→                <PopoverTrigger asChild>
+  1132→                  <Button
+  1133→                    variant="outline"
+  1134→                    role="combobox"
+  1135→                    aria-expanded={countryOpen}
+  1136→                    className="w-full justify-between border-primary/20 focus:ring-primary/30 font-normal"
+  1137→                  >
+  1138→                    <span className={cn('truncate', !country && 'text-muted-foreground')}>
+  1139→                      {country || '🌍 Worldwide (all countries)'}
+  1140→                    </span>
+  1141→                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+  1142→                  </Button>
+  1143→                </PopoverTrigger>
+  1144→                <PopoverContent className="w-[320px] p-0" align="start">
+  1145→                  <Command>
+  1146→                    <CommandInput placeholder="Search countries..." />
+  1147→                    <CommandList className="max-h-64 overflow-y-auto">
+  1148→                      <CommandEmpty>No country found.</CommandEmpty>
+  1149→                      <CommandGroup>
+  1150→                        <CommandItem
+  1151→                          value="Worldwide all countries"
+  1152→                          onSelect={() => {
+  1153→                            setCountry('');
+  1154→                            setCountryOpen(false);
+  1155→                          }}
+  1156→                        >
+  1157→                          <Globe className="mr-2 h-4 w-4" />
+  1158→                          <span className={cn('flex-1', !country && 'font-medium')}>Worldwide (all countries)</span>
+  1159→                          {!country && <CheckCircle2 className="h-4 w-4 text-primary" />}
+  1160→                        </CommandItem>
+  1161→                      </CommandGroup>
+  1162→                      <CommandGroup heading="Countries">
+  1163→                        {COUNTRIES.map((c) => (
+  1164→                          <CommandItem
+  1165→                            key={c.code}
+  1166→                            value={`${c.name} ${c.code}`}
+  1167→                            onSelect={() => {
+  1168→                              setCountry(c.name);
+  1169→                              setCountryOpen(false);
+  1170→                            }}
+  1171→                          >
+  1172→                            <span className={cn('flex-1', country === c.name && 'font-medium')}>{c.name}</span>
+  1173→                            {country === c.name ? (
+  1174→                              <CheckCircle2 className="h-4 w-4 text-primary" />
+  1175→                            ) : (
+  1176→                              <span className="text-xs text-muted-foreground">{c.code}</span>
+  1177→                            )}
+  1178→                          </CommandItem>
+  1179→                        ))}
+  1180→                      </CommandGroup>
+  1181→                    </CommandList>
+  1182→                  </Command>
+  1183→                </PopoverContent>
+  1184→              </Popover>
+  1185→            </div>
+  1186→
+  1187→            {/* City Input */}
+  1188→            <div className="space-y-2">
+  1189→              <label className="text-sm font-medium flex items-center gap-1.5">
+  1190→                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+  1191→                City <span className="text-muted-foreground font-normal">(optional)</span>
+  1192→              </label>
+  1193→              <Input
+  1194→                placeholder="Enter city..."
+  1195→                value={city}
+  1196→                onChange={(e) => setCity(e.target.value)}
+  1197→                className="border-primary/20 focus:ring-primary/30"
+  1198→              />
+  1199→            </div>
+  1200→          </div>
+  1201→
+  1202→          <div className="flex flex-col sm:flex-row gap-3">
+  1203→            <Button
+  1204→              onClick={() => handleStartDiscovery()}
+  1205→              disabled={!canDiscover || discoverMutation.isPending}
+  1206→              className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 active:scale-95 transition-all"
+  1207→              size="lg"
+  1208→            >
+  1209→              {discoverMutation.isPending ? (
+  1210→                <>
+  1211→                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+  1212→                  Starting Discovery...
+  1213→                </>
+  1214→              ) : (
+  1215→                <>
+  1216→                  <Zap className="h-4 w-4 mr-2" />
+  1217→                  Start Discovery
+  1218→                </>
+  1219→              )}
+  1220→            </Button>
+  1221→            <Button
+  1222→              variant="outline"
+  1223→              size="lg"
+  1224→              className="border-primary/20 hover:border-primary/40 hover:bg-primary/5 active:scale-95 transition-all"
+  1225→              onClick={() => setImportOpen(true)}
+  1226→            >
+  1227→              <FileUp className="h-4 w-4 mr-2" />
+  1228→              Import CSV
+  1229→            </Button>
+  1230→          </div>
+  1231→            </>
+  1232→          ) : (
+  1233→            /* ── AI Chat Mode ── */
+  1234→            <div className="space-y-4">
+  1235→              <form
+  1236→                onSubmit={(e) => {
+  1237→                  e.preventDefault();
+  1238→                  handleAiParse();
+  1239→                }}
+  1240→                className="space-y-3"
+  1241→              >
+  1242→                <div className="relative">
+  1243→                  <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/60 pointer-events-none" />
+  1244→                  <Input
+  1245→                    value={aiQuery}
+  1246→                    onChange={(e) => setAiQuery(e.target.value)}
+  1247→                    placeholder="Describe what leads you're looking for... e.g. 'Find 20 restaurants in Dubai with no website and poor social media presence'"
+  1248→                    className="pl-9 pr-28 h-11"
+  1249→                    disabled={aiParsing || discoverMutation.isPending}
+  1250→                  />
+  1251→                  <Button
+  1252→                    type="submit"
+  1253→                    size="sm"
+  1254→                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 gap-1"
+  1255→                    disabled={!aiQuery.trim() || aiParsing || discoverMutation.isPending}
+  1256→                  >
+  1257→                    {aiParsing ? (
+  1258→                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+  1259→                    ) : (
+  1260→                      <Search className="h-3.5 w-3.5" />
+  1261→                    )}
+  1262→                    {aiParsing ? 'Reading…' : 'Read Request'}
+  1263→                  </Button>
+  1264→                </div>
+  1265→              </form>
+  1266→
+  1267→              <AnimatePresence>
+  1268→                {parsedIntent && (
+  1269→                  <motion.div
+  1270→                    initial={{ opacity: 0, y: 10 }}
+  1271→                    animate={{ opacity: 1, y: 0 }}
+  1272→                    exit={{ opacity: 0, y: -10 }}
+  1273→                  >
+  1274→                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+  1275→                      <div className="flex flex-wrap items-center gap-2">
+  1276→                        <span className="text-xs font-medium text-muted-foreground">Searching for:</span>
+  1277→                        <Badge variant="outline" className="bg-primary/10 border-primary/25 gap-1">
+  1278→                          <Search className="h-3 w-3" />
+  1279→                          {parsedIntent.count != null ? `${parsedIntent.count} ` : ''}{parsedIntent.niche} in {parsedIntent.location}
+  1280→                        </Badge>
+  1281→                        {parsedIntent.requirements && (
+  1282→                          <>
+  1283→                            <span className="text-xs font-medium text-muted-foreground">|</span>
+  1284→                            <span className="text-xs font-medium text-muted-foreground">Filter:</span>
+  1285→                            <Badge
+  1286→                              variant="outline"
+  1287→                              className="bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400 gap-1"
+  1288→                            >
+  1289→                              <AlertCircle className="h-3 w-3" />
+  1290→                              {parsedIntent.requirements}
+  1291→                            </Badge>
+  1292→                          </>
+  1293→                        )}
+  1294→                      </div>
+  1295→                      {/* HARD CRITERIA — enforced server-side after discovery */}
+  1296→                      {describeCriteria(parsedIntent.criteria) && (
+  1297→                        <div className="flex flex-wrap items-center gap-2">
+  1298→                          <span className="text-xs font-medium text-muted-foreground">Hard filters (strictly enforced):</span>
+  1299→                          <Badge
+  1300→                            variant="outline"
+  1301→                            className="bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400 gap-1"
+  1302→                          >
+  1303→                            <ShieldCheck className="h-3 w-3" />
+  1304→                            {describeCriteria(parsedIntent.criteria)}
+  1305→                          </Badge>
+  1306→                        </div>
+  1307→                      )}
+  1308→                      {parsedIntent.criteria && (parsedIntent.criteria.employeeMin != null || parsedIntent.criteria.employeeMax != null || parsedIntent.criteria.exactEmployeeCount != null) && (
+  1309→                        <p className="text-[11px] text-muted-foreground">
+  1310→                          Only companies whose employee count can be verified within this range will be returned — if fewer verified matches exist than you asked for, you'll see the honest count.
+  1311→                        </p>
+  1312→                      )}
+  1313→                      <div className="flex flex-wrap gap-2">
+  1314→                        <Button
+  1315→                          size="sm"
+  1316→                          onClick={() => {
+  1317→                            setHonestMatchNotice(null);
+  1318→                            handleStartDiscovery({
+  1319→                              niche: parsedIntent.niche,
+  1320→                              country: parsedIntent.country,
+  1321→                              city: parsedIntent.city || undefined,
+  1322→                              source,
+  1323→                              maxResults: parsedIntent.count ?? undefined,
+  1324→                              requirements: parsedIntent.requirements || undefined,
+  1325→                              criteria: parsedIntent.criteria,
+  1326→                            });
+  1327→                          }}
+  1328→                          disabled={discoverMutation.isPending}
+  1329→                          className="bg-primary hover:bg-primary/90 active:scale-95 transition-all"
+  1330→                        >
+  1331→                          {discoverMutation.isPending ? (
+  1332→                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+  1333→                          ) : (
+  1334→                            <Zap className="h-3.5 w-3.5 mr-1.5" />
+  1335→                          )}
+  1336→                          {discoverMutation.isPending ? 'Starting Discovery...' : 'Start Discovery'}
+  1337→                        </Button>
+  1338→                        <Button
+  1339→                          size="sm"
+  1340→                          variant="outline"
+  1341→                          onClick={handleEditFilters}
+  1342→                          disabled={discoverMutation.isPending}
+  1343→                          className="border-primary/20 hover:border-primary/40 hover:bg-primary/5 active:scale-95 transition-all"
+  1344→                        >
+  1345→                          <PencilLine className="h-3.5 w-3.5 mr-1.5" />
+  1346→                          Edit Filters
+  1347→                        </Button>
+  1348→                      </div>
+  1349→                    </div>
+  1350→                  </motion.div>
+  1351→                )}
+  1352→              </AnimatePresence>
+  1353→
+  1354→              <p className="text-[11px] text-muted-foreground">
+  1355→                Describe your ideal leads in plain English — AI fills the filters and starts the
+  1356→                discovery for you. Uses your current source selection ({' '}
+  1357→                {DISCOVERY_SOURCES.find((s) => s.value === source)?.label ?? source}).
+  1358→              </p>
+  1359→            </div>
+  1360→          )}
+  1361→        </CardContent>
+  1362→      </Card>
+  1363→
+  1364→      {/* Active Discovery Job Progress */}
+  1365→      <AnimatePresence>
+  1366→        {activeJob && (activeJob.status === 'running' || activeJob.status === 'pending') && (
+  1367→          <motion.div
+  1368→            initial={{ opacity: 0, y: 10 }}
+  1369→            animate={{ opacity: 1, y: 0 }}
+  1370→            exit={{ opacity: 0, y: -10 }}
+  1371→          >
+  1372→            <DiscoveryJobProgress job={activeJob} onComplete={handleJobComplete} />
+  1373→          </motion.div>
+  1374→        )}
+  1375→      </AnimatePresence>
+  1376→
+  1377→      {/* Discovery History */}
+  1378→      <AnimatePresence>
+  1379→        {discoveryHistory.length > 0 && !activeJob && (
+  1380→          <motion.div
+  1381→            initial={{ opacity: 0, y: 10 }}
+  1382→            animate={{ opacity: 1, y: 0 }}
+  1383→            exit={{ opacity: 0, y: -10 }}
+  1384→          >
+  1385→            <Card className="card-glow">
+  1386→              <CardContent className="p-4">
+  1387→                <div className="flex items-center justify-between mb-3">
+  1388→                  <div className="flex items-center gap-2">
+  1389→                    <Clock className="h-4 w-4 text-muted-foreground" />
+  1390→                    <h3 className="text-sm font-semibold">Recent Searches</h3>
+  1391→                  </div>
+  1392→                  <Button
+  1393→                    variant="ghost"
+  1394→                    size="sm"
+  1395→                    className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1.5"
+  1396→                    onClick={() => {
+  1397→                      try {
+  1398→                        localStorage.removeItem('acquisitionos_discovery_history');
+  1399→                        setDiscoveryHistory([]);
+  1400→                        toast.success('Search history cleared');
+  1401→                      } catch {}
+  1402→                    }}
+  1403→                  >
+  1404→                    <Trash2 className="h-3 w-3" />
+  1405→                    Clear
+  1406→                  </Button>
+  1407→                </div>
+  1408→                <div className="space-y-2">
+  1409→                  {discoveryHistory.slice(0, 5).map((item, i) => (
+  1410→                    <motion.button
+  1411→                      key={`${item.niche}-${item.country}-${item.timestamp}`}
+  1412→                      initial={{ opacity: 0, x: -10 }}
+  1413→                      animate={{ opacity: 1, x: 0 }}
+  1414→                      transition={{ delay: i * 0.05 }}
+  1415→                      onClick={() => {
+  1416→                        setNiche(item.niche);
+  1417→                        setCountry(item.country);
+  1418→                        setCity(item.city || '');
+  1419→                      }}
+  1420→                      className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/20 transition-colors text-left"
+  1421→                    >
+  1422→                      <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 shrink-0">
+  1423→                        <Search className="h-3.5 w-3.5 text-primary" />
+  1424→                      </div>
+  1425→                      <div className="flex-1 min-w-0">
+  1426→                        <p className="text-xs font-medium truncate">
+  1427→                          {item.niche} · {item.country}{item.city ? ` · ${item.city}` : ''}
+  1428→                        </p>
+  1429→                        <p className="text-[10px] text-muted-foreground">
+  1430→                          {item.resultCount} result{item.resultCount !== 1 ? 's' : ''}
+  1431→                        </p>
+  1432→                      </div>
+  1433→                    </motion.button>
+  1434→                  ))}
+  1435→                </div>
+  1436→              </CardContent>
+  1437→            </Card>
+  1438→          </motion.div>
+  1439→        )}
+  1440→      </AnimatePresence>
+  1441→
+  1442→      {/* Empty State (when no active job, no results, no history) */}
+  1443→      {discoveredLeads.length === 0 && !activeJob && discoveryHistory.length === 0 && recentlyDiscovered.length === 0 && popularNiches.length === 0 && (
+  1444→        <motion.div
+  1445→          initial={{ opacity: 0, y: 20 }}
+  1446→          animate={{ opacity: 1, y: 0 }}
+  1447→          transition={{ delay: 0.2 }}
+  1448→          className="flex flex-col items-center justify-center py-16 px-4"
+  1449→        >
+  1450→          <div className="relative mb-6">
+  1451→            <div className="rounded-full bg-primary/10 p-6">
+  1452→              <Search className="h-12 w-12 text-primary/40" />
+  1453→            </div>
+  1454→            <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center">
+  1455→              <Sparkles className="h-4 w-4 text-primary/60" />
+  1456→            </div>
+  1457→          </div>
+  1458→          <h3 className="text-xl font-bold mb-2">Find Your Next Lead</h3>
+  1459→          <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
+  1460→            Use the search form above to discover potential acquisition targets across multiple sources.
+  1461→          </p>
+  1462→        </motion.div>
+  1463→      )}
+  1464→
+  1465→      {/* Honest verified-matches notice (hard filters returned fewer than requested) */}
+  1466→      <AnimatePresence>
+  1467→        {honestMatchNotice && (
+  1468→          <motion.div
+  1469→            initial={{ opacity: 0, y: 10 }}
+  1470→            animate={{ opacity: 1, y: 0 }}
+  1471→            exit={{ opacity: 0, y: -10 }}
+  1472→          >
+  1473→            <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+  1474→              <ShieldCheck className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+  1475→              <div className="space-y-0.5">
+  1476→                <p className="text-sm font-medium text-blue-700 dark:text-blue-400">{honestMatchNotice}</p>
+  1477→                <p className="text-[11px] text-muted-foreground">
+  1478→                  Hard filters (employee range, website, exclusions) are enforced server-side — every company above was
+  1479→                  verified against them. The list is never padded with loosely related companies.
+  1480→                </p>
+  1481→              </div>
+  1482→            </div>
+  1483→          </motion.div>
+  1484→        )}
+  1485→      </AnimatePresence>
+  1486→
+  1487→      {/* Discovered Leads Results */}
+  1488→      {discoveredLeads.length > 0 && (
+  1489→        <div className="space-y-4">
+  1490→          <div className="flex items-center justify-between">
+  1491→            <h3 className="text-sm font-semibold text-muted-foreground">
+  1492→              Discovered {discoveredLeads.length} verified lead{discoveredLeads.length === 1 ? '' : 's'}
+  1493→            </h3>
+  1494→            <Button
+  1495→              variant="ghost"
+  1496→              size="sm"
+  1497→              className="text-xs text-muted-foreground"
+  1498→              onClick={() => {
+  1499→                setDiscoveredLeads([]);
+  1500→                setHonestMatchNotice(null);
+  1501→              }}
+  1502→            >
+  1503→              Clear results
+  1504→            </Button>
+  1505→          </div>
+  1506→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 stagger-children">
+  1507→            {discoveredLeads.map((lead) => (
+  1508→              <DiscoveredLeadCard
+  1509→                key={lead.id}
+  1510→                lead={lead}
+  1511→                onAddToPipeline={handleAddToPipeline}
+  1512→                onViewDetails={handleViewDetails}
+  1513→                isAdding={pipelineAddingIds.has(lead.id)}
+  1514→                isAdded={addedIds.has(lead.id)}
+  1515→              />
+  1516→            ))}
+  1517→          </div>
+  1518→        </div>
+  1519→      )}
+  1520→
+  1521→      {/* Recently Discovered */}
+  1522→      {recentlyDiscovered.length > 0 && discoveredLeads.length === 0 && (
+  1523→        <motion.div
+  1524→          initial={{ opacity: 0, y: 10 }}
+  1525→          animate={{ opacity: 1, y: 0 }}
+  1526→          transition={{ delay: 0.15 }}
+  1527→        >
+  1528→          <Card className="card-glow">
+  1529→            <CardContent className="p-4">
+  1530→              <div className="flex items-center gap-2 mb-3">
+  1531→                <Clock className="h-4 w-4 text-muted-foreground" />
+  1532→                <h3 className="text-sm font-semibold">Recently Discovered</h3>
+  1533→              </div>
+  1534→              <div className="space-y-2">
+  1535→                {recentlyDiscovered.map((lead) => (
+  1536→                  <motion.button
+  1537→                    key={lead.id}
+  1538→                    initial={{ opacity: 0, x: -10 }}
+  1539→                    animate={{ opacity: 1, x: 0 }}
+  1540→                    onClick={() => handleViewDetails(lead.id)}
+  1541→                    className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/20 transition-colors text-left"
+  1542→                  >
+  1543→                    <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 shrink-0">
+  1544→                      <Building2 className="h-3.5 w-3.5 text-primary" />
+  1545→                    </div>
+  1546→                    <div className="flex-1 min-w-0">
+  1547→                      <p className="text-xs font-medium truncate">{lead.businessName}</p>
+  1548→                      <p className="text-[10px] text-muted-foreground">
+  1549→                        {lead.niche} · {lead.country}{lead.city ? ` · ${lead.city}` : ''}
+  1550→                      </p>
+  1551→                    </div>
+  1552→                    <span className="text-[10px] font-mono font-medium text-emerald-500">{lead.conversionScore}%</span>
+  1553→                  </motion.button>
+  1554→                ))}
+  1555→              </div>
+  1556→            </CardContent>
+  1557→          </Card>
+  1558→        </motion.div>
+  1559→      )}
+  1560→
+  1561→      {/* Popular Niches */}
+  1562→      {popularNiches.length > 0 && discoveredLeads.length === 0 && (
+  1563→        <motion.div
+  1564→          initial={{ opacity: 0, y: 10 }}
+  1565→          animate={{ opacity: 1, y: 0 }}
+  1566→          transition={{ delay: 0.1 }}
+  1567→        >
+  1568→          <Card className="card-glow">
+  1569→            <CardContent className="p-4">
+  1570→              <div className="flex items-center gap-2 mb-3">
+  1571→                <TrendingUp className="h-4 w-4 text-emerald-500" />
+  1572→                <h3 className="text-sm font-semibold">Popular Niches</h3>
+  1573→              </div>
+  1574→              <div className="flex flex-wrap gap-2">
+  1575→                {popularNiches.map((n) => (
+  1576→                  <motion.button
+  1577→                    key={n.name}
+  1578→                    initial={{ opacity: 0, scale: 0.8 }}
+  1579→                    animate={{ opacity: 1, scale: 1 }}
+  1580→                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+  1581→                    onClick={() => { setNiche(n.name); setCity(''); }}
+  1582→                    className={cn(
+  1583→                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors active:scale-95',
+  1584→                      niche === n.name
+  1585→                        ? 'bg-primary/15 text-primary border-primary/30'
+  1586→                        : 'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-primary/20'
+  1587→                    )}
+  1588→                  >
+  1589→                    {n.name}
+  1590→                    <Badge variant="secondary" className="h-4 px-1 text-[9px] font-mono">{n.count}</Badge>
+  1591→                  </motion.button>
+  1592→                ))}
+  1593→              </div>
+  1594→            </CardContent>
+  1595→          </Card>
+  1596→        </motion.div>
+  1597→      )}
+  1598→
+  1599→      {/* Import Dialog */}
+  1600→      <LeadImportDialog open={importOpen} onOpenChange={setImportOpen} />
+  1601→
+  1602→      {/* All Sources — credit cost confirmation (Enhancement: All Sources Integration) */}
+  1603→      <AlertDialog open={allSourcesConfirmOpen} onOpenChange={setAllSourcesConfirmOpen}>
+  1604→        <AlertDialogContent>
+  1605→          <AlertDialogHeader>
+  1606→            <AlertDialogTitle>Search all {ALL_SOURCES_COUNT} sources?</AlertDialogTitle>
+  1607→            <AlertDialogDescription>
+  1608→              Searching all {ALL_SOURCES_COUNT} sources (AI Search, Google Maps, LinkedIn, JustDial,
+  1609→              IndiaMart, Yellow Pages and Sulekha) will use approximately{' '}
+  1610→              <span className="font-semibold text-foreground">{allSourcesCreditsEstimate} credits</span>.
+  1611→              Results are merged and deduplicated. Continue?
+  1612→            </AlertDialogDescription>
+  1613→          </AlertDialogHeader>
+  1614→          <AlertDialogFooter>
+  1615→            <AlertDialogCancel onClick={() => setPendingStart(undefined)}>Cancel</AlertDialogCancel>
+  1616→            <AlertDialogAction
+  1617→              onClick={() => {
+  1618→                discoverMutation.mutate(pendingStart);
+  1619→                setPendingStart(undefined);
+  1620→              }}
+  1621→            >
+  1622→              Continue
+  1623→            </AlertDialogAction>
+  1624→          </AlertDialogFooter>
+  1625→        </AlertDialogContent>
+  1626→      </AlertDialog>
+  1627→    </div>
+  1628→  );
+  1629→}
+  1630→

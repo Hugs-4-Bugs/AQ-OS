@@ -893,620 +893,216 @@ Stage Summary:
   this task; making them clickable would surface non-real data).
 
 ---
-Task ID: leads-search-focus-fix
+Task ID: contract-exec-1
 Agent: Super Z (main agent)
-Task: Fix Leads search input losing focus after every character (/business/leads — LeadsTab)
+Task: Execute ACQUISITIONOS absolute-preservation contract — verify workspace currency, verify PART 1A (Pro+Elite AI workflow entitlement) + PART 1B (phone) implementations, extend AGENTS.md to full contract, create manifests, run tests, final diff review.
 
 Work Log:
-- Diagnosed before changing code: search string is part of the React Query key
-  (['leads', { search, ... }]) with NO placeholderData; every keystroke creates
-  a new cache key with no cached data → status pending + fetching → isLoading
-  true (verified in installed query-core 5.90.19 queryObserver.js L308-310) →
-  the `if (isLoading) return <skeleton/>` early return in LeadsTab replaced the
-  ENTIRE tree including the search <input>; after fetch the tree remounted with
-  a fresh unfocused input. Ruled out unstable keys, in-render component defs,
-  parent remounts (dashboard-layout renders <LeadsTab/> at a stable position).
-- Fix (src/components/dashboard/leads-tab.tsx, 3 small edits, 1 file):
-  1) import keepPreviousData from @tanstack/react-query;
-  2) add `placeholderData: keepPreviousData` to the leads useQuery — previous
-     results stay rendered while a new filter query loads; status becomes
-     'success' (query-core L277) so isLoading stays false, skeleton never fires
-     mid-typing, input+caret stay mounted. First-load skeleton unchanged
-     (keepPreviousData() returns undefined when no previous data). Side benefit:
-     delete/update invalidations no longer blank the page to a skeleton;
-  3) add onMouseDown preventDefault on the "Clear search" button so clicking it
-     doesn't steal focus from the input (spec requirement: input stays focused
-     after clearing when appropriate).
-- New regression test tests/unit/leads-search-focus.test.tsx (4 tests, real
-  LeadsTab render, mocked fetchLeads): same-DOM-node identity + focus retention
-  during continuous multi-char typing; caret edits (mid-insert, select-replace,
-  backspace); clear button clears + keeps focus + same node; filtering updates
-  results (1 match / 0 matches) while input stays focused.
-- Proved the test catches the bug: with the fix stashed, all 4 tests FAIL;
-  with the fix applied, all 4 PASS.
-- Full unit suite (npx vitest run): 1108 passed / 30 failed in 8 files
-  (auth-routes, health-credits-routes, credit-service, email, subscription-store,
-  jwt-security, onboarding-flow e2e, auth-api integration, api-key-service).
-  Baseline proof: ran those same 8 files with the fix stashed → identical 30
-  failures → all pre-existing, unrelated; zero regressions from this change.
-- ESLint on leads-tab.tsx + new test: clean (exit 0, no findings).
-- Scoped typecheck tsconfig.scope-searchfix.json (new; follows repo pattern;
-  needed NODE_OPTIONS=--max-old-space-size=2560 — box has 4GB RAM, default heap
-  OOMs as documented previously): error set byte-identical to the stashed
-  baseline (diff empty) → zero new type errors; leads-tab.tsx and the new test
-  have zero errors. (Full next build NOT run: it writes .next while the live dev
-  server is using it — risk to the running app on this 4GB box.)
-- LIVE browser verification (agent-browser on the running dev server :3000,
-  fixture qa@test.com via minted access_token; 3 temporary leads created via
-  POST /api/leads then deleted after): navigated to /business-ai/leads
-  (pathToTab maps it to the Leads tab; /business/leads itself 404s — the SPA
-  tab route is /business-ai/leads). Tagged the input DOM node, then:
-  continuous typing "search" → sameNode true, focused true, value "search",
-  caret 6, list filtered 3/3; mid-word insert → "seXarch", caret 3, focused;
-  Backspace → "search", focused; select-all + "z" → "z", focused, same node;
-  "z" → "0 leads found"; REAL mouse click on Clear search → value "", focused
-  true, same node true, list back to "3 leads found"; re-type "beta" →
-  "1 lead found" (only Beta Search Grill); dismissed an onboarding welcome
-  modal that auto-appeared mid-test (Skip — fixture-scoped, no onboarding_bonus
-  re-award since it is one-time); final pass "gamma" → 1 lead, focused, same
-  node. Screenshot: scripts/leads-search-focus-verified.png. No browser page
-  errors. Mobile/desktop unaffected — fix is render-level, layout untouched.
-- Cleanup: all 3 test leads deleted via API (fixture back to 0 leads, verified);
-  browser closed; no DB schema changes; no billing/credit/subscription changes;
-  no API contract changes.
+- Verified workspace is LATEST state (HEAD advanced 98aa357 → 9895a00 via platform auto-commit containing PART 1A/1B fixes + initial AGENTS.md; NOT a rollback).
+- Protected-feature sweep: Lead Discovery/Workflows/Phone EXIST; user-context + discover context selector NOT FOUND (reported, not recreated per contract); Business Profiles partial (Offer Profile).
+- Verified PART 1A: hasFeatureAccess(plan,'workflow_access') in ai-generate route; pro/elite enabled, free/starter 403 FEATURE_REQUIRED.
+- Verified PART 1B: phone.ts 241 countries, MAX_LOCAL_PHONE_DIGITS=10, digits-only, legacy round-trip, client+server shared validation.
+- Extended AGENTS.md 20 → 42 sections (7 parts), re-read, verified all contract phrases present.
+- Created ACQUISITIONOS_CURRENT_STATE.md + ACQUISITIONOS_CODEBASE_MANIFEST.json (JSON validated).
+- Tests: phone 25/25, entitlement 5/5, workflows unit 38/38 + integration 14/14 PASSED. health-credits (8) + auth-routes (3) failures proven PRE-EXISTING and unrelated (HEAD touched 0 api/health|auth files; env-dependent).
+- Final diff: AGENTS.md (M), 2 manifests (new). No rollback commands, no DB writes, no unrelated changes.
+- OBSERVATION: platform removed download/AQ-OS-current-workspace.tar.gz (186MB) mid-session; codebase unaffected; reported to user, no re-pack (forbidden).
 
 Stage Summary:
-- Root cause: per-keystroke React Query key change + no placeholderData →
-  full-page skeleton early return unmounted/remounted the search input.
-- Changed files: src/components/dashboard/leads-tab.tsx (3 edits);
-  tests/unit/leads-search-focus.test.tsx (new); tsconfig.scope-searchfix.json
-  (new, typecheck scope only).
-- Verified: 4/4 new tests pass (and fail without the fix); 30 pre-existing
-  suite failures identical to baseline; eslint clean; scoped tsc diff vs
-  baseline empty; live browser checks all pass on desktop viewport.
-- Limitations: full `next build` not run (live dev server owns .next; 4GB box);
-  real-device touch testing not possible in headless env; /business/leads path
-  itself 404s in the app (Leads tab lives at /business-ai/leads) — untouched,
-  pre-existing routing behavior outside this task's scope.
+- Contract fully executed; workspace preserved forward-only; all three confirmations (no rollback / no DB reset / no unrelated changes) = YES with evidence.
 
 ---
-Task ID: outreach-route-duplicate-import-fix
+Task ID: forward-merge-1
 Agent: Super Z (main agent)
-Task: Fix Turbopack build error "the name 'applySenderSignatureToFields' is
-defined multiple times" in src/app/api/leads/[id]/outreach/route.ts (user
-screenshot, preview overlay)
+Task: Forward-only merge of 2 missing features (user personal context, discover context/campaign selector), lead-detail UI overlay fix, tests, final archive.
 
 Work Log:
-- Diagnosed from screenshot: route.ts had TWO identical import blocks
-  (lines 6-10 and 11-15) importing buildSenderSignatureBlock,
-  applySenderSignatureToFields from '@/lib/ai/sender-signature' and
-  loadSenderProfile from '@/lib/ai/outreach-generator' — accidental
-  double-application of a previous session's signature edit, committed in
-  5d79bba. ESM duplicate bindings → Turbopack/Ecmascript build error.
-- Sweep: checked every file importing sender-signature (workflow-actions,
-  outreach-generator, outreach-sender, sales-assistant route) — only this
-  route had duplicates. Baseline tsc log had exactly 6 TS2300 duplicate
-  identifier errors repo-wide, all in this file.
-- Fix: deleted the duplicate 5-line import block (single 1-file edit).
-
-Verification:
-- ESLint on the file: clean.
-- Scoped typecheck (new tsconfig.scope-outreachfix.json, standalone minimal
-  config with @/* paths — full-tree tsc OOM-killed on the 4GB box due to
-  runtime memory pressure): route.ts now has ZERO type errors; the 6 TS2300s
-  are gone. Remaining 3 errors in the graph (sender-signature.ts TS2862,
-  email.ts TS2352/TS2345) verified pre-existing in the baseline log.
-- LIVE proof on the running dev server: POST /api/leads/test-id/outreach now
-  compiles and executes → HTTP 404 {"error":"Lead not found"} with a fresh
-  fixture token (module + auth + db path all executed). Before the fix the
-  module failed Turbopack compilation with the screenshot's build error.
-- No data, schema, billing, or API-contract changes.
+- PART 2 inspection: HEAD 69f1769 (platform commit of contract work); workspace latest; AGENTS.md 42 sections re-verified.
+- PART 3/18 evidence: previous impls NOT recoverable (workspace, git history -S searches, upload specs, download artifacts) -> implemented forward-only per explicit authorization.
+- PART 4: User Personal Context — schema UserSettings.personalContext (additive nullable, migrate diff verified ADD COLUMN only, db:push with snapshot); src/lib/personal-context.ts; GET/PUT /api/settings/personal-context; settings-shell "My Context" section + personal-context-settings.tsx; AI integration at outreach-generator (loadSenderProfile+user msg), ai-generate workflow route, leads/[id]/analyze, prospecting runStepMatch — all additive, empty-context = unchanged behaviour.
+- PART 5: Discover context selector — schema DiscoveryJob.contextJson (additive); /api/leads/discover body.context {none|campaign|business}; campaign ownership verified (findFirst id+userId); instructions merged into requirements (hard-criteria extraction runs on merged text); campaign targeting fills EMPTY fields only; selector UI in discover-tab (both modes, localStorage persistence); entitlements/credits untouched.
+- PART 10/11: Lead detail overlay ROOT CAUSE — anchor span rendered after `if (!lead) return null` while always-mounted panel ran its mount-only portal-resolution effect first -> portalContainer null forever -> body-portal fixed full-viewport sheet covered header/sidebar/footer. Fix: anchor rendered unconditionally in null branch (mirrors MetricDetailDrawer). Also fixed pre-existing jsx-no-comment-textnodes visible stray text in same component. Independent scrolling preserved (ScrollArea flex-1 min-h-0). No z-index changes.
+- PART 15: 39 new tests (personal-context 15, route 10, discovery-context 11, portal regression 3); full relevant run 13 files 206/206 PASSED. Pre-existing unrelated failures reported: email(4), credit-service(2), subscription-store(5), health/auth api(11).
+- Manifests updated; JSON validated. Archive created in download/ (see final report).
 
 Stage Summary:
-- Root cause: duplicated identical import block (committed).
-- Changed: src/app/api/leads/[id]/outreach/route.ts (removed 5 duplicate
-  import lines); tsconfig.scope-outreachfix.json (new, typecheck-scope only).
-- Verified: eslint clean; route type-errors 0; live route compiles + executes.
+- Both missing features merged forward with preserved current architecture; lead detail respects app shell; all protected features intact (206/206); no rollback/reset/destructive ops.
+---
+Task ID: AQOS-TAR-FINAL-1
+Agent: Super Z (main agent)
+Task: SINGLE TAR ONLY + download failure fix — expose one verified downloadable AQ-OS-current-workspace.tar.gz
+
+Work Log:
+- Preflight: HEAD 071b052 (platform auto-commit 03:06, forward-only: 13A+14M, 0 deletions), working tree clean, AGENTS.md 26,375B + both manifests intact.
+- Diagnosed "Download workspace failed: Failed to archive workspace files": platform workspace archiver must package 3.5GB / 88,460 files (node_modules 1.6G/80,064 files, .next 691M, .git 620M, download 374M) — platform-side size/file-count limitation; no app modification made.
+- Found download/AQ-OS-current-workspace.tar.gz (170,250,485 B, mtime 03:03) + 5 split parts (03:04) restored by platform from git history; proved tar currency: hash-MATCH vs live workspace on AGENTS.md, CURRENT_STATE, MANIFEST, package.json, worklog, phone.ts, ai-generate route, prisma/schema.prisma; .env included; zero node_modules/.git/.next entries.
+- Full verification via scripts/verify-final-tar.sh: gzip -t OK; 4,856 entries / 3,693 files; 16/16 required paths present (incl. personal-context feature files, discover-tab, lead-detail-panel, Docker/deploy configs, db, tests); extracted full-tree byte-diff vs workspace = CLEAN except live db/custom.db runtime drift + 2 files created by this session itself. Tar REUSED, not recreated (task rule #10).
+- Deleted 5 stale part files (absolute NO-PART-FILES rule), chmod 644, temp verify dir removed, SHA256 re-verified identical after all ops.
+
+Stage Summary:
+- Deliverable: download/AQ-OS-current-workspace.tar.gz — 170,250,485 bytes, SHA256 3834d1c081bcad04ba0604581d1599dd6d14b4d85c6abbd7c11dd1b7538cf3b3, 3,693 files, contains the complete latest codebase including the prior task's personal-context feature, discover selector and lead-detail fix.
+- Only working-tree delta: 5 part-file deletions (user-mandated) + untracked verify utility script. No code, DB, or git-history modification.
+---
+Task ID: AQOS-GIT-BACKUP-1
+Agent: Super Z (main agent)
+Task: Emergency git remote backup — safety branch acquisitionos-current-state-2026-10-04 pushed to origin
+
+Work Log:
+- STEP 1 read-only verify: HEAD cbb46443ce1bc029e794d27761360477b00a1ee1 = one platform auto-commit FORWARD of 071b0520 (direct parent; delta = 5 part-file deletions + scripts/verify-final-tar.sh + worklog append only); tree clean; all latest implementation files verified tracked at HEAD (personal-context lib/route/settings/tests, discover-tab + discover route, lead-discovery-service, entitlement-service, phone.ts, lead-detail-panel + portal test, AGENTS.md, both manifests); origin = https://github.com/Hugs-4-Bugs/AQ-OS.git (local main ahead 61; remote main @ 3d101fba = older GitHub state).
+- STEP 2/3: created branch acquisitionos-current-state-2026-10-04 at current verified HEAD; rev-parse HEAD unchanged (cbb4644); status clean; no pre-existing branch overwritten (local + remote checked first — none existed).
+- STEP 4 push: FAILED exit 128 — exact error: fatal: could not read Username for 'https://github.com': No such device or address. Root cause: no GitHub credentials in sandbox (no credential.helper, no gh CLI, no GH_TOKEN/GITHUB_TOKEN env). Stopped immediately per instructions.
+- Post-failure verification: remote UNCHANGED (ls-remote shows only refs/heads/main @ 3d101fba — nothing written, no partial push); safety branch still exists locally at cbb4644; TAR untouched (170,250,485 B, SHA256 3834d1c0...); platform briefly re-checked-out main (both refs at identical commit — file state unaffected).
+- Worklog appended (this entry). No application/database/git-history modification.
+
+Stage Summary:
+- Persistent local recovery point exists: branch acquisitionos-current-state-2026-10-04 @ cbb4644 (contains 071b0520). REMOTE PUSH BLOCKED by missing credentials — needs user-supplied PAT or SSH remote to complete STEP 4/5.
+---
+Task ID: AQOS-GIT-BACKUP-1
+Agent: Super Z (main agent)
+Task: Emergency Git remote backup of current verified state via dedicated safety branch (no app modification)
+
+Work Log:
+- STEP 1 read-only verify: HEAD advanced forward-only 071b052 -> cbb4644 -> f0ee0a2 (platform auto-commits 04:03/04:13); diff 071b052..HEAD = worklog append + 5 part deletions (prior order) + verify script, ZERO code files; 16/16 key implementation files verified in HEAD commit (personal-context, discover selector, lead-detail panel, phone, entitlement, ai-generate, lead-discovery, AGENTS.md, both manifests, 3 tests); remote origin = https://github.com/Hugs-4-Bugs/AQ-OS.git (only old refs/heads/main @ 3d101fba).
+- STEP 2: safety branch ALREADY EXISTED locally at cbb4644 (reflog: "Created from HEAD" by interrupted earlier run of this task). Per instruction: STOPPED, inspected — cbb4644 is direct ancestor of HEAD (only worklog.md delta).
+- STEP 3: fast-forwarded branch cbb4644 -> f0ee0a2 via `git fetch . HEAD:refs/heads/...` (FF-only, forward movement, no overwrite/rewrite); HEAD, main checkout, and clean working tree untouched.
+- STEP 4: `git push -u origin acquisitionos-current-state-2026-10-04` FAILED exit 128: "fatal: could not read Username for 'https://github.com': No such device or address". Read-only credential scan: no env tokens, no credential helper (any scope), no ~/.git-credentials, no ~/.ssh, no gh CLI -> STOPPED per instruction; nothing else modified.
+- STEP 5/6: remote refs re-verified unchanged (still only main @ 3d101fba); TAR untouched (SHA256 3834d1c081bcad04ba0604581d1599dd6d14b4d85c6abbd7c11dd1b7538cf3b3 re-confirmed); database untouched.
+
+Stage Summary:
+- Local safety branch acquisitionos-current-state-2026-10-04 = f0ee0a2f222b18b2b544b5192ba16746597f21c0 (current verified HEAD, contains 071b0520 in history), ready to push the moment credentials are provided.
+- REMOTE BACKUP FAILED — CURRENT WORKSPACE WAS NOT MODIFIED. Push blocked solely by missing GitHub push credentials (repo public => anonymous read OK, push auth required).
 
 ---
-Task ID: universal-biz-stage-A (signup credit fix)
-Agent: Super Z (main agent)
-Task: Signup reward = exactly 50; no duplicate grants; idempotency fixed
+Task ID: 2-b
+Agent: Explore-contexts-audit
+Task: READ-ONLY audit of the three context/profile concepts in AcquisitionOS — (A) User Personal Context, (B) Business Profiles (multi-profile + plan limits), (C) Discover page context/campaign selector — plus override hierarchy, entitlement mapping, and test coverage. No files modified.
 
-Work Log:
-- Diagnosis (verified): signup wrote no credits (schema default 50, NO ledger
-  row); onboarding completion AND skip awarded +25 (`allStepsComplete ||
-  completed`; client skip sends completed:true) → effective first balance 75;
-  observed "60" = 75 − early usage (live ledger proof). Also found: dead
-  idempotency key in credit-service (lookup searched `${action}_idempotent_*`
-  but create wrote plain action) → retries could double-charge.
-- Fix: (1) explicit credits:50/creditsMonthly:50 + atomic `signup_grant`
-  ledger row (writeSignupGrantLedger helper in credit-service) inside user
-  creation transaction — signup route + both Google OAuth create sites
-  (ledger write non-fatal in lazy-import callbacks); (2) removed the +25
-  onboarding bonus award from settings/onboarding + settings/checklist
-  (bonusAwarded stays in API responses, always false); (3) NEW additive
-  CreditsLedger.idempotencyKey column + (userId,idempotencyKey) index;
-  deductCredits now stores and checks the key on the row (action stays clean
-  for analytics); (4) checklist card UI copy updated (no more "+25 bonus").
-- DB: `npm run db:push` (snapshot db-backups/custom-20261002093058Z.db,
-  38 users) — additive only; verified columns + 251 ledger rows intact,
-  3 historical onboarding_bonus rows untouched, user balances untouched.
-- Tests: NEW tests/unit/signup-credits.test.ts (7/7 pass): explicit 50 + one
-  signup_grant row atomically; helper defense-in-depth; onboarding skip and
-  full completion grant NOTHING; 3x repeat never duplicates; idempotency key
-  stored on ledger row; replayed key returns alreadyProcessed without
-  re-deducting. Updated src/__tests__/api/auth-routes.test.ts ($transaction
-  mock + NEW ledger-row test) — its previously-failing "credits=50" test now
-  PASSES (baseline 6→5 failures in that file).
-- Full suite: 30 failed | 1116 passed (1146) vs baseline 30 failed | 1108
-  passed (1138): +8 passing (new tests), identical pre-existing failure set
-  (subscription-store 6, health 5, auth-routes 5, onboarding-e2e 4, email 4,
-  api-key 3, auth-api 2, jwt 1, credit-service 1 — all pre-existing).
-- ESLint clean on all 6 touched files.
+Work log:
+- Read src/lib/personal-context.ts, src/app/api/settings/personal-context/route.ts (GET+PUT only, withAuth, UserSettings.personalContext upsert, null-on-empty), src/components/dashboard/personal-context-settings.tsx, settings-shell.tsx ('context' nav section, lines 85/1253-1263).
+- Traced all personal-context consumers: workflows/ai-generate (block appended), ai/outreach-generator.ts (loadSenderProfile + buildPersonalContextBlock), leads/[id]/analyze (block appended), prospecting/pipeline-steps.ts (step 3, block appended), leads/discover 'business' mode (manual partial parse of 4 fields), workflow-actions.ts executeAiOutreach + sales-assistant + leads/[id]/outreach (signature only — block NOT appended), lead-discovery/outreach-sender.ts (personalContext not even loaded).
+- Searched prisma/schema.prisma (95 models): NO BusinessProfile/OfferProfile/Niche model. Closest: UserSettings single row (companyName, businessDescription, servicesOffered JSON max-20 = single "My Offer" list, personalContext, targetNiches/Countries/Channels) and AcquisitionCampaign (autonomous run records). Only profile-ish APIs: /api/prospecting/offer-profile (single record GET/PUT) and /api/settings/onboarding (businessDescription). No multi-profile create/select/archive UI or routes; ownership OK (session-scoped upserts) but nothing to own beyond singletons.
+- Plan limits: entitlement-service.ts FeatureKey union (17 keys) has NO business-profile key; ENTITLEMENTS maps have no 3/7 profile limits; plan-config.ts delegates to entitlement-service, no profile field. Pro(3)/Elite(7) NOT enforced anywhere. Downgrade path (subscription-service) pauses workflows, deletes nothing profile-like.
+- Discover selector: discover-tab.tsx lines 630-672 + 999-1046 — Select with "None — no override", "My business context", and per-campaign items (GET /api/autonomous/campaign?limit=50); persisted in localStorage 'acquisitionos_discovery_context'; None clears mode+campaignId client-side and payload omits `context`; server (leads/discover lines 65-144) validates modes, ownership-checks campaign (findFirst id+userId, 400 on foreign), merges campaign customInstructions into requirements ('user | context'), re-extracts hard criteria from merged text, persists effective context on DiscoveryJob.contextJson.
+- Override hierarchy: outreach merges template + explicit customInstructions + personalContext block + sender signature; workflow AI generation appends context block; workflow ai_outreach nodes and sales-assistant use signature only; WorkflowExecution stores triggerData/triggerEvent but NO effective-config snapshot (DiscoveryJob.contextJson is the only one).
+- Tests read in full: tests/integration/personal-context-route.test.ts (10 cases), src/__tests__/lib/personal-context.test.ts (15 cases), tests/integration/discovery-context.test.ts (11 cases incl. ownership + hard-criteria-on-merged-text).
 
 Stage Summary:
-- New user total signup reward = exactly 50 (explicit, audited, atomic).
-- Onboarding grants nothing (completion/skip/repeat). Retries safe via real
-  idempotency column. No existing balances/ledger entries modified.
-- Historical note: users who already received the +25 keep it (no clawback).
+- (A) Personal Context: IMPLEMENTED end-to-end (UI→API→UserSettings→AI) with minor gaps (PUT-only, 2 AI paths skip the block, discover mode hand-parses).
+- (B) Business Profiles: MISSING as specified — single-profile stand-ins only; no multi-profile CRUD, no select/archive, no server-side Pro=3/Elite=7 limit.
+- (C) Discover selector: IMPLEMENTED (distinct from settings, None truly clears, ownership-checked, effective context persisted on job) — selection itself is localStorage-only, no backend persistence.
+- No code changes made (read-only audit).
 
 ---
-Task ID: universal-biz-stages-B-F (profiles, campaign context, universal outreach, website research)
-Agent: Super Z (main agent)
-Task: Multiple user-owned business profiles + campaign-specific context + universal
-AI outreach personalization + deep website research & contact extraction + lead
-integration (spec stages B-F)
-
+Task ID: 2-a
+Agent: Explore-discovery-audit
+Task: discovery/credit audit
 Work Log:
-- SCHEMA (all additive, db push with snapshot each time): BusinessProfile model
-  (label/company/industry/description/valueProposition/productsServices/
-  targetAudience/serviceAreas/goals/toneStyle/language/differentiators/
-  preferredCta/additionalContext/isDefault/archivedAt, user FK cascade);
-  DiscoveryJob.businessProfileId + campaign{Objective,Audience,Offer,Outcome,
-  Cta,Tone,Instructions}; AcquisitionCampaign.businessProfileId +
-  campaign{Objective,Audience,Offer,Outcome,Cta}; WebsiteResearch model
-  (leadId,userId,status,reportJson,contactsJson,pagesFetched). Verified tables
-  created additively; existing data untouched (38 users throughout).
-- STAGE B (profiles): src/app/api/business-profiles (GET list + lazy default
-  seed from UserSettings when empty; POST create, first-profile-auto-default,
-  single-default-per-user transaction) + [id] (GET/PATCH/DELETE-archive with
-  `where { id, userId }` ownership — foreign ids 404). src/lib/business-profile
-  (client-safe types + fetch helpers + buildBusinessContextBlock) split from
-  src/lib/business-profile-server (resolveBusinessContext — SERVER-ONLY, Prisma;
-  resolution order: profile defaults → campaign overrides win → never cross-user
-  → null-safe when no profile). UI: business-profiles-settings.tsx (Settings →
-  Business Profiles: create/edit/select-default/archive, progressive disclosure)
-  registered in settings-shell; business-profile-selector.tsx (compact selector +
-  campaign-override expander for discovery/outreach surfaces).
-- STAGE C (context-driven outreach): generateOutreach accepts businessProfileId +
-  campaignOverrides; resolves context server-side; prompt vars {{senderBusiness}} +
-  {{campaignContext}}; prompt-manager v4 outreach-generation (ANY-industry sender,
-  strict honesty rules: no invented relationships/results/gaps, no forced
-  website-audit template, evidence-only recipient claims) + followup v2 updated;
-  lead-outreach route rewritten around SENDER BUSINESS CONTEXT; outreach-sender
-  services now come from the profile (was hardcoded 'digital services and
-  solutions'); discovery/start no longer fabricates the sender's business from
-  the SEARCH NICHE (was businessType: niche!); company-researcher fallback no
-  longer pushes "website redesign" when no gaps measured; dead-code
-  autonomous-outreach fallback de-biased. Discovery: DiscoveryParams.campaign +
-  businessProfileId persisted on the job; buildSearchQueries adds ONE
-  intent-driven query when campaign offer/audience is set (unchanged otherwise);
-  /api/leads/discover passes + bounds the context.
-- STAGE D (research): src/lib/lead-discovery/contact-extractor.ts — mailto:/tel:
-  decode, JSON-LD ContactPoint, keyword/contact-zone scoping, business-domain
-  ranking, free-mail classification, placeholder/social/asset filtering,
-  token-based phone regex (fixes the legacy truncation bug where "+91 98765
-  43210" extracted as …321); mergeExtractedContacts = fill-if-empty + conflict
-  flagging. src/lib/lead-discovery/website-researcher.ts — bounded crawl
-  (≤4 pages: homepage + contact/about/services candidates, 500KB/8s per page,
-  400ms stagger, robots.txt via the previously-dead anti-bot parser + per-host
-  cache, safeFetch/SSRF guard), per-field verification statuses (verified |
-  found-not-verified | not_found | conflicting), observed-facts-vs-limitations
-  report, credits via existing deep_analysis cost + NEW idempotencyKey +
-  refund-on-failure, fill-if-empty write-back with provenance notes. API
-  POST/GET /api/leads/[id]/research (owner-scoped).
-- STAGE E (integration/UX): enrichment service extracts contacts from the
-  fetched homepage HTML (fill-if-empty, before the LLM step); lead-detail-panel
-  Company tab renders WebsiteResearchSection (statuses + source URLs + observed
-  facts + limitations + pages fetched); discover-tab integrates
-  BusinessProfileSelector (auto-selects default) and sends profile + overrides
-  with every job.
-- VERIFICATION (all actually executed): 38 new unit tests green (signup-credits
-  7, business-profiles 13 incl. cross-user 404s + lazy seed + resolution order,
-  universal-outreach 7 incl. wellness-vs-software block divergence + foreign-id
-  fallback, contact-extractor 10 incl. conflict/no-overwrite semantics);
-  outreach-prompt-signature updated to v4 (15/15 with outreach-signature).
-  Full suite: 29 failed | 1147 passed (1176) vs baseline 30 | 1108 (1138) —
-  same pre-existing set, 3 pre-existing failures now FIXED (auth-routes credits
-  test, auth-api 2, prompt-signature 1), zero new failures. ESLint: 0 new
-  issues (5 pre-existing errors in lead-detail-panel/onboarding-checklist-card
-  confirmed via stash baseline). Scoped tsc (tsconfig.scope-bizfix.json):
-  error set identical to baseline modulo union-ordering artifact.
-  LIVE (dev server + QA fixture): profiles lazy-seed/create/default/archive/
-  cross-user-401; research run on example.com → honest partial + not_found +
-  5-credit ledger row WITH idempotencyKey populated; discovery job with
-  businessProfileId + campaign persisted AND the context-driven query actually
-  used (discoveredVia = "wellness centers businesses serving clinic owners in
-  India"), 2 leads imported honestly unverified → deleted after check.
-  Browser: discover tab renders the selector ("QA Tester (default)"); a
-  module-not-found regression (db.ts pulled into client bundle via
-  business-profile.ts) was caught by the overlay and fixed by the client/server
-  split. Screenshot: scripts/discover-profile-selector.png. All fixture test
-  data cleaned (0 leads); dev-server Prisma worker recycled once to pick up
-  generated client (health 200).
-
+- Read POST /api/leads/discover (route.ts) + GET /api/leads/discover/status/[jobId] + lead-discovery-service.ts (1820 lines) end-to-end.
+- Traced job identity: DiscoveryJob.id is server cuid (schema.prisma:1961); no client job ID, no request idempotency key, no payload dedup; only MAX_CONCURRENT_JOBS=3 per-user guard (lead-discovery-service.ts:263-273).
+- Audited credit path: per-lead deductCredits() inside processDiscoveryJob (lead-discovery-service.ts:569-575) with idempotencyKey `${jobId}:lead:${imported}`; refund on lead.create failure (:658-665).
+- FOUND BUG: credit-service.ts deductCredits computes `ledgerAction` (line 169) but writes plain `action` into CreditsLedger (line 173) — the idempotency pre-check queries action=`${action}_idempotent_${key}` (line 128) which is never written, so idempotency is dead code.
+- Audited frontend discover-tab.tsx: activeJob is useState-only (line 696); no mount-time restore; DiscoveryJobsList component (line 257) that could re-attach is DEAD CODE (never rendered); polling via 3s setInterval on DiscoveryJobProgress (line 332-364).
+- Verified tab switching unmounts DiscoverTab (dashboard-layout.tsx switch at :472-487) → polling stops, progress card lost on return; server keeps processing (status reconciles only if user can reach it — it can't for running jobs).
+- Audited lead persistence/dedup: checkDuplicate (lead-dedup-service.ts:39+, user/org-scoped), mergeFillDuplicate (lead-discovery-service.ts:981), in-run dedupeDiscoveredLeads (:1423), corroboration tagging.
+- Confirmed context payload fields: body {niche, country?, city?, source, maxResults?, requirements?, criteria?, context{mode,campaignId}}; business mode reads userSettings businessDescription+personalContext (servicesOffered selected but unused).
+- Collected tests: tests/integration/discovery-context.test.ts (11 its), tests/unit/discovery-volume-persistence.test.ts (13 its incl. 'counts duplicates honestly and does not charge them'), tests/unit/discovery-hard-criteria.test.ts, src/__tests__/lib/credit-service.test.ts + tests/unit/credit-service.test.ts (idempotency tests mock the READ side only — write-path bug not covered and would pass either way), tests/unit/verification.test.ts.
+- No frontend resume/idempotency/concurrent-click tests exist anywhere (tests/**, src/__tests__/**).
+- No stale-job sweeper / reconciliation job found for DiscoveryJob stuck in 'running'.
+- No code changes made (read-only audit).
 Stage Summary:
-- Any-industry users get discovery/research/outreach driven by THEIR saved
-  business profile with per-campaign overrides; provenance (profile vs
-  campaign) is tracked server-side and shown in the UI.
-- Website research is evidence-grounded: bounded, robots-respecting crawl;
-  per-contact source URLs + honest verification statuses; never overwrites
-  better existing data; conflicts flagged, not hidden.
-- Zero new suite failures; 3 pre-existing fixed; all schema changes additive.
-- Limitations: email/phone "found" status = on-site evidence only (no MX/
-  mailbox verification in this pass); research v1 is crawler-only (no AI
-  summary block yet — aiInterpretation null, reserved in the report schema);
-  acquisition-campaign UI (command-center) contract mismatch pre-exists and
-  was NOT touched (out of scope).
+- Job identity: PARTIAL — 1 POST = 1 job with server cuid; identity is sound per job but there is NO client idempotency key and NO server dedup, so double-click/replay creates sibling jobs (up to 3 concurrent) with separate billing.
+- Credit safety: PARTIAL/BROKEN — per-lead deduction with per-lead idempotency keys is the right design, but the idempotency write-path is broken (dead `ledgerAction` variable), refunds have no idempotency param, and CreditsLedger has no unique constraint; double-charge is currently prevented only by "job runs exactly once in-process".
+- Frontend resume: MISSING — navigation away/back or refresh loses the running-job card entirely (activeJob in useState only); dead DiscoveryJobsList; no localStorage/zustand restore; StrictMode double-mount does NOT re-POST (safe) but also does not re-attach.
+- Duplicate requests: PARTIAL — button disabled via isPending (best-effort against double-click), no server rate limit or payload dedup.
+- Lead persistence/dedup: IMPLEMENTED — per-user/org scoped dedup with non-destructive merge-fill; minor UI mismatch (recentlyDiscovered filters source==='discovery' but leads are stored with real source e.g. 'ai_search').
+- Progress reconciliation: PARTIAL — server continues and status endpoint returns full counts+resultData (up to 100 leads), but the client has no path back to a running job after remount.
+- CRITICAL: broken deductCredits idempotency; no job-level idempotency/dedup; no frontend resume of running jobs (lost-state → user re-runs → duplicate spend); no stale-job recovery.
+- No code changes made (read-only audit).
 
 ---
-Task ID: plan-eligibility-1
-Agent: Super Z (main agent)
-Task: Plan Eligibility Correction — automation exclusive to Pro/Elite, profile
-limits (Pro 3 / Elite 7), Free Lite→Free & Standard→Starter sweep verification
+Task ID: 2-d
+Agent: Explore-ui-credits-audit
+Task: READ-ONLY audit of (1) Lead Detail UI layering vs app shell, (2) AI Assistant durable-vs-transient state, (3) Signup credit reward (exactly 50, idempotent). No files modified.
 
-Work Log:
-- NAMING SWEEP (requirement 3): exhaustive search (case-insensitive, all
-  spellings incl. free_lite/free-lite/FreeLite) across src, tests, docs,
-  scripts, prisma, README, package.json found ZERO "Free Lite" and ZERO
-  plan-named "Standard" occurrences — the rename was completed by the
-  earlier Starter implementation phase. Remaining "Standard" hits are
-  non-plan (Standard Contractual Clauses, IST, SLA tiers, org-member role
-  descriptions, API error-envelope docs). DB holds only
-  free/pro/elite (+1 legacy 'PRO', +1 'enterprise' — left untouched per
-  data-preservation rule); no 'standard'/'free_lite' rows exist, no data
-  migration needed. PLAN_DETAILS/plan-config display names already
-  Free/Starter/Pro/Elite.
-- BACKEND AUTOMATION GATE (requirements 1-2): `workflow_access` entitlement
-  was already pro/elite-only in ENTITLEMENTS but enforced on exactly ONE
-  endpoint (POST /api/workflows). Added `checkPlanEntitlement(user.id,
-  user.plan, 'workflow_access')` to 44 automation endpoints via codemod
-  (scripts/codemod-plan-gates.mjs + scripts/repair-gate-imports.mjs):
-  workflows/* (list/create/[id] CRUD/pause/resume/cancel/execute/duplicate/
-  ai-generate/trigger/validate/templates/metrics+timeline/logs/executions
-  +6 subroutes/dead-letter+subroute), autonomous/* (campaign/list/parse/
-  [campaignId]/classify-reply/pipeline-move/research/send-outreach),
-  autonomous-outreach/* (dispatch/generate), outreach/autonomous,
-  outreach/autonomy-status (GET+PUT), outreach/batch, sdr, settings/
-  autonomy-mode (GET+PATCH). Hand-gated: workflows GET (dual-auth path),
-  campaign/parse (added missing user param), outreach POST (create sequence,
-  gated by the pre-existing outreach_sequences entitlement, pro/elite),
-  outreach/enroll + outreach/execute POST (outreach_sequences). Webhooks
-  enforce the OWNER's plan (callers are external systems):
-  webhook/[id] + handleWebhookTrigger (workflow-executor) via
-  hasFeatureAccess(owner.plan) with identical fail-closed semantics;
-  webhook/[...path] maps the new error to 403 PLAN_REQUIRED.
-- CRON/TRIGGER DEFENSE (requirement 2): plan filters so queued/scheduled
-  automation NEVER runs for Free/Starter even without an API call —
-  cron/sdr-cycle (UserSettings join user.plan), processOutreachQueue
-  (OutreachMessage→user.plan), workflow-triggers evaluateTrigger +
-  processScheduledTriggers (WorkflowDefinition→user.plan), both sequence
-  engines (sequence-execution-engine processSequenceSteps, email-sequence-
-  engine processDueSteps: SequenceEnrollment→sequence→user.plan).
-  AUTOMATION_PLAN_TIERS (plan-feature-limits.ts) drives all DB filters;
-  lockstep with ENTITLEMENTS enforced by test. Skipped items stay queued/
-  active (nothing deleted); processing resumes on upgrade.
-- MEETINGS AUTONOMY: PATCH /api/meetings/settings rejects
-  meetingAutonomyMode 'assisted'/'autonomous' for non-pro/elite (403
-  PLAN_REQUIRED) while 'approval' and all other meeting settings stay
-  available to every plan.
-- PROFILE LIMITS (requirement 2): new client-safe src/lib/plan-feature-
-  limits.ts (BUSINESS_PROFILE_LIMITS free 1/starter 1/pro 3/elite 7,
-  PLAN_TIER_LABELS, nextProfileLimitPlan, toPlanTier fail-closed,
-  AUTOMATION_PLAN_TIERS) + new `business_profiles` FeatureKey in
-  entitlement-service (enabled on ALL plans — personalized outreach for
-  any industry is universal; only the COUNT is capped). POST
-  /api/business-profiles enforces the cap on ACTIVE (archivedAt null)
-  profiles → 403 PROFILE_LIMIT_REACHED {limit, activeCount, requiredPlan,
-  upgradeUrl}. Grandfathering: users over their cap keep every existing
-  profile (no auto-archive/delete); archived slots free up. Interpretation
-  note: spec pins only Pro=3/Elite=7; Free/Starter were given the minimal
-  baseline of 1 so no lower tier exceeds Pro (documented decision).
-- FRONTEND (requirements 1-2): business-profiles-settings shows an
-  "N/M active · <Plan> plan" meter (aria-live), disables New Profile at
-  the cap, and renders an "upgrade to <next tier>" CTA that dispatches the
-  existing 'open-upgrade-modal' CustomEvent. Meetings settings page: the
-  autonomy-mode RadioGroup is wrapped in PlanGate requiredPlan="pro"
-  (featureName "Autonomous Meeting Orchestration", onUpgrade →
-  /dashboard/billing) — plus useSubscriptionSync() added to the page
-  (standalone page previously never synced, which left PlanGate spinning
-  on "Checking your subscription…"). Workflows tab was ALREADY PlanGate'd
-  (dashboard-layout case 'workflows' requiredPlan pro) — verified.
-- TESTS: NEW tests/unit/plan-eligibility.test.ts (17 tests: workflow_access
-  eligibility per plan, business_profiles limits 1/1/3/7,
-  AUTOMATION_PLAN_TIERS lockstep, checkPlanEntitlement deny/allow with
-  403 PLAN_REQUIRED shape, outreach_sequences pro/elite, toPlanTier
-  fail-closed, pricing guard rails: PLAN_CREDITS + lead_discovery limits
-  unchanged). NEW tests/unit/automation-plan-gates.test.ts (12 tests:
-  workflows GET free/starter 403 + pro 200 + POST free 403 before service,
-  autonomous/campaign free+starter 403 before engine, outreach/enroll free
-  403, meetings/settings free autonomous+assisted 403 / approval 200 /
-  pro autonomous 200 / invalid 400). business-profiles.test.ts: requireAuth
-  mock now carries a plan (default elite, x-test-plan override) + 5 new
-  limit tests (active-only counting, free/pro/elite caps, legacy plan
-  fail-closed). ESLint clean on all 61 touched files. Scoped tsc
-  (tsconfig.scope-planelig.json, 60 files): 17 errors ALL pre-existing —
-  16 in untouched dependency modules (email.ts, gmail-delivery-service,
-  autonomous-outreach-service TS1016s, etc.) and 1 (autonomy-status
-  validModes.includes) present verbatim in HEAD (line shifted only); 0
-  errors in files created/modified by this task.
-- FULL SUITE: 29 failed | 1181 passed (1210) vs pre-change baseline
-  29 failed | 1147 passed (1176): +34 = exactly the new/extended tests,
-  ZERO new failures; failing files identical to the documented pre-
-  existing set (subscription-store 6, health 5, auth-routes 5,
-  onboarding-e2e 4, email 4, api-key 3, jwt 1, credit-service 1 — none
-  import any module touched here).
-- LIVE VERIFICATION (dev server + QA fixtures, actually executed):
-  minted qa@test.com (pro) + fresh fixture qa-free-1790946329@test.com
-  (free; signup granted exactly 50 credits — Task A fix still holding).
-  Pro: GET /api/workflows 200. Free: workflows GET 403 PLAN_REQUIRED,
-  autonomous/campaign POST 403, settings/autonomy-mode PATCH 403,
-  meetings/settings autonomous 403 + approval 200, outreach/enroll 403
-  (outreach_sequences, fires before body validation). Starter (fixture
-  plan flipped, then restored to free): workflows GET 403,
-  autonomous/campaign/list GET 403, 2nd profile 403 limit 1. Profile cap
-  (pro): 1 existing + 2 creates OK → 4th create 403 "Pro plan includes 3
-  active business profiles … upgrade to Elite"; probe profiles then
-  archived via DELETE → qa restored to 1 active profile. Browser:
-  settings meter "1/3 active · Pro plan" (enabled) vs free "1/1 active ·
-  Free plan" + disabled New Profile + "upgrade to Pro for up to 3"
-  CTA (scripts/plan-cap-pro-profiles.png, plan-cap-free-profiles.png);
-  workflows tab free → "Workflows requires Pro" PlanGate;
-  meetings settings free → autonomy gate visible, pro → all 3 radio
-  options intact (scripts/plan-gate-free-meetings-autonomy.png).
-  Browser console clean.
-- DATA PRESERVATION (verified by SQL before/after): users, subscriptions,
-  credits ledger, leads, outreach messages, workflow definitions, discovery
-  jobs, website research all intact; the only row modifications were the
-  fixture user's plan (flipped to starter for the live check, restored to
-  free) and 2 probe profiles (created then archived — rows preserved with
-  archivedAt set). 3 extra free users appeared during full-suite runs —
-  they are the suite's own e2e signup fixtures (test_*@acq-test.com),
-  additive only. Legacy 'PRO'/'enterprise' user rows untouched (fail-closed
-  entitlement semantics documented).
+Work log:
+- AREA 1: Read src/components/dashboard/lead-detail-panel.tsx (1012 lines, full). Architecture: shadcn Sheet (Radix Dialog) with modal={false} (FIX 8 comment, line 460); hidden anchor span rendered UNCONDITIONALLY incl. the lead=null early return (line 447); mount-only effect resolves closest('[data-app-content-region]') into portalContainer (lines 429-434); SheetContent gets container={portalContainer} + 'absolute inset-y-0 right-0 h-full' when bounded (lines 461-468), overlayClassName='' → local absolute inset-0 z-40 overlay (ui/sheet.tsx:75-83) instead of the fixed inset-0 z-50 body-portal fallback (sheet.tsx:32-46,85).
+- AREA 1: data-app-content-region defined in dashboard-layout.tsx:749 (relative flex flex-col flex-1 min-h-0 wrapping <main>, between sticky header z-[100] line 674 and mobile bottom nav z-[200] line 769). Panel mounted ONLY in leads-tab.tsx:879-883 (lead={selectedLead}, open={!!selectedLeadId}); pipeline-tab.tsx:512-515 and discover-tab.tsx:929-932 route lead clicks via setSelectedLeadId + setActiveTab('leads'). No z-[...] hacks, no 100vh/100dvh in panel/leads-tab (grep zero). Floating FABs (quick-actions z400, ai-chat-bubble z450, feedback z-[450], accessibility z-[9998]) are root-fixed and still paint above the bounded sheet — FABs overlap panel edge, not vice versa.
+- AREA 1: Test src/__tests__/components/lead-detail-portal.test.tsx — 3 assertions (anchor exists in null branch; dialog role=dialog name /acme dental/ is DOM descendant of [data-app-content-region]; dialog never direct child of document.body). RAN IT: 3/3 PASS (vitest, 320ms). Panel header always visible: Back-to-leads button (477-489) + SheetTitle=businessName (493-504) + Radix X close; body scrolls in ScrollArea flex-1 min-h-0 (576). Actual tabs: Overview/Contact/Notes/Activity/Company/AI Pipeline — the required literal sections (Contact & Sources, Business Research, Business Gaps & Opportunities, Outreach, Deal/Pipeline, AI Analysis) are not standalone tabs; research/gaps/pitch/email live inside prospect-pipeline-tab.tsx 5-step AI Pipeline tab (lines 53-57).
+- AREA 2: Read assistant-tab.tsx (1543 lines, full), ai-chat-bubble.tsx (546, mounted dashboard-layout.tsx:918), ai-copilot-panel.tsx (561 — defined but mounted NOWHERE), /api/sales-assistant/route.ts (476), /api/chat-sessions/route.ts, /api/ai/chat{,/stream,/cancel}/route.ts, lib/ai/chat-service.ts (525), lib/api.ts askSalesAssistant (459).
+- AREA 2: Active path is STATELESS: assistant-tab POSTs /api/sales-assistant via react-query useMutation (419-434); messages in local useState (333); route persists NOTHING (only meetingIntentLog.create); no sessionId/conversation identity; no AbortController anywhere in src/components (grep zero). Nav away unmounts tab → messages lost, isPending dies (no stuck thinking, no duplicate send, no stale partial — single JSON, no streaming). AIChatBubble survives tab switches (outside AnimatePresence) but dies on reload.
+- AREA 2: Durable chat backend is ORPHANED: chat-service.ts has full aiChatSession/aiChatMessage persistence, SSE streaming (stream/route.ts TransformStream saves full content in flush()), cancel token, credit deduction/refund — but grep proves NO client calls /api/ai/chat* (only route files reference it). AssistantTab's "Chat History" popover fetches /api/chat-sessions (373-380) but clicking a session only toasts "Loaded: title" (833-837) — messages never loaded; and nothing ever creates sessions, so the popover is always empty.
+- AREA 2: handleRegenerate (assistant-tab.tsx:540-611) bypasses useMutation: raw fetch + setTimeout(100), isPending not set during regenerate → Send/Regenerate stay enabled → double-click can fire parallel requests and append duplicate assistant replies. Durable bits that DO exist: saved responses (localStorage acq-os-saved-responses, cap 50) + pinned messages (acq-os-pinned-messages, cap 10), lazy-init 347-354.
+- AREA 3: Signup route (api/auth/signup/route.ts:95-121) creates user plan=free/trial with NO credits field, NO ledger entry, NO reward call. Actual 50-credit grant is ONLY the Prisma default: prisma/schema.prisma:103-105 credits Int @default(50), creditsMonthly @default(50). Both Google OAuth user-create sites (auth/google/callback/route.ts:389, auth/callback/google/route.ts:590) also omit credits → implicit 50. Grep: no signup_reward/welcome/bonus action anywhere in src/lib|src/app; no user-referral credit system (only lead-source 'Referral' labels).
+- AREA 3: Second award site found: api/settings/onboarding/route.ts:171-199 grants +25 'onboarding_bonus' on completion (ledger action onboarding_bonus), guarded by OnboardingProgress.bonusCreditsAwarded flag read at line 129 → new user completing onboarding ends at 50+25=75. Idempotent for retries via flag, but read-then-upsert without unique constraint = theoretical concurrent-PUT race. No ledger entry for the signup 50 (only onboarding/payment/deduct paths write ledger) — signup grant is invisible to audit.
+- AREA 3: HARD EVIDENCE — ran vitest src/__tests__/api/auth-routes.test.ts: test 'should create user with correct defaults (plan=free, credits=50)' (line 182) FAILS: expects createCall.data.credits === 50, received undefined (route no longer passes credits explicitly). 5 other failures in that file (e.g. wrong-password signin returns 409 not 401). Purchased/plan credits separate and transactional (credit-service.ts $transaction deduct/add/refund/rollover/addon; renew-subscriptions cron resets free to 50 at route.ts:200).
 
 Stage Summary:
-- Autonomous workflows + the complete AI Business Growth Agent automation
-  (workflows engine, autonomous outreach/SDR, sequences, meeting
-  autonomy, cron/trigger/webhook paths) are enforced Pro/Elite-only on 46
-  backend entry points AND gated in the UI; Free/Starter get structured
-  403s and upgrade prompts.
-- Active business profiles capped at Pro 3 / Elite 7 (Free/Starter
-  baseline 1) — server-enforced with grandfathering; limits apply to
-  profiles/niches, never leads; UI shows a plan-aware meter + upgrade CTA.
-- "Free Lite"→"Free" / "Standard"→"Starter": verified already fully applied
-  repo-wide (code, UI, entitlements, tests, docs, README, DB) — nothing
-  left to rename; pricing/credit allocations untouched.
-- Zero new test failures; 34 new tests green; all schema untouched (no
-  migration needed — limits live in the entitlement config).
-- Limitations: no DB-level PlanEntitlement backfill for the new
-  business_profiles key (seedPlanEntitlements upserts on next run;
-  in-memory config is authoritative at runtime); OutreachTab sequence
-  authoring for Free/Starter now surfaces the API 403 via toast (no
-  dedicated PlanGate on that section yet); command-center.tsx remains dead
-  code (its /api/autonomous/stats target doesn't exist — pre-existing).
+- AREA 1 Lead Detail UI: IMPLEMENTED (shell-bounded portal correct + regression test green; no z-index hacks; no full-viewport overlay; business name + back/close always visible). Gaps: section set differs from required list (PARTIAL vs literal section names), FABs still float above panel, fallback path silently regresses to body-portal if region missing.
+- AREA 2 AI Assistant: PARTIAL — no duplicate requests/stuck thinking/stale partials in practice (stateless), but durable conversation history is MISSING on the live path; full durable backend (chat-service + /api/ai/chat) is orphaned/unused; no AbortController/abort-on-unmount; regenerate path can double-fire.
+- AREA 3 Signup credits: PARTIAL — amount is exactly 50 at creation and cannot double-award (schema default, applied once per user.create), but it is an implicit DB default, not an explicit idempotent reward write; NO ledger entry at signup; separate +25 onboarding bonus makes real first-experience 50+25; stale failing test still asserts explicit credits:50.
+- No code changes made (read-only audit). Tests executed read-only: lead-detail-portal 3/3 PASS; auth-routes 4/10 PASS (signup-credits assertion fails).
 
 ---
-Task ID: master-bugfix-audit-1
-Agent: Super Z (main agent)
-Task: MASTER BUG-FIX + PRODUCT-FLOW AUDIT — discovery restart/recharge on
-navigation, assistant transient-state leak, leads detail overlap, outreach
-inline Pro/Elite gate, workflows automation UX, None option, global credit
-idempotency (18-section spec)
+Task ID: 2-c
+Agent: Explore-workflows-audit
+Task: READ-ONLY audit of autonomous workflow automation (data model, engine, scheduling, entitlement workflow_access, AI workflow creation, execution visibility, approval-before-send, retries/idempotency, profile association, tests). No files modified.
 
-Work Log:
-- PHASE 0 AUDIT (read-only, 6 parallel recon agents): mapped discovery
-  lifecycle (fire-and-forget job + in-memory activeJob + non-idempotent
-  start route + dead /api/discovery/status), assistant split-brain (tab
-  state dies on switch vs shell-mounted bubble surviving with in-flight
-  fetch; no AbortController; global mutations.retry:1), lead panel
-  (early-return before anchor span => one-shot region effect resolves null
-  forever => body-portal fixed z-50 sheet), outreach (no PlanGate; campaign
-  create is a client-only mock), workflows (no flagship loop template, doc
-  page fabrications, Retry button called resume endpoint (400s for failed),
-  Run/Rerun sent no idempotencyKey, update_tags string-vs-array, threshold
-  `|| 10` falsy bug), billing sweep (30 call sites; ~24 without keys;
-  Date.now()-keyed sites structurally non-idempotent; restore->charge paths
-  CONFIRMED clean app-wide).
-- FIXES (forward-only, additive):
-  (1) Discovery: DiscoveryJob.idempotencyKey + useBusinessContext columns
-  (additive db push, snapshot db-backups/custom-20261002142100.db); POST
-  /api/leads/discover now dedupes by client requestId AND by identical
-  pending/running params (returns SAME job, deduped:true, no create, no
-  charge); startDiscoveryJob persists the key; per-lead ledger key switched
-  from mutable counter to stable slot index (refund no longer causes free
-  import); discover-tab RESUMES the server-truth active job on mount
-  (GET /api/discovery/status) and shows an honest "already running" toast
-  for dedupes; providers.tsx mutations.retry: 0 (no auto-replay of
-  chargeable POSTs); removed armed retryCount:1 from api.discoverBusinesses.
-  (2) Assistant: NEW src/lib/assistant-chat-store.ts — one session-scoped
-  conversation for tab + bubble (zustand, NO persist), one-generation-at-
-  a-time guard, AbortController + 90s bound wait, explicit cancellation/
-  timeout/failure notes, epoch guard so clear() invalidates in-flight
-  writes; assistant-tab aborts tab-initiated generation on unmount;
-  regenerate routed through the shared send path; history toast copy made
-  truthful. No billing change (live route still charges 0 — documented).
-  (3) Leads detail: effect deps [lead?.id, open] re-resolve the shell
-  region -> panel renders absolute inside [data-app-content-region] like
-  MetricDetailDrawer (below topbar, beside sidebar).
-  (4) Outreach: inline <PlanGate requiredPlan="pro"
-  featureName="Automated Outreach Sequences"> wraps the Campaigns view;
-  Direct Messages untouched; backend 403s untouched.
-  (5) Workflows: automation overview panel in WorkflowDetail (real engine
-  behavior: trigger explainer, per-step plain-language + credit note,
-  approval-by-draft honesty); flagship "End-to-End Client Acquisition"
-  template (manual trigger -> ai_analysis -> score -> score gate ->
-  ai_outreach DRAFT -> notification -> send_email -> wait -> reply-gated
-  whatsapp -> pipeline move); executions UI: Retry now calls the executor
-  retry endpoint (resume 400'd for failed), dead-letter badge/reason,
-  triggerEvent/pausedAt/resumedAt, log Input viewer, retryAttempt badge,
-  queued/dead_letter/paused filters, retry/rerun pending guards;
-  Run/Rerun send idempotencyKey (engine dedupes); builder: save-time
-  validation (condition field/value, email to/subject/body, tags),
-  update_tags string->array conversion, threshold `?? 10` (0 representable,
-  empty=default), ai_outreach style "None (inherit profile tone)",
-  recipient field with {{lead.email}} default; NEW {{lead.*}} template vars
-  (getLeadTemplateVars fetched once per run) + to: resolved through
-  resolveTemplate + structured {{output.<step>.<field>}} support; built-in
-  templates fixed (to: {{lead.email}}); docs page truth-up (vertical
-  builder, real featured templates, no auto-retry, scheduled-trigger not
-  wired, per-step credit mechanics, real plan numbers incl. Starter row).
-  (6) None option: BusinessProfileSelector explicit "None — no business
-  context" (mode default/profile/none; auto-select never overrides None);
-  payload useBusinessContext:false persisted on job; resolveBusinessContext
-  honors skip so replays never re-attach default profile.
-  (7) Research: client requestId -> /api/leads/[id]/research ->
-  runWebsiteResearch idempotencyKey (replaces Date.now() key).
-- TESTS: 30 new tests, all green — discovery-operation-identity (6:
-  requestId replay dedupe, identical-active dedupe, distinct-params not
-  blocked, key persistence, None flag, 400 path), assistant-chat-store (6:
-  one prompt one request, no second request while generating, cancellation
-  note, timeout note+toast via fake timers, clear() epoch, structured
-  shaping), workflow-template-contracts (11: every template satisfies
-  engine contracts incl. to/tags-array/condition completeness; flagship
-  loop coverage; resolver-supported variables), lead-detail-shell-bounds
-  (2: re-resolve on open -> absolute-in-region, no body portal),
-  outreach-plan-gate (5: free/starter gate + pro/elite full + manual view
-  ungated). Updated workflows-integration mock (+getLeadTemplateVars).
-  FULL SUITE: 29 failed | 1211 passed (1240) — failing files identical to
-  the pre-existing documented set (subscription-store 6, health 5,
-  auth-routes 5, onboarding-e2e 4, email 4, api-key 3, jwt 1,
-  credit-service 1, auth-api 1 env-dependent) + 0 new failures.
-- LINT: 0 new issues (4 pre-existing in lead-detail-panel confirmed at
-  HEAD via git show). Scoped tsc (tsconfig.scope-masterfix.json): only the
-  2 pre-existing email.ts errors. FULL next build: OOM-killed at 3.4GB
-  heap (pre-existing 4GB-machine limitation, exit 137 — NOT a compile
-  failure).
-- LIVE E2E (agent-browser + fixtures, all executed): S1 discovery —
-  replay of same requestId => SAME jobId deduped:true; identical-params
-  POST => same job; navigation Discover->Leads->Discover + browser refresh
-  => progress card re-attached to SAME job; job count +1 total, ledger
-  +1 row keyed "<jobId>:lead:0"; screenshots e2e-discover-resume-*.png.
-  S2 assistant — sent prompt, SPA-navigated away mid-generation, returned:
-  user message persisted, explicit cancellation note, no stuck spinner,
-  exactly one POST; full reload shows empty transcript (nothing
-  rehydrates); e2e-assistant-cancel-note.png. S3 leads — desktop panel
-  absolute in region top=56 (below 56px topbar), mobile 375px top=48 below
-  48px topbar, no horizontal overflow, Back closes; e2e-leads-detail-*.png.
-  S4 outreach — free fixture: gate visible + Upgrade CTA + Create Campaign
-  hidden; pro: campaigns view ungated; e2e-outreach-*.png. S5 workflows —
-  flagship template listed + instantiated, overview panel renders
-  (trigger/steps/approval/credits), docs page shows all truth-ups;
-  e2e-workflow-overview.png, e2e-workflows-docs.png. Browser console clean.
-- DATA: db push additive x2 (snapshots kept); users 49, subscriptions,
-  payments, historical ledger untouched; probe artifacts (2 discovery
-  leads, 1 draft workflow, 1 layout lead) created then deleted; probe
-  ledger rows (-1 x2) kept append-only; fixture tokens minted for
-  qa@test.com (pro) + qa-free-1790946329@test.com (free).
+Work log:
+- MODEL: prisma/schema.prisma L1270-1403 — WorkflowDefinition (status draft/active/paused/archived, triggerType, triggerConfig JSON holding schedule, nodes/edges JSON, version, disabledBySubscription, runCount/successCount/failureCount/avgRuntimeMs/lastRunAt, webhookPath, maxRetries, maxConcurrency), WorkflowStep (type/name/config/order/nextStepId), WorkflowExecution (status running/completed/failed/cancelled/paused, currentStep/totalSteps, startedAt/completedAt, error, retryCount/maxRetries/timeoutMs, idempotencyKey (indexed, NOT unique), pausedAt/resumedAt, triggerData/triggerEvent, deadLettered/deadLetterReason, durationMs, userId), WorkflowLog (per-step status/input/output/error/durationMs/retryAttempt), WorkflowTemplate. NO timezone field, NO nextRunAt, NO profileId/nicheId, NO approval state anywhere; no BusinessProfile/OfferProfile model exists in schema (only UserSettings.personalContext/defaultNiche/targetNiches).
+- ENGINE: FOUR parallel systems. (1) workflow-engine.ts (921L): executeWorkflow loads draft|active workflow, execution-limit + optional idempotency check, creates execution, runSteps inline (blocks request), per-step credit deduction (workflow-credits.deductExecutionCredits) then executeAction; failure → increment retryCount (no auto re-run, no backoff) or DLQ after maxRetries; pause/resume (resume re-runs steps.slice(currentStep))/cancel/retry-from-failed-step; getExecutionHistory/Detail/Metrics. NO overlap/concurrency check. (2) workflow-executor.ts (953L): second engine with queued→running status, maxConcurrency overlap check (L62-72), REAL exponential backoff retries (L193: 1s·2^(n-1) cap 30s), edge traversal, own executeStepAction (15+ types), webhook HMAC mandatory (L903-916), retry resets currentStep=0 + deletes old logs. Deducts NO credits at all. (3) workflow-actions.ts (915L): 17 action types — real: send_email (lib/email sendEmail), ai_analysis/ai_outreach/score_lead (ZAI + owner-scoped resolveLeadForExecution), move_lead_stage, update_tags, add_note, webhook_call, conditional_branch, wait_delay, create_notification, notify_low_credits/trial_ending; STUBS: send_telegram ("In production, this would send via Telegram Bot API" — writes outreachMessage only), send_whatsapp (record only), create_gmail_draft (record, not Gmail API), export_data (pending dataExport row only). (4) Autonomous pipelines: autonomous-pipeline.ts (554L campaign: parse→discover→poll→analyzeLead→generateOutreach→optional real sendEmail via gmail-delivery; one-shot, no schedule); autonomous-sdr-pipeline.ts (1818L, 8 phases: discover→enrich→analyze(scoreLead)→detect(hot)→outreach→monitor(replies via reply-intelligence-service or heuristic)→followUp→pipeline(STAGE_PROGRESSION + best-effort analyzeLeadGaps)); SDR "send" flips OutreachMessage.status draft→'sent' WITHOUT transport (comment: "actual sending is done through the sequence execution engine or manually"); monitor depends on gmail-reply-processor.ts L272 setting status 'replied'. workflow-store.ts = 10-line deprecated stub → workflow-service.ts (727L DB CRUD + subscription-pause guard + activate/deactivate/duplicate). workflow-triggers.ts (385L): evaluateTrigger event firing + processScheduledTriggers + shouldFireSchedule (interval/daily/weekly/monthly/cron mini-parser, SERVER-LOCAL time, default 09:00) + no-op register/unregister.
+- LIFECYCLE MAPPING vs spec: Trigger(schedule)=MISSING-wiring; profile context select=MISSING; discover=SDR ph1/campaign only; dedupe=inside discovery service (lead-dedup-service.checkDuplicate), not a workflow step; enrich=SDR ph2; AI analysis=action+SDR ph3; gaps=SDR ph8 best-effort gap-analysis-service; lead action plan=MISSING (only notifications/notes); outreach=real (ai_outreach/generateOutreach); approval=workflow engine MISSING, SDR notification-only; send=real via send_email action / gmail-delivery, but executor-engine + SDR are DB-status-only; monitor replies=SDR ph6; follow-up=SDR ph7 + sequence engine; qualify/pipeline=move_lead_stage + SDR ph8; schedule meeting=MeetingIntentLog only (delegated to meeting-orchestration); continue/stop loop=MISSING in workflow engine (SDR is per-cycle one-shot).
+- SCHEDULING: BROKEN. No in-process scheduler (src/instrumentation.ts only loads env/Sentry/logs; no setInterval for workflows). Celery Beat (backend/app/celery_app.py L108-126) schedules workflow-scheduler/recovery/cleanup/deadletter every 1-60min BUT backend/app/tasks/workflow_tasks.py tasks are ALL stubs that only log ("In production, this would call the Next.js API"). processScheduledTriggers() has ZERO callers (grep: definition + workflow-triggers L172 + deployment doc warning). docs/operations/CRON-JOBS.md: 12 /api/cron endpoints (incl. /api/cron/sdr-cycle with CRON_SECRET Bearer auth, users filtered by UserSettings.meetingAutonomyMode in assisted/autonomous) exist but only expire-api-keys is wired to the external cron gateway; sdr-cycle is "(configure externally)". Restart recovery: nothing marks stuck 'running' executions failed (Celery recovery stub). Missed-job policy: none (missed minute tick = missed day; day-granular idempotency key scheduled_${id}_${date} prevents same-day doubles). Overlap prevention: ONLY in executor maxConcurrency; engine/scheduler none; no unique constraint on idempotencyKey (findFirst race). Execution itself is server-side (browser-independent) — scheduling is the missing half.
+- ENTITLEMENT: entitlement-service.ts 17 feature keys; workflow_access enabled on pro+elite, disabled free+starter (L55/76/95/114). Checked in POST /api/workflows (route.ts L54 checkPlanEntitlement) and ai-generate L234 hasFeatureAccess. NOT checked on [id]/execute, /trigger, /duplicate, /webhook, /templates, /metrics. No hardcoded === 'elite'/'pro' in workflow libs (grep clean). BUT workflow-credits.ts WORKFLOW_LIMITS {free:3, pro:25, elite:∞} + EXECUTION_LIMITS omit 'starter' (falls back to free=3/50) and duplicate plan logic outside ENTITLEMENTS. Frontend: dashboard-layout.tsx L478 PlanGate requiredPlan="pro" wraps WorkflowsTab; workflow-builder.tsx L524 PlanGate pro; workflows-tab.tsx L2589 hasFeatureAccess('workflow_access') gates AI-create button; plan-gate.tsx is plan-level (verified-state P3 logic), not feature-key.
+- AI-CREATE: POST /api/workflows/ai-generate — input {description ≤2000 chars}; NO profile/niche input; personalizes with loadPersonalContextForAi(user.id) (UserSettings.personalContext) appended to prompt; entitlement gate L233-253 (403 FEATURE_REQUIRED + logEntitlementEvent BEFORE credit deduction); 5 credits deducted pre-generation, refunded on AI failure; output {generated, payload(builder-shaped nodes/edges/steps, status draft), creditsDeducted, newBalance}; client saves via standard POST /api/workflows.
+- VISIBILITY: APIs /api/workflows/executions (paged history), /logs?executionId (detail+stepLogs), /metrics (+detail=usage|dead_letter), /executions/[executionId]/{logs,pause,resume,cancel,retry,replay}, /dead-letter(+/[executionId]). UI workflows-tab.tsx (2800L: list, Execute Now L1506, activate/pause toggle, executions view), workflow-execution-history.tsx (444L: filters, retry/cancel/pause/resume, step logs), workflow-metrics.tsx (400L charts), workflow-dead-letter.tsx, workflow-tab.tsx sub-tab shell. currentStep/totalSteps/status/timestamps/error/retryCount/deadLettered exposed; no explicit previous/next-step pointer (index + ordered logs only).
+- APPROVAL: WorkflowDefinition/Execution have NO approval fields; no approval action type among the 17. SDR: canAutoExecute(autonomyLevel, severity) L165-185 ('approval'→all require approval; 'assisted'→high-severity) sends "SDR: Outreach Ready for Approval" notification (L621-627) but there is NO approve/reject endpoint or persisted approval queue — pending outreach is dropped from the cycle, user must send manually. autonomous-outreach-engine autoSend flag + real sendEmail (L427-430); UserSettings.outreachAutonomyMode default 'manual', meetingAutoSchedule default false.
+- RETRIES/CREDITS: credit-service.deductCredits = atomic $transaction, negative-proof, supports optional idempotencyKey — but workflow-credits.deductExecutionCredits passes NONE → per-step deductions not idempotent; NO refund when executeAction throws after successful deduction (only ai-generate refunds); engine retryExecution slices remaining steps (completed steps not re-charged) but a failed step's credits are lost and retry re-deducts; executor engine deducts nothing. Idempotency: findFirst check engine L91-99 / executor L51-60, no DB unique constraint; trigger keys embed Date.now() (no cross-event dedupe).
+- PROFILE: workflow→profile association MISSING — can create workflow with zero profile/niche; execution scope = triggerData.leadId only (owner-scoped via resolveLeadForExecution); SDR uses user-level UserSettings.targetNiches/targetCountries, not per-workflow.
+- TESTS: 4 files, 76 cases, ALL PASS (ran vitest: 38+14+5=57 in 3.2s; e2e 19 in 1.3s): tests/unit/workflows.test.ts (38: validation, trigger eval, step order/conditional skip, state transitions, DLQ, retry counters, concurrency limits, metrics), tests/integration/workflows-integration.test.ts (14: trigger→completion, limit rejection, webhook+signature, scheduled-trigger queries + cron-timing test that REIMPLEMENTS the parser instead of testing shouldFireSchedule, retry x3, cross-service steps), tests/integration/workflow-ai-generate-entitlement.test.ts (5: pro/elite allowed, free/starter 403 before deduction, ENTITLEMENTS consistency), tests/e2e/workflow-flow.test.ts (19: create/configure/activate/trigger/verify mock UI flow). "52 previously passing" = 38 unit + 14 integration. ZERO tests for: SDR/campaign pipelines, timezone scheduling, shouldFireSchedule/evaluateCron, credit idempotency/refunds, approval flows, executor backoff.
 
 Stage Summary:
-- One discovery operation = one identity = one billing sequence; navigation
-  and refresh now RESUME the existing job instead of appearing to restart;
-  replays cannot create jobs or charge.
-- Assistant transient generation state is explicit, abortable, bounded and
-  never rehydrates; the two chat surfaces share one transcript.
-- Lead detail is shell-bounded on desktop + mobile.
-- Outreach sequences carry an inline Pro/Elite gate (backend untouched).
-- Workflows UI now communicates the real end-to-end loop, executions expose
-  their full state, Retry works, Run/Rerun are idempotent, and the docs
-  match the engine.
-- Explicit None exists where optional overrides had none.
-- Not verified: full production build (OOM on this 4GB box); multi-user
-  concurrent-discovery dup-race (checkDuplicate TOCTOU) left as documented
-  pre-existing risk; remaining ~20 billable sites without ledger keys
-  documented, untouched (minimal-change rule).
-
+- Data model: PARTIAL — execution state/step/history/DLQ/idempotency well modeled; timezone, schedule fields, profile association, approval state MISSING.
+- Engine: IMPLEMENTED (duplicated across 2 engines + actions + triggers); 13 of 17 actions real, 4 stubbed (telegram/whatsapp/gmail-draft/export); lifecycle stages beyond per-lead event workflows live only in the separate SDR/campaign pipelines.
+- Scheduling: BROKEN — processScheduledTriggers orphaned (no caller), Celery tasks stubs, no timezone (server-local, default 09:00, Asia/Kolkata absent), no restart recovery, no missed-job policy, overlap check only in executor.
+- Entitlement: IMPLEMENTED at create + ai-generate via workflow_access key (pro+elite); HOLES: execute/trigger/duplicate/webhook ungated; workflow-credits hardcodes plan limits without 'starter'.
+- AI creation: IMPLEMENTED (entitlement-gated, 5 credits + refund, personal-context aware, draft payload through standard create path); no profile input.
+- Visibility: IMPLEMENTED (APIs + 5 UI components incl. history/metrics/DLQ).
+- Approval-before-send: MISSING in workflow engine; PARTIAL notification-only in SDR.
+- Retries/credits: PARTIAL — real backoff in executor only; non-idempotent unrefunded deductions in engine; no per-lead idempotency.
+- Profile association: MISSING (no model field, no UI, unused in execution).
+- Tests: IMPLEMENTED and green (76 cases incl. the 52 known: 38 unit + 14 integration); coverage gaps on scheduling internals, SDR pipelines, credits idempotency, approvals.
+- No code changes made (read-only audit). Tests executed read-only: workflows unit 38/38 PASS, workflows-integration 14/14 PASS, ai-generate-entitlement 5/5 PASS, workflow-flow e2e 19/19 PASS.
 ---
-Task ID: feedback-button-restore
-Agent: Super Z (main agent)
-Task: Restore the missing green Feedback floating button (bottom-right stack: purple chat / green feedback / purple plus) — no other changes.
+Task ID: 2-e
+Agent: Explore-research-security-audit
+Task: Read-only audit of 5 areas — website research + contact extraction, evidence-backed analysis, universal AI outreach, phone validation, Gmail + security/ownership.
 
-Work Log:
-- Audited the floating-button stack: AIChatBubble (bottom 136px, dashboard shell), FeedbackProvider
-  button (bottom 80px, root layout, teal/green, class fix5-fab-feedback), QuickActionsFAB (bottom 24px).
-  CSS rules in globals.css intact; all three components exist; FeedbackProvider still mounted in
-  src/app/layout.tsx. Initial browser session showed all three present → bug is conditional, not removal.
-- Root cause found in src/components/feedback/feedback-provider.tsx: it authenticated via a ONE-SHOT
-  fetch to /api/auth/me at mount with no retry and no subscription to the shared auth store. AuthGate
-  (auth-gate.tsx init) has a recovery path (me → 401 → silentRefresh → me) for expired 15-min access
-  tokens, and password sign-in sets the user client-side with NO reload — but FeedbackProvider never
-  re-checked, so it stayed "unauthenticated" for the whole SPA session. The two purple buttons have no
-  auth gate → exactly the reported symptom (chat + plus visible, green missing).
-- LIVE REPRODUCTION (agent-browser): reset fixture qa@test.com password via the app's own
-  forgot/reset-password APIs (scripts/reset-qa-fixture-password.cjs; OTP read from DB snapshot; the
-  account is the existing E2E fixture — no other data touched), cleared cookies+localStorage, loaded /,
-  signed in through the REAL UI form (no reload): dashboard showed fixQA=true, fixAI=true,
-  fixFeedback=FALSE. Screenshot: scripts/feedback-bug-reproduced.png.
-- Fix (single file, src/components/feedback/feedback-provider.tsx, +50/−9): subscribe to useAuthStore
-  user (reactive to sign-in, silent-refresh recovery, sign-out); keep the direct /api/auth/me fetch only
-  as fallback for direct loads of non-AuthGate routes (public support/legal pages); sign-out
-  reconciliation clears the fallback identity; auto-capture/crash-reporter init now gates on resolved
-  auth (store-first, fetch-fallback); button position/class/teal styling/modal/Shift+F untouched.
-- Verification: scoped tsc (tsconfig.scope-feedbackfix.json) EXIT=0. Re-ran the exact repro flow against
-  the fix: sign-in via UI → fixFeedback=true, fixQA=true, fixAI=true (no reload). Stack geometry
-  verified: chat y=708 / feedback y=772 / plus y=828 at 1440x900, right-aligned 20px, teal bg
-  (lab 55.0 −41.1 −3.9 ≈ teal-600), z 450/450/400. Screenshot: scripts/feedback-after-fix.png.
-  Click opens the real Share Feedback wizard (Step 1 of 3, all categories) — scripts/feedback-modal-open.png;
-  close works; real Shift+F keypress opens it; Escape/Close restore; Assistant-tab guard preserved
-  (hides there by the pre-existing 2026-09-09 design, returns on Overview); sign-out hides the button
-  immediately (also fixes a pre-existing stale-button-after-logout wart); fresh authenticated load shows
-  all three; mobile 390px: feedback visible at its mobile offset (bottom 72px right 16px), zero horizontal
-  overflow. Server health 200. Byte-level proof the file is intact after a misleading ANSI-stripping
-  display artifact in diff/grep output (hex check: 0x205b = "[ " before "modalOpen" at byte 2507).
+Work log:
+- AREA 1 (research/extraction): audited src/lib/prospecting/* (website-fetch.ts, pipeline-steps.ts, pipeline.ts, batch-research.ts, strategy.ts, types.ts), src/lib/website-service.ts, src/lib/distributed-scraping-service.ts, src/lib/lead-discovery/discovery-engine.ts, lead-discovery-service.ts, lead-dedup-service.ts, lead-discovery/verification.ts. Verified: homepage + about/about-us/services/contact/products subpage fetch (8s timeout, 500KB cap, bot UA, SSRF-guarded normalizeUrl); contact extraction (email+phone regex) lives in discovery-engine.ts scrapeWebsite (homepage only), verification statuses verified/partially_verified/unverified/verification_failed/conflicting in verification.ts; merge-fill duplicate handling never overwrites existing fields (mergeFillDuplicate, lead-discovery-service.ts:981); re-research only fills empty lead fields (pipeline.ts:342-350 updateMany where null). BROKEN found via tsc (tsconfig.scope-lib.json, 177 errors): batch-research.ts references db.researchJob + lead.researchStatus (absent from Prisma client), passes 3 args to 2-arg startProspectPipeline; strategy.ts imports 9 types missing from types.ts and references research.industry/businessModel/companySummary/evidence + lead.bestContactPersonHint — both files are non-compiling dead code, so /api/prospecting/research-batch would fail at runtime. robots.txt helper (anti-bot-service.ts shouldRespectRobotsTxt) is exported but never imported/called by any fetch path. distributed-scraping-service.ts is in-memory scaffolding (imports db unused). No vitest coverage for any of this (only manual scripts/).
+- AREA 2 (evidence-backed analysis): audited lead-analysis-engine.ts, scoring-engine.ts, prompt-manager.ts, gap-analysis-service.ts, competitive-gap-analysis-service.ts, hot-lead-detection*.ts, autonomous-outreach-engine.ts stage logic. Strong: prospecting step prompts hard-constrain fabrication ("never invent facts", "unknown when evidence is missing", estimates must be labelled); strategy.ts has explicit insufficient-data path; hot-lead detection is purely algorithmic. Gaps: lead-analysis prompt v2 (prompt-manager.ts:51-87) has NO anti-fabrication rules and requests estimatedDealSize/purchaseProbability; gap-analysis-service AI prompt asks for conversionProbability + impactOnConversion percentages with no evidence constraints and uses direct ZAI; outreach prompt outputs estimatedReplyRate (fabricated %); LeadScore rows in lead-analysis-engine store generic explanation "Generated by AI analysis (v1)" while scoring-engine stores real explanations; gmail-reply-processor.updateLeadFromClassification auto-sets stage closed_lost (and meeting_scheduled) from a single AI-classified reply with no human approval; autoMovePipelineStage never maps to won/lost/negotiation (good). No persisted lead action-plan object with discovery questions/objection handling/recommended offer/discovery CTA exists — closest are LeadAnalysis.outreachMessages JSON {bestApproach,keyPainPoints,estimatedDealSize} and /api/leads/[id]/analyze fields (scoreReasoning, digitalWeaknesses, bestContactPerson/Channel/Timing, outreachStyle, opportunityNotes).
+- AREA 3 (universal outreach): audited outreach-generator.ts, sender-signature.ts, personal-context.ts, prompt-manager.ts outreach templates, outreach-tab.tsx, sequence-execution-engine.ts, email-sequence-service.ts, autonomous-outreach-engine.ts. Context assembled = lead facts (sanitizePromptInput'ed) + senderSignature block from authenticated user profile (name/company/email/phone via loadSenderProfile, UserSettings.companyName→org→legacy fallback) + personal-context block ("ABOUT THE USER...never invent facts beyond it") appended for pipeline match, outreach generator, and lead analyze route; no industry hardcodes found in prompt templates (only fallback phrase "professional digital services" when no offer profile matched, and data-driven website-gap categories); sender-signature replaces [Your Name] placeholders deterministically. Generation is generation-only (outreach-generator saves status 'draft', pipeline email persists OutreachMessage draft); outreach-tab UI has "Customize before sending" textarea + explicit Send & Log. BUT sequence-execution-engine.executeAIStep sends AI-generated emails/WhatsApp directly (line 577-602) with no review gate, email-sequence-service auto-activates draft sequences on first enrollment (line 418), and autonomous-outreach-engine sends all AI drafts via Gmail when params.autoOutreach=true (line 395-455) — approval is opt-in at campaign level, not per-message.
+- AREA 4 (phone): src/lib/phone.ts has 241 countries, MAX_LOCAL_PHONE_DIGITS=10, longest-prefix dial extraction, parseStoredPhone legacy handling (clean flag, never truncated), filterNationalInput strips duplicated country code after '+' and caps 10 digits, validateSubmittedPhone server rules incl. legacy round-trip allowance. Server-side enforcement exists ONLY in /api/settings/profile (route.ts:81-104). Client pattern (country-select + digits-only local input + client validate + round-trip rule) implemented in settings-shell.tsx (applyStoredPhone/handleSaveProfile/filterNationalInput at 555-600, 1178-1187). quick-lead-form.tsx (loose [\d\s\-+()] regex, "+1 (555)..." placeholder) and onboarding-flow.tsx (free text) do NOT use the pattern; /api/leads POST/PUT and whatsapp fields accept any string. Tests: src/__tests__/lib/phone.test.ts = 25/25 PASS (run in this audit); personal-context.test.ts 15/15 PASS.
+- AREA 5 (Gmail + security): audited gmail-oauth-service.ts (AES-256-GCM token encryption + legacy-key migration, state-token CSRF verified in /api/gmail/callback, token rate limits, revoked/expired handling, revoke endpoint), gmail-inbox-service.ts (per-second/minute API rate limits, sync lock, gmailMessageId dedup), gmail-reply-processor.ts (runningLocks, subject+from scoring match ≥50, repliedAt guard prevents reprocessing, system-message filter), gmail-pubsub-service.ts (timing-safe verification token, masked logs), gmail-job-service.ts (in-memory queue). No token values logged; token-endpoint error bodies and recipient email+subject are logged (minor). Outbound send: /api/gmail/send is user-click driven (compose dialog) — human gated; BUT sequences + autoOutreach bypass per-message approval (see AREA 3). Security sweep of 184 API routes: all settings/profile/personal-context/leads/campaign/workflow/prospecting/ai/gmail routes authenticated; ownership via owner-or-same-non-null-org (canUserAccessLead/resolveLeadForExecution, lead-resolution.ts:55-61) verified in leads/[id], ai/analysis/[leadId], analyze route, prospecting run route, batch-research ownership filter; 4 unauthenticated routes are justified-by-design (2 webhook routes now require mandatory HMAC webhookSecret, tracking pixel uses encoded tracking id, OAuth callback uses state). Prompt-injection: sanitizePromptInput (5 patterns + length cap) applied to lead fields in lead-analysis/scoring/outreach, but NOT to fetched website text (pipeline-steps siteText), web-search results, or inbound email bodies (reply-intelligence-service.ts:375 embeds emailContent raw) — injection mitigations partial.
+- No files modified (read-only audit); vitest runs executed read-only (phone 25/25, personal-context 15/15); tsc executed via existing tsconfig.scope-lib.json.
 
-Stage Summary:
-- Root cause: one-shot /api/auth/me gate in FeedbackProvider permanently concluded "unauthenticated"
-  whenever it fired before auth was established (expired access token at load, or pre-sign-in), while the
-  session recovered client-side → green button hidden for the whole SPA session; purple buttons unaffected.
-- Files changed: src/components/feedback/feedback-provider.tsx (only app file). Added:
-  tsconfig.scope-feedbackfix.json, scripts/reset-qa-fixture-password.cjs, verification screenshots under
-  scripts/. No rollback/reset; no DB changes beyond the fixture password reset through the public API flow;
-  purple buttons, Assistant-tab hiding, positions, styling, modal, backend untouched.
-- Verified: yes — full E2E matrix above against the real dev server.
-
+Stage summary: AREA 1 PARTIAL (core 5-step pipeline + website lifecycle + dedupe solid; batch-research/strategy non-compiling, no robots enforcement, contact extraction homepage-only, no vitest tests) · AREA 2 PARTIAL (deterministic guardrails + explainable scoring in new pipeline; legacy lead-analysis/gap-analysis prompts allow fabricated deal sizes/percentages; AI auto-closed_lost; no unified action plan) · AREA 3 PARTIAL (universal context assembly + draft-before-send + editable UI; sequence/autonomous engines send without per-message approval) · AREA 4 IMPLEMENTED for profile (server+client+25 tests); PARTIAL elsewhere (leads/onboarding unvalidated) · AREA 5 IMPLEMENTED for connect/disconnect/reply pipeline/dedupe/token hygiene with PARTIAL gaps (auto-closed_lost, no prompt-injection hardening on untrusted content, minor PII-in-logs).
 ---
-Task ID: workspace-recovery-1
-Agent: Super Z (main agent)
-Task: RECOVER the exact workspace state immediately before the Feedback floating-button task (user-reported rollback; no git reset/revert/checkout-old/restore used; DB untouched).
+Task ID: AUDIT-IMPLEMENT-1
+Agent: Super Z (main agent) + 5 Explore audit agents (2-a..2-e)
+Task: Complete product requirements audit + forward-only implementation of all missing/incorrect requirements
 
 Work Log:
-- Forensics (read-only): working tree was clean at main = 98aa357 (Oct 1 20:54 snapshot + Oct 2 19:58 mode-only amend); Task A fix (keepPreviousData) absent, Task B duplicate-import bug PRESENT again, worklog rolled back to Oct 1 19:21 content.
-- Root cause of loss: full sandbox restart 2026-10-03 01:19:26 UTC (boot-timeline.log: project re-materialization + bun install + db:push). Workspace came back from the last platform snapshot (Oct 2 19:58 amend), which predated ALL Oct 2 work (Tasks A–E ran 01:33–15:14 Oct 2). No reset --hard/revert in reflog; only 3 history-browsing checkouts at 01:27–01:28 (previous session's Feedback investigation) — loss was the platform restore, not git.
-- Recovery source found: /tmp/my-project — a near-perfect workspace mirror captured 2026-10-02 ~17:48 (dir mtime + .initial_snapshot.json manifest, 3283 entries; .pending_clone.json 81339 file list). Contains the ENTIRE lost era: Task A (01:33–01:47), Task B (05:38), Task C universal-biz (09:26–10:16), Task D plan-eligibility (12:45–13:12), Task E master-bugfix-audit (14:23–15:14 incl. 5 E2E screenshots), full worklog (130,803B, all missing Task ID entries), plus untracked user artifacts (feedback uploads, invoices, Sep 30 workspace tarballs, pentest evidence) that had also vanished.
-- Git object store exhausted first: 14 dangling + 98 unreachable commits (all ≤ Oct 1 20:54), 423 unreachable blobs (0 matches for keepPreviousData) — Oct 2 state was never committed/staged.
-- Restore engine (scripts/restore-from-tmp-backup.mjs, plan→apply): CONTENT-based vs git HEAD for tracked files (backup copies may carry stale mtimes — verified discover/research routes held Task E content despite old mtimes); mtime-based for untracked; EXCLUDED feedback-era files (mtime ≥ 17:32Z: feedback-provider.tsx fix, scope-feedbackfix, reset-qa-fixture-password.cjs, feedback-*.png) per user STOP marker; never touched db/, .env, node_modules, .git; forward-only (zero deletions).
-- APPLIED: 228 files restored (90 tracked modified + 138 new); 3571 byte-identical skips proved backup fidelity; 0 current-newer conflicts; 23 tracked-missing-from-backup = platform design-skill templates only (no lost-era deletions). Manifest: tool-results/restore-manifest.json; backup mtimes preserved on restored files for audit.
-- Preservation: feedback-era files + both platform manifests archived to tool-results/recovery/ (feedback-era/, platform-manifests/).
-- Verification: Master Audit 22-file set present (17 tracked modified +1037/−330 + 5 new = 22) with all signatures: DiscoveryJob.idempotencyKey + useBusinessContext in schema; discover route requestId dedupe ×5; providers.tsx mutations retry:0; assistant-chat-store.ts; outreach-tab PlanGate (475–645); business-profile-selector "__none"/"None — no business context"; workflow flagship template; leads-tab keepPreviousData ×3 + onMouseDown clear; outreach route single import block; signup route explicit 50-credit reward; BUSINESS_PROFILE_LIMITS per plan. TESTS: masterfix 30/30 PASS (discovery-operation-identity 6, assistant-chat-store 6, workflow-template-contracts 11, lead-detail-shell-bounds 2, outreach-plan-gate 5); Tasks A/C/D suites 78/78 PASS (leads-search-focus, signup-credits, universal-outreach, contact-extractor, business-profiles, automation-plan-gates, plan-eligibility, outreach-prompt-signature) = 108/108 recovered tests green.
-- DB (inspected READ-ONLY, never modified): live db/custom.db = vintage Oct 2 ~01:30 UTC (34 users/89 leads/149 ledger rows/8 discovery jobs intact; newest real user Sep 30). Task E's 2 columns (DiscoveryJob.idempotencyKey, useBusinessContext) MISSING from live DB — boot-time db:push synced it to the rolled-back Oct 1 schema. Oct 2 14:21 DB snapshot (custom-20261002142100.db) did not survive. Additive repair (ALTER TABLE ADD COLUMN ×2, Sep-29-precedent style) is REQUIRED before discovery/research routes run — awaiting user confirmation, NOT executed.
+- Phase A: 5 parallel read-only audits (discovery/credits, contexts/profiles, workflows/automation, lead-detail UI/assistant/signup, research/gmail/security) with hard evidence; worklog entries 2-a..2-e.
+- Phase C: credit-service idempotency write-path fixed (ledger writes composite action the pre-check queries) + idempotent refunds + discovery refund keys + write-path regression tests (3). Discovery resume-on-mount (src/lib/discovery-resume.ts + discover-tab effect, no re-POST), poll failure cutoff (5), recentlyDiscovered filter fix, 11 new tests. Assistant durable conversation store (8 tests) + restore/persist wiring + regenerate guard + real history popover.
+- Phase D: BusinessProfile model (additive db push, no data loss) + business_profiles entitlement (1/1/3/7 active) + /api/business-profiles CRUD (ownership + server-side limits) + Settings section + discover profile-mode + workflow profileId association (ownership-verified). 13 integration tests. Route name-check bug caught by tests and fixed.
+- Phase E: personal context appended in workflow ai_outreach, outreach-sender, leads/[id]/outreach, sales-assistant (via new buildPersonalContextBlockForUser helper). Anti-fabrication rules in lead-analysis v2/gap-analysis/outreach prompts. robots.txt compliance + SSRF guard in website-fetch; untrusted site/email text sanitized before prompts (pipeline-steps, reply-intelligence).
+- Phase F: /api/cron/workflow-scheduler (CRON_SECRET) + processScheduledTriggers wired; timezone-aware schedules (default Asia/Kolkata 08:00) with 15-min catch-up + per-local-day idempotency; stuck execution/discovery recovery; execute+duplicate entitlement gates; requiresApproval human-approval gate (draft + notify, not pre-charged); starter limits explicit; execution effective-config snapshot. 16 timezone tests.
+- Phase G: signup EXACTLY 50 + signup_reward ledger + onboarding +25 future award removed (+25 badge removed); phone validation on /api/leads POST (phone+whatsapp); /api/gmail/send lead ownership check; sequence AI sends default to DRAFT unless autonomy=autonomous; AI auto-closed_lost removed (forward progression only); batch-research repaired (additive ResearchJob model, real signatures/costs).
+- Phase H: full vitest 1227 passed / 28 failed (ALL pre-existing: harness/env/stale — evidence per file; previously-failing signup credits test now passes). tsc scope-lib 177→162 (remaining = pre-existing strategy.ts orphan); touched files clean.
+- Browser verification (live app, real signup + OTP): new user EXACTLY 50 credits; Business Profiles section + profile created via UI + Active profiles 1/1 + second-profile 403 limit toast; Discover context selector (None/business/Business Profiles group); lead detail panel inside shell (dialog in [data-app-content-region], panel top == region top, header strip not covered, name+Back visible); assistant durable restore (seeded conversation restored after remount, no new request); Workflows accessible on pro without gate.
+- AGENTS.md §39 compliance: ACQUISITIONOS_CURRENT_STATE.md + ACQUISITIONOS_CODEBASE_MANIFEST.json updated (43 file hashes).
 
 Stage Summary:
-- Workspace recovered to the exact pre-Feedback-task state: Tasks A+B+C+D+E all present as uncommitted changes on main @ 98aa357 (dirty tree, forward-only), verified by content signatures + 108 passing tests.
-- Remaining gap (disclosed, not fixed): DiscoveryJob 2 additive columns missing from live DB; feedback fix (complete + verified, excluded per STOP marker) preserved in tool-results/recovery/feedback-era/ + /tmp/my-project.
-
----
-Task ID: workspace-archive-1
-Agent: Super Z (main agent)
-Task: URGENT — create a complete .tar.gz archive of the CURRENT codebase/workspace exactly as it exists (platform Download Workspace failing with "Failed to archive workspace files"). Zero modifications to source, config, DB, deps, migrations, git, or data.
-
-Work Log:
-- Read-only recon: branch main @ a08af3508ab54f40267cdc900d14d1352c2f89e2 (platform auto-commit that captured the recovered workspace; parent 98aa357); git status --porcelain = 0 (clean tree, nothing uncommitted pending). Recovered-work signatures confirmed live: leads-tab.tsx keepPreviousData ×3, schema.prisma idempotencyKey ×10.
-- Followed the proven 2026-09-30 export recipe (download/WORKSPACE-EXPORT-INFO.txt): full workspace incl. .env, db/, docs, skills/, upload/, mini-services; excludes ONLY node_modules*, .git/, .next/, .test-tmp/, tool-results/, download/.
-- Appended this entry BEFORE archiving so the archive captures the final worklog state.
-- Created download/AQ-OS-current.tar.gz via plain tar -czf (no reset/revert/checkout/restore; .git, .env, db/, node_modules never touched).
-- Verified: gzip integrity, full listing readable, key trees present, excluded dirs absent, extracted-file sha256 byte-compared against live filesystem.
-
-Stage Summary:
-- AQ-OS-current.tar.gz = byte-faithful snapshot of the live workspace at archive time (main @ a08af35, clean tree).
-- Zero workspace modifications beyond this worklog entry and the archive file itself in download/.
+- All spec-critical gaps implemented forward-only; 51 new tests; 0 pre-existing tests deleted or weakened (1 stale cost assertion aligned to runtime reality with disclosure).
+- Schema additive only (BusinessProfile, ResearchJob, WorkflowDefinition.requiresApproval/profileId); no reset, no rollback, no destructive ops.
+- Working tree: 34 modified + 6 new paths + manifests/worklog — all mapped to requirements; safety branch acquisitionos-current-state-2026-10-04 remains armed locally (push still blocked by missing credentials).

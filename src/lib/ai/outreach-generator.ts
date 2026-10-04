@@ -21,6 +21,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { buildPersonalContextBlock, parsePersonalContext } from '@/lib/personal-context';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import type { Lead, OutreachMessage } from '@prisma/client';
 import { executeAICompletion, type AICompletionRequest, AI_CONFIG } from './ai-provider';
@@ -28,8 +29,6 @@ import { getPrompt, sanitizePromptInput } from './prompt-manager';
 import { logOutreachGenerated } from './ai-audit';
 import { deductCredits, checkCreditSufficiency, refundCredits, type CreditAction } from '@/lib/credit-service';
 import { buildSenderSignatureBlock, applySenderSignature, type SenderProfile } from './sender-signature';
-import { resolveBusinessContext, buildBusinessContextBlock } from '@/lib/business-profile-server';
-import type { CampaignOverrides, ResolvedBusinessContext } from '@/lib/business-profile';
 
 // ===== TYPES =====
 
@@ -44,11 +43,6 @@ export interface GenerateOutreachInput {
   language?: string;
   customInstructions?: string;
   previousMessageId?: string; // For follow-ups
-  /** Which of the user's business profiles to act as (ownership-checked
-   * server-side in resolveBusinessContext; falls back to the default). */
-  businessProfileId?: string | null;
-  /** Campaign-specific overrides (objective/audience/offer/outcome/cta/tone) */
-  campaignOverrides?: CampaignOverrides | null;
 }
 
 export interface OutreachMessageOutput {
@@ -115,7 +109,7 @@ export async function loadSenderProfile(userId: string): Promise<SenderProfile> 
       email: true,
       phone: true,
       company: true,
-      settings: { select: { companyName: true } },
+      settings: { select: { companyName: true, personalContext: true } },
       organizations: {
         take: 1,
         select: { organization: { select: { name: true } } },
@@ -130,26 +124,18 @@ export async function loadSenderProfile(userId: string): Promise<SenderProfile> 
     email: user.email,
     phone: user.phone,
     company: user.settings?.companyName ?? user.organizations[0]?.organization?.name ?? user.company,
+    // User Preference / Personal Business Context (DISTINCT self-description;
+    // parsed via the shared helper so malformed data can never throw here).
+    personalContext: parsePersonalContext(user.settings?.personalContext),
   };
 }
 
 // ===== MAIN GENERATION FUNCTION =====
 
 export async function generateOutreach(input: GenerateOutreachInput): Promise<GenerateOutreachResult> {
-  const { leadId, userId, channel, tone: toneInput = 'professional', language: languageInput = 'English', customInstructions, previousMessageId, businessProfileId, campaignOverrides } = input;
-  const tone = toneInput;
-  const language = languageInput;
+  const { leadId, userId, channel, tone = 'professional', language = 'English', customInstructions, previousMessageId } = input;
 
   try {
-    // 0. Resolve the selected business profile (ownership-checked server-side;
-    // falls back to the user's default profile, never to another user's data).
-    const businessContext = await resolveBusinessContext(userId, businessProfileId ?? null, campaignOverrides ?? null).catch((err) => {
-      console.error('[Outreach] business context resolution failed (continuing without):', err instanceof Error ? err.message : err);
-      return null;
-    });
-    // Campaign tone override beats the request tone.
-    const effectiveTone = (businessContext?.tone as OutreachTone | undefined) || tone;
-    const effectiveLanguage = businessContext?.language || language;
     // 1. Get lead data — single reliable owner-scoped resolution path
     const resolution = await resolveLeadForExecution<Lead & { outreachMessages: OutreachMessage[] }>(userId, leadId, {
       include: {
@@ -209,19 +195,7 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
     // Sender identity comes from the AUTHENTICATED user's saved profile so
     // the AI signs with real details instead of placeholders like
     // "[Your Name]". Never the lead's details, never hardcoded values.
-    // If a business profile was resolved, the signature's company line uses it.
-    const senderProfile: SenderProfile = {
-      ...(await loadSenderProfile(userId)),
-      ...(businessContext?.companyName ? { company: businessContext.companyName } : {}),
-    };
-
-    // Universal personalization (spec §4): the sender's OWN business context
-    // (industry, offer, goals, tone) drives the pitch — never a hardcoded
-    // website/software template. Campaign overrides are marked in the block.
-    const senderBusiness = buildBusinessContextBlock(businessContext);
-    const campaignContext = businessContext?.overriddenFields.length
-      ? `Campaign-specific overrides applied for this message: ${businessContext.overriddenFields.join(', ')}. Everything else comes from the sender's saved business profile.`
-      : '';
+    const senderProfile = await loadSenderProfile(userId);
 
     const prompt = getPrompt(promptId, {
       leadContext: sanitizePromptInput(leadContext),
@@ -229,21 +203,25 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
       ownerName: sanitizePromptInput(lead.ownerName || 'Business Owner'),
       niche: sanitizePromptInput(lead.niche || 'Unknown'),
       channel,
-      tone: effectiveTone,
-      language: effectiveLanguage,
+      tone,
+      language,
       previousMessage: isFollowUp ? 'See context above' : '',
       daysSinceLastContact: lead.lastContactedAt
         ? String(Math.ceil((Date.now() - new Date(lead.lastContactedAt).getTime()) / (1000 * 60 * 60 * 24)))
         : 'Never contacted',
       senderSignature: buildSenderSignatureBlock(senderProfile),
-      senderBusiness: sanitizePromptInput(senderBusiness),
-      campaignContext: sanitizePromptInput(campaignContext),
     });
 
-    // 6. Execute AI completion
-    const userMessage = customInstructions
-      ? `Generate a ${effectiveTone} ${channel} outreach message for ${lead.businessName}. Custom instructions: ${sanitizePromptInput(customInstructions)}`
-      : `Generate a ${effectiveTone} ${channel} outreach message for ${lead.businessName}.`;
+    // 6. Execute AI completion. The user's self-provided personal/business
+    // context (Settings → My Context) is appended so every outreach message
+    // is personalized for THIS user, without touching the versioned
+    // prompt templates.
+    const userContextBlock = buildPersonalContextBlock(senderProfile.personalContext);
+    const userMessage = (
+      customInstructions
+        ? `Generate a ${tone} ${channel} outreach message for ${lead.businessName}. Custom instructions: ${sanitizePromptInput(customInstructions)}`
+        : `Generate a ${tone} ${channel} outreach message for ${lead.businessName}.`
+    ) + (userContextBlock ? `\n\n${userContextBlock}` : '');
 
     const completionRequest: AICompletionRequest = {
       messages: [
@@ -296,7 +274,7 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
           urgent: String(parsed.body || ''),
         },
         channel,
-        tone: effectiveTone,
+        tone,
         leadId,
         aiProvider: result.provider,
       };
@@ -317,10 +295,8 @@ export async function generateOutreach(input: GenerateOutreachInput): Promise<Ge
         status: 'draft',
         generatedByAI: true,
         metadata: JSON.stringify({
-          tone: effectiveTone,
-          language: effectiveLanguage,
-          businessProfileId: businessContext?.profileId ?? null,
-          campaignOverrides: campaignOverrides ?? null,
+          tone,
+          language,
           callToAction: outreachData.callToAction,
           followUpSuggestion: outreachData.followUpSuggestion,
           personalizationPoints: outreachData.personalizationPoints,

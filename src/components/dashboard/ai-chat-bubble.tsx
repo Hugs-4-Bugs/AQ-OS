@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import {
   MessageSquare,
   X,
@@ -23,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useAssistantChatStore } from '@/lib/assistant-chat-store';
+import { askSalesAssistant } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { AssistantMessage, MeetingIntent } from '@/lib/types';
@@ -156,17 +157,7 @@ function MeetingIntentCard({
 
 export default function AIChatBubble() {
   const [isOpen, setIsOpen] = useState(false);
-  // SHARED session conversation (assistant-chat-store) — the same
-  // transcript the Assistant tab renders. The bubble itself is a shell-
-  // level widget (it never unmounts on tab switches), so its generation
-  // continues deterministically while hidden and lands ONCE in the shared
-  // store. No per-surface copies ⇒ nothing can "reappear" from a
-  // different, stale state.
-  const messages = useAssistantChatStore((s) => s.messages);
-  const isGenerating = useAssistantChatStore((s) => s.isGenerating);
-  const sendMessage = useAssistantChatStore((s) => s.sendMessage);
-  const clearConversation = useAssistantChatStore((s) => s.clear);
-  const appendMessage = useAssistantChatStore((s) => s.appendMessage);
+  const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [input, setInput] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -176,20 +167,6 @@ export default function AIChatBubble() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeTab = useAppStore((s) => s.activeTab);
   const selectedLeadId = useAppStore((s) => s.selectedLeadId);
-
-  // Unread badge: a NEW assistant message that arrived while the panel
-  // was closed (generation completing in the background of the shell).
-  // Render-time state adjustment (React's documented "derive state from
-  // previous render" pattern) — no effect, no cascading render.
-  const [prevMessageCount, setPrevMessageCount] = useState(messages.length);
-  if (messages.length !== prevMessageCount) {
-    const grew = messages.length > prevMessageCount;
-    setPrevMessageCount(messages.length);
-    if (grew && !isOpen) {
-      const last = messages[messages.length - 1];
-      if (last?.role === 'assistant') setUnreadCount((c) => c + 1);
-    }
-  }
 
   // Reset unread when panel opens
   const handleOpenChange = useCallback((open: boolean) => {
@@ -213,15 +190,29 @@ export default function AIChatBubble() {
     }
   }, [isOpen]);
 
+  const assistantMutation = useMutation({
+    mutationFn: () => askSalesAssistant(selectedLeadId || null, input),
+    onSuccess: (response) => {
+      setMessages((prev) => [...prev, response].slice(-200));
+      setInput('');
+      if (!isOpen) {
+        setUnreadCount((c) => c + 1);
+      }
+    },
+  });
+
   const handleSend = useCallback(() => {
-    if (!input.trim() || isGenerating) return;
-    const content = input;
-    setInput('');
-    void sendMessage(
-      { content, leadId: selectedLeadId || null, currentPage: activeTab },
-      'bubble',
-    );
-  }, [input, selectedLeadId, activeTab, isGenerating, sendMessage]);
+    if (!input.trim() || assistantMutation.isPending) return;
+
+    const userMsg: AssistantMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: input,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg].slice(-200));
+    assistantMutation.mutate();
+  }, [input, selectedLeadId, assistantMutation]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -239,7 +230,7 @@ export default function AIChatBubble() {
   };
 
   const handleClear = () => {
-    clearConversation();
+    setMessages([]);
     toast.success('Chat cleared');
   };
 
@@ -253,7 +244,7 @@ export default function AIChatBubble() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isGenerating]);
+  }, [messages, assistantMutation.isPending]);
 
   // FIX (2026-09-09): Hidden on the Assistant tab — that page is
   // already the AI chat surface and this bubble overlaps its
@@ -475,7 +466,7 @@ export default function AIChatBubble() {
                   ))}
 
                   {/* Thinking indicator */}
-                  {isGenerating && (
+                  {assistantMutation.isPending && (
                     <div className="flex gap-2">
                       <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                         <Bot className="h-3 w-3 text-primary" />
@@ -507,11 +498,11 @@ export default function AIChatBubble() {
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={!input.trim() || isGenerating}
+                    disabled={!input.trim() || assistantMutation.isPending}
                     size="icon"
                     className="shrink-0 h-9 w-9 bg-primary hover:bg-primary/90 transition-all duration-200 hover:shadow-lg hover:shadow-primary/20"
                   >
-                    {isGenerating ? (
+                    {assistantMutation.isPending ? (
                       <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Send className="h-3.5 w-3.5" />
@@ -538,12 +529,15 @@ export default function AIChatBubble() {
           const meetingTime = meetingData.startDateTime
             ? new Date(meetingData.startDateTime as string).toLocaleString()
             : 'TBD';
-          appendMessage({
-            id: `system-meeting-${Date.now()}`,
-            role: 'assistant',
-            content: `✅ Meeting scheduled: **${meetingTitle}** on ${meetingTime}`,
-            createdAt: new Date().toISOString(),
-          });
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `system-meeting-${Date.now()}`,
+              role: 'assistant',
+              content: `✅ Meeting scheduled: **${meetingTitle}** on ${meetingTime}`,
+              createdAt: new Date().toISOString(),
+            },
+          ]);
         }}
       />
     </>

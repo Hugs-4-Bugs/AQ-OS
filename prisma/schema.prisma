@@ -133,11 +133,11 @@ model User {
   emailAccounts            EmailAccount[]
   outreachSequences        OutreachSequence[]
   workflowDefinitions      WorkflowDefinition[]
+  businessProfiles         BusinessProfile[]
+  researchJobs             ResearchJob[]
   competitorAnalyses       CompetitorAnalysis[]
   aiChatSessions           AiChatSession[]
   settings                 UserSettings?
-  businessProfiles         BusinessProfile[]
-  websiteResearches        WebsiteResearch[]
   auditLogs                AuditLog[]
   notifications            Notification[]
   notificationPrefs        NotificationPreferences?
@@ -385,10 +385,6 @@ model CreditsLedger {
   balance     Int // balance after transaction
   description String?
   referenceId String? // ID of related entity (lead, deal, etc.)
-  // Retry-safe operations: at most one ledger row per (user, idempotencyKey).
-  // Checked by deductCredits() before applying a keyed deduction so retries,
-  // replayed callbacks, and duplicated requests can never double-charge.
-  idempotencyKey String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -398,7 +394,6 @@ model CreditsLedger {
   @@index([action])
   @@index([createdAt])
   @@index([referenceId])
-  @@index([userId, idempotencyKey])
 }
 
 model CreditAddon {
@@ -1291,6 +1286,14 @@ model WorkflowDefinition {
   // Distinguishes "system-paused due to subscription expiry" (true)
   // from "user-manually-paused" (false). Only the former auto-resumes on repurchase.
   disabledBySubscription Boolean @default(false)
+  // Human-approval gate: when true, send actions create drafts/notifications
+  // instead of sending — a human must approve the outreach (additive, default
+  // preserves existing behavior).
+  requiresApproval Boolean @default(false)
+  // Optional Business Profile association (one workflow belongs to exactly one
+  // profile/niche; nullable so existing workflows remain valid).
+  profileId String?
+  businessProfile BusinessProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
   executions    WorkflowExecution[]
   workflowSteps WorkflowStep[]
@@ -1820,79 +1823,14 @@ model UserSettings {
   // for Gap → Offer matching). JSON array of OfferService objects:
   // [{ id, label, category, description }]
   servicesOffered     String?  @default("[]")
+  // User Preference / Personal Business Context — a DISTINCT self-description the
+  // user provides about themselves (what they do, business, interests, expertise,
+  // goals, target audience, positioning, communication context). Consumed by AI
+  // features (workflow generation, personalized outreach, lead analysis) for
+  // personalization. JSON object of optional string fields; NOT the same concept
+  // as business profiles. Nullable + additive (legacy rows unaffected).
+  personalContext     String?
 
-  @@index([userId])
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// BUSINESS PROFILES — multiple user-owned sender identities
-// ═══════════════════════════════════════════════════════════════════
-// Each user can maintain several business profiles (e.g. a wellness studio
-// AND a software consultancy) and pick one as the context for discovery,
-// website research and outreach. Ownership is enforced server-side: every
-// read/write is scoped by userId. JSON-ish fields follow the existing
-// UserSettings convention of stringified JSON (SQLite-friendly, additive).
-model BusinessProfile {
-  id                String    @id @default(cuid())
-  userId            String
-  label             String // display name of this profile ("Wellness Studio")
-  companyName       String?
-  industry          String?
-  website           String?
-  description       String? // what the business does, company details
-  valueProposition  String?
-  // [{ name: string, description: string }] — products/services/offers
-  productsServices  String    @default("[]")
-  // { industries: string[], roles: string[], icp: string } — ideal customers
-  targetAudience    String    @default("{}")
-  // [string] — geographic service areas
-  serviceAreas      String    @default("[]")
-  goals             String? // business goals / preferred outreach outcomes
-  toneStyle         String? // preferred communication tone and style
-  language          String? // preferred outreach language
-  // [string] — differentiators, proof points, relevant experience
-  differentiators   String    @default("[]")
-  preferredCta      String?
-  additionalContext String? // free-text context / custom instructions
-  isDefault         Boolean   @default(false)
-  archivedAt        DateTime? // soft delete
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// WEBSITE RESEARCH — evidence-grounded per-lead research reports (spec §5)
-// ═══════════════════════════════════════════════════════════════════
-// Stores what was OBSERVED on the lead's website (fetched pages, extracted
-// contacts with per-field source + verification status) separately from
-// AI INTERPRETATION (opportunities, outreach angles). Additive history:
-// multiple runs per lead are kept, newest first in queries.
-model WebsiteResearch {
-  id           String   @id @default(cuid())
-  leadId       String
-  userId       String
-  // completed | partial | failed
-  status       String   @default("completed")
-  // { observedFacts: string[], business: {...}, opportunities: [...],
-  //   aiInterpretation: {...}, limitations: string[] }
-  reportJson   String?
-  // [{ field: 'email'|'phone'|..., value, sources: [url], verificationStatus,
-  //    conflictWith?: string }] — per-field provenance (spec §5)
-  contactsJson String?
-  // [url] — pages actually fetched during this run
-  pagesFetched String   @default("[]")
-  notes        String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([leadId])
   @@index([userId])
 }
 
@@ -2049,27 +1987,6 @@ model DiscoveryJob {
   resultData   String? // JSON: { leads: [...] }
   startedAt    DateTime?
   completedAt  DateTime?
-  // Business context: which of the user's profiles this job runs as + the
-  // campaign-specific overrides (spec §3). Persisted so later research and
-  // outreach replay the SAME context. Ownership enforced on read.
-  businessProfileId String?
-  // Credit-integrity identity (one discovery operation → one job → one
-  // billing sequence). The client sends a UUID per logical start; a
-  // replayed/retried POST returns the SAME job instead of creating a
-  // second chargeable one.
-  idempotencyKey String?
-  // EXPLICIT None semantics for business context: false = the user chose
-  // "None" in the profile selector, so this job (and its later replays)
-  // must run WITHOUT any business profile — null businessProfileId no
-  // longer means "use the default profile" when this is false.
-  useBusinessContext Boolean @default(true)
-  campaignObjective String?
-  campaignAudience  String?
-  campaignOffer     String?
-  campaignOutcome   String?
-  campaignCta       String?
-  campaignTone      String?
-  campaignInstructions String?
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
@@ -2078,12 +1995,16 @@ model DiscoveryJob {
   updatedAt DateTime @updatedAt
   total     Int      @default(0)
   progress  Int      @default(0)
+  // Effective context/campaign override used for THIS discovery run (Discover
+  // page context selector). JSON: { mode: 'none'|'campaign'|'business',
+  // campaignId?, campaignNiche?, instructions? }. Persisted so historical jobs
+  // remain explainable. Nullable + additive (legacy jobs read as no context).
+  contextJson String?
 
   @@index([userId])
   @@index([status])
   @@index([source])
   @@index([orgId])
-  @@index([userId, idempotencyKey])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2758,14 +2679,6 @@ model AcquisitionCampaign {
   tone               String?
   maxLeads           Int?
   customInstructions String?
-  // Business context (spec §3): the selected profile + campaign overrides
-  // resolved through resolveBusinessContext (ownership enforced on read).
-  businessProfileId  String?
-  campaignObjective  String?
-  campaignAudience   String?
-  campaignOffer      String?
-  campaignOutcome    String?
-  campaignCta        String?
   errorMessage       String?
   discoveryJobId     String?
   autoSend           Boolean   @default(false)
@@ -3146,4 +3059,67 @@ model KbArticleFeedback {
 
   @@unique([articleId, userId])
   @@index([articleId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Business Profiles — MULTIPLE per user (distinct from UserSettings and
+// from User Personal Context). Plan limits (Pro=3 / Elite=7 ACTIVE
+// profiles) are enforced server-side via the entitlement service.
+// Additive model — no existing table or row is touched.
+// ═══════════════════════════════════════════════════════════════════
+model BusinessProfile {
+  id                    String   @id @default(cuid())
+  userId                String
+  name                  String
+  industry              String?
+  description           String?
+  productsServices      String?
+  offers                String?
+  valueProposition      String?
+  targetAudience        String?
+  targetIndustries      String?
+  targetRoles           String?
+  geographicMarket      String?
+  painPoints            String?
+  businessGoals         String?
+  differentiators       String?
+  proofPoints           String?
+  preferredTone         String?
+  preferredLanguage     String?
+  cta                   String?
+  commercialConstraints String?
+  customInstructions    String?
+  researchPreferences   String?
+  outreachPreferences   String?
+  status                String   @default("active") // active | archived
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workflows WorkflowDefinition[]
+
+  @@index([userId, status])
+}
+
+// Research Job — batch deep-research queue over many leads (DiscoveryJob
+// pattern: DB row + detached processing + status polling). Additive model.
+model ResearchJob {
+  id             String    @id @default(cuid())
+  userId         String
+  status         String    @default("queued") // queued, running, completed, failed, cancelled
+  depth          String    @default("deep") // quick | deep
+  leadIds        String    @default("[]") // JSON array of lead ids
+  total          Int       @default(0)
+  results        String? // JSON: { results: [...], completedCount, failedCount, skippedCount }
+  completedCount Int       @default(0)
+  failedCount    Int       @default(0)
+  skippedCount   Int       @default(0)
+  error          String?
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
 }

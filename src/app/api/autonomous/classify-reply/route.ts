@@ -7,12 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { classifyReplyIntent, classifyReplyAndAct } from '@/lib/autonomous-outreach-engine';
 import { db } from '@/lib/db';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { messageContent, leadId } = body;

@@ -20,8 +20,7 @@ interface TemplateDefinition {
   isPremium: boolean;
 }
 
-// Exported for tests + docs: the single source of truth for what templates ship.
-export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
+const BUILTIN_TEMPLATES: TemplateDefinition[] = [
   // 1. Lead Nurture
   {
     name: 'Lead Nurture Sequence',
@@ -32,7 +31,7 @@ export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
     nodes: [
       { id: 'n1', type: 'trigger', title: 'Lead Discovered', config: {} },
       { id: 'n2', type: 'delay', title: 'Wait 1 Day', config: { duration: 1, unit: 'days' } },
-      { id: 'n3', type: 'action', title: 'Send Welcome Email', config: { actionType: 'send_email', to: '{{lead.email}}', subject: 'Welcome to our services', body: 'Hi {{lead.name}}, we noticed your business ({{lead.businessName}}) and wanted to reach out...' } },
+      { id: 'n3', type: 'action', title: 'Send Welcome Email', config: { actionType: 'send_email', subject: 'Welcome to our services', body: 'Hi there, we noticed your business and wanted to reach out...' } },
       { id: 'n4', type: 'delay', title: 'Wait 3 Days', config: { duration: 3, unit: 'days' } },
       { id: 'n5', type: 'action', title: 'Send WhatsApp Follow-up', config: { actionType: 'send_whatsapp', message: 'Hi! Just following up on our email. Would love to chat!' } },
       { id: 'n6', type: 'action', title: 'Move to Contacted', config: { actionType: 'move_lead_stage', targetStage: 'contacted' } },
@@ -58,7 +57,7 @@ export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
       { id: 'n1', type: 'trigger', title: 'Lead Replied', config: { replyType: 'any' } },
       { id: 'n2', type: 'delay', title: 'Wait 2 Hours', config: { duration: 2, unit: 'hours' } },
       { id: 'n3', type: 'ai_action', title: 'Generate AI Outreach', config: { actionType: 'ai_outreach', channel: 'email', style: 'follow-up' } },
-      { id: 'n4', type: 'action', title: 'Send Follow-up Email', config: { actionType: 'send_email', to: '{{lead.email}}', subject: 'Re: Your inquiry', body: '{{output.n3.generatedMessage}}' } },
+      { id: 'n4', type: 'action', title: 'Send Follow-up Email', config: { actionType: 'send_email', subject: 'Re: Your inquiry', body: '{{output.generatedMessage}}' } },
     ],
     edges: [
       { id: 'e1', source: 'n1', target: 'n2' },
@@ -97,7 +96,7 @@ export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
     nodes: [
       { id: 'n1', type: 'trigger', title: 'Trial Ending', config: { daysThreshold: 3 } },
       { id: 'n2', type: 'delay', title: 'Wait 3 Days', config: { duration: 3, unit: 'days' } },
-      { id: 'n3', type: 'action', title: 'Send Reminder Email', config: { actionType: 'send_email', to: '{{lead.email}}', subject: 'Your trial is ending soon', body: 'Your free trial ends soon. Upgrade to keep access!' } },
+      { id: 'n3', type: 'action', title: 'Send Reminder Email', config: { actionType: 'send_email', subject: 'Your trial is ending soon', body: 'Your free trial ends soon. Upgrade to keep access!' } },
       { id: 'n4', type: 'delay', title: 'Wait 2 Days', config: { duration: 2, unit: 'days' } },
       { id: 'n5', type: 'action', title: 'Send WhatsApp Reminder', config: { actionType: 'send_whatsapp', message: 'Last chance! Your trial ends tomorrow. Upgrade now!' } },
     ],
@@ -121,7 +120,7 @@ export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
       { id: 'n1', type: 'trigger', title: 'Lead Discovered', config: {} },
       { id: 'n2', type: 'action', title: 'Send WhatsApp Welcome', config: { actionType: 'send_whatsapp', message: 'Welcome! Thanks for your interest. We will be in touch soon!' } },
       { id: 'n3', type: 'delay', title: 'Wait 1 Day', config: { duration: 1, unit: 'days' } },
-      { id: 'n4', type: 'action', title: 'Send Onboarding Email', config: { actionType: 'send_email', to: '{{lead.email}}', subject: 'Getting started with us', body: 'Here is everything you need to know to get started...' } },
+      { id: 'n4', type: 'action', title: 'Send Onboarding Email', config: { actionType: 'send_email', subject: 'Getting started with us', body: 'Here is everything you need to know to get started...' } },
       { id: 'n5', type: 'action', title: 'Add Internal Note', config: { actionType: 'add_note', content: 'Onboarding sequence initiated. Lead contacted via WhatsApp and email.' } },
     ],
     edges: [
@@ -166,7 +165,7 @@ export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
     nodes: [
       { id: 'n1', type: 'trigger', title: 'Lead Discovered', config: {} },
       { id: 'n2', type: 'ai_action', title: 'Generate AI Outreach', config: { actionType: 'ai_outreach', channel: 'email', style: 'professional', tone: 'friendly' } },
-      { id: 'n3', type: 'action', title: 'Send Outreach Email', config: { actionType: 'send_email', to: '{{lead.email}}', subject: 'Opportunity for {{lead.businessName}}', body: '{{output.n2.generatedMessage}}' } },
+      { id: 'n3', type: 'action', title: 'Send Outreach Email', config: { actionType: 'send_email', subject: 'Opportunity for {{trigger.businessName}}', body: '{{output.generatedMessage}}' } },
       { id: 'n4', type: 'delay', title: 'Wait 3 Days', config: { duration: 3, unit: 'days' } },
       { id: 'n5', type: 'condition', title: 'No Reply?', config: { actionType: 'conditional_branch', field: 'leadStage', operator: '!=', value: 'replied', trueBranch: 'whatsapp_followup', falseBranch: 'end' } },
       { id: 'n6', type: 'action', title: 'Send WhatsApp Follow-up', config: { actionType: 'send_whatsapp', message: 'Hi! Just wanted to follow up on our email. Would love to connect!' } },
@@ -177,45 +176,6 @@ export const BUILTIN_TEMPLATES: TemplateDefinition[] = [
       { id: 'e3', source: 'n3', target: 'n4' },
       { id: 'e4', source: 'n4', target: 'n5' },
       { id: 'e5', source: 'n5', target: 'n6' },
-    ],
-    isPremium: true,
-  },
-
-  // 8. FLAGSHIP — End-to-End Client Acquisition
-  // The complete autonomous acquisition loop, built ONLY from step types
-  // the mounted engine actually implements: analyze → score → branch →
-  // AI outreach DRAFT (human-approval point) → notification → send →
-  // wait → reply-gated follow-up → pipeline update.
-  {
-    name: 'End-to-End Client Acquisition',
-    description: 'The full autonomous acquisition loop for one lead: AI research and analysis, conversion scoring, a personalized outreach draft for your review, email delivery, a reply-gated WhatsApp follow-up, and a pipeline update.',
-    category: 'outreach',
-    triggerType: 'manual',
-    triggerConfig: null,
-    nodes: [
-      { id: 'n1', type: 'trigger', title: 'Manual Run (pick a lead)', config: {} },
-      { id: 'n2', type: 'ai_action', title: 'Research & Analyze Lead', config: { actionType: 'ai_analysis', prompt: 'Analyze this lead: business profile, likely pain points, and the best acquisition angle. Ground every claim in the lead\'s actual data.' } },
-      { id: 'n3', type: 'ai_action', title: 'Score Conversion Potential', config: { actionType: 'score_lead' } },
-      { id: 'n4', type: 'condition', title: 'Score > 60?', config: { actionType: 'conditional_branch', field: 'leadScore', operator: '>', value: 60, trueBranch: 'continue', falseBranch: 'skip_outreach' } },
-      { id: 'n5', type: 'ai_action', title: 'Prepare Personalized Outreach (DRAFT)', config: { actionType: 'ai_outreach', channel: 'email', style: 'professional' } },
-      { id: 'n6', type: 'action', title: 'Notify: Outreach Draft Ready', config: { actionType: 'create_notification', title: 'Outreach draft ready for review', message: 'AI prepared an outreach draft — review it before sending.', type: 'workflow' } },
-      { id: 'n7', type: 'action', title: 'Send Outreach Email', config: { actionType: 'send_email', to: '{{lead.email}}', subject: 'Quick idea for {{lead.businessName}}', body: 'Hi {{lead.name}},\n\n{{output.n5.generatedMessage}}\n\nBest regards' } },
-      { id: 'n8', type: 'delay', title: 'Wait (inline pause)', config: { duration: 1, unit: 'minutes' } },
-      { id: 'n9', type: 'condition', title: 'Not Replied Yet?', config: { actionType: 'conditional_branch', field: 'leadStage', operator: '!=', value: 'replied', trueBranch: 'follow_up', falseBranch: 'end' } },
-      { id: 'n10', type: 'action', title: 'WhatsApp Follow-up', config: { actionType: 'send_whatsapp', message: 'Hi {{lead.name}}! Following up on the email we sent — worth a quick chat?' } },
-      { id: 'n11', type: 'action', title: 'Update Pipeline Stage', config: { actionType: 'move_lead_stage', targetStage: 'contacted' } },
-    ],
-    edges: [
-      { id: 'e1', source: 'n1', target: 'n2' },
-      { id: 'e2', source: 'n2', target: 'n3' },
-      { id: 'e3', source: 'n3', target: 'n4' },
-      { id: 'e4', source: 'n4', target: 'n5' },
-      { id: 'e5', source: 'n5', target: 'n6' },
-      { id: 'e6', source: 'n6', target: 'n7' },
-      { id: 'e7', source: 'n7', target: 'n8' },
-      { id: 'e8', source: 'n8', target: 'n9' },
-      { id: 'e9', source: 'n9', target: 'n10' },
-      { id: 'e10', source: 'n10', target: 'n11' },
     ],
     isPremium: true,
   },

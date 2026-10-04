@@ -67,13 +67,17 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { COUNTRIES } from '@/lib/countries';
+import { pickResumableJobFromStorage } from '@/lib/discovery-resume';
 import { fetchLeads, updateLead } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { Lead, LeadStage } from '@/lib/types';
 import LeadImportDialog from './lead-import-dialog';
-import BusinessProfileSelector, { type ProfileSelection } from './business-profile-selector';
 import { toast } from 'sonner';
+
+// Resume-toast dedup across remounts within the same page session
+// (StrictMode double-mount safe; module scope survives tab switches).
+const resumeToastsShown = new Set<string>();
 
 // ─── Discovery Source Config ─────────────────────────────
 const DISCOVERY_SOURCES = [
@@ -162,16 +166,6 @@ function normalizeJobFromApi(raw: Partial<DiscoveryJob> & Record<string, unknown
   };
 }
 
-/** One logical discovery start = one request id (sent to the server so a
- *  replayed POST returns the SAME job instead of creating + charging a
- *  second one). crypto.randomUUID is unavailable on non-secure origins. */
-function newRequestId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `req-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 // ─── AI Chat Mode Types ─────────────────────────────────
 interface ParsedIntent {
   niche: string;
@@ -206,8 +200,6 @@ interface DiscoveryVars {
   maxResults?: number;
   requirements?: string;
   criteria?: ParsedIntent['criteria'];
-  /** Server-side operation identity — reused across retries of this start. */
-  requestId?: string;
 }
 
 /** Human label for the parsed hard criteria (badges + honest notices). */
@@ -341,6 +333,11 @@ function DiscoveryJobProgress({
 }) {
   const [currentJob, setCurrentJob] = useState<DiscoveryJob>(job);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Consecutive status-poll failure cutoff — never poll a dead/404 job forever.
+  // The job itself continues server-side; the UI says so instead of spinning.
+  const pollFailuresRef = useRef(0);
+  const [pollLost, setPollLost] = useState(false);
+  const MAX_POLL_FAILURES = 5;
 
   useEffect(() => {
     if (currentJob.status !== 'running' && currentJob.status !== 'pending') return;
@@ -349,6 +346,8 @@ function DiscoveryJobProgress({
       try {
         const res = await fetch(`/api/leads/discover/status/${currentJob.id}`);
         if (res.ok) {
+          pollFailuresRef.current = 0;
+          setPollLost(false);
           const data = await res.json();
           const updatedJob = normalizeJobFromApi(data.job);
           setCurrentJob(updatedJob);
@@ -367,8 +366,17 @@ function DiscoveryJobProgress({
               localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
             } catch {}
           }
+        } else {
+          pollFailuresRef.current += 1;
         }
-      } catch {}
+      } catch {
+        pollFailuresRef.current += 1;
+      }
+      if (pollFailuresRef.current >= MAX_POLL_FAILURES && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        setPollLost(true);
+      }
     }, 3000);
 
     return () => {
@@ -414,6 +422,11 @@ function DiscoveryJobProgress({
           </Badge>
         </div>
         <Progress value={progress} className="h-2" />
+        {pollLost && currentJob.status !== 'completed' && currentJob.status !== 'failed' && (
+          <p className="text-[10px] text-amber-600">
+            Lost connection while checking progress — the discovery continues server-side. Reopen this tab or refresh to see results; you will not be charged again.
+          </p>
+        )}
         {/* Progress steps */}
         <div className="flex items-center gap-1">
           {progressSteps.map((step, i) => (
@@ -640,16 +653,69 @@ export default function DiscoverTab() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [city, setCity] = useState('');
 
+  // ── Context / campaign selector (Discover page context feature) ────
+  // 'none' = no override. Applies to BOTH filter and AI search modes;
+  // resolved + ownership-checked server-side on /api/leads/discover.
+  // Selection persists across visits (localStorage).
+  const [contextMode, setContextMode] = useState<'none' | 'campaign' | 'business' | 'profile'>('none');
+  const [contextCampaignId, setContextCampaignId] = useState<string>('');
+  const [contextProfileId, setContextProfileId] = useState<string>('');
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('acquisitionos_discovery_context');
+      if (stored) {
+        const parsed = JSON.parse(stored) as { mode?: string; campaignId?: string; profileId?: string };
+        if (parsed.mode === 'campaign' || parsed.mode === 'business' || parsed.mode === 'profile' || parsed.mode === 'none') {
+          setContextMode(parsed.mode);
+          if (parsed.campaignId) setContextCampaignId(parsed.campaignId);
+          if (parsed.profileId) setContextProfileId(parsed.profileId);
+        }
+      }
+    } catch {
+      // Corrupted stored selection → fall back to 'none'.
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'acquisitionos_discovery_context',
+        JSON.stringify({ mode: contextMode, campaignId: contextCampaignId, profileId: contextProfileId })
+      );
+    } catch {}
+  }, [contextMode, contextCampaignId, contextProfileId]);
+  // Business Profiles for the context selector (Settings → Business Profiles).
+  const { data: contextProfiles } = useQuery({
+    queryKey: ['discovery-context-profiles'],
+    queryFn: async () => {
+      const res = await fetch('/api/business-profiles');
+      if (!res.ok) return [] as Array<{ id: string; name: string; status: string }>;
+      const data = await res.json();
+      return (Array.isArray(data.profiles) ? data.profiles : []) as Array<{
+        id: string;
+        name: string;
+        status: string;
+      }>;
+    },
+    staleTime: 60_000,
+  });
+  const { data: contextCampaigns } = useQuery({
+    queryKey: ['discovery-context-campaigns'],
+    queryFn: async () => {
+      const res = await fetch('/api/autonomous/campaign?limit=50');
+      if (!res.ok) return [] as Array<{ id: string; niche: string | null; status: string }>;
+      const data = await res.json();
+      return (Array.isArray(data.campaigns) ? data.campaigns : []) as Array<{
+        id: string;
+        niche: string | null;
+        status: string;
+      }>;
+    },
+    staleTime: 60_000,
+  });
+  const selectedContextCampaign = (contextCampaigns ?? []).find((c) => c.id === contextCampaignId);
+
   // Search mode: classic filters or AI chat
   const [searchMode, setSearchMode] = useState<'filters' | 'ai'>('filters');
-  // BUSINESS CONTEXT (spec §3/§7): selected business profile + campaign
-  // overrides, sent with every discovery job and persisted with it.
-  // mode 'none' = the user explicitly chose NO business context.
-  const [profileSelection, setProfileSelection] = useState<ProfileSelection>({
-    mode: 'default',
-    businessProfileId: null,
-    overrides: {},
-  });
   const [aiQuery, setAiQuery] = useState('');
   const [aiParsing, setAiParsing] = useState(false);
   const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
@@ -692,35 +758,40 @@ export default function DiscoverTab() {
     } catch {}
   }, []);
 
-  // RESUME, NEVER RESTART: on mount, reconcile with SERVER-side job state.
-  // Tab switches unmount this component while a chargeable job keeps
-  // running server-side; returning must re-attach to the SAME job (same
-  // id, same polling, same completion path) — never start a new one and
-  // never charge again. Server truth (DB) is the source; localStorage is
-  // display history only.
+  // ── Resume-on-navigation (spec: 1 operation = 1 job = 1 billing event) ──
+  // A tab switch unmounts this component and a refresh clears React state, but
+  // the server-side job keeps running. On mount, re-attach to the most recent
+  // pending/running job from the persisted snapshot — WITHOUT issuing a new
+  // discovery request. The first status poll reconciles real progress, and
+  // completion flows through the normal handler. Navigation can therefore
+  // never create a second job or a second credit charge.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/discovery/status');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled || !data?.jobId || !data?.running) return;
-        setActiveJob(normalizeJobFromApi({
-          id: data.jobId,
-          status: data.status,
-          source: data.source ?? 'ai_search',
-          niche: data.niche ?? '',
-          country: data.country ?? '',
-          city: data.city ?? undefined,
-          totalFound: data.totalFound ?? 0,
-          createdAt: data.createdAt ?? new Date().toISOString(),
-        }));
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
+    const resumable = pickResumableJobFromStorage(localStorage);
+    if (!resumable) return;
+    setActiveJob((prev) => {
+      if (prev && (prev.status === 'running' || prev.status === 'pending')) return prev;
+      return {
+        id: resumable.id,
+        status: resumable.status,
+        source: resumable.source,
+        niche: resumable.niche,
+        country: resumable.country,
+        city: resumable.city,
+        totalFound: 0,
+        leadsAdded: 0,
+        duplicatesSkipped: 0,
+        errors: 0,
+        createdAt: resumable.createdAt,
+        message: 'Reconnected to running discovery job',
+      };
+    });
+    // Toast once per job per page session (StrictMode double-mount safe).
+    if (!resumeToastsShown.has(resumable.id)) {
+      resumeToastsShown.add(resumable.id);
+      toast.info('Reconnected to your running discovery', {
+        description: `${resumable.niche || 'Discovery'}${resumable.country ? ` in ${resumable.country}` : ''} is still processing — progress restored.`,
+      });
+    }
   }, []);
 
   // Fetch recently discovered leads
@@ -730,7 +801,7 @@ export default function DiscoverTab() {
   });
 
   const recentlyDiscovered = allLeadsResult?.leads
-    ?.filter((l: Lead) => l.source === 'discovery')
+    ?.filter((l: Lead) => l.source === 'discovery' || l.stage === 'discovered')
     ?.sort((a: Lead, b: Lead) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     ?.slice(0, 5) ?? [];
 
@@ -759,19 +830,16 @@ export default function DiscoverTab() {
         requirements: vars?.requirements || undefined,
         // Structured HARD criteria from the AI parser — enforced server-side
         criteria: vars?.criteria || undefined,
-        // BUSINESS CONTEXT (spec §3): selected profile + campaign overrides,
-        // persisted with the job and resolved (ownership-checked) server-side.
-        // EXPLICIT None: mode 'none' sends useBusinessContext:false so the
-        // server never substitutes the default profile.
-        businessProfileId:
-          profileSelection.mode === 'none' ? null : profileSelection.businessProfileId,
-        useBusinessContext: profileSelection.mode === 'none' ? false : undefined,
-        campaign: Object.fromEntries(
-          Object.entries(profileSelection.overrides).filter(([, v]) => (v ?? '').trim()),
-        ),
-        // Operation identity: retries of THIS start reuse the same key, so
-        // the server returns the same job instead of charging again.
-        requestId: vars?.requestId,
+        // Context / campaign selector override (server validates ownership;
+        // 'none' sends nothing so legacy behaviour is byte-identical)
+        context:
+          contextMode === 'campaign' && contextCampaignId
+            ? { mode: 'campaign', campaignId: contextCampaignId }
+            : contextMode === 'business'
+              ? { mode: 'business' }
+              : contextMode === 'profile' && contextProfileId
+                ? { mode: 'profile', profileId: contextProfileId }
+                : undefined,
       };
       const res = await fetch('/api/leads/discover', {
         method: 'POST',
@@ -806,49 +874,26 @@ export default function DiscoverTab() {
       try {
         const stored = localStorage.getItem('acquisitionos_discovery_jobs');
         const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
-        if (!jobs.some((j) => j.id === job.id)) {
-          jobs.unshift(job);
-          localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
-        }
+        jobs.unshift(job);
+        localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
       } catch {}
 
-      if (data.deduped) {
-        // The server recognized this operation (retry/replay/identical
-        // active search) and returned the SAME job — no new start, no new
-        // charge. Say so instead of pretending a new job began.
-        toast.info('Discovery already running', {
-          description: data.message || 'Showing the progress of the existing discovery job.',
-        });
-      } else {
-        toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
-      }
+      toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
     },
     onError: (error: Error) => {
       toast.error('Failed to start discovery', { description: error.message });
     },
   });
 
-  // Central start handler — "All Sources" requires a credit-cost confirmation first.
-  // Every logical start gets ONE request id; retries and the confirm dialog
-  // reuse it so the server can never create a second chargeable job.
+  // Central start handler — "All Sources" requires a credit-cost confirmation first
   const handleStartDiscovery = useCallback((vars?: DiscoveryVars) => {
-    const withId: DiscoveryVars = {
-      niche: vars?.niche ?? niche,
-      country: vars?.country ?? country,
-      city: vars?.city,
-      source: vars?.source ?? source,
-      maxResults: vars?.maxResults,
-      requirements: vars?.requirements,
-      criteria: vars?.criteria,
-      requestId: vars?.requestId ?? newRequestId(),
-    };
     if ((vars?.source ?? source) === 'all') {
-      setPendingStart(withId);
+      setPendingStart(vars);
       setAllSourcesConfirmOpen(true);
       return;
     }
-    discoverMutation.mutate(withId);
-  }, [source, niche, country, discoverMutation]);
+    discoverMutation.mutate(vars);
+  }, [source, discoverMutation]);
 
   // ── AI Chat Mode handlers ────────────────────────────────
   const handleAiParse = async () => {
@@ -1032,12 +1077,80 @@ export default function DiscoverTab() {
             )}
           </div>
 
+          {/* Context / campaign selector — visible in BOTH search modes.
+              'None' keeps default behaviour; a campaign merges its custom
+              instructions into this discovery run (ownership verified
+              server-side); 'My business context' uses the user's own
+              business/context settings for targeting. */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <label className="text-sm font-medium flex items-center gap-1.5 shrink-0">
+              <Layers className="h-3.5 w-3.5 text-primary" />
+              Context
+              <span className="text-muted-foreground font-normal hidden sm:inline">(optional override)</span>
+            </label>
+            <Select
+              value={
+                contextMode === 'campaign'
+                  ? `campaign:${contextCampaignId}`
+                  : contextMode === 'profile'
+                    ? `profile:${contextProfileId}`
+                    : contextMode
+              }
+              onValueChange={(v) => {
+                if (v === 'none' || v === 'business') {
+                  setContextMode(v);
+                  setContextCampaignId('');
+                  setContextProfileId('');
+                } else if (v.startsWith('campaign:')) {
+                  setContextMode('campaign');
+                  setContextCampaignId(v.slice('campaign:'.length));
+                  setContextProfileId('');
+                } else if (v.startsWith('profile:')) {
+                  setContextMode('profile');
+                  setContextProfileId(v.slice('profile:'.length));
+                  setContextCampaignId('');
+                }
+              }}
+            >
+              <SelectTrigger className="w-full sm:max-w-sm border-primary/20 focus:ring-primary/30">
+                <SelectValue placeholder="No context override" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None — no override</SelectItem>
+                <SelectItem value="business">My business context</SelectItem>
+                {(contextProfiles ?? []).length > 0 && (
+                  <div className="px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                    Business Profiles
+                  </div>
+                )}
+                {(contextProfiles ?? []).map((p) => (
+                  <SelectItem key={p.id} value={`profile:${p.id}`} disabled={p.status !== 'active'}>
+                    Profile — {p.name}
+                    {p.status !== 'active' ? ' (archived)' : ''}
+                  </SelectItem>
+                ))}
+                {(contextCampaigns ?? []).length > 0 && (
+                  <div className="px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                    Campaigns
+                  </div>
+                )}
+                {(contextCampaigns ?? []).map((c) => (
+                  <SelectItem key={c.id} value={`campaign:${c.id}`}>
+                    Campaign — {c.niche?.trim() || `ID ${c.id.slice(-6)}`}
+                    {c.status ? ` (${c.status})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {contextMode === 'campaign' && !selectedContextCampaign && (
+              <span className="text-[11px] text-yellow-600 dark:text-yellow-500">
+                Selected campaign not in the recent list — it will still be resolved server-side.
+              </span>
+            )}
+          </div>
+
           {searchMode === 'filters' ? (
             <>
-          {/* Business profile + campaign context (collapses to one row when compact) */}
-          <div className="rounded-lg border border-border/50 bg-muted/10 p-3">
-            <BusinessProfileSelector value={profileSelection} onChange={setProfileSelection} />
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Source Selection */}
             <div className="space-y-2">

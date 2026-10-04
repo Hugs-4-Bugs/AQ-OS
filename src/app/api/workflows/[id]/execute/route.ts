@@ -6,19 +6,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { executeWorkflow } from '@/lib/workflow-engine';
-import { db } from '@/lib/db';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
+import { db } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const { id } = await params;
       const body = await request.json().catch(() => ({}));
+
+      // Entitlement check: workflow_access feature (Pro/Elite). Backend
+      // authorization is the source of truth — a downgraded account cannot
+      // run workflows even if a stale UI still shows the button.
+      const entitlementCheck = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+      if (!entitlementCheck.allowed) return entitlementCheck.response!;
 
       // Verify ownership
       const workflow = await db.workflowDefinition.findFirst({

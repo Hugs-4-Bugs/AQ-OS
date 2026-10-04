@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { fireWorkflowTrigger } from '@/lib/workflow-triggers';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 /** POST /api/workflows/trigger — Fire a workflow trigger */
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { triggerType, triggerData } = body;

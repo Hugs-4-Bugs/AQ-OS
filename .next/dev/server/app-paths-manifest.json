@@ -1,0 +1,10 @@
+{
+  "/api/auth/callback/google/route": "app/api/auth/callback/google/route.js",
+  "/api/auth/config/route": "app/api/auth/config/route.js",
+  "/api/auth/google/state/route": "app/api/auth/google/state/route.js",
+  "/api/auth/otp/request/route": "app/api/auth/otp/request/route.js",
+  "/api/auth/refresh/route": "app/api/auth/refresh/route.js",
+  "/api/health/detailed/route": "app/api/health/detailed/route.js",
+  "/api/health/route": "app/api/health/route.js",
+  "/page": "app/page.js"
+}

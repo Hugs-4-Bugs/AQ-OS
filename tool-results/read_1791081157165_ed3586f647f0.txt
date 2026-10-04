@@ -1,0 +1,1123 @@
+     1→'use client';
+     2→
+     3→import React, { useEffect, useState, useCallback, useRef } from 'react';
+     4→import { useAuthStore } from '@/lib/auth-store';
+     5→import { useAuth } from '@/hooks/use-auth';
+     6→import { useTokenRefresh } from '@/hooks/use-token-refresh';
+     7→import { useSubscriptionSync } from '@/hooks/use-subscription-sync';
+     8→import DashboardLayout from '@/components/dashboard/dashboard-layout';
+     9→import TrialBanner from '@/components/dashboard/trial-banner';
+    10→import CreditWarningBanner from '@/components/dashboard/credit-warning-banner';
+    11→import {
+    12→  SignInPage,
+    13→  SignUpPage,
+    14→  VerifyEmailPage,
+    15→  ForgotPasswordPage,
+    16→  ResetPasswordPage,
+    17→  MfaVerificationPage,
+    18→} from '@/components/dashboard/auth-pages-v2';
+    19→import LegalPages from '@/components/dashboard/legal-pages';
+    20→import { DevDeliveryNotice, parseDevDelivery } from '@/components/dashboard/dev-delivery-notice';
+    21→import { silentRefresh, isAuthoritativeLogout } from '@/lib/silent-refresh';
+    22→import type { DevDeliveryPayload } from '@/lib/dev-auth';
+    23→import { useLegalStore } from '@/lib/legal-store';
+    24→import { toast } from 'sonner';
+    25→import { Button } from '@/components/ui/button';
+    26→import { Input } from '@/components/ui/input';
+    27→import { Label } from '@/components/ui/label';
+    28→import { Checkbox } from '@/components/ui/checkbox';
+    29→import { Card, CardContent } from '@/components/ui/card';
+    30→import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
+    31→import {
+    32→  Key,
+    33→  ArrowLeft,
+    34→  Mail,
+    35→  Loader2,
+    36→  AlertTriangle,
+    37→  Rocket,
+    38→  Shield,
+    39→  Globe,
+    40→  ExternalLink,
+    41→  Inbox,
+    42→} from 'lucide-react';
+    43→import { motion, AnimatePresence } from 'framer-motion';
+    44→
+    45→// ── Auth page state type ──────────────────────────────────────
+    46→type AuthPage =
+    47→  | 'signin'
+    48→  | 'signup'
+    49→  | 'verify-email'
+    50→  | 'forgot-password'
+    51→  | 'reset-password'
+    52→  | 'mfa-verify'
+    53→  | 'magic-link'
+    54→  | 'otp-login';
+    55→
+    56→// ── Loading screen ────────────────────────────────────────────
+    57→function LoadingScreen() {
+    58→  return (
+    59→    <div className="h-screen flex flex-col items-center justify-center bg-background">
+    60→      <div className="relative">
+    61→        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+    62→        <div className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+    63→          <svg className="h-8 w-8 text-primary animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    64→            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+    65→            <path d="M2 17l10 5 10-5" />
+    66→            <path d="M2 12l10 5 10-5" />
+    67→          </svg>
+    68→        </div>
+    69→      </div>
+    70→      <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">Loading AcquisitionOS...</p>
+    71→    </div>
+    72→  );
+    73→}
+    74→
+    75→// ── Shared AuthLayout (mirrors auth-pages-v2.tsx pattern) ─────
+    76→interface AuthLayoutProps {
+    77→  children: React.ReactNode;
+    78→  title: string;
+    79→  description: string;
+    80→  showBack?: boolean;
+    81→  onBack?: () => void;
+    82→}
+    83→
+    84→// Demo Mode Banner removed — auth is always real.
+    85→
+    86→function AuthLayout({ children, title, description, showBack, onBack }: AuthLayoutProps) {
+    87→  return (
+    88→    <div className="min-h-screen flex items-center justify-center bg-background p-4 pt-10 relative overflow-hidden">
+    89→      {/* Demo Mode Banner removed — auth is always real */}
+    90→      {/* Animated gradient background */}
+    91→      <div className="absolute inset-0 gradient-bg-animated opacity-40" />
+    92→      <div className="absolute inset-0 bg-grid opacity-20" />
+    93→      {/* Floating decorative orbs */}
+    94→      <div className="absolute top-1/4 -left-20 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-sparkle" />
+    95→      <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-primary/5 blur-3xl" style={{ animationDelay: '1s' }} />
+    96→
+    97→      <div className="relative w-full max-w-md">
+    98→        {/* Logo */}
+    99→        <motion.div
+   100→          className="text-center mb-8"
+   101→          initial={{ opacity: 0, y: -10 }}
+   102→          animate={{ opacity: 1, y: 0 }}
+   103→          transition={{ duration: 0.4, ease: 'easeOut' }}
+   104→        >
+   105→          <div className="flex items-center justify-center gap-2 mb-6">
+   106→            <div className="relative">
+   107→              <Rocket className="h-8 w-8 text-primary" />
+   108→              <div className="absolute -inset-1.5 rounded-full bg-primary/20 animate-pulse-ring" />
+   109→            </div>
+   110→            <span className="text-2xl font-bold gradient-text">AcquisitionOS</span>
+   111→          </div>
+   112→          <h1 className="text-2xl font-bold">{title}</h1>
+   113→          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+   114→        </motion.div>
+   115→
+   116→        {/* Card */}
+   117→        <motion.div
+   118→          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+   119→          animate={{ opacity: 1, y: 0, scale: 1 }}
+   120→          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+   121→        >
+   122→          {children}
+   123→        </motion.div>
+   124→
+   125→        {/* Back link */}
+   126→        <AnimatePresence>
+   127→          {showBack && onBack && (
+   128→            <motion.button
+   129→              type="button"
+   130→              onClick={onBack}
+   131→              className="flex items-center justify-center gap-1.5 w-full text-xs text-primary hover:text-primary/80 font-medium transition-colors mt-4"
+   132→              initial={{ opacity: 0 }}
+   133→              animate={{ opacity: 1 }}
+   134→              exit={{ opacity: 0 }}
+   135→            >
+   136→              <ArrowLeft className="h-3 w-3" /> Back to Sign In
+   137→            </motion.button>
+   138→          )}
+   139→        </AnimatePresence>
+   140→
+   141→        {/* Social proof & trust badges */}
+   142→        <motion.div
+   143→          className="mt-4 flex items-center justify-center gap-3"
+   144→          initial={{ opacity: 0 }}
+   145→          animate={{ opacity: 1 }}
+   146→          transition={{ delay: 0.5 }}
+   147→        >
+   148→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   149→            <Shield className="h-3 w-3 text-emerald-500" />
+   150→            <span>256-bit SSL</span>
+   151→          </div>
+   152→          <div className="h-3 w-px bg-border" />
+   153→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   154→            <div className="flex -space-x-1">
+   155→              {[0,1,2].map(i => (
+   156→                <div key={i} className="h-4 w-4 rounded-full bg-primary/20 border border-background flex items-center justify-center text-[6px] font-bold text-primary">
+   157→                  {String.fromCharCode(65 + i)}
+   158→                </div>
+   159→              ))}
+   160→            </div>
+   161→            <span>2,400+ users</span>
+   162→          </div>
+   163→          <div className="h-3 w-px bg-border" />
+   164→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   165→            <Globe className="h-3 w-3 text-primary" />
+   166→            <span>SOC 2</span>
+   167→          </div>
+   168→        </motion.div>
+   169→
+   170→        {/* Footer */}
+   171→        <div className="mt-4 text-center space-y-2">
+   172→          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 flex-wrap">
+   173→            <button
+   174→              type="button"
+   175→              onClick={() => useLegalStore.getState().openLegal('privacy')}
+   176→              className="text-primary hover:text-primary/80 underline transition-colors"
+   177→            >
+   178→              Privacy Policy
+   179→            </button>
+   180→            <span className="text-muted-foreground/50">&middot;</span>
+   181→            <button
+   182→              type="button"
+   183→              onClick={() => useLegalStore.getState().openLegal('terms')}
+   184→              className="text-primary hover:text-primary/80 underline transition-colors"
+   185→            >
+   186→              Terms of Service
+   187→            </button>
+   188→          </p>
+   189→          <p className="text-xs text-muted-foreground">
+   190→            &copy; {new Date().getFullYear()} AcquisitionOS. All rights reserved.
+   191→          </p>
+   192→        </div>
+   193→      </div>
+   194→    </div>
+   195→  );
+   196→}
+   197→
+   198→// ── Email Preview Notice — PERMANENTLY DISABLED ─────────────────
+   199→// All Ethereal / preview-inbox code has been removed from the backend.
+   200→// Emails are delivered via real Gmail SMTP only. This component is kept
+   201→// as a no-op so existing callers compile, but it NEVER renders anything.
+   202→function EmailPreviewNotice({
+   203→  previewUrl: _previewUrl,
+   204→  provider: _provider,
+   205→  message: _message,
+   206→  fallbackReason: _fallbackReason,
+   207→}: {
+   208→  previewUrl?: string;
+   209→  provider?: string;
+   210→  message?: string;
+   211→  fallbackReason?: string;
+   212→}) {
+   213→  // PERMANENTLY returns null — no preview inbox UI anymore.
+   214→  return null;
+   215→}
+   216→
+   217→// ── OTP Login page ────────────────────────────────────────────
+   218→function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
+   219→  const [email, setEmail] = useState('');
+   220→  const [otp, setOtp] = useState('');
+   221→  const [step, setStep] = useState<'request' | 'verify'>('request');
+   222→  const [loading, setLoading] = useState(false);
+   223→  const [error, setError] = useState('');
+   224→  const [resendCooldown, setResendCooldown] = useState(0);
+   225→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+   226→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+   227→  const [deliveryIssue, setDeliveryIssue] = useState(false);
+   228→  const [deliveryMessage, setDeliveryMessage] = useState('');
+   229→  const [fallbackReason, setFallbackReason] = useState<string | undefined>();
+   230→  // DEV-ONLY (sandbox): the OTP surfaced in-place when the server cannot
+   231→  // send emails. Never set in production.
+   232→  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
+   233→  // P5: "Remember me for 30 days" — wired to the OTP login session
+   234→  const [rememberMe, setRememberMe] = useState(false);
+   235→  const cooldownRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+   236→
+   237→  // Cooldown timer for resend
+   238→  useEffect(() => {
+   239→    if (resendCooldown <= 0) return;
+   240→    cooldownRef.current = setInterval(() => {
+   241→      setResendCooldown((prev) => {
+   242→        if (prev <= 1) {
+   243→          clearInterval(cooldownRef.current);
+   244→          return 0;
+   245→        }
+   246→        return prev - 1;
+   247→      });
+   248→    }, 1000);
+   249→    return () => clearInterval(cooldownRef.current);
+   250→  }, [resendCooldown]);
+   251→
+   252→  const handleRequestOtp = useCallback(
+   253→    async (e: React.FormEvent) => {
+   254→      e.preventDefault();
+   255→      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+   256→        setError('Enter a valid email address');
+   257→        return;
+   258→      }
+   259→      setError('');
+   260→      setLoading(true);
+   261→      try {
+   262→        const res = await fetch('/api/auth/otp/request', {
+   263→          method: 'POST',
+   264→          headers: { 'Content-Type': 'application/json' },
+   265→          body: JSON.stringify({ email }),
+   266→        });
+   267→        const data = await res.json();
+   268→        if (res.ok) {
+   269→          setStep('verify');
+   270→          setResendCooldown(60);
+   271→          // Surface the Ethereal preview URL so the user can open the email
+   272→          // and read the OTP. If no preview URL is returned (real SMTP /
+   273→          // Resend), the user must check their actual inbox.
+   274→          setEmailPreviewUrl(data.emailPreviewUrl);
+   275→          setEmailProvider(data.emailProvider);
+   276→          setFallbackReason(data.fallbackReason);
+   277→          // DEV-ONLY: capture the in-place delivered code (sandbox mode).
+   278→          setDevDelivery(parseDevDelivery(data));
+   279→          // Surface delivery failures (e.g. Gmail daily quota exceeded) so the
+   280→          // user knows the OTP will NOT arrive and doesn't wait forever.
+   281→          setDeliveryIssue(!!data.deliveryIssue);
+   282→          setDeliveryMessage(data.deliveryMessage || '');
+   283→          if (data.deliveryIssue && !data.devDelivery) {
+   284→            toast.error('Email delivery failed — see details below');
+   285→          } else if (data.devDelivery) {
+   286→            toast.info('Dev mode: email delivery not configured — your login code is shown below.');
+   287→          } else if (data.fallbackReason) {
+   288→            toast.warning('Gmail limit reached — OTP delivered to preview inbox. Click the preview link below.');
+   289→          } else {
+   290→            toast.success('If an account exists for this email, you will receive a sign-in code.');
+   291→          }
+   292→        } else {
+   293→          setError(data.error || 'Failed to send OTP');
+   294→          toast.error(data.error || 'Failed to send OTP');
+   295→        }
+   296→      } catch {
+   297→        setError('Network error. Please try again.');
+   298→      } finally {
+   299→        setLoading(false);
+   300→      }
+   301→    },
+   302→    [email]
+   303→  );
+   304→
+   305→  const handleVerifyOtp = useCallback(async () => {
+   306→    if (otp.length !== 6) {
+   307→      setError('Enter the 6-digit code');
+   308→      return;
+   309→    }
+   310→    setError('');
+   311→    setLoading(true);
+   312→    try {
+   313→      const res = await fetch('/api/auth/otp/verify', {
+   314→        method: 'POST',
+   315→        headers: { 'Content-Type': 'application/json' },
+   316→        credentials: 'include',
+   317→        body: JSON.stringify({ email, otp, rememberMe }),
+   318→      });
+   319→      const data = await res.json();
+   320→      if (res.ok) {
+   321→        toast.success('Welcome back!');
+   322→        // Auth cookies are set by the API, refresh auth state
+   323→        window.location.reload();
+   324→      } else {
+   325→        setError(data.error || 'Invalid OTP');
+   326→        toast.error(data.error || 'Verification failed');
+   327→      }
+   328→    } catch {
+   329→      setError('Network error. Please try again.');
+   330→    } finally {
+   331→      setLoading(false);
+   332→    }
+   333→  }, [email, otp, rememberMe]);
+   334→
+   335→  return (
+   336→    <AuthLayout
+   337→      title="Sign in with OTP"
+   338→      description={step === 'request' ? 'Enter your email to receive a login code' : `Enter the 6-digit code sent to ${email}`}
+   339→      showBack
+   340→      onBack={onBackToSignIn}
+   341→    >
+   342→      <Card className="glass-card">
+   343→        <CardContent className="pt-6 space-y-4">
+   344→          <AnimatePresence mode="wait">
+   345→            {error && (
+   346→              <motion.div
+   347→                initial={{ opacity: 0, y: -6, height: 0 }}
+   348→                animate={{ opacity: 1, y: 0, height: 'auto' }}
+   349→                exit={{ opacity: 0, y: -6, height: 0 }}
+   350→                className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive overflow-hidden"
+   351→                role="alert"
+   352→              >
+   353→                <div className="flex items-center gap-2">
+   354→                  <AlertTriangle className="h-4 w-4 shrink-0" />
+   355→                  {error}
+   356→                </div>
+   357→              </motion.div>
+   358→            )}
+   359→          </AnimatePresence>
+   360→
+   361→          <AnimatePresence mode="wait">
+   362→            {step === 'request' ? (
+   363→              <motion.form
+   364→                key="request"
+   365→                onSubmit={handleRequestOtp}
+   366→                className="space-y-4"
+   367→                noValidate
+   368→                initial={{ opacity: 0, x: -20 }}
+   369→                animate={{ opacity: 1, x: 0 }}
+   370→                exit={{ opacity: 0, x: 20 }}
+   371→                transition={{ duration: 0.2 }}
+   372→              >
+   373→                <div className="space-y-2">
+   374→                  <Label htmlFor="otp-email" className="text-xs font-medium">
+   375→                    Email
+   376→                  </Label>
+   377→                  <div className="relative">
+   378→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   379→                    <Input
+   380→                      id="otp-email"
+   381→                      type="email"
+   382→                      placeholder="you@example.com"
+   383→                      className="pl-9 h-10 border-0 bg-muted/50 focus-visible:bg-background transition-colors"
+   384→                      value={email}
+   385→                      onChange={(e) => { setEmail(e.target.value); if (error) setError(''); }}
+   386→                      aria-invalid={!!error}
+   387→                      autoComplete="email"
+   388→                    />
+   389→                  </div>
+   390→                </div>
+   391→                {/* P5: Remember me — controls the session created on verify */}
+   392→                <div className="flex items-center gap-2">
+   393→                  <Checkbox
+   394→                    id="otp-remember"
+   395→                    checked={rememberMe}
+   396→                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+   397→                  />
+   398→                  <Label htmlFor="otp-remember" className="text-xs text-muted-foreground cursor-pointer">
+   399→                    Remember me for 30 days
+   400→                  </Label>
+   401→                </div>
+   402→                <Button
+   403→                  type="submit"
+   404→                  disabled={loading}
+   405→                  className="w-full h-10 btn-ripple"
+   406→                >
+   407→                  {loading ? (
+   408→                    <>
+   409→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   410→                      Sending...
+   411→                    </>
+   412→                  ) : (
+   413→                    <>
+   414→                      <Key className="mr-2 h-4 w-4" />
+   415→                      Send Login Code
+   416→                    </>
+   417→                  )}
+   418→                </Button>
+   419→              </motion.form>
+   420→            ) : (
+   421→              <motion.div
+   422→                key="verify"
+   423→                className="space-y-4"
+   424→                initial={{ opacity: 0, x: 20 }}
+   425→                animate={{ opacity: 1, x: 0 }}
+   426→                exit={{ opacity: 0, x: -20 }}
+   427→                transition={{ duration: 0.2 }}
+   428→              >
+   429→                {deliveryIssue && (
+   430→                  <motion.div
+   431→                    initial={{ opacity: 0, y: -6, height: 0 }}
+   432→                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+   433→                    className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400 overflow-hidden"
+   434→                    role="alert"
+   435→                  >
+   436→                    <div className="flex items-start gap-2">
+   437→                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+   438→                      <div>
+   439→                        <p className="font-semibold mb-1">Email delivery failed</p>
+   440→                        <p className="text-xs leading-relaxed">{deliveryMessage}</p>
+   441→                      </div>
+   442→                    </div>
+   443→                  </motion.div>
+   444→                )}
+   445→                <DevDeliveryNotice
+   446→                  delivery={devDelivery}
+   447→                  onFillCode={(code) => setOtp(code)}
+   448→                />
+   449→                <EmailPreviewNotice
+   450→                  previewUrl={emailPreviewUrl}
+   451→                  provider={emailProvider}
+   452→                  fallbackReason={fallbackReason}
+   453→                  message="Click below to open the email preview and read the 6-digit login code, then enter it here."
+   454→                />
+   455→                <div className="flex flex-col items-center gap-2">
+   456→                  <Label className="text-xs font-medium text-muted-foreground">Verification Code</Label>
+   457→                  <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+   458→                    <InputOTPGroup>
+   459→                      <InputOTPSlot index={0} className="h-12 w-12 text-lg" />
+   460→                      <InputOTPSlot index={1} className="h-12 w-12 text-lg" />
+   461→                      <InputOTPSlot index={2} className="h-12 w-12 text-lg" />
+   462→                    </InputOTPGroup>
+   463→                    <InputOTPSeparator />
+   464→                    <InputOTPGroup>
+   465→                      <InputOTPSlot index={3} className="h-12 w-12 text-lg" />
+   466→                      <InputOTPSlot index={4} className="h-12 w-12 text-lg" />
+   467→                      <InputOTPSlot index={5} className="h-12 w-12 text-lg" />
+   468→                    </InputOTPGroup>
+   469→                  </InputOTP>
+   470→                </div>
+   471→                <Button
+   472→                  type="button"
+   473→                  disabled={loading || otp.length !== 6}
+   474→                  onClick={handleVerifyOtp}
+   475→                  className="w-full h-10 btn-ripple"
+   476→                >
+   477→                  {loading ? (
+   478→                    <>
+   479→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   480→                      Verifying...
+   481→                    </>
+   482→                  ) : (
+   483→                    'Verify & Sign In'
+   484→                  )}
+   485→                </Button>
+   486→                {resendCooldown > 0 ? (
+   487→                  <p className="text-xs text-center text-muted-foreground">
+   488→                    Resend in <span className="font-mono text-primary">{resendCooldown}s</span>
+   489→                  </p>
+   490→                ) : (
+   491→                  <button
+   492→                    type="button"
+   493→                    onClick={() => { handleRequestOtp({ preventDefault: () => {} } as React.FormEvent); }}
+   494→                    className="text-xs text-center text-primary hover:text-primary/80 font-medium transition-colors w-full"
+   495→                  >
+   496→                    Resend code
+   497→                  </button>
+   498→                )}
+   499→              </motion.div>
+   500→            )}
+   501→          </AnimatePresence>
+   502→        </CardContent>
+   503→      </Card>
+   504→    </AuthLayout>
+   505→  );
+   506→}
+   507→
+   508→// ── Magic Link page ───────────────────────────────────────────
+   509→function MagicLinkPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
+   510→  const [email, setEmail] = useState('');
+   511→  const [sent, setSent] = useState(false);
+   512→  const [loading, setLoading] = useState(false);
+   513→  const [error, setError] = useState('');
+   514→  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | undefined>();
+   515→  const [emailProvider, setEmailProvider] = useState<string | undefined>();
+   516→  const [deliveryIssue, setDeliveryIssue] = useState(false);
+   517→  const [deliveryMessage, setDeliveryMessage] = useState('');
+   518→  const [fallbackReason, setFallbackReason] = useState<string | undefined>();
+   519→  // DEV-ONLY (sandbox): the sign-in link surfaced in-place when the server
+   520→  // cannot send emails. Never set in production.
+   521→  const [devDelivery, setDevDelivery] = useState<DevDeliveryPayload | undefined>();
+   522→  // P5: Remember-me for the magic-link session
+   523→  const [rememberMe, setRememberMe] = useState(false);
+   524→
+   525→  const handleSendMagicLink = useCallback(
+   526→    async (e: React.FormEvent) => {
+   527→      e.preventDefault();
+   528→      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+   529→        setError('Enter a valid email address');
+   530→        return;
+   531→      }
+   532→      setError('');
+   533→      setLoading(true);
+   534→      try {
+   535→        const res = await fetch('/api/auth/magic-link/request', {
+   536→          method: 'POST',
+   537→          headers: { 'Content-Type': 'application/json' },
+   538→          body: JSON.stringify({ email, rememberMe }),
+   539→        });
+   540→        if (res.ok) {
+   541→          const data = await res.json();
+   542→          // The token is NEVER returned in the response — the user must click
+   543→          // the link from the actual email. In Ethereal (test) mode we surface
+   544→          // a preview URL so they can open the email in a browser.
+   545→          setEmailPreviewUrl(data.emailPreviewUrl);
+   546→          setEmailProvider(data.emailProvider);
+   547→          setDeliveryIssue(!!data.deliveryIssue);
+   548→          setDeliveryMessage(data.deliveryMessage || '');
+   549→          setFallbackReason(data.fallbackReason);
+   550→          // DEV-ONLY: capture the in-place delivered link (sandbox mode).
+   551→          setDevDelivery(parseDevDelivery(data));
+   552→          setSent(true);
+   553→          if (data.deliveryIssue && !data.devDelivery) {
+   554→            toast.error('Email delivery failed — see details below');
+   555→          } else if (data.devDelivery) {
+   556→            toast.info('Dev mode: email delivery not configured — your sign-in link is shown below.');
+   557→          } else if (data.fallbackReason) {
+   558→            toast.warning('Gmail limit reached — magic link delivered to preview inbox. Click the preview link below.');
+   559→          } else {
+   560→            toast.success('If an account exists for this email, you will receive a sign-in link.');
+   561→          }
+   562→        } else {
+   563→          const data = await res.json();
+   564→          setError(data.error || 'Failed to send magic link');
+   565→          toast.error(data.error || 'Failed to send magic link');
+   566→        }
+   567→      } catch {
+   568→        setError('Network error. Please try again.');
+   569→        toast.error('Network error');
+   570→      } finally {
+   571→        setLoading(false);
+   572→      }
+   573→    },
+   574→    [email, rememberMe]
+   575→  );
+   576→
+   577→  return (
+   578→    <AuthLayout
+   579→      title="Sign in with Magic Link"
+   580→      description="We'll email you a link to sign in"
+   581→      showBack
+   582→      onBack={onBackToSignIn}
+   583→    >
+   584→      <Card className="glass-card">
+   585→        <CardContent className="pt-6 space-y-4">
+   586→          <AnimatePresence mode="wait">
+   587→            {sent ? (
+   588→              <motion.div
+   589→                key="sent"
+   590→                className="text-center space-y-3 py-4"
+   591→                initial={{ opacity: 0, scale: 0.95 }}
+   592→                animate={{ opacity: 1, scale: 1 }}
+   593→                transition={{ duration: 0.3 }}
+   594→              >
+   595→                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+   596→                  <Mail className="h-8 w-8 text-primary" />
+   597→                </div>
+   598→                <p className="text-sm text-muted-foreground">
+   599→                  Check your inbox at{' '}
+   600→                  <span className="font-medium text-foreground">{email}</span>
+   601→                </p>
+   602→                <p className="text-xs text-muted-foreground">
+   603→                  Click the link in the email to sign in automatically.
+   604→                </p>
+   605→                {deliveryIssue && (
+   606→                  <motion.div
+   607→                    initial={{ opacity: 0, y: -6, height: 0 }}
+   608→                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+   609→                    className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400 overflow-hidden text-left"
+   610→                    role="alert"
+   611→                  >
+   612→                    <div className="flex items-start gap-2">
+   613→                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+   614→                      <div>
+   615→                        <p className="font-semibold mb-1">Email delivery failed</p>
+   616→                        <p className="text-xs leading-relaxed">{deliveryMessage}</p>
+   617→                      </div>
+   618→                    </div>
+   619→                  </motion.div>
+   620→                )}
+   621→                <DevDeliveryNotice delivery={devDelivery} />
+   622→                <EmailPreviewNotice
+   623→                  previewUrl={emailPreviewUrl}
+   624→                  provider={emailProvider}
+   625→                  fallbackReason={fallbackReason}
+   626→                  message="Click below to open the email preview in a new tab, then click the sign-in button inside the email."
+   627→                />
+   628→              </motion.div>
+   629→            ) : (
+   630→              <motion.form
+   631→                key="form"
+   632→                onSubmit={handleSendMagicLink}
+   633→                className="space-y-4"
+   634→                noValidate
+   635→                initial={{ opacity: 0 }}
+   636→                animate={{ opacity: 1 }}
+   637→                transition={{ duration: 0.2 }}
+   638→              >
+   639→                <AnimatePresence mode="wait">
+   640→                  {error && (
+   641→                    <motion.div
+   642→                      initial={{ opacity: 0, y: -6, height: 0 }}
+   643→                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+   644→                      exit={{ opacity: 0, y: -6, height: 0 }}
+   645→                      className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive overflow-hidden"
+   646→                      role="alert"
+   647→                    >
+   648→                      <div className="flex items-center gap-2">
+   649→                        <AlertTriangle className="h-4 w-4 shrink-0" />
+   650→                        {error}
+   651→                      </div>
+   652→                    </motion.div>
+   653→                  )}
+   654→                </AnimatePresence>
+   655→
+   656→                <div className="space-y-2">
+   657→                  <Label htmlFor="magic-email" className="text-xs font-medium">
+   658→                    Email
+   659→                  </Label>
+   660→                  <div className="relative">
+   661→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   662→                    <Input
+   663→                      id="magic-email"
+   664→                      type="email"
+   665→                      placeholder="you@example.com"
+   666→                      className="pl-9 h-10 border-0 bg-muted/50 focus-visible:bg-background transition-colors"
+   667→                      value={email}
+   668→                      onChange={(e) => {
+   669→                        setEmail(e.target.value);
+   670→                        if (error) setError('');
+   671→                      }}
+   672→                      aria-invalid={!!error}
+   673→                      autoComplete="email"
+   674→                    />
+   675→                  </div>
+   676→                </div>
+   677→                {/* P5: Remember me — applies to the session the link creates */}
+   678→                <div className="flex items-center gap-2">
+   679→                  <Checkbox
+   680→                    id="magic-remember"
+   681→                    checked={rememberMe}
+   682→                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+   683→                  />
+   684→                  <Label htmlFor="magic-remember" className="text-xs text-muted-foreground cursor-pointer">
+   685→                    Remember me for 30 days
+   686→                  </Label>
+   687→                </div>
+   688→                <Button
+   689→                  type="submit"
+   690→                  disabled={loading}
+   691→                  className="w-full h-10 btn-ripple"
+   692→                >
+   693→                  {loading ? (
+   694→                    <>
+   695→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   696→                      Sending...
+   697→                    </>
+   698→                  ) : (
+   699→                    <>
+   700→                      <Mail className="mr-2 h-4 w-4" />
+   701→                      Send Magic Link
+   702→                    </>
+   703→                  )}
+   704→                </Button>
+   705→              </motion.form>
+   706→            )}
+   707→          </AnimatePresence>
+   708→        </CardContent>
+   709→      </Card>
+   710→    </AuthLayout>
+   711→  );
+   712→}
+   713→
+   714→// ══════════════════════════════════════════════════════════════
+   715→// Authenticated Wrapper — Syncs subscription + shows banners
+   716→// ══════════════════════════════════════════════════════════════
+   717→function AuthenticatedWrapper({
+   718→  upgradeModalOpen,
+   719→  setUpgradeModalOpen,
+   720→  creditWarningDismissed,
+   721→  setCreditWarningDismissed,
+   722→}: {
+   723→  upgradeModalOpen: boolean;
+   724→  setUpgradeModalOpen: (open: boolean) => void;
+   725→  creditWarningDismissed: boolean;
+   726→  setCreditWarningDismissed: (dismissed: boolean) => void;
+   727→}) {
+   728→  // Sync subscription data from backend to Zustand store
+   729→  useSubscriptionSync();
+   730→
+   731→  return (
+   732→    <div className="h-screen flex flex-col bg-background overflow-hidden">
+   733→      {/* Trial Banner (top of authenticated section) */}
+   734→      <TrialBanner onUpgradeClick={() => setUpgradeModalOpen(true)} />
+   735→
+   736→      {/* Credit Warning Banner (below trial banner) */}
+   737→      {!creditWarningDismissed && (
+   738→        <CreditWarningBanner
+   739→          onUpgradeClick={() => setUpgradeModalOpen(true)}
+   740→          onDismiss={() => setCreditWarningDismissed(true)}
+   741→        />
+   742→      )}
+   743→
+   744→      {/* Dashboard Layout fills remaining space */}
+   745→      <div className="flex-1 min-h-0">
+   746→        <DashboardLayout
+   747→          externalUpgradeModalOpen={upgradeModalOpen}
+   748→          onExternalUpgradeModalChange={setUpgradeModalOpen}
+   749→        />
+   750→      </div>
+   751→    </div>
+   752→  );
+   753→}
+   754→
+   755→// ══════════════════════════════════════════════════════════════
+   756→// Main AuthGate component
+   757→// ══════════════════════════════════════════════════════════════
+   758→export default function AuthGate() {
+   759→  const { isAuthenticated, isLoading, mfaRequired, setUser, setLoading } = useAuthStore();
+   760→  const { signIn } = useAuth();
+   761→
+   762→  // ── Auth page navigation state ───────────────────────────────
+   763→  const [authPage, setAuthPage] = useState<AuthPage>('signin');
+   764→  const [flowEmail, setFlowEmail] = useState('');
+   765→  const [initialized, setInitialized] = useState(false);
+   766→
+   767→  // ── Subscription banner state (authenticated only) ──────────
+   768→  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+   769→  const [creditWarningDismissed, setCreditWarningDismissed] = useState(false);
+   770→
+   771→  // ── Auto token refresh when authenticated ────────────────────
+   772→  useTokenRefresh();
+   773→
+   774→  // ── Initialize: check auth state on mount ────────────────────
+   775→  useEffect(() => {
+   776→    const init = async () => {
+   777→      const params = new URLSearchParams(window.location.search);
+   778→
+   779→      // Check for OAuth error redirect — show simple toast, no custom popup.
+   780→      const authError = params.get('auth_error');
+   781→      if (authError === 'google_failed') {
+   782→        toast.error('Google sign-in failed. Please try again or use email/password.');
+   783→        window.history.replaceState({}, '', window.location.pathname);
+   784→      } else if (authError === 'no_code') {
+   785→        toast.error('Google login was cancelled. Please try again.');
+   786→        window.history.replaceState({}, '', window.location.pathname);
+   787→      } else if (authError === 'google_invalid_client_secret') {
+   788→        toast.error(
+   789→          'Google sign-in is unavailable: the Google client secret configured on the server was rejected by Google (it was likely regenerated or revoked). ACTION NEEDED: create a new OAuth client secret in Google Cloud Console and update GOOGLE_CLIENT_SECRET in the server .env, then restart the server. Until then, please use OTP, Magic Link, or email/password login.',
+   790→          { duration: 12000 }
+   791→        );
+   792→        window.history.replaceState({}, '', window.location.pathname);
+   793→      } else if (authError === 'google_invalid_redirect_uri') {
+   794→        toast.error(
+   795→          'Google sign-in failed: the redirect URI is not registered in Google Cloud Console. Please contact support to update the authorized redirect URIs.',
+   796→          { duration: 9000 }
+   797→        );
+   798→        window.history.replaceState({}, '', window.location.pathname);
+   799→      } else if (authError === 'google_invalid_grant') {
+   800→        toast.error('Google login session expired. Please try the Google sign-in button again.');
+   801→        window.history.replaceState({}, '', window.location.pathname);
+   802→      } else if (authError === 'google_misconfigured') {
+   803→        toast.error(
+   804→          'Google OAuth is misconfigured on the server. Please use email/password or OTP login while we fix this.',
+   805→          { duration: 9000 }
+   806→        );
+   807→        window.history.replaceState({}, '', window.location.pathname);
+   808→      } else if (authError === 'expired_link') {
+   809→        toast.error('Your magic link has expired. Please request a new one.');
+   810→        window.history.replaceState({}, '', window.location.pathname);
+   811→      } else if (authError === 'oauth_failed') {
+   812→        toast.error('Google OAuth failed. Please try again.');
+   813→        window.history.replaceState({}, '', window.location.pathname);
+   814→      }
+   815→
+   816→      // Check for payment success/cancel redirect from Stripe
+   817→      const paymentStatus = params.get('payment');
+   818→      if (paymentStatus === 'success') {
+   819→        // Stripe redirected back to the app after the user completed checkout.
+   820→        // We do NOT activate the subscription here — the Stripe webhook is the
+   821→        // source of truth for payment confirmation. The webhook will update the
+   822→        // user's subscription and credits in the database. This toast only
+   823→        // acknowledges that the checkout was completed; the actual plan upgrade
+   824→        // happens server-side via /api/payments/webhook/stripe.
+   825→        toast.info('Payment received. Your plan will be updated shortly.');
+   826→        window.history.replaceState({}, '', window.location.pathname);
+   827→      } else if (paymentStatus === 'cancelled') {
+   828→        toast.info('Payment was cancelled.');
+   829→        window.history.replaceState({}, '', window.location.pathname);
+   830→      }
+   831→
+   832→      // ── Honor ?auth=signin|signup|forgot-password|verify-email ──
+   833→      // Lets the dedicated /auth/signin and /auth/signup pages (which
+   834→      // redirect to /?auth=signin etc.) start the user on the right
+   835→      // auth sub-page rather than always defaulting to "Sign In".
+   836→      const authPageParam = params.get('auth');
+   837→      if (authPageParam === 'signup') {
+   838→        setAuthPage('signup');
+   839→        window.history.replaceState({}, '', window.location.pathname);
+   840→      } else if (authPageParam === 'signin') {
+   841→        setAuthPage('signin');
+   842→        window.history.replaceState({}, '', window.location.pathname);
+   843→      } else if (authPageParam === 'forgot-password') {
+   844→        setAuthPage('forgot-password');
+   845→        window.history.replaceState({}, '', window.location.pathname);
+   846→      }
+   847→
+   848→      const loadMe = async (): Promise<boolean> => {
+   849→        const res = await fetch('/api/auth/me', { credentials: 'include' });
+   850→        if (res.ok) {
+   851→          const data = await res.json();
+   852→          setUser(data.user);
+   853→          return true;
+   854→        }
+   855→        return false;
+   856→      };
+   857→
+   858→      try {
+   859→        let ok = await loadMe();
+   860→        if (!ok) {
+   861→          // Access token may simply have expired (15 min). The refresh
+   862→          // session lasts 30 days — try one silent refresh before forcing
+   863→          // the user back through login, then hydrate the identity again.
+   864→          // RCA 2026-09-29: this refresh is serialized across tabs via
+   865→          // silentRefresh() so a sibling tab's rotation can never make
+   866→          // this restore read a just-revoked session.
+   867→          try {
+   868→            const refreshResult = await silentRefresh({ force: true });
+   869→            if (refreshResult.ok) {
+   870→              if (refreshResult.user) {
+   871→                setUser(refreshResult.user);
+   872→                ok = true;
+   873→              } else {
+   874→                ok = await loadMe();
+   875→              }
+   876→            } else if (isAuthoritativeLogout(refreshResult)) {
+   877→              // Authoritative server answer: session expired/revoked or
+   878→              // token invalid — a real logout.
+   879→              ok = false;
+   880→            } else {
+   881→              // 503 / network / transient failure (P11 semantics): a
+   882→              // temporary backend problem is NOT a logout. Keep whatever
+   883→              // restored state exists; the periodic refresh reconciles.
+   884→              ok = !!useAuthStore.getState().user;
+   885→            }
+   886→          } catch {
+   887→            // Refresh failed (network) — fall through to signed-out state.
+   888→          }
+   889→        }
+   890→        if (!ok) {
+   891→          setUser(null);
+   892→        }
+   893→      } catch {
+   894→        setUser(null);
+   895→      } finally {
+   896→        setInitialized(true);
+   897→      }
+   898→    };
+   899→    init();
+   900→  }, [setUser]);
+   901→
+   902→  // ── Auto-switch to MFA page when mfaRequired becomes true ───
+   903→  useEffect(() => {
+   904→    if (mfaRequired && authPage !== 'mfa-verify') {
+   905→      setAuthPage('mfa-verify');
+   906→    }
+   907→  }, [mfaRequired, authPage]);
+   908→
+   909→  // ── Navigation handlers ──────────────────────────────────────
+   910→  const navigateToSignIn = useCallback(() => {
+   911→    setAuthPage('signin');
+   912→    setFlowEmail('');
+   913→  }, []);
+   914→
+   915→  const navigateToSignUp = useCallback(() => {
+   916→    setAuthPage('signup');
+   917→  }, []);
+   918→
+   919→  const navigateToForgotPassword = useCallback(() => {
+   920→    setAuthPage('forgot-password');
+   921→  }, []);
+   922→
+   923→  const navigateToVerifyEmail = useCallback((email: string, devDelivery?: DevDeliveryPayload) => {
+   924→    setFlowEmail(email);
+   925→    setVerifyDevDelivery(devDelivery);
+   926→    setAuthPage('verify-email');
+   927→  }, []);
+   928→
+   929→  const [resetEmailPreviewUrl, setResetEmailPreviewUrl] = useState<string | undefined>();
+   930→  const [resetEmailProvider, setResetEmailProvider] = useState<string | undefined>();
+   931→  // DEV-ONLY (sandbox): reset/verification code surfaced in-place when the
+   932→  // server cannot send emails. Never set in production.
+   933→  const [verifyDevDelivery, setVerifyDevDelivery] = useState<DevDeliveryPayload | undefined>();
+   934→  const [resetDevDelivery, setResetDevDelivery] = useState<DevDeliveryPayload | undefined>();
+   935→
+   936→  const navigateToResetPassword = useCallback(
+   937→    (email: string, emailPreviewUrl?: string, emailProvider?: string, devDelivery?: DevDeliveryPayload) => {
+   938→      setFlowEmail(email);
+   939→      setResetEmailPreviewUrl(emailPreviewUrl);
+   940→      setResetEmailProvider(emailProvider);
+   941→      setResetDevDelivery(devDelivery);
+   942→      setAuthPage('reset-password');
+   943→    },
+   944→    []
+   945→  );
+   946→
+   947→  const navigateToMagicLink = useCallback(() => {
+   948→    setAuthPage('magic-link');
+   949→  }, []);
+   950→
+   951→  const navigateToOtpLogin = useCallback(() => {
+   952→    setAuthPage('otp-login');
+   953→  }, []);
+   954→
+   955→  // ── Sign in success handler ──────────────────────────────────
+   956→  const handleSignInSuccess = useCallback(() => {
+   957→    // The signIn in useAuth already sets the user in the store.
+   958→    // If MFA was required, the mfaRequired effect above will switch to the MFA page.
+   959→    // If no MFA, the user is set and isAuthenticated becomes true, showing the dashboard.
+   960→  }, []);
+   961→
+   962→  // ── Email verified handler: auto-sign-in after verification ──
+   963→  const handleEmailVerified = useCallback(async () => {
+   964→    if (flowEmail) {
+   965→      toast.info('Signing you in...');
+   966→      // After email verification, attempt auto sign-in
+   967→      // The user needs to have set a password during signup, so we prompt them to sign in
+   968→      setAuthPage('signin');
+   969→      toast.success('Email verified! Please sign in with your credentials.');
+   970→    } else {
+   971→      navigateToSignIn();
+   972→    }
+   973→  }, [flowEmail, navigateToSignIn]);
+   974→
+   975→  // ── Password reset success handler ───────────────────────────
+   976→  const handleResetPasswordSuccess = useCallback(() => {
+   977→    toast.success('Password reset! Please sign in with your new password.');
+   978→    navigateToSignIn();
+   979→  }, [navigateToSignIn]);
+   980→
+   981→  // ── MFA verification success handler ─────────────────────────
+   982→  const handleMfaSuccess = useCallback(() => {
+   983→    // The verifyMfa in useAuth already sets the user in the store
+   984→    // isAuthenticated will become true and the dashboard will show
+   985→    toast.success('Welcome back!');
+   986→  }, []);
+   987→
+   988→  // ── Legal pages dialog (available everywhere) ────────────────
+   989→  const legalDialog = <LegalPages />;
+   990→
+   991→  // ── Loading state while checking auth ────────────────────────
+   992→  if (!initialized || isLoading) {
+   993→    return (
+   994→      <>
+   995→        {legalDialog}
+   996→        <LoadingScreen />
+   997→      </>
+   998→    );
+   999→  }
+  1000→
+  1001→  // ── Authenticated: show dashboard ────────────────────────────
+  1002→  if (isAuthenticated && !mfaRequired) {
+  1003→    return (
+  1004→      <>
+  1005→        {legalDialog}
+  1006→        <AuthenticatedWrapper
+  1007→          upgradeModalOpen={upgradeModalOpen}
+  1008→          setUpgradeModalOpen={setUpgradeModalOpen}
+  1009→          creditWarningDismissed={creditWarningDismissed}
+  1010→          setCreditWarningDismissed={setCreditWarningDismissed}
+  1011→        />
+  1012→      </>
+  1013→    );
+  1014→  }
+  1015→
+  1016→  switch (authPage) {
+  1017→    case 'signin':
+  1018→      return (
+  1019→        <>
+  1020→          <SignInPage
+  1021→            onSignUpClick={navigateToSignUp}
+  1022→            onForgotPasswordClick={navigateToForgotPassword}
+  1023→            onSuccess={handleSignInSuccess}
+  1024→            onMagicLinkClick={navigateToMagicLink}
+  1025→            onOtpLoginClick={navigateToOtpLogin}
+  1026→            onVerifyEmailClick={navigateToVerifyEmail}
+  1027→          />
+  1028→        </>
+  1029→      );
+  1030→
+  1031→    case 'signup':
+  1032→      return (
+  1033→        <>
+  1034→          {legalDialog}
+  1035→          <SignUpPage
+  1036→            onSignInClick={navigateToSignIn}
+  1037→            onVerifyEmail={navigateToVerifyEmail}
+  1038→          />
+  1039→        </>
+  1040→      );
+  1041→
+  1042→    case 'verify-email':
+  1043→      return (
+  1044→        <>
+  1045→          {legalDialog}
+  1046→          <VerifyEmailPage
+  1047→            email={flowEmail}
+  1048→            initialDevDelivery={verifyDevDelivery}
+  1049→            onVerified={handleEmailVerified}
+  1050→            onBackToSignIn={navigateToSignIn}
+  1051→          />
+  1052→        </>
+  1053→      );
+  1054→
+  1055→    case 'forgot-password':
+  1056→      return (
+  1057→        <>
+  1058→          {legalDialog}
+  1059→          <ForgotPasswordPage
+  1060→            onBackToSignIn={navigateToSignIn}
+  1061→            onOtpSent={navigateToResetPassword}
+  1062→          />
+  1063→        </>
+  1064→      );
+  1065→
+  1066→    case 'reset-password':
+  1067→      return (
+  1068→        <>
+  1069→          {legalDialog}
+  1070→          <ResetPasswordPage
+  1071→            email={flowEmail}
+  1072→            onSuccess={handleResetPasswordSuccess}
+  1073→            initialEmailPreviewUrl={resetEmailPreviewUrl}
+  1074→            initialEmailProvider={resetEmailProvider}
+  1075→            initialDevDelivery={resetDevDelivery}
+  1076→          />
+  1077→        </>
+  1078→      );
+  1079→
+  1080→    case 'mfa-verify':
+  1081→      return (
+  1082→        <>
+  1083→          {legalDialog}
+  1084→          <MfaVerificationPage
+  1085→            onSuccess={handleMfaSuccess}
+  1086→            onBack={navigateToSignIn}
+  1087→          />
+  1088→        </>
+  1089→      );
+  1090→
+  1091→    case 'otp-login':
+  1092→      return (
+  1093→        <>
+  1094→          {legalDialog}
+  1095→          <OtpLoginPage onBackToSignIn={navigateToSignIn} />
+  1096→        </>
+  1097→      );
+  1098→
+  1099→    case 'magic-link':
+  1100→      return (
+  1101→        <>
+  1102→          {legalDialog}
+  1103→          <MagicLinkPage onBackToSignIn={navigateToSignIn} />
+  1104→        </>
+  1105→      );
+  1106→
+  1107→    default:
+  1108→      return (
+  1109→        <>
+  1110→          {legalDialog}
+  1111→          <SignInPage
+  1112→            onSignUpClick={navigateToSignUp}
+  1113→            onForgotPasswordClick={navigateToForgotPassword}
+  1114→            onSuccess={handleSignInSuccess}
+  1115→            onMagicLinkClick={navigateToMagicLink}
+  1116→            onOtpLoginClick={navigateToOtpLogin}
+  1117→            onVerifyEmailClick={navigateToVerifyEmail}
+  1118→          />
+  1119→        </>
+  1120→      );
+  1121→  }
+  1122→}
+  1123→

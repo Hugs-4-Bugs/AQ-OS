@@ -8,14 +8,20 @@ import { deductCredits, checkCreditSufficiency } from '@/lib/credit-service';
 
 // ===== PLAN LIMITS =====
 
+// Plan limits for concurrent/total workflows per user.
+// NOTE: keyed by plan name INCLUDING 'starter' explicitly — Starter is
+// workflow-restricted (workflow_access = false) and falls back to the same
+// numeric limits as Free so the map can never return undefined.
 const WORKFLOW_LIMITS: Record<string, number> = {
   free: 3,
+  starter: 3,
   pro: 25,
   elite: Infinity,
 };
 
 const EXECUTION_LIMITS: Record<string, number> = {
   free: 50,
+  starter: 50,
   pro: 500,
   elite: Infinity,
 };

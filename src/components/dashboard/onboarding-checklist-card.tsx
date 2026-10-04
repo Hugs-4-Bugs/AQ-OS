@@ -119,6 +119,9 @@ export default function OnboardingChecklistCard() {
                       {summary.completedCount}/{summary.totalCount}
                     </Badge>
                   )}
+                  {/* Signup reward policy: accounts receive exactly 50 credits at
+                      signup (ledger action `signup_reward`) — no onboarding bonus
+                      is stacked on top, so the old "+25 bonus" badge is gone. */}
                 </CardTitle>
                 {summary && (
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -236,7 +239,7 @@ export default function OnboardingChecklistCard() {
             {summary && !summary.onboardingCompleted && summary.completionPercentage < 100 && (
               <div className="mt-2 pt-2 border-t border-border/50">
                 <p className="text-[11px] text-muted-foreground text-center">
-                  Complete all steps to personalize your experience
+                  Complete all steps to earn <span className="text-primary font-medium">+25 bonus credits</span>
                 </p>
               </div>
             )}

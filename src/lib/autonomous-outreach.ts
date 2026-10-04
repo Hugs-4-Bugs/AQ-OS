@@ -7,7 +7,6 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
-import { AUTOMATION_PLAN_TIERS } from '@/lib/plan-feature-limits';
 import ZAI from 'z-ai-web-dev-sdk';
 
 // ===== TYPES =====
@@ -129,11 +128,8 @@ export class AutonomousOutreachService {
    */
   async generateOutreach(leadId: string, channel: string): Promise<OutreachContent> {
     try {
-      // NOTE: this class currently has no production callers (dead code kept
-      // for reference). If it is ever wired to a route, the userId-scoped
-      // lookup below MUST be preserved (account isolation).
-      const lead = await db.lead.findFirst({
-        where: { id: leadId, isActive: true },
+      const lead = await db.lead.findUnique({
+        where: { id: leadId },
         include: {
           leadAnalysis: {
             select: {
@@ -219,9 +215,7 @@ Return ONLY valid JSON. No markdown, no explanations.`;
       console.error('[AutonomousOutreach] Generation failed:', error);
       return {
         subject: channel === 'email' ? 'Following up on your business' : undefined,
-        // Honest neutral fallback (no fabricated offer — the sender's real
-        // services come from their business profile, not a default pitch).
-        body: 'Hello, I wanted to introduce myself and learn more about your business. Would you be open to a brief conversation about whether there is anything useful we could do together?',
+        body: 'I noticed your business and wanted to reach out. I help businesses like yours improve their digital presence and grow. Would you be open to a quick chat?',
       };
     }
   }
@@ -315,16 +309,11 @@ Return ONLY valid JSON. No markdown, no explanations.`;
     };
 
     try {
-      // Find all queued outreach messages.
-      // Plan Eligibility Correction: autonomous dispatch runs EXCLUSIVELY for
-      // Pro/Elite owners — Free/Starter queue items are skipped at the DB
-      // level (they stay queued and untouched, nothing is deleted; if the
-      // user upgrades, processing resumes).
+      // Find all queued outreach messages
       const queuedMessages = await db.outreachMessage.findMany({
         where: {
           status: 'queued',
           generatedByAI: true,
-          user: { plan: { in: AUTOMATION_PLAN_TIERS } },
         },
         include: {
           lead: {

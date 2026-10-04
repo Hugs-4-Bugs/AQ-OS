@@ -1,0 +1,1012 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useCallback, useRef, useEffect } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import {
+     6→  Globe,
+     7→  Mail,
+     8→  Phone,
+     9→  MapPin,
+    10→  ExternalLink,
+    11→  Sparkles,
+    12→  ChevronRight,
+    13→  UserCircle,
+    14→  Clock,
+    15→  Zap,
+    16→  Pencil,
+    17→  X,
+    18→  Check,
+    19→  Trash2,
+    20→  RefreshCw,
+    21→  Activity,
+    22→  Plus,
+    23→  StickyNote,
+    24→  Handshake,
+    25→  Send,
+    26→  TrendingUp,
+    27→  CalendarClock,
+    28→  Star,
+    29→  Building2,
+    30→  Tag,
+    31→  MessageSquare,
+    32→  Search,
+    33→  LayoutGrid,
+    34→  FileText,
+    35→  Loader2,
+    36→  Link,
+    37→  Users,
+    38→} from 'lucide-react';
+    39→import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+    40→import { Badge } from '@/components/ui/badge';
+    41→import { Button } from '@/components/ui/button';
+    42→import { Separator } from '@/components/ui/separator';
+    43→import { ScrollArea } from '@/components/ui/scroll-area';
+    44→import { Skeleton } from '@/components/ui/skeleton';
+    45→import { Progress } from '@/components/ui/progress';
+    46→import { Card, CardContent } from '@/components/ui/card';
+    47→import { Input } from '@/components/ui/input';
+    48→import { Textarea } from '@/components/ui/textarea';
+    49→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    50→import ProspectPipelineTab from '@/components/dashboard/prospect-pipeline-tab';
+    51→import {
+    52→  Select,
+    53→  SelectContent,
+    54→  SelectItem,
+    55→  SelectTrigger,
+    56→  SelectValue,
+    57→} from '@/components/ui/select';
+    58→import {
+    59→  AlertDialog,
+    60→  AlertDialogAction,
+    61→  AlertDialogCancel,
+    62→  AlertDialogContent,
+    63→  AlertDialogDescription,
+    64→  AlertDialogFooter,
+    65→  AlertDialogHeader,
+    66→  AlertDialogTitle,
+    67→} from '@/components/ui/alert-dialog';
+    68→import { updateLead, deleteLead, fetchLeadActivities } from '@/lib/api';
+    69→import { useAppStore } from '@/lib/store';
+    70→import { cn } from '@/lib/utils';
+    71→import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER, type Lead, type LeadStage } from '@/lib/types';
+    72→import { toast } from 'sonner';
+    73→import { motion, AnimatePresence } from 'framer-motion';
+    74→
+    75→// ─── Helper Functions ────────────────────────────────────
+    76→function getScoreColor(score: number): string {
+    77→  if (score >= 75) return 'text-emerald-500';
+    78→  if (score >= 50) return 'text-sky-500';
+    79→  if (score >= 25) return 'text-amber-500';
+    80→  return 'text-red-500';
+    81→}
+    82→
+    83→function getScoreBarClass(score: number): string {
+    84→  if (score >= 75) return 'bg-emerald-500';
+    85→  if (score >= 50) return 'bg-sky-500';
+    86→  if (score >= 25) return 'bg-amber-500';
+    87→  return 'bg-red-500';
+    88→}
+    89→
+    90→function getRelativeTime(dateStr: string): string {
+    91→  const date = new Date(dateStr);
+    92→  const now = new Date();
+    93→  const diffMs = now.getTime() - date.getTime();
+    94→  const diffSecs = Math.floor(diffMs / 1000);
+    95→  const diffMins = Math.floor(diffSecs / 60);
+    96→  const diffHours = Math.floor(diffMins / 60);
+    97→  const diffDays = Math.floor(diffHours / 24);
+    98→  if (diffSecs < 60) return 'Just now';
+    99→  if (diffMins < 60) return `${diffMins}m ago`;
+   100→  if (diffHours < 24) return `${diffHours}h ago`;
+   101→  if (diffDays === 1) return 'Yesterday';
+   102→  if (diffDays < 7) return `${diffDays}d ago`;
+   103→  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+   104→}
+   105→
+   106→function getActivityIcon(type: string): { icon: typeof Sparkles; bg: string; text: string } {
+   107→  switch (type) {
+   108→    case 'lead_created': return { icon: Zap, bg: 'bg-emerald-500/15', text: 'text-emerald-500' };
+   109→    case 'stage_change': return { icon: ChevronRight, bg: 'bg-sky-500/15', text: 'text-sky-500' };
+   110→    case 'note_added': return { icon: StickyNote, bg: 'bg-amber-500/15', text: 'text-amber-500' };
+   111→    case 'deal_created': return { icon: Handshake, bg: 'bg-emerald-500/15', text: 'text-emerald-500' };
+   112→    case 'outreach_sent': return { icon: Send, bg: 'bg-violet-500/15', text: 'text-violet-500' };
+   113→    case 'analysis_complete': return { icon: Sparkles, bg: 'bg-rose-500/15', text: 'text-rose-500' };
+   114→    case 'website_analyzed': return { icon: Globe, bg: 'bg-cyan-500/15', text: 'text-cyan-500' };
+   115→    case 'score_updated': return { icon: TrendingUp, bg: 'bg-orange-500/15', text: 'text-orange-500' };
+   116→    case 'followup_scheduled': return { icon: CalendarClock, bg: 'bg-amber-500/15', text: 'text-amber-500' };
+   117→    default: return { icon: Activity, bg: 'bg-slate-500/15', text: 'text-slate-500' };
+   118→  }
+   119→}
+   120→
+   121→function getWebsiteQualityBadge(lead: Lead) {
+   122→  if (!lead.hasWebsite) return <Badge className="bg-red-500/15 text-red-400 border-red-500/20">No Website</Badge>;
+   123→  const q = lead.websiteQuality?.toLowerCase();
+   124→  if (q === 'poor') return <Badge className="bg-orange-500/15 text-orange-400 border-orange-500/20">Poor</Badge>;
+   125→  if (q === 'average') return <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/20">Average</Badge>;
+   126→  if (q === 'good' || q === 'excellent') return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/20">Good</Badge>;
+   127→  return <Badge className="bg-slate-500/15 text-slate-400 border-slate-500/20">Unknown</Badge>;
+   128→}
+   129→
+   130→// ─── Notes Tab Content ───────────────────────────────────
+   131→function NotesTab({ leadId }: { leadId: string }) {
+   132→  const queryClient = useQueryClient();
+   133→  const [newNote, setNewNote] = useState('');
+   134→  const [adding, setAdding] = useState(false);
+   135→
+   136→  const { data: notesResult, isLoading } = useQuery({
+   137→    queryKey: ['notes', leadId],
+   138→    queryFn: async () => {
+   139→      const res = await fetch(`/api/leads/${leadId}/notes`);
+   140→      if (!res.ok) throw new Error('Failed to fetch notes');
+   141→      return res.json();
+   142→    },
+   143→    enabled: !!leadId,
+   144→  });
+   145→
+   146→  const notes = notesResult?.notes ?? [];
+   147→
+   148→  const handleAddNote = useCallback(async () => {
+   149→    if (!newNote.trim()) return;
+   150→    setAdding(true);
+   151→    try {
+   152→      const res = await fetch(`/api/leads/${leadId}/notes`, {
+   153→        method: 'POST',
+   154→        headers: { 'Content-Type': 'application/json' },
+   155→        body: JSON.stringify({ content: newNote.trim() }),
+   156→      });
+   157→      if (!res.ok) throw new Error('Failed to add note');
+   158→      setNewNote('');
+   159→      queryClient.invalidateQueries({ queryKey: ['notes', leadId] });
+   160→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   161→      toast.success('Note added');
+   162→    } catch {
+   163→      toast.error('Failed to add note');
+   164→    } finally {
+   165→      setAdding(false);
+   166→    }
+   167→  }, [leadId, newNote, queryClient]);
+   168→
+   169→  if (isLoading) {
+   170→    return (
+   171→      <div className="space-y-3">
+   172→        {Array.from({ length: 3 }).map((_, i) => (
+   173→          <Skeleton key={i} className="h-16 w-full rounded-lg" />
+   174→        ))}
+   175→      </div>
+   176→    );
+   177→  }
+   178→
+   179→  return (
+   180→    <div className="space-y-4">
+   181→      {/* Add Note Form */}
+   182→      <div className="space-y-2">
+   183→        <Textarea
+   184→          placeholder="Add a note..."
+   185→          value={newNote}
+   186→          onChange={(e) => setNewNote(e.target.value)}
+   187→          className="min-h-[80px] border-primary/20 focus-visible:ring-primary/30"
+   188→        />
+   189→        <div className="flex justify-end">
+   190→          <Button
+   191→            size="sm"
+   192→            onClick={handleAddNote}
+   193→            disabled={!newNote.trim() || adding}
+   194→            className="gap-1.5"
+   195→          >
+   196→            {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+   197→            Add Note
+   198→          </Button>
+   199→        </div>
+   200→      </div>
+   201→
+   202→      <Separator />
+   203→
+   204→      {/* Notes List */}
+   205→      {notes.length > 0 ? (
+   206→        <div className="space-y-3">
+   207→          {notes.map((note: { id: string; content: string; createdAt: string; pinned?: boolean; user?: { name?: string } }) => (
+   208→            <Card key={note.id} className={cn('border', note.pinned && 'border-primary/20')}>
+   209→              <CardContent className="p-3 space-y-2">
+   210→                <div className="flex items-start justify-between gap-2">
+   211→                  <p className="text-sm leading-relaxed flex-1">{note.content}</p>
+   212→                  {note.pinned && <Badge variant="outline" className="text-[9px] shrink-0">Pinned</Badge>}
+   213→                </div>
+   214→                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   215→                  <Clock className="h-3 w-3" />
+   216→                  {getRelativeTime(note.createdAt)}
+   217→                  {note.user?.name && (
+   218→                    <>
+   219→                      <span>·</span>
+   220→                      <span>{note.user.name}</span>
+   221→                    </>
+   222→                  )}
+   223→                </div>
+   224→              </CardContent>
+   225→            </Card>
+   226→          ))}
+   227→        </div>
+   228→      ) : (
+   229→        <div className="text-center py-6 text-muted-foreground">
+   230→          <StickyNote className="h-8 w-8 mx-auto mb-2 opacity-30" />
+   231→          <p className="text-sm">No notes yet</p>
+   232→        </div>
+   233→      )}
+   234→    </div>
+   235→  );
+   236→}
+   237→
+   238→// ─── Activity Tab Content ────────────────────────────────
+   239→function ActivityTab({ leadId }: { leadId: string }) {
+   240→  const { data: activities, isLoading } = useQuery({
+   241→    queryKey: ['activities', leadId],
+   242→    queryFn: () => fetchLeadActivities(leadId),
+   243→    enabled: !!leadId,
+   244→  });
+   245→
+   246→  if (isLoading) {
+   247→    return (
+   248→      <div className="space-y-3">
+   249→        {Array.from({ length: 4 }).map((_, i) => (
+   250→          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+   251→        ))}
+   252→      </div>
+   253→    );
+   254→  }
+   255→
+   256→  if (!activities || activities.length === 0) {
+   257→    return (
+   258→      <div className="text-center py-6 text-muted-foreground">
+   259→        <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
+   260→        <p className="text-sm">No activity recorded</p>
+   261→      </div>
+   262→    );
+   263→  }
+   264→
+   265→  return (
+   266→    <div className="space-y-0">
+   267→      {activities.map((act, idx) => {
+   268→        const { icon: Icon, bg, text } = getActivityIcon(act.type);
+   269→        const isLast = idx === activities.length - 1;
+   270→        return (
+   271→          <div key={act.id} className="flex items-start gap-3 relative">
+   272→            {/* Timeline line */}
+   273→            {!isLast && (
+   274→              <div className="absolute left-[11px] top-7 bottom-0 w-px bg-border/50" />
+   275→            )}
+   276→            <div className={cn('rounded-lg p-1.5 shrink-0 z-10', bg)}>
+   277→              <Icon className={cn('h-3.5 w-3.5', text)} />
+   278→            </div>
+   279→            <div className="flex-1 min-w-0 pb-3">
+   280→              <p className="text-sm">{act.description}</p>
+   281→              <p className="text-[10px] text-muted-foreground mt-0.5">{getRelativeTime(act.createdAt)}</p>
+   282→            </div>
+   283→          </div>
+   284→        );
+   285→      })}
+   286→    </div>
+   287→  );
+   288→}
+   289→
+   290→// ─── Main Lead Detail Panel ──────────────────────────────
+   291→interface LeadDetailPanelProps {
+   292→  lead: Lead | null;
+   293→  open: boolean;
+   294→  onClose: () => void;
+   295→}
+   296→
+   297→export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanelProps) {
+   298→  const queryClient = useQueryClient();
+   299→  const { setSelectedLeadId } = useAppStore();
+   300→
+   301→  const [isEditing, setIsEditing] = useState(false);
+   302→  const [editForm, setEditForm] = useState({
+   303→    businessName: '',
+   304→    ownerName: '',
+   305→    email: '',
+   306→    phone: '',
+   307→    whatsapp: '',
+   308→    website: '',
+   309→    city: '',
+   310→    notes: '',
+   311→  });
+   312→  const [deleteOpen, setDeleteOpen] = useState(false);
+   313→  const prevStageRef = useRef<string>('');
+   314→
+   315→  // Update mutation
+   316→  const updateMutation = useMutation({
+   317→    mutationFn: (data: Partial<Lead>) => updateLead(lead!.id, data),
+   318→    onSuccess: () => {
+   319→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   320→      setIsEditing(false);
+   321→      toast.success('Lead updated');
+   322→    },
+   323→    onError: () => {
+   324→      toast.error('Failed to update lead');
+   325→    },
+   326→  });
+   327→
+   328→  // Stage change mutation
+   329→  const stageMutation = useMutation({
+   330→    mutationFn: async (stage: LeadStage) => {
+   331→      const res = await fetch(`/api/leads/${lead!.id}/move-stage`, {
+   332→        method: 'POST',
+   333→        headers: { 'Content-Type': 'application/json' },
+   334→        body: JSON.stringify({ stage }),
+   335→      });
+   336→      if (!res.ok) throw new Error('Failed to move lead');
+   337→      return res.json();
+   338→    },
+   339→    onSuccess: () => {
+   340→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   341→      toast.success('Stage updated');
+   342→    },
+   343→    onError: () => {
+   344→      toast.error('Failed to update stage');
+   345→    },
+   346→  });
+   347→
+   348→  // Enrich mutation
+   349→  const enrichMutation = useMutation({
+   350→    mutationFn: async () => {
+   351→      const res = await fetch(`/api/leads/${lead!.id}/enrich`, {
+   352→        method: 'POST',
+   353→        headers: { 'Content-Type': 'application/json' },
+   354→        body: JSON.stringify({ includeScreenshot: true }),
+   355→      });
+   356→      if (!res.ok) {
+   357→        const data = await res.json().catch(() => ({}));
+   358→        throw new Error(data.error || 'Enrichment failed');
+   359→      }
+   360→      return res.json();
+   361→    },
+   362→    onSuccess: (data) => {
+   363→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   364→      toast.success('Lead enriched', {
+   365→        description: `Updated fields: ${data.fieldsUpdated?.join(', ') || 'various'}`,
+   366→      });
+   367→    },
+   368→    onError: (error: Error) => {
+   369→      toast.error('Enrichment failed', { description: error.message });
+   370→    },
+   371→  });
+   372→
+   373→  // Delete mutation
+   374→  const deleteMutation = useMutation({
+   375→    mutationFn: () => deleteLead(lead!.id),
+   376→    onSuccess: () => {
+   377→      queryClient.invalidateQueries({ queryKey: ['leads'] });
+   378→      setSelectedLeadId(null);
+   379→      onClose();
+   380→      toast.success('Lead deleted');
+   381→    },
+   382→  });
+   383→
+   384→  const handleStartEdit = useCallback(() => {
+   385→    if (!lead) return;
+   386→    setEditForm({
+   387→      businessName: lead.businessName || '',
+   388→      ownerName: lead.ownerName || '',
+   389→      email: lead.email || '',
+   390→      phone: lead.phone || '',
+   391→      whatsapp: lead.whatsapp || '',
+   392→      website: lead.website || '',
+   393→      city: lead.city || '',
+   394→      notes: lead.notes || '',
+   395→    });
+   396→    setIsEditing(true);
+   397→  }, [lead]);
+   398→
+   399→  const handleSaveEdit = useCallback(() => {
+   400→    const data: Partial<Lead> = {};
+   401→    if (editForm.businessName !== (lead?.businessName || '')) data.businessName = editForm.businessName;
+   402→    if (editForm.ownerName !== (lead?.ownerName || '')) data.ownerName = editForm.ownerName;
+   403→    if (editForm.email !== (lead?.email || '')) data.email = editForm.email;
+   404→    if (editForm.phone !== (lead?.phone || '')) data.phone = editForm.phone;
+   405→    if (editForm.whatsapp !== (lead?.whatsapp || '')) data.whatsapp = editForm.whatsapp;
+   406→    if (editForm.website !== (lead?.website || '')) data.website = editForm.website;
+   407→    if (editForm.city !== (lead?.city || '')) data.city = editForm.city;
+   408→    if (editForm.notes !== (lead?.notes || '')) data.notes = editForm.notes;
+   409→    if (Object.keys(data).length > 0) {
+   410→      updateMutation.mutate(data);
+   411→    } else {
+   412→      setIsEditing(false);
+   413→      toast.info('No changes detected');
+   414→    }
+   415→  }, [editForm, lead, updateMutation]);
+   416→
+   417→  const handleStageChange = useCallback((newStage: string) => {
+   418→    prevStageRef.current = lead?.stage || '';
+   419→    stageMutation.mutate(newStage as LeadStage);
+   420→  }, [lead, stageMutation]);
+   421→
+   422→  // ── Shell-bounded portal target ─────────────────────────────
+   423→  // Same pattern as MetricDetailDrawer: when the app shell's content
+   424→  // region is an ancestor, the panel + dim overlay render absolutely
+   425→  // INSIDE it — above the page content but never covering the topbar,
+   426→  // header, footer, or navigation. Falls back to the default body-portal
+   427→  // fixed sheet when the region is absent.
+   428→  // (Hooks must run unconditionally — this sits above the early return.)
+   429→  const anchorRef = useRef<HTMLSpanElement>(null);
+   430→  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+   431→  useEffect(() => {
+   432→    const region = anchorRef.current?.closest('[data-app-content-region]');
+   433→    setPortalContainer(region instanceof HTMLElement ? region : null);
+   434→  }, []);
+   435→
+   436→  // ROOT-CAUSE FIX (overlay bug): this component is ALWAYS mounted by
+   437→  // LeadsTab (with lead=null until a lead is clicked). The measuring anchor
+   438→  // used to be rendered only AFTER the `if (!lead) return null` early
+   439→  // return — so the mount-only effect above always measured nothing and
+   440→  // portalContainer stayed null forever. Every open then fell back to the
+   441→  // default document.body portal: a fixed, full-viewport-height sheet +
+   442→  // full-screen dim overlay that covered the global header, sidebar and
+   443→  // footer. The anchor is now rendered unconditionally (also in the null
+   444→  // branch) exactly like MetricDetailDrawer, so the portal target resolves
+   445→  // on mount and the sheet opens absolutely positioned INSIDE the app
+   446→  // shell's [data-app-content-region].
+   447→  if (!lead) return <span ref={anchorRef} aria-hidden="true" className="hidden" />;
+   448→
+   449→  const currentStageIndex = STAGE_ORDER.indexOf(lead.stage);
+   450→
+   451→  return (
+   452→    <>
+   453→      <span ref={anchorRef} aria-hidden="true" className="hidden" />
+   454→    {/* CRITICAL FIX (FIX 8): modal={false} — Radix modal dialogs apply
+   455→        `pointer-events: none` to document.body outside the dialog, which
+   456→        FROZE the entire navbar (notifications, settings, profile, theme)
+   457→        while the lead panel was open. With modal={false} the overlay is
+   458→        not rendered and outside elements stay fully interactive; the
+   459→        panel still closes on outside click / ESC via onOpenChange. */}
+   460→    <Sheet open={open} modal={false} onOpenChange={(o) => !o && onClose()}>
+   461→      <SheetContent
+   462→        side="right"
+   463→        container={portalContainer}
+   464→        overlayClassName={portalContainer ? '' : undefined}
+   465→        className={cn(
+   466→          'w-full sm:max-w-lg p-0 flex flex-col',
+   467→          portalContainer && 'absolute inset-y-0 right-0 h-full'
+   468→        )}
+   469→        // CRITICAL FIX (FIX 8): Previously this used onInteractOutside={e => e.preventDefault()}
+   470→        // which kept the Sheet open but ALSO swallowed all clicks on the navbar
+   471→        // (notifications, settings, profile, theme) because the Sheet's overlay
+   472→        // captured the click before it reached the navbar. Now we allow the
+   473→        // sheet to close on outside click (default behavior) — this lets the
+   474→        // navbar remain interactive. The back button below provides an
+   475→        // explicit way to close the panel without clicking outside.
+   476→      >
+   477→        {/* Back button — always visible at top-left of the panel */}
+   478→        <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b bg-background/95 backdrop-blur-sm shrink-0">
+   479→          <Button
+   480→            variant="ghost"
+   481→            size="sm"
+   482→            className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-accent"
+   483→            onClick={onClose}
+   484→            aria-label="Back to leads"
+   485→          >
+   486→            <ChevronRight className="h-4 w-4 rotate-180" />
+   487→            Back to leads
+   488→          </Button>
+   489→        </div>
+   490→        <SheetHeader className="p-4 pb-3 border-b pr-12 shrink-0">
+   491→          <div className="flex items-start justify-between gap-2">
+   492→            <div className="flex-1 min-w-0">
+   493→              <SheetTitle className="text-lg truncate">
+   494→                {isEditing ? (
+   495→                  <Input
+   496→                    value={editForm.businessName}
+   497→                    onChange={(e) => setEditForm(prev => ({ ...prev, businessName: e.target.value }))}
+   498→                    className="h-8 text-lg font-semibold"
+   499→                    placeholder="Business Name"
+   500→                  />
+   501→                ) : (
+   502→                  lead.businessName
+   503→                )}
+   504→              </SheetTitle>
+   505→              <SheetDescription className="sr-only">Lead details and actions</SheetDescription>
+   506→            </div>
+   507→            <div className="flex items-center gap-1 shrink-0">
+   508→              {isEditing ? (
+   509→                <>
+   510→                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSaveEdit} disabled={updateMutation.isPending}>
+   511→                    <Check className="h-4 w-4 text-emerald-500" />
+   512→                  </Button>
+   513→                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(false)}>
+   514→                    <X className="h-4 w-4 text-muted-foreground" />
+   515→                  </Button>
+   516→                </>
+   517→              ) : (
+   518→                <>
+   519→                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleStartEdit} title="Edit lead">
+   520→                    <Pencil className="h-4 w-4 text-muted-foreground" />
+   521→                  </Button>
+   522→                  <Button
+   523→                    variant="ghost"
+   524→                    size="icon"
+   525→                    className="h-8 w-8"
+   526→                    onClick={() => setDeleteOpen(true)}
+   527→                    title="Delete lead"
+   528→                  >
+   529→                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+   530→                  </Button>
+   531→                </>
+   532→              )}
+   533→            </div>
+   534→          </div>
+   535→          {/* Stage + Badges */}
+   536→          <div className="flex items-center gap-2 flex-wrap mt-2">
+   537→            <Select value={lead.stage} onValueChange={handleStageChange} disabled={stageMutation.isPending}>
+   538→              <SelectTrigger className={cn('h-7 w-auto gap-1.5 border-0 px-2 py-0 text-xs font-medium text-white rounded-md', STAGE_COLORS[lead.stage])}>
+   539→                <SelectValue />
+   540→              </SelectTrigger>
+   541→              <SelectContent>
+   542→                {STAGE_ORDER.map((stage) => (
+   543→                  <SelectItem key={stage} value={stage}>
+   544→                    <div className="flex items-center gap-2">
+   545→                      <div className={cn('h-2 w-2 rounded-full', STAGE_COLORS[stage])} />
+   546→                      <span>{STAGE_LABELS[stage]}</span>
+   547→                    </div>
+   548→                  </SelectItem>
+   549→                ))}
+   550→              </SelectContent>
+   551→            </Select>
+   552→            {lead.niche && <Badge variant="outline">{lead.niche}</Badge>}
+   553→            {lead.country && <Badge variant="outline">{lead.country}</Badge>}
+   554→            {getWebsiteQualityBadge(lead)}
+   555→            {(typeof lead.employeeCount === 'number' || lead.employeeRange) && (
+   556→              <Badge variant="outline" className="gap-1">
+   557→                <Users className="h-3 w-3" />
+   558→                {typeof lead.employeeCount === 'number'
+   559→                  ? `${lead.employeeCount.toLocaleString()} employees`
+   560→                  : `${lead.employeeRange} employees (range)`}
+   561→              </Badge>
+   562→            )}
+   563→          </div>
+   564→          {/* Tags */}
+   565→          {/* FIX: Array.isArray guards — lead.tags can arrive null or
+   566→              non-array from the API without crashing the panel. */}
+   567→          {Array.isArray(lead.tags) && lead.tags.length > 0 && (
+   568→            <div className="flex flex-wrap gap-1 mt-2">
+   569→              {lead.tags.map((tag) => (
+   570→                <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+   571→              ))}
+   572→            </div>
+   573→          )}
+   574→        </SheetHeader>
+   575→
+   576→        <ScrollArea className="flex-1 min-h-0 custom-scrollbar">
+   577→          <div className="p-4">
+   578→            <Tabs defaultValue="overview" className="w-full">
+   579→              <TabsList className="w-full grid grid-cols-6 mb-4 h-9">
+   580→                <TabsTrigger value="overview" className="text-[10px] sm:text-xs px-1">Overview</TabsTrigger>
+   581→                <TabsTrigger value="contact" className="text-[10px] sm:text-xs px-1">Contact</TabsTrigger>
+   582→                <TabsTrigger value="notes" className="text-[10px] sm:text-xs px-1">Notes</TabsTrigger>
+   583→                <TabsTrigger value="activity" className="text-[10px] sm:text-xs px-1">Activity</TabsTrigger>
+   584→                <TabsTrigger value="company" className="text-[10px] sm:text-xs px-1">Company</TabsTrigger>
+   585→                <TabsTrigger value="pipeline" className="text-[10px] sm:text-xs px-1">AI Pipeline</TabsTrigger>
+   586→              </TabsList>
+   587→
+   588→              {/* Overview Tab */}
+   589→              <TabsContent value="overview" className="space-y-4">
+   590→                {/* Scores */}
+   591→                <section>
+   592→                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Scores</h3>
+   593→                  <div className="grid grid-cols-2 gap-3">
+   594→                    {[
+   595→                      { label: 'Conversion', value: lead.conversionScore, icon: TrendingUp },
+   596→                      { label: 'Reply', value: lead.replyScore, icon: MessageSquare },
+   597→                      { label: 'Urgency', value: lead.urgencyScore, icon: Zap },
+   598→                      { label: 'Revenue Potential', value: lead.revenuePotentialScore, icon: Star },
+   599→                    ].map(({ label, value, icon: Icon }) => (
+   600→                      <Card key={label} className="border-primary/10">
+   601→                        <CardContent className="p-3 flex items-center gap-3">
+   602→                          <div className={cn(
+   603→                            'rounded-lg p-2',
+   604→                            value >= 75 ? 'bg-emerald-500/10' : value >= 50 ? 'bg-amber-500/10' : 'bg-red-500/10'
+   605→                          )}>
+   606→                            <Icon className={cn('h-4 w-4', getScoreColor(value))} />
+   607→                          </div>
+   608→                          <div className="flex-1 min-w-0">
+   609→                            <p className={cn('text-lg font-bold font-mono', getScoreColor(value))}>{value}</p>
+   610→                            <p className="text-[10px] text-muted-foreground">{label}</p>
+   611→                          </div>
+   612→                        </CardContent>
+   613→                      </Card>
+   614→                    ))}
+   615→                  </div>
+   616→                </section>
+   617→
+   618→                <Separator />
+   619→
+   620→                {/* Pipeline Status */}
+   621→                <section>
+   622→                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Pipeline Status</h3>
+   623→                  <div className="flex items-center gap-1 overflow-x-auto pb-2">
+   624→                    {STAGE_ORDER.map((stage, idx) => (
+   625→                      <div key={stage} className="flex items-center gap-1 shrink-0">
+   626→                        <div className={cn(
+   627→                          'h-2 w-2 rounded-full',
+   628→                          idx <= currentStageIndex ? STAGE_COLORS[stage] : 'bg-muted-foreground/20'
+   629→                        )} />
+   630→                        <span className={cn(
+   631→                          'text-[9px] whitespace-nowrap',
+   632→                          idx <= currentStageIndex ? 'text-foreground font-medium' : 'text-muted-foreground'
+   633→                        )}>
+   634→                          {STAGE_LABELS[stage]}
+   635→                        </span>
+   636→                        {idx < STAGE_ORDER.length - 1 && (
+   637→                          <ChevronRight className="h-2.5 w-2.5 text-muted-foreground/30 shrink-0" />
+   638→                        )}
+   639→                      </div>
+   640→                    ))}
+   641→                  </div>
+   642→                </section>
+   643→
+   644→                <Separator />
+   645→
+   646→                {/* Quick Info */}
+   647→                <section>
+   648→                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Quick Info</h3>
+   649→                  <div className="space-y-2.5">
+   650→                    {lead.ownerName && (
+   651→                      <div className="flex items-center gap-2 text-sm">
+   652→                        <UserCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   653→                        <span className="text-muted-foreground w-16">Owner</span>
+   654→                        <span className="font-medium">{lead.ownerName}</span>
+   655→                      </div>
+   656→                    )}
+   657→                    {(lead.city || lead.country) && (
+   658→                      <div className="flex items-center gap-2 text-sm">
+   659→                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   660→                        <span className="text-muted-foreground w-16">Location</span>
+   661→                        <span>{[lead.city, lead.country].filter(Boolean).join(', ')}</span>
+   662→                      </div>
+   663→                    )}
+   664→                    {lead.source && (
+   665→                      <div className="flex items-center gap-2 text-sm">
+   666→                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   667→                        <span className="text-muted-foreground w-16">Source</span>
+   668→                        <span className="capitalize">{lead.source.replace(/_/g, ' ')}</span>
+   669→                      </div>
+   670→                    )}
+   671→                    {lead.rating != null && (
+   672→                      <div className="flex items-center gap-2 text-sm">
+   673→                        <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />
+   674→                        <span className="text-muted-foreground w-16">Rating</span>
+   675→                        <span className="font-medium">{Number(lead.rating).toFixed(1)}</span>
+   676→                      </div>
+   677→                    )}
+   678→                  </div>
+   679→                </section>
+   680→
+   681→                <Separator />
+   682→
+   683→                {/* Enrich Button */}
+   684→                <Button
+   685→                  className="w-full gap-2"
+   686→                  variant="outline"
+   687→                  onClick={() => enrichMutation.mutate()}
+   688→                  disabled={enrichMutation.isPending}
+   689→                >
+   690→                  {enrichMutation.isPending ? (
+   691→                    <Loader2 className="h-4 w-4 animate-spin" />
+   692→                  ) : (
+   693→                    <Sparkles className="h-4 w-4" />
+   694→                  )}
+   695→                  {enrichMutation.isPending ? 'Enriching...' : 'Enrich Lead'}
+   696→                </Button>
+   697→              </TabsContent>
+   698→
+   699→              {/* Contact Tab */}
+   700→              <TabsContent value="contact" className="space-y-4">
+   701→                {isEditing ? (
+   702→                  <div className="space-y-3">
+   703→                    <div className="space-y-1.5">
+   704→                      <label className="text-xs text-muted-foreground font-medium">Email</label>
+   705→                      <Input value={editForm.email} onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" className="h-8" />
+   706→                    </div>
+   707→                    <div className="space-y-1.5">
+   708→                      <label className="text-xs text-muted-foreground font-medium">Phone</label>
+   709→                      <Input value={editForm.phone} onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="h-8" />
+   710→                    </div>
+   711→                    <div className="space-y-1.5">
+   712→                      <label className="text-xs text-muted-foreground font-medium">WhatsApp</label>
+   713→                      <Input value={editForm.whatsapp} onChange={(e) => setEditForm(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="WhatsApp" className="h-8" />
+   714→                    </div>
+   715→                    <div className="space-y-1.5">
+   716→                      <label className="text-xs text-muted-foreground font-medium">Website</label>
+   717→                      <Input value={editForm.website} onChange={(e) => setEditForm(prev => ({ ...prev, website: e.target.value }))} placeholder="Website URL" className="h-8" />
+   718→                    </div>
+   719→                  </div>
+   720→                ) : (
+   721→                  <>
+   722→                    {/* Contact Info */}
+   723→                    <section>
+   724→                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Contact Information</h3>
+   725→                      <div className="space-y-2.5">
+   726→                        {lead.email && (
+   727→                          <div className="flex items-center gap-2 text-sm">
+   728→                            <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   729→                            <a href={`mailto:${lead.email}`} className="text-primary hover:underline truncate">{lead.email}</a>
+   730→                          </div>
+   731→                        )}
+   732→                        {lead.phone && (
+   733→                          <div className="flex items-center gap-2 text-sm">
+   734→                            <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   735→                            <a href={`tel:${lead.phone}`} className="text-primary hover:underline">{lead.phone}</a>
+   736→                          </div>
+   737→                        )}
+   738→                        {lead.whatsapp && (
+   739→                          <div className="flex items-center gap-2 text-sm">
+   740→                            <Phone className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+   741→                            <span>{lead.whatsapp}</span>
+   742→                          </div>
+   743→                        )}
+   744→                        {lead.website && (
+   745→                          <div className="flex items-center gap-2 text-sm">
+   746→                            <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   747→                            <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex items-center gap-1">
+   748→                              {lead.website}
+   749→                              <ExternalLink className="h-3 w-3" />
+   750→                            </a>
+   751→                          </div>
+   752→                        )}
+   753→                        {!lead.email && !lead.phone && !lead.whatsapp && !lead.website && (
+   754→                          <p className="text-sm text-muted-foreground">No contact info available. Try enriching this lead.</p>
+   755→                        )}
+   756→                      </div>
+   757→                    </section>
+   758→
+   759→                    <Separator />
+   760→
+   761→                    {/* Social Links */}
+   762→                    <section>
+   763→                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Social Links</h3>
+   764→                      <div className="space-y-2.5">
+   765→                        {lead.linkedin && (
+   766→                          <div className="flex items-center gap-2 text-sm">
+   767→                            <Building2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+   768→                            <a href={lead.linkedin.startsWith('http') ? lead.linkedin : `https://${lead.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex items-center gap-1">
+   769→                              LinkedIn <ExternalLink className="h-3 w-3" />
+   770→                            </a>
+   771→                          </div>
+   772→                        )}
+   773→                        {lead.instagram && (
+   774→                          <div className="flex items-center gap-2 text-sm">
+   775→                            <Globe className="h-3.5 w-3.5 text-pink-500 shrink-0" />
+   776→                            <a href={lead.instagram.startsWith('http') ? lead.instagram : `https://instagram.com/${lead.instagram}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex items-center gap-1">
+   777→                              Instagram <ExternalLink className="h-3 w-3" />
+   778→                            </a>
+   779→                          </div>
+   780→                        )}
+   781→                        {lead.facebook && (
+   782→                          <div className="flex items-center gap-2 text-sm">
+   783→                            <Globe className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+   784→                            <a href={lead.facebook.startsWith('http') ? lead.facebook : `https://facebook.com/${lead.facebook}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex items-center gap-1">
+   785→                              Facebook <ExternalLink className="h-3 w-3" />
+   786→                            </a>
+   787→                          </div>
+   788→                        )}
+   789→                        {!lead.linkedin && !lead.instagram && !lead.facebook && (
+   790→                          <p className="text-sm text-muted-foreground">No social links available.</p>
+   791→                        )}
+   792→                      </div>
+   793→                    </section>
+   794→
+   795→                    <Separator />
+   796→
+   797→                    {/* Address */}
+   798→                    {(lead.city || lead.country) && (
+   799→                      <section>
+   800→                        <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Address</h3>
+   801→                        <div className="flex items-center gap-2 text-sm">
+   802→                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   803→                          <span>{[lead.city, lead.country].filter(Boolean).join(', ')}</span>
+   804→                        </div>
+   805→                      </section>
+   806→                    )}
+   807→
+   808→                    {/* Contact Strategy */}
+   809→                    {(lead.bestContactPerson || lead.bestChannel || lead.bestTiming || lead.outreachStyle) && (
+   810→                      <>
+   811→                        <Separator />
+   812→                        <section>
+   813→                          <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Contact Strategy</h3>
+   814→                          <div className="space-y-2">
+   815→                            {lead.bestContactPerson && (
+   816→                              <div className="flex items-center gap-2 text-sm">
+   817→                                <UserCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   818→                                <span className="text-muted-foreground w-20">Best Person</span>
+   819→                                <span className="font-medium">{lead.bestContactPerson}</span>
+   820→                              </div>
+   821→                            )}
+   822→                            {lead.bestChannel && (
+   823→                              <div className="flex items-center gap-2 text-sm">
+   824→                                <Send className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   825→                                <span className="text-muted-foreground w-20">Best Channel</span>
+   826→                                <span className="font-medium capitalize">{lead.bestChannel}</span>
+   827→                              </div>
+   828→                            )}
+   829→                            {lead.bestTiming && (
+   830→                              <div className="flex items-center gap-2 text-sm">
+   831→                                <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   832→                                <span className="text-muted-foreground w-20">Best Timing</span>
+   833→                                <span className="font-medium">{lead.bestTiming}</span>
+   834→                              </div>
+   835→                            )}
+   836→                            {lead.outreachStyle && (
+   837→                              <div className="flex items-center gap-2 text-sm">
+   838→                                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   839→                                <span className="text-muted-foreground w-20">Style</span>
+   840→                                <span className="font-medium">{lead.outreachStyle}</span>
+   841→                              </div>
+   842→                            )}
+   843→                          </div>
+   844→                        </section>
+   845→                      </>
+   846→                    )}
+   847→                  </>
+   848→                )}
+   849→              </TabsContent>
+   850→
+   851→              {/* Notes Tab */}
+   852→              <TabsContent value="notes">
+   853→                <NotesTab leadId={lead.id} />
+   854→              </TabsContent>
+   855→
+   856→              {/* Activity Tab */}
+   857→              <TabsContent value="activity">
+   858→                <ActivityTab leadId={lead.id} />
+   859→              </TabsContent>
+   860→
+   861→              {/* Company Tab */}
+   862→              <TabsContent value="company" className="space-y-4">
+   863→                <section>
+   864→                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Company Info</h3>
+   865→                  <div className="space-y-2.5">
+   866→                    {lead.niche && (
+   867→                      <div className="flex items-center gap-2 text-sm">
+   868→                        <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   869→                        <span className="text-muted-foreground w-20">Niche</span>
+   870→                        <Badge variant="secondary">{lead.niche}</Badge>
+   871→                      </div>
+   872→                    )}
+   873→                    {lead.revenuePotential && (
+   874→                      <div className="flex items-center gap-2 text-sm">
+   875→                        <Star className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   876→                        <span className="text-muted-foreground w-20">Revenue Tier</span>
+   877→                        <Badge variant="outline" className="capitalize">{lead.revenuePotential}</Badge>
+   878→                      </div>
+   879→                    )}
+   880→                    {lead.urgency && (
+   881→                      <div className="flex items-center gap-2 text-sm">
+   882→                        <Zap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   883→                        <span className="text-muted-foreground w-20">Urgency</span>
+   884→                        <Badge variant="outline" className="capitalize">{lead.urgency}</Badge>
+   885→                      </div>
+   886→                    )}
+   887→                  </div>
+   888→                </section>
+   889→
+   890→                <Separator />
+   891→
+   892→                {/* Website Quality */}
+   893→                <section>
+   894→                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Website</h3>
+   895→                  {lead.hasWebsite ? (
+   896→                    <div className="space-y-2">
+   897→                      <div className="flex items-center gap-2">
+   898→                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+   899→                        {getWebsiteQualityBadge(lead)}
+   900→                      </div>
+   901→                      {lead.website && (
+   902→                        <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+   903→                          {lead.website} <ExternalLink className="h-3 w-3" />
+   904→                        </a>
+   905→                      )}
+   906→                    </div>
+   907→                  ) : (
+   908→                    <p className="text-sm text-muted-foreground">No website found</p>
+   909→                  )}
+   910→                </section>
+   911→
+   912→                <Separator />
+   913→
+   914→                {/* Opportunity Notes */}
+   915→                {lead.opportunityNotes && (
+   916→                  <>
+   917→                    <section>
+   918→                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Opportunity Notes</h3>
+   919→                      <Card className="border-l-4 border-l-emerald-400 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-950/20 dark:to-transparent">
+   920→                        <CardContent className="p-3">
+   921→                          <p className="text-sm leading-relaxed">{lead.opportunityNotes}</p>
+   922→                        </CardContent>
+   923→                      </Card>
+   924→                    </section>
+   925→                    <Separator />
+   926→                  </>
+   927→                )}
+   928→
+   929→                {/* Score Reasoning */}
+   930→                {lead.scoreReasoning && (
+   931→                  <>
+   932→                    <section>
+   933→                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Score Reasoning</h3>
+   934→                      <Card className="border-l-4 border-l-amber-400 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-950/20 dark:to-transparent">
+   935→                        <CardContent className="p-3">
+   936→                          <p className="text-sm leading-relaxed">{lead.scoreReasoning}</p>
+   937→                        </CardContent>
+   938→                      </Card>
+   939→                    </section>
+   940→                    <Separator />
+   941→                  </>
+   942→                )}
+   943→
+   944→                {/* Digital Weaknesses */}
+   945→                {/* FIX: optional-chain guard — the API can return a lead with
+   946→                    digitalWeaknesses null/missing (field is JSON on the lead
+   947→                    record); accessing .length on undefined crashes the panel. */}
+   948→                {Array.isArray(lead.digitalWeaknesses) && lead.digitalWeaknesses.length > 0 && (
+   949→                  <section>
+   950→                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Digital Weaknesses</h3>
+   951→                    <div className="space-y-2">
+   952→                      {lead.digitalWeaknesses.map((w, i) => (
+   953→                        <div key={i} className="flex items-start gap-2 text-sm">
+   954→                          <div className={cn(
+   955→                            'mt-0.5 h-2 w-2 rounded-full shrink-0',
+   956→                            w.severity === 'critical' ? 'bg-red-500' : w.severity === 'high' ? 'bg-orange-500' : 'bg-yellow-500'
+   957→                          )} />
+   958→                          <span>{w.issue}</span>
+   959→                          <Badge variant="outline" className="text-[9px] capitalize shrink-0">{w.severity}</Badge>
+   960→                        </div>
+   961→                      ))}
+   962→                    </div>
+   963→                  </section>
+   964→                )}
+   965→
+   966→                {/* Enrich Button */}
+   967→                <Button
+   968→                  className="w-full gap-2 mt-4"
+   969→                  variant="outline"
+   970→                  onClick={() => enrichMutation.mutate()}
+   971→                  disabled={enrichMutation.isPending}
+   972→                >
+   973→                  {enrichMutation.isPending ? (
+   974→                    <Loader2 className="h-4 w-4 animate-spin" />
+   975→                  ) : (
+   976→                    <Sparkles className="h-4 w-4" />
+   977→                  )}
+   978→                  {enrichMutation.isPending ? 'Analyzing Website...' : 'Analyze Website'}
+   979→                </Button>
+   980→              </TabsContent>
+   981→
+   982→              {/* AI Pipeline Tab — 5-step prospecting pipeline */}
+   983→              <TabsContent value="pipeline" className="space-y-4">
+   984→                <ProspectPipelineTab lead={lead} />
+   985→              </TabsContent>
+   986→            </Tabs>
+   987→          </div>
+   988→        </ScrollArea>
+   989→
+   990→        {/* Delete Confirmation */}
+   991→        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   992→          <AlertDialogContent>
+   993→            <AlertDialogHeader>
+   994→              <AlertDialogTitle>Delete Lead?</AlertDialogTitle>
+   995→              <AlertDialogDescription>
+   996→                This will permanently delete &quot;{lead.businessName}&quot; and all associated data. This action cannot be undone.
+   997→              </AlertDialogDescription>
+   998→            </AlertDialogHeader>
+   999→            <AlertDialogFooter>
+  1000→              <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1001→              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteMutation.mutate()}>
+  1002→                Delete
+  1003→              </AlertDialogAction>
+  1004→            </AlertDialogFooter>
+  1005→          </AlertDialogContent>
+  1006→        </AlertDialog>
+  1007→      </SheetContent>
+  1008→    </Sheet>
+  1009→    </>
+  1010→  );
+  1011→}
+  1012→

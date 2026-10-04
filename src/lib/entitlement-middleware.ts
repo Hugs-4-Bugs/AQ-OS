@@ -96,11 +96,6 @@ export async function getFeatureUsage(userId: string, feature: FeatureKey): Prom
       });
       return orgMember?.organization?.members?.length ?? 1;
     }
-    case 'business_profiles': {
-      // Plan Eligibility Correction: the limit applies to ACTIVE
-      // (non-archived) business profiles/niches — never to leads.
-      return db.businessProfile.count({ where: { userId, archivedAt: null } });
-    }
     default:
       return 0;
   }

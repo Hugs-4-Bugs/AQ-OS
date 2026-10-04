@@ -54,6 +54,50 @@ export function normalizeUrl(raw: string | null | undefined): string | null {
   }
 }
 
+import { shouldRespectRobotsTxt } from '@/lib/anti-bot-service';
+
+const ROBOTS_UA = BOT_UA.split('/')[0]; // product token, e.g. 'AcquisitionOS-Bot'
+
+// Per-origin robots.txt cache (content or null when unreachable).
+const robotsCache = new Map<string, string | null>();
+
+async function loadRobotsTxt(origin: string): Promise<string | null> {
+  const cached = robotsCache.get(origin);
+  if (cached !== undefined) return cached;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${origin}/robots.txt`, {
+      signal: controller.signal,
+      headers: { 'User-Agent': BOT_UA },
+    });
+    clearTimeout(timer);
+    const content = res.ok ? await res.text() : null;
+    robotsCache.set(origin, content);
+    return content;
+  } catch {
+    robotsCache.set(origin, null);
+    return null;
+  }
+}
+
+/**
+ * Robots-police for our crawlers: returns FALSE when robots.txt disallows
+ * this path for our product token. An unreachable/absent robots.txt allows
+ * the fetch (standard crawler convention). Spec §12: respect robots policies.
+ */
+async function allowedByRobots(url: string): Promise<boolean> {
+  try {
+    const parsed = new URL(url);
+    const robots = await loadRobotsTxt(parsed.origin);
+    if (robots === null) return true;
+    // shouldRespectRobotsTxt returns true when the path IS disallowed.
+    return !shouldRespectRobotsTxt(robots, parsed.pathname, ROBOTS_UA);
+  } catch {
+    return true;
+  }
+}
+
 /** Fetch one page and extract title/meta/headings/visible text/links. */
 export async function fetchPageText(url: string): Promise<FetchedPage> {
   const controller = new AbortController();
@@ -165,11 +209,14 @@ export async function fetchSiteBundle(
   siteUrl: string,
   maxSubPages = 3
 ): Promise<{ homepage: FetchedPage; subPages: FetchedPage[] }> {
-  const homepage = await fetchPageText(siteUrl);
+  // Robots policy is checked BEFORE any fetch (spec §12).
+  const homepageAllowed = await allowedByRobots(siteUrl);
+  const homepage = homepageAllowed ? await fetchPageText(siteUrl) : { url: siteUrl, ok: false, status: 0, error: 'Disallowed by robots.txt' } as FetchedPage;
   const subPages: FetchedPage[] = [];
   if (homepage.ok) {
     for (const candidate of candidateSubPages(siteUrl).slice(0, maxSubPages + 2)) {
       if (subPages.length >= maxSubPages) break;
+      if (!(await allowedByRobots(candidate))) continue;
       const page = await fetchPageText(candidate);
       if (page.ok) subPages.push(page);
       // 404s and other failures are intentionally skipped — the homepage

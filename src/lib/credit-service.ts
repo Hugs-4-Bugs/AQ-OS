@@ -14,7 +14,6 @@ import { db } from '@/lib/db';
 import { logCreditEvent } from '@/lib/billing-audit';
 import { createNotificationOnce } from '@/lib/notification-service';
 import { PLAN_CREDITS, type PlanType } from '@/lib/entitlement-service';
-import type { Prisma } from '@prisma/client';
 
 // ===== CREDIT COSTS MAPPING =====
 
@@ -39,36 +38,12 @@ export const CREDIT_COSTS: Record<CreditAction, number> = {
   data_export: 5,
 };
 
-// ===== SIGNUP REWARD (exactly 50 — the only signup grant) =====
-// Every newly registered account receives exactly SIGNUP_GRANT_CREDITS
-// credits as its TOTAL signup reward. There is no additional signup-adjacent
-// grant (onboarding completion/skip no longer adds credits). The grant is
-// written in the SAME transaction as user creation, so user creation itself
-// is the idempotency boundary: one user → at most one signup_grant row.
-export const SIGNUP_GRANT_CREDITS = 50;
-export const SIGNUP_GRANT_ACTION = 'signup_grant';
-
 /**
- * Write the signup-grant audit ledger row inside the user-creation
- * transaction. Callers must have set the user's starting balance to
- * SIGNUP_GRANT_CREDITS explicitly. Never call outside user creation —
- * this helper is intentionally not a balance mutation.
+ * Signup reward — every eligible new account receives EXACTLY this amount,
+ * once, with a matching CreditsLedger entry (action `signup_reward`). No
+ * other signup/onboarding grant may be stacked on top of it.
  */
-export async function writeSignupGrantLedger(
-  tx: Prisma.TransactionClient,
-  userId: string,
-): Promise<void> {
-  await tx.creditsLedger.create({
-    data: {
-      userId,
-      action: SIGNUP_GRANT_ACTION,
-      credits: SIGNUP_GRANT_CREDITS,
-      balance: SIGNUP_GRANT_CREDITS,
-      description: 'Signup reward credits (initial grant)',
-      referenceId: userId,
-    },
-  });
-}
+export const SIGNUP_REWARD_CREDITS = 50;
 
 // ===== INTERFACES =====
 
@@ -125,6 +100,8 @@ export interface RefundCreditsParams {
   amount: number;
   originalAction: string;
   referenceId?: string;
+  /** When provided, the refund is applied at most once for this key (idempotent retries). */
+  idempotencyKey?: string;
 }
 
 export interface RefundCreditsResult {
@@ -132,6 +109,7 @@ export interface RefundCreditsResult {
   newBalance: number;
   ledgerEntryId?: string;
   error?: string;
+  alreadyProcessed?: boolean; // true if an idempotent refund was already applied
 }
 
 // ===== CORE CREDIT OPERATIONS =====
@@ -152,13 +130,12 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
       return { success: false, newBalance: 0, error: 'Cost must be greater than 0' };
     }
 
-    // Check idempotency key if provided — the key is stored on the ledger
-    // row itself, so a retried/replayed request can never double-charge.
+    // Check idempotency key if provided
     if (idempotencyKey) {
       const existingLedger = await db.creditsLedger.findFirst({
         where: {
           userId,
-          idempotencyKey,
+          action: `${action}_idempotent_${idempotencyKey}`,
         },
       });
 
@@ -198,18 +175,21 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
         data: { credits: newBalance },
       });
 
-      // Create ledger entry. The idempotency key (when provided) is stored
-      // on the row and checked above, making keyed deductions retry-safe.
-      // The public `action` stays clean for analytics/aggregation.
+      // Create ledger entry.
+      // NOTE: when an idempotencyKey is provided, the ledger row MUST be written
+      // under the same composite action label that the pre-check above looks for
+      // (`${action}_idempotent_${idempotencyKey}`). Writing the plain `action` here
+      // was the root cause of a double-charge bug: the lookup could never match a
+      // real row, so replays/retries deducted again.
+      const ledgerAction = idempotencyKey ? `${action}_idempotent_${idempotencyKey}` : action;
       const ledgerEntry = await tx.creditsLedger.create({
         data: {
           userId,
-          action,
+          action: ledgerAction,
           credits: -cost,
           balance: newBalance,
           description: `Deducted ${cost} credits for ${action}`,
           referenceId: referenceId || null,
-          idempotencyKey: idempotencyKey || null,
         },
       });
 
@@ -620,10 +600,35 @@ export async function checkCreditSufficiency(
  */
 export async function refundCredits(params: RefundCreditsParams): Promise<RefundCreditsResult> {
   try {
-    const { userId, amount, originalAction, referenceId } = params;
+    const { userId, amount, originalAction, referenceId, idempotencyKey } = params;
 
     if (amount <= 0) {
       return { success: false, newBalance: 0, error: 'Refund amount must be greater than 0' };
+    }
+
+    // Idempotency: when a key is provided, apply the refund at most once.
+    // The ledger row is written under `${originalAction}_refund_idempotent_${key}`
+    // and the pre-check looks for exactly that label (same pattern as deductCredits).
+    const refundAction = idempotencyKey
+      ? `${originalAction}_refund_idempotent_${idempotencyKey}`
+      : `${originalAction}_refund`;
+
+    if (idempotencyKey) {
+      const existingRefund = await db.creditsLedger.findFirst({
+        where: {
+          userId,
+          action: refundAction,
+        },
+      });
+
+      if (existingRefund) {
+        return {
+          success: true,
+          newBalance: existingRefund.balance,
+          ledgerEntryId: existingRefund.id,
+          alreadyProcessed: true,
+        };
+      }
     }
 
     const result = await db.$transaction(async (tx) => {
@@ -644,11 +649,12 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
         data: { credits: newBalance },
       });
 
-      // Create refund ledger entry
+      // Create refund ledger entry (composite action when idempotency key given,
+      // so the pre-check above can match it on retries)
       const ledgerEntry = await tx.creditsLedger.create({
         data: {
           userId,
-          action: `${originalAction}_refund`,
+          action: refundAction,
           credits: amount,
           balance: newBalance,
           description: `Refund: ${amount} credits returned for failed ${originalAction}`,

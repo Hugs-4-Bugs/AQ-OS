@@ -17,7 +17,7 @@ const LEAD_SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
 ];
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search,
   ArrowUpDown,
@@ -181,15 +181,8 @@ export default function LeadsTab() {
 
   const clearSelection = useCallback(() => setSelectedLeadIds(new Set()), []);
 
-  // Fetch leads using the search API.
-  // placeholderData: keepPreviousData — while a new filter/search query is in
-  // flight, keep the previous results rendered instead of swapping the whole
-  // page to the loading skeleton. The search <input> lives in this tree, so
-  // without this every keystroke (new queryKey → no cached data → isLoading
-  // true) unmounted and remounted the input, losing focus and caret position
-  // after each character typed.
+  // Fetch leads using the search API
   const { data: leadsResult, isLoading, error: leadsError, refetch: refetchLeads } = useQuery({
-    placeholderData: keepPreviousData,
     queryKey: ['leads', { search, stage: stageFilter, niche: nicheFilter, country: countryFilter, source: sourceFilter, contact: contactFilter, sortBy, sortOrder, currentPage }],
     queryFn: () => fetchLeads({
       search: search || undefined,
@@ -360,7 +353,6 @@ export default function LeadsTab() {
             />
             {search && (
               <button
-                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleFilterChange(setSearch, '')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
                 aria-label="Clear search"

@@ -7,15 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { cancelExecution } from '@/lib/workflow-engine';
 import { db } from '@/lib/db';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const { id } = await params;
       const body = await request.json().catch(() => ({}));

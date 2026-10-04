@@ -6,13 +6,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { listDeadLetter, purgeDeadLetter } from '@/lib/workflow-dlq';
 import { getDeadLetterStats } from '@/lib/workflow-metrics';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 /** GET /api/workflows/dead-letter — List dead letter queue entries */
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const url = new URL(request.url);
       const filters = {
@@ -43,8 +40,6 @@ export async function GET(request: NextRequest) {
 /** DELETE /api/workflows/dead-letter — Purge all dead letter entries */
 export async function DELETE(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const result = await purgeDeadLetter(user.id);
       return NextResponse.json(result);

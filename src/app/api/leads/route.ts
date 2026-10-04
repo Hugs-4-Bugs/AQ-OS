@@ -5,7 +5,23 @@ import { checkPlanEntitlement, getFeatureUsage } from '@/lib/entitlement-middlew
 import { withMonitoring } from '@/lib/observability/middleware';
 import { checkApiKeyLeadLimit, recordApiKeyUsage } from '@/lib/api-key-service';
 import { aliasesFor } from '@/lib/countries';
+import { validateSubmittedPhone } from '@/lib/phone';
 import { STAGE_ORDER, type LeadStage } from '@/lib/types';
+
+/**
+ * Phone validation for lead create (spec: digits-only local number ≤10 digits,
+ * country code via dropdown / international format). Whitespace/dashes/parens
+ * typed by the user are tolerated and stripped before validation; letters or
+ * duplicated country codes are rejected. Returns an error message or null.
+ */
+function phoneValidationError(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  const normalized = value.replace(/[\s\-().]/g, '');
+  const result = validateSubmittedPhone(normalized);
+  return result.valid ? null : result.error || 'Invalid phone number';
+}
 
 // GET /api/leads - List all leads with filtering, sorting, and pagination
 export const GET = withMonitoring(async (request: NextRequest) => {
@@ -162,6 +178,13 @@ export const POST = withMonitoring(async (request: NextRequest) => {
       if (!body.businessName || typeof body.businessName !== 'string' || !body.businessName.trim()) {
         return NextResponse.json({ error: 'businessName is required' }, { status: 400 });
       }
+
+      // Phone validation (same rules as the profile API): digits-only local
+      // number (≤10 digits), country code separated — never free-form text.
+      const phoneError = phoneValidationError(body.phone);
+      if (phoneError) return NextResponse.json({ error: `phone: ${phoneError}` }, { status: 400 });
+      const whatsappError = phoneValidationError(body.whatsapp);
+      if (whatsappError) return NextResponse.json({ error: `whatsapp: ${whatsappError}` }, { status: 400 });
 
       const leadData: Record<string, unknown> = {
         businessName: body.businessName.trim(),

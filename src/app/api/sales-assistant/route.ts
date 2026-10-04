@@ -10,6 +10,7 @@ import {
   applySenderSignatureToFields,
 } from '@/lib/ai/sender-signature';
 import { loadSenderProfile } from '@/lib/ai/outreach-generator';
+import { buildPersonalContextBlockForUser } from '@/lib/personal-context';
 
 // ─── System Prompt Builders ──────────────────────────────────
 
@@ -137,6 +138,11 @@ export async function POST(request: NextRequest) {
     const senderProfile = await loadSenderProfile(user.id);
     const senderBlock = buildSenderSignatureBlock(senderProfile);
 
+    // USER PERSONAL CONTEXT: authoritative self-description, appended to every
+    // assistant/coach/proposal prompt so the AI tailors advice to who the user
+    // actually is (never inventing facts beyond what they provided).
+    const personalContextBlock = await buildPersonalContextBlockForUser(user.id);
+
     // ─── AI Proposal Generation ────────────────────────────────
     if (action === 'generate_proposal') {
       const { dealId } = body;
@@ -242,7 +248,8 @@ Clear call-to-action with 3-4 concrete next steps. Include a deadline for respon
 
 Make the proposal feel personalized and specific to this business. Use industry-specific language. Be professional yet warm. Do NOT use generic filler - every sentence should add value.
 
-${senderBlock}`,
+${senderBlock}
+${personalContextBlock}`,
           },
           {
             role: 'user',
@@ -353,7 +360,8 @@ ${lead.deals.length > 0 ? `- Latest Deal: ${lead.deals[0].projectType} - ${lead.
       (isSalesCoach
         ? buildSalesCoachSystemPrompt(leadContext, currentPage || '')
         : buildDefaultSystemPrompt(leadContext, currentPage || '')) +
-      `\n\n${senderBlock}`;
+      `\n\n${senderBlock}` +
+      (personalContextBlock ? `\n\n${personalContextBlock}` : '');
 
     const zai = await ZAI.create();
 

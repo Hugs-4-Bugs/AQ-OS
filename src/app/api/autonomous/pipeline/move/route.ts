@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { autoMovePipelineStage, type PipelineTrigger } from '@/lib/autonomous-outreach-engine';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 const VALID_TRIGGERS: PipelineTrigger[] = [
   'email_sent',
@@ -19,8 +18,6 @@ const VALID_TRIGGERS: PipelineTrigger[] = [
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { leadId, trigger } = body;

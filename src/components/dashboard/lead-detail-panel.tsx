@@ -71,7 +71,6 @@ import { cn } from '@/lib/utils';
 import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER, type Lead, type LeadStage } from '@/lib/types';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import WebsiteResearchSection from './website-research-section';
 
 // ─── Helper Functions ────────────────────────────────────
 function getScoreColor(score: number): string {
@@ -432,31 +431,32 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
   useEffect(() => {
     const region = anchorRef.current?.closest('[data-app-content-region]');
     setPortalContainer(region instanceof HTMLElement ? region : null);
-  }, [lead?.id, open]);
-  // ↑ RE-RESOLVE FIX (detail-panel overlap root cause): this component
-  // mounts ONCE with lead=null and the early return below keeps the
-  // anchor span OUT of the DOM, so the previous one-shot [] effect
-  // resolved null forever — every lead then opened as a viewport-fixed
-  // body-portal sheet that slid OVER the translucent navbar, dimmed the
-  // sidebar/footer, and hid its own "Back to leads" row under the mobile
-  // top bar. The effect now re-runs when a lead is actually opened: the
-  // anchor exists by that commit, the shell region resolves, and the
-  // panel renders ABSOLUTE inside the dashboard shell (below the topbar,
-  // beside the sidebar) exactly like MetricDetailDrawer.
+  }, []);
 
-  if (!lead) return null;
+  // ROOT-CAUSE FIX (overlay bug): this component is ALWAYS mounted by
+  // LeadsTab (with lead=null until a lead is clicked). The measuring anchor
+  // used to be rendered only AFTER the `if (!lead) return null` early
+  // return — so the mount-only effect above always measured nothing and
+  // portalContainer stayed null forever. Every open then fell back to the
+  // default document.body portal: a fixed, full-viewport-height sheet +
+  // full-screen dim overlay that covered the global header, sidebar and
+  // footer. The anchor is now rendered unconditionally (also in the null
+  // branch) exactly like MetricDetailDrawer, so the portal target resolves
+  // on mount and the sheet opens absolutely positioned INSIDE the app
+  // shell's [data-app-content-region].
+  if (!lead) return <span ref={anchorRef} aria-hidden="true" className="hidden" />;
 
   const currentStageIndex = STAGE_ORDER.indexOf(lead.stage);
 
   return (
     <>
       <span ref={anchorRef} aria-hidden="true" className="hidden" />
-    // CRITICAL FIX (FIX 8): modal={false} — Radix modal dialogs apply
-    // `pointer-events: none` to document.body outside the dialog, which
-    // FROZE the entire navbar (notifications, settings, profile, theme)
-    // while the lead panel was open. With modal={false} the overlay is
-    // not rendered and outside elements stay fully interactive; the
-    // panel still closes on outside click / ESC via onOpenChange.
+    {/* CRITICAL FIX (FIX 8): modal={false} — Radix modal dialogs apply
+        `pointer-events: none` to document.body outside the dialog, which
+        FROZE the entire navbar (notifications, settings, profile, theme)
+        while the lead panel was open. With modal={false} the overlay is
+        not rendered and outside elements stay fully interactive; the
+        panel still closes on outside click / ESC via onOpenChange. */}
     <Sheet open={open} modal={false} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="right"
@@ -962,9 +962,6 @@ export default function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanel
                     </div>
                   </section>
                 )}
-
-                {/* Website Research (evidence-grounded report, spec §5) */}
-                <WebsiteResearchSection leadId={lead.id} />
 
                 {/* Enrich Button */}
                 <Button

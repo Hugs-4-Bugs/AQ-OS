@@ -1,0 +1,776 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — 5-Step Prospecting Pipeline: Step implementations
+     3→//
+     4→// STEP 1  Company Deep Research   — real website fetch + web search + AI synthesis
+     5→// STEP 2  Gap Detection           — deterministic rule gaps (measured) + AI deep pass
+     6→// STEP 3  User Offer Profile Match— user's configured offers × detected gaps
+     7→// STEP 4  Personalized Pitch      — evidence-based pitch generation
+     8→// STEP 5  Smart Email             — gap-specific subject / body / CTA draft
+     9→//
+    10→// House rules (mirroring company-researcher.ts / competitive-gap-analysis):
+    11→//  - AI via executeAICompletion ONLY (direct ZAI is used solely for web_search)
+    12→//  - Never trust the browser: all inputs come from server-side fetch + DB
+    13→//  - "unknown" when data is missing — NEVER invent company facts
+    14→// ═══════════════════════════════════════════════════════════════════
+    15→
+    16→import { executeAICompletion } from '@/lib/ai/ai-provider';
+    17→import { loadPersonalContextForAi } from '@/lib/personal-context';
+    18→import ZAI from 'z-ai-web-dev-sdk';
+    19→import { analyzeWebsite, type WebsiteScore } from '@/lib/lead-discovery/website-scorer';
+    20→import {
+    21→  fetchSiteBundle,
+    22→  buildSiteTextBundle,
+    23→  normalizeUrl,
+    24→  type FetchedPage,
+    25→} from './website-fetch';
+    26→import type {
+    27→  OfferService,
+    28→  OfferMatch,
+    29→  PipelineEmail,
+    30→  PipelineGap,
+    31→  PipelineGaps,
+    32→  PipelineMatch,
+    33→  PipelinePitch,
+    34→  PipelineResearch,
+    35→} from './types';
+    36→
+    37→// ===== Shared AI helpers =====
+    38→
+    39→export interface LeadContext {
+    40→  id: string;
+    41→  businessName: string;
+    42→  website?: string | null;
+    43→  niche?: string | null;
+    44→  city?: string | null;
+    45→  country?: string | null;
+    46→  email?: string | null;
+    47→  phone?: string | null;
+    48→  rating?: number | null;
+    49→  reviews?: string | null;
+    50→  ownerName?: string | null;
+    51→  hasWebsite?: boolean;
+    52→}
+    53→
+    54→/** Robust AI JSON extraction (same hardened pattern as company-researcher). */
+    55→export function parseAIJson<T>(content: string, fallback: T): T {
+    56→  let cleaned = content.trim();
+    57→  const codeBlockMatch = cleaned.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/);
+    58→  if (codeBlockMatch) cleaned = codeBlockMatch[1].trim();
+    59→  else if (cleaned.startsWith('```')) {
+    60→    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    61→  }
+    62→  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    63→  if (!jsonMatch) {
+    64→    console.error('[ProspectPipeline] No JSON object found in AI response');
+    65→    return fallback;
+    66→  }
+    67→  try {
+    68→    return JSON.parse(jsonMatch[0]) as T;
+    69→  } catch (err) {
+    70→    console.error('[ProspectPipeline] JSON.parse failed:', err);
+    71→    return fallback;
+    72→  }
+    73→}
+    74→
+    75→async function aiJson(system: string, user: string, userId: string, action: string, maxTokens = 1600) {
+    76→  const result = await executeAICompletion(
+    77→    {
+    78→      messages: [
+    79→        { role: 'system', content: system },
+    80→        { role: 'user', content: user },
+    81→      ],
+    82→      config: { provider: 'z-ai', temperature: 0.35, maxTokens },
+    83→    },
+    84→    userId,
+    85→    action
+    86→  );
+    87→  if (!result.success) {
+    88→    throw new Error(result.error || 'AI provider failed');
+    89→  }
+    90→  return result;
+    91→}
+    92→
+    93→/** Server-side web search via ZAI functions (only direct-ZAI usage here). */
+    94→async function webSearchSnippets(lead: LeadContext): Promise<{ used: boolean; text: string }> {
+    95→  try {
+    96→    const zai = await ZAI.create();
+    97→    const queries = [
+    98→      `${lead.businessName} ${lead.city || ''} reviews`.trim(),
+    99→      `${lead.businessName} ${lead.niche || 'company'} services team`,
+   100→    ];
+   101→    const chunks: string[] = [];
+   102→    for (const query of queries) {
+   103→      try {
+   104→        const results = await zai.functions.invoke('web_search', { query, num: 5 });
+   105→        if (Array.isArray(results) && results.length > 0) {
+   106→          chunks.push(
+   107→            results
+   108→              .map((r) => {
+   109→                const name = typeof r?.name === 'string' ? r.name : '';
+   110→                const snippet = typeof r?.snippet === 'string' ? r.snippet : '';
+   111→                const link = typeof r?.url === 'string' ? r.url : '';
+   112→                return `- ${name} ${snippet} ${link}`.trim();
+   113→              })
+   114→              .filter((s: string) => s.length > 3)
+   115→              .join('\n')
+   116→          );
+   117→        }
+   118→      } catch (qErr) {
+   119→        console.error('[ProspectPipeline] web_search query failed:', qErr);
+   120→      }
+   121→    }
+   122→    const text = chunks.join('\n').slice(0, 6000);
+   123→    return { used: text.length > 0, text };
+   124→  } catch (err) {
+   125→    console.error('[ProspectPipeline] web_search unavailable:', err);
+   126→    return { used: false, text: '' };
+   127→  }
+   128→}
+   129→
+   130→// ===== STEP 1 — Company Deep Research =====
+   131→
+   132→function asStringArray(v: unknown, max = 8): string[] {
+   133→  if (!Array.isArray(v)) return [];
+   134→  return v
+   135→    .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+   136→    .map((s) => s.trim().slice(0, 120))
+   137→    .slice(0, max);
+   138→}
+   139→
+   140→export async function runStepResearch(
+   141→  lead: LeadContext,
+   142→  userId: string
+   143→): Promise<PipelineResearch> {
+   144→  // 1a. Real website scoring (deterministic, cheerio-based)
+   145→  const normalizedSite = normalizeUrl(lead.website);
+   146→  let websiteScore: WebsiteScore | null = null;
+   147→  let homepage: FetchedPage | null = null;
+   148→  let subPages: FetchedPage[] = [];
+   149→  if (normalizedSite) {
+   150→    try {
+   151→      websiteScore = await analyzeWebsite(
+   152→        normalizedSite,
+   153→        lead.businessName,
+   154→        lead.niche || 'business'
+   155→      );
+   156→    } catch (err) {
+   157→      console.error('[ProspectPipeline] analyzeWebsite failed:', err);
+   158→    }
+   159→    try {
+   160→      const bundle = await fetchSiteBundle(normalizedSite, 3);
+   161→      homepage = bundle.homepage;
+   162→      subPages = bundle.subPages;
+   163→    } catch (err) {
+   164→      console.error('[ProspectPipeline] fetchSiteBundle failed:', err);
+   165→    }
+   166→  }
+   167→
+   168→  // 1b. Real web search for reviews / social / team signals
+   169→  const search = await webSearchSnippets(lead);
+   170→
+   171→  // 1c. AI synthesis over gathered evidence
+   172→  const siteText = homepage ? buildSiteTextBundle(homepage, subPages) : '';
+   173→  const evidenceParts: string[] = [
+   174→    `Company name: ${lead.businessName}`,
+   175→    lead.city ? `City: ${lead.city}` : '',
+   176→    lead.country ? `Country: ${lead.country}` : '',
+   177→    lead.niche ? `Known niche: ${lead.niche}` : '',
+   178→    lead.rating ? `Known rating: ${lead.rating}` : '',
+   179→    lead.reviews ? `Known review notes: ${lead.reviews.slice(0, 500)}` : '',
+   180→    websiteScore
+   181→      ? `Website technical analysis (measured): ${JSON.stringify(websiteScore)}`
+   182→      : normalizedSite
+   183→        ? 'Website technical analysis: fetch/scoring failed — do not assume anything about the site'
+   184→        : 'No website on record',
+   185→    siteText ? `Website page contents (fetched):\n${siteText}` : '',
+   186→    search.used ? `Public web search results:\n${search.text}` : '',
+   187→  ];
+   188→
+   189→  const system =
+   190→    'You are a meticulous B2B research analyst. You receive MEASURED evidence about a company ' +
+   191→    '(fetched website pages, technical website analysis, public web search results). ' +
+   192→    'Build a factual company profile. STRICT RULES: ' +
+   193→    '(1) Use ONLY the provided evidence — never invent facts, never guess numbers. ' +
+   194→    '(2) When evidence is missing use exactly "unknown" for that field (or empty array for lists). ' +
+   195→    '(3) For teamSizeEstimate/revenueEstimate give a rough range ONLY if the evidence supports it ' +
+   196→    '(e.g. "Small local business (likely under 10 staff)"), otherwise "unknown". ' +
+   197→    '(4) Reply with ONLY a valid JSON object, no markdown, no commentary. ' +
+   198→    'JSON shape: {"businessType":string,"whatTheySell":string[],"services":string[],' +
+   199→    '"targetMarket":string,"teamSizeEstimate":string,"revenueEstimate":string,"techStack":string[],' +
+   200→    '"socialPresence":{"platforms":string[],"signals":string},"reviewsSummary":{"averageRating":string,' +
+   201→    '"sentiment":string,"highlights":string[]},"confidence":"high"|"medium"|"low","summary":string}. ' +
+   202→    'summary = 2-3 plain sentences describing what this company does and who it serves.';
+   203→
+   204→  const user =
+   205→    evidenceParts.filter(Boolean).join('\n\n') +
+   206→    '\n\nProduce the JSON company profile now.';
+   207→
+   208→  const result = await aiJson(system, user, userId, 'prospect_pipeline_research', 1400);
+   209→
+   210→  const fallback: PipelineResearch = {
+   211→    businessType: lead.niche || 'unknown',
+   212→    whatTheySell: [],
+   213→    services: [],
+   214→    targetMarket: 'unknown',
+   215→    teamSizeEstimate: 'unknown',
+   216→    revenueEstimate: 'unknown',
+   217→    techStack: websiteScore?.techStack?.slice(0, 8) || [],
+   218→    socialPresence: { platforms: [], signals: 'No data found' },
+   219→    reviewsSummary: {
+   220→      averageRating: lead.rating ? String(lead.rating) : 'unknown',
+   221→      sentiment: 'unknown',
+   222→      highlights: [],
+   223→    },
+   224→    dataSources: {
+   225→      websiteFetched: !!homepage?.ok,
+   226→      pagesFetched: subPages.filter((p) => p.ok).map((p) => p.url),
+   227→      webSearchUsed: search.used,
+   228→      websiteScore: websiteScore?.overallScore ?? null,
+   229→    },
+   230→    confidence: 'low',
+   231→    summary: `${lead.businessName} profile built from limited evidence.`,
+   232→  };
+   233→
+   234→  const parsed = parseAIJson<Partial<PipelineResearch>>(result.content, fallback);
+   235→
+   236→  const research: PipelineResearch = {
+   237→    businessType:
+   238→      typeof parsed.businessType === 'string' && parsed.businessType.trim()
+   239→        ? parsed.businessType.trim().slice(0, 150)
+   240→        : fallback.businessType,
+   241→    whatTheySell: asStringArray(parsed.whatTheySell),
+   242→    services: asStringArray(parsed.services),
+   243→    targetMarket:
+   244→      typeof parsed.targetMarket === 'string' && parsed.targetMarket.trim()
+   245→        ? parsed.targetMarket.trim().slice(0, 250)
+   246→        : 'unknown',
+   247→    teamSizeEstimate:
+   248→      typeof parsed.teamSizeEstimate === 'string' && parsed.teamSizeEstimate.trim()
+   249→        ? parsed.teamSizeEstimate.trim().slice(0, 150)
+   250→        : 'unknown',
+   251→    revenueEstimate:
+   252→      typeof parsed.revenueEstimate === 'string' && parsed.revenueEstimate.trim()
+   253→        ? parsed.revenueEstimate.trim().slice(0, 150)
+   254→        : 'unknown',
+   255→    techStack:
+   256→      asStringArray(parsed.techStack).length > 0
+   257→        ? asStringArray(parsed.techStack)
+   258→        : fallback.techStack,
+   259→    socialPresence: {
+   260→      platforms: asStringArray(parsed.socialPresence?.platforms, 10),
+   261→      signals:
+   262→        typeof parsed.socialPresence?.signals === 'string' && parsed.socialPresence.signals.trim()
+   263→          ? parsed.socialPresence.signals.trim().slice(0, 400)
+   264→          : 'No data found',
+   265→    },
+   266→    reviewsSummary: {
+   267→      averageRating:
+   268→        typeof parsed.reviewsSummary?.averageRating === 'string' &&
+   269→        parsed.reviewsSummary.averageRating.trim()
+   270→          ? parsed.reviewsSummary.averageRating.trim().slice(0, 30)
+   271→          : fallback.reviewsSummary.averageRating,
+   272→      sentiment:
+   273→        typeof parsed.reviewsSummary?.sentiment === 'string' &&
+   274→        parsed.reviewsSummary.sentiment.trim()
+   275→          ? parsed.reviewsSummary.sentiment.trim().slice(0, 60)
+   276→          : 'unknown',
+   277→      highlights: asStringArray(parsed.reviewsSummary?.highlights, 5),
+   278→    },
+   279→    dataSources: fallback.dataSources, // measured server-side, never AI-reported
+   280→    confidence:
+   281→      parsed.confidence === 'high' || parsed.confidence === 'medium' || parsed.confidence === 'low'
+   282→        ? parsed.confidence
+   283→        : fallback.dataSources.websiteFetched
+   284→          ? 'medium'
+   285→          : 'low',
+   286→    summary:
+   287→      typeof parsed.summary === 'string' && parsed.summary.trim()
+   288→        ? parsed.summary.trim().slice(0, 700)
+   289→        : fallback.summary,
+   290→  };
+   291→  return research;
+   292→}
+   293→
+   294→// ===== STEP 2 — Gap Detection =====
+   295→
+   296→/** Deterministic gaps measured from the real WebsiteScore (no AI). */
+   297→export function buildRuleGaps(
+   298→  websiteScore: WebsiteScore | null,
+   299→  lead: LeadContext
+   300→): { gaps: PipelineGap[]; strengths: string[] } {
+   301→  const gaps: PipelineGap[] = [];
+   302→  const strengths: string[] = [];
+   303→
+   304→  if (!websiteScore || !lead.website) {
+   305→    gaps.push({
+   306→      category: 'digital_presence',
+   307→      gap: 'No website at all',
+   308→      evidence: 'Lead has no website URL on record and none was found',
+   309→      severity: 'critical',
+   310→      businessImpact:
+   311→        'Invisible to customers searching online; competitors capture these searches instead',
+   312→    });
+   313→    return { gaps, strengths };
+   314→  }
+   315→
+   316→  if (!websiteScore.hasSSL) {
+   317→    gaps.push({
+   318→      category: 'website_quality',
+   319→      gap: 'No SSL certificate (HTTPS)',
+   320→      evidence: 'Site was reached over plain HTTP; browsers show "Not secure"',
+   321→      severity: 'critical',
+   322→      businessImpact: 'Visitors and Google distrust the site; conversions and rankings drop',
+   323→    });
+   324→  } else {
+   325→    strengths.push('Valid HTTPS/SSL certificate');
+   326→  }
+   327→
+   328→  if (!websiteScore.isMobile) {
+   329→    gaps.push({
+   330→      category: 'website_quality',
+   331→      gap: 'Website is not mobile-friendly',
+   332→      evidence: 'Mobile viewport/meta checks failed on the fetched HTML',
+   333→      severity: 'critical',
+   334→      businessImpact: 'Majority of local searches happen on mobile; poor experience loses them',
+   335→    });
+   336→  } else {
+   337→    strengths.push('Mobile-responsive website');
+   338→  }
+   339→
+   340→  if (websiteScore.loadSpeed === 'slow') {
+   341→    gaps.push({
+   342→      category: 'website_quality',
+   343→      gap: 'Slow website load speed',
+   344→      evidence: 'Measured page load exceeded acceptable thresholds',
+   345→      severity: 'moderate',
+   346→      businessImpact: 'Visitors abandon slow pages before seeing the offer',
+   347→    });
+   348→  }
+   349→
+   350→  if (websiteScore.designAge === 'outdated') {
+   351→    gaps.push({
+   352→      category: 'website_quality',
+   353→      gap: 'Outdated website design',
+   354→      evidence: 'Design signals indicate an old build (legacy patterns detected)',
+   355→      severity: 'moderate',
+   356→      businessImpact: 'Makes the business look less credible than newer competitors',
+   357→    });
+   358→  } else if (websiteScore.designAge === 'modern') {
+   359→    strengths.push('Modern website design');
+   360→  }
+   361→
+   362→  if (websiteScore.seoScore < 60) {
+   363→    gaps.push({
+   364→      category: 'seo',
+   365→      gap: `Weak SEO fundamentals (score ${websiteScore.seoScore}/100)`,
+   366→      evidence: `Measured SEO checks: ${websiteScore.seoScore}/100`,
+   367→      severity: websiteScore.seoScore < 40 ? 'critical' : 'moderate',
+   368→      businessImpact: 'Business ranks below competitors for searches it should win',
+   369→    });
+   370→  } else if (websiteScore.seoScore >= 70) {
+   371→    strengths.push(`Solid SEO basics (${websiteScore.seoScore}/100)`);
+   372→  }
+   373→
+   374→  if (!websiteScore.hasOnlineBooking) {
+   375→    gaps.push({
+   376→      category: 'automation',
+   377→      gap: 'No online booking / ordering / enquiry automation',
+   378→      evidence: 'No booking, scheduling or order flow detected on the site',
+   379→      severity: 'moderate',
+   380→      businessImpact: 'Enquiries depend on manual calls/messages; leads leak outside business hours',
+   381→    });
+   382→  } else {
+   383→    strengths.push('Online booking / ordering available');
+   384→  }
+   385→
+   386→  if (!websiteScore.hasContactInfo) {
+   387→    gaps.push({
+   388→      category: 'missing_features',
+   389→      gap: 'Contact information hard to find on website',
+   390→      evidence: 'No clear contact details found on fetched pages',
+   391→      severity: 'moderate',
+   392→      businessImpact: 'Interested visitors cannot easily reach the business',
+   393→    });
+   394→  }
+   395→
+   396→  if (!websiteScore.hasSocialLinks) {
+   397→    gaps.push({
+   398→      category: 'digital_presence',
+   399→      gap: 'No social media links on website',
+   400→      evidence: 'No links to social profiles found in the HTML',
+   401→      severity: 'minor',
+   402→      businessImpact: 'Missed trust-building and re-marketing opportunities',
+   403→    });
+   404→  }
+   405→
+   406→  return { gaps, strengths };
+   407→}
+   408→
+   409→export async function runStepGaps(
+   410→  lead: LeadContext,
+   411→  research: PipelineResearch,
+   412→  websiteScore: WebsiteScore | null,
+   413→  siteText: string,
+   414→  userId: string
+   415→): Promise<PipelineGaps> {
+   416→  const ruleResult = buildRuleGaps(websiteScore, lead);
+   417→
+   418→  const system =
+   419→    'You are a digital-presence auditor for small and mid-size businesses. ' +
+   420→    'You are given measured website findings plus a company profile. Identify ADDITIONAL business gaps ' +
+   421→    'beyond the measured ones already listed. Categories: website_quality, seo, automation, ' +
+   422→    'missing_features, outdated_process, weak_area. STRICT RULES: ' +
+   423→    '(1) Every gap must cite concrete evidence from the provided data — no speculation. ' +
+   424→    '(2) Do NOT repeat the measured gaps already provided. ' +
+   425→    '(3) Return at most 6 additional gaps, the most commercially important ones. ' +
+   426→    '(4) Reply with ONLY valid JSON: {"gaps":[{"category":string,"gap":string,"evidence":string,' +
+   427→    '"severity":"critical"|"moderate"|"minor","businessImpact":string}]}.';
+   428→
+   429→  const user = [
+   430→    `Company: ${lead.businessName}${lead.city ? ` (${lead.city})` : ''}`,
+   431→    `Business type: ${research.businessType}`,
+   432→    `Services found: ${research.services.join(', ') || 'unknown'}`,
+   433→    `Measured gaps already detected (do NOT repeat): ${ruleResult.gaps.map((g) => g.gap).join('; ') || 'none'}`,
+   434→    research.summary ? `Profile summary: ${research.summary}` : '',
+   435→    siteText ? `Website content sample:\n${siteText.slice(0, 8000)}` : 'No website content available',
+   436→  ]
+   437→    .filter(Boolean)
+   438→    .join('\n\n');
+   439→
+   440→  const validCats = new Set([
+   441→    'website_quality',
+   442→    'seo',
+   443→    'automation',
+   444→    'missing_features',
+   445→    'outdated_process',
+   446→    'weak_area',
+   447→    'digital_presence',
+   448→  ]);
+   449→
+   450→  let aiGaps: PipelineGap[] = [];
+   451→  try {
+   452→    const result = await aiJson(system, user, userId, 'prospect_pipeline_gaps', 1200);
+   453→    const parsed = parseAIJson<{ gaps?: Partial<PipelineGap>[] }>(result.content, {});
+   454→    aiGaps = (Array.isArray(parsed.gaps) ? parsed.gaps : [])
+   455→      .slice(0, 6)
+   456→      .map((g) => ({
+   457→        category:
+   458→          typeof g?.category === 'string' && validCats.has(g.category)
+   459→            ? (g.category as PipelineGap['category'])
+   460→            : 'weak_area' as PipelineGap['category'],
+   461→        gap: typeof g?.gap === 'string' ? g.gap.trim().slice(0, 200) : '',
+   462→        evidence: typeof g?.evidence === 'string' ? g.evidence.trim().slice(0, 300) : '',
+   463→        severity:
+   464→          g?.severity === 'critical' || g?.severity === 'minor'
+   465→            ? (g.severity as PipelineGap['severity'])
+   466→            : ('moderate' as PipelineGap['severity']),
+   467→        businessImpact:
+   468→          typeof g?.businessImpact === 'string' ? g.businessImpact.trim().slice(0, 300) : '',
+   469→      }))
+   470→      .filter((g) => g.gap.length > 0);
+   471→  } catch (err) {
+   472→    console.error('[ProspectPipeline] AI gap pass failed (continuing with rule gaps):', err);
+   473→  }
+   474→
+   475→  // Merge + dedupe (case-insensitive containment check)
+   476→  const merged: PipelineGap[] = [...ruleResult.gaps];
+   477→  for (const aiGap of aiGaps) {
+   478→    const lower = aiGap.gap.toLowerCase();
+   479→    const duplicate = merged.some((m) => {
+   480→      const ml = m.gap.toLowerCase();
+   481→      return ml === lower || ml.includes(lower) || lower.includes(ml);
+   482→    });
+   483→    if (!duplicate) merged.push(aiGap);
+   484→  }
+   485→
+   486→  const severityRank = { critical: 0, moderate: 1, minor: 2 } as const;
+   487→  merged.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
+   488→
+   489→  return {
+   490→    overallDigitalHealthScore: websiteScore?.overallScore ?? 0,
+   491→    gaps: merged,
+   492→    strengths: ruleResult.strengths,
+   493→  };
+   494→}
+   495→
+   496→// ===== STEP 3 — User Offer Profile Match =====
+   497→
+   498→/** Deterministic keyword-overlap fallback matcher (used only if AI fails). */
+   499→function keywordMatchOffers(
+   500→  offers: OfferService[],
+   501→  gaps: PipelineGap[]
+   502→): OfferMatch[] {
+   503→  const stop = new Set(['and', 'the', 'for', 'with', 'a', 'an', 'of', 'in', 'to', 'no', 'not']);
+   504→  const tokenize = (s: string) =>
+   505→    s
+   506→      .toLowerCase()
+   507→      .replace(/[^a-z0-9\s]/g, ' ')
+   508→      .split(/\s+/)
+   509→      .filter((t) => t.length > 2 && !stop.has(t));
+   510→
+   511→  return offers
+   512→    .map((offer) => {
+   513→      const offerTokens = new Set(tokenize(`${offer.label} ${offer.category} ${offer.description}`));
+   514→      const matchedGaps: string[] = [];
+   515→      for (const gap of gaps) {
+   516→        const gapTokens = tokenize(`${gap.gap} ${gap.category}`);
+   517→        const overlap = gapTokens.filter((t) => offerTokens.has(t));
+   518→        if (overlap.length >= 2 || (overlap.length === 1 && gap.severity === 'critical')) {
+   519→          matchedGaps.push(gap.gap);
+   520→        }
+   521→      }
+   522→      if (matchedGaps.length === 0) return null;
+   523→      const strength: OfferMatch['matchStrength'] =
+   524→        matchedGaps.length >= 3 ? 'strong' : matchedGaps.length === 2 ? 'partial' : 'weak';
+   525→      return {
+   526→        offerLabel: offer.label,
+   527→        matchedGaps,
+   528→        matchStrength: strength,
+   529→        rationale: `Matches ${matchedGaps.length} detected gap(s) via service keywords`,
+   530→        angle: `Position ${offer.label} as the direct fix for: ${matchedGaps[0]}`,
+   531→      } satisfies OfferMatch;
+   532→    })
+   533→    .filter((m): m is OfferMatch => m !== null)
+   534→    .slice(0, 4);
+   535→}
+   536→
+   537→export async function runStepMatch(
+   538→  lead: LeadContext,
+   539→  gaps: PipelineGaps,
+   540→  offers: OfferService[],
+   541→  userId: string
+   542→): Promise<PipelineMatch> {
+   543→  // No offer profile configured → honest skip (step 4/5 continue generically)
+   544→  if (offers.length === 0) {
+   545→    return {
+   546→      matchScore: 0,
+   547→      opportunityStatement: '',
+   548→      matches: [],
+   549→      skipped: true,
+   550→      skipReason:
+   551→        'No offer profile configured. Go to Settings → My Offer to list the services you sell, then re-run the pipeline for precise matching.',
+   552→    };
+   553→  }
+   554→
+   555→  const system =
+   556→    'You are a sales-fit analyst. You get: (a) detected gaps at a prospect company and ' +
+   557→    '(b) the services the USER sells. Match the user\'s offers to the prospect\'s gaps. ' +
+   558→    'STRICT RULES: (1) Only propose matches that genuinely resolve a detected gap. ' +
+   559→    '(2) matchScore (0-100) reflects overall fit: 80+ = multiple strong matches, 50-79 = one strong match, ' +
+   560→    '20-49 = only weak/partial matches, below 20 = poor fit. ' +
+   561→    '(3) opportunityStatement must follow this exact pattern: ' +
+   562→    '"<Company> has <top gap> → User offers <best offer> → <one-line why it is a perfect match>". ' +
+   563→    '(4) Reply with ONLY valid JSON: {"matchScore":number,"opportunityStatement":string,' +
+   564→    '"matches":[{"offerLabel":string,"matchedGaps":string[],"matchStrength":"strong"|"partial"|"weak",' +
+   565→    '"rationale":string,"angle":string}]}. Return at most 4 matches, strongest first.';
+   566→
+   567→  const user = [
+   568→    `Prospect company: ${lead.businessName}${lead.city ? ` (${lead.city})` : ''}`,
+   569→    `Business type: ${gaps.overallDigitalHealthScore ? `digital health ${gaps.overallDigitalHealthScore}/100; ` : ''}`,
+   570→    `Detected gaps:\n${gaps.gaps.map((g) => `- [${g.severity}] ${g.gap} — evidence: ${g.evidence}`).join('\n')}`,
+   571→    `User's offers:\n${offers.map((o) => `- ${o.label} (${o.category}): ${o.description}`).join('\n')}`,
+   572→  ].join('\n\n');
+   573→
+   574→  // Personalize with the user's self-provided context (Settings → My Context)
+   575→  // so opportunity framing reflects their goals/positioning. Empty → unchanged.
+   576→  const { block: userContextBlock } = await loadPersonalContextForAi(userId);
+   577→  const userWithContext = userContextBlock ? `${user}\n\n${userContextBlock}` : user;
+   578→
+   579→  try {
+   580→    const result = await aiJson(system, userWithContext, userId, 'prospect_pipeline_match', 1200);
+   581→    const parsed = parseAIJson<Partial<PipelineMatch>>(result.content, {});
+   582→    const matches: OfferMatch[] = (Array.isArray(parsed.matches) ? parsed.matches : [])
+   583→      .slice(0, 4)
+   584→      .map((m) => ({
+   585→        offerLabel:
+   586→          typeof m?.offerLabel === 'string' ? m.offerLabel.trim().slice(0, 120) : '',
+   587→        matchedGaps: asStringArray(m?.matchedGaps, 6),
+   588→        matchStrength:
+   589→          m?.matchStrength === 'strong' || m?.matchStrength === 'weak'
+   590→            ? (m.matchStrength as OfferMatch['matchStrength'])
+   591→            : ('partial' as OfferMatch['matchStrength']),
+   592→        rationale: typeof m?.rationale === 'string' ? m.rationale.trim().slice(0, 300) : '',
+   593→        angle: typeof m?.angle === 'string' ? m.angle.trim().slice(0, 300) : '',
+   594→      }))
+   595→      .filter((m) => m.offerLabel.length > 0);
+   596→
+   597→    if (matches.length === 0) {
+   598→      // AI saw no real fit — report honestly rather than inventing one
+   599→      return {
+   600→        matchScore: typeof parsed.matchScore === 'number' ? Math.max(0, Math.min(100, Math.round(parsed.matchScore))) : 10,
+   601→        opportunityStatement:
+   602→          typeof parsed.opportunityStatement === 'string' && parsed.opportunityStatement.trim()
+   603→            ? parsed.opportunityStatement.trim()
+   604→            : `No strong offer-gap match found for ${lead.businessName} with the current offer profile.`,
+   605→        matches: [],
+   606→        skipped: false,
+   607→      };
+   608→    }
+   609→
+   610→    return {
+   611→      matchScore:
+   612→        typeof parsed.matchScore === 'number'
+   613→          ? Math.max(0, Math.min(100, Math.round(parsed.matchScore)))
+   614→          : 50,
+   615→      opportunityStatement:
+   616→        typeof parsed.opportunityStatement === 'string' && parsed.opportunityStatement.trim()
+   617→          ? parsed.opportunityStatement.trim().slice(0, 400)
+   618→          : `${lead.businessName} has "${gaps.gaps[0]?.gap || 'digital gaps'}" → User offers "${matches[0].offerLabel}"`,
+   619→      matches,
+   620→      skipped: false,
+   621→    };
+   622→  } catch (err) {
+   623→    console.error('[ProspectPipeline] AI match failed, using keyword fallback:', err);
+   624→    const matches = keywordMatchOffers(offers, gaps.gaps);
+   625→    return {
+   626→      matchScore: matches.length >= 2 ? 65 : matches.length === 1 ? 45 : 15,
+   627→      opportunityStatement: matches.length
+   628→        ? `${lead.businessName} has "${gaps.gaps[0]?.gap || 'digital gaps'}" → User offers "${matches[0].offerLabel}"`
+   629→        : '',
+   630→      matches,
+   631→      skipped: false,
+   632→    };
+   633→  }
+   634→}
+   635→
+   636→// ===== STEP 4 — Personalized Pitch =====
+   637→
+   638→export async function runStepPitch(
+   639→  lead: LeadContext,
+   640→  research: PipelineResearch,
+   641→  gaps: PipelineGaps,
+   642→  match: PipelineMatch | null,
+   643→  userId: string
+   644→): Promise<PipelinePitch> {
+   645→  const topGaps = gaps.gaps.slice(0, 3);
+   646→  const bestMatch = match && !match.skipped ? match.matches[0] : null;
+   647→
+   648→  const system =
+   649→    'You are an expert B2B copywriter writing a SHORT personalized pitch from a service provider ' +
+   650→    '(the user) to a prospect company. You receive measured research and detected gaps. ' +
+   651→    'STRICT RULES: (1) Reference the company BY NAME and city (if known). ' +
+   652→    '(2) Cite 1-3 SPECIFIC evidence-based gaps (e.g. "no online booking", "not mobile-friendly", ' +
+   653→    '"SEO score 32/100") — never generic claims. ' +
+   654→    '(3) The solution must map to the user\'s matched offer when one is provided. ' +
+   655→    '(4) Include ONE quantified projected benefit and mark it as an estimate (e.g. "can increase ' +
+   656→    'bookings by an estimated 30-40%"). Never present projections as guarantees. ' +
+   657→    '(5) Max 120 words, no buzzwords ("revolutionary", "cutting-edge" forbidden), no emoji. ' +
+   658→    '(6) Reply with ONLY valid JSON: {"headline":string,"pitch":string,"keyPoints":string[],' +
+   659→    '"projectedOutcome":string,"callToAction":string}. headline ≤ 12 words; keyPoints = 2-4 items; ' +
+   660→    'callToAction = one short actionable sentence.';
+   661→
+   662→  const user = [
+   663→    `Prospect: ${lead.businessName}${lead.city ? `, ${lead.city}` : ''}${lead.country ? `, ${lead.country}` : ''}`,
+   664→    `Business type: ${research.businessType} | Target market: ${research.targetMarket}`,
+   665→    `Company summary: ${research.summary}`,
+   666→    `Top detected gaps (with evidence):\n${topGaps.map((g) => `- [${g.severity}] ${g.gap} — ${g.evidence}`).join('\n')}`,
+   667→    bestMatch
+   668→      ? `User's best-fit offer: ${bestMatch.offerLabel}. Positioning angle: ${bestMatch.angle}`
+   669→      : 'No specific offer match — write the pitch around fixing the top gaps with professional digital services.',
+   670→  ]
+   671→    .filter(Boolean)
+   672→    .join('\n\n');
+   673→
+   674→  const result = await aiJson(system, user, userId, 'prospect_pipeline_pitch', 1000);
+   675→
+   676→  const fallback: PipelinePitch = {
+   677→    headline: `${lead.businessName}: ${topGaps[0]?.gap || 'digital presence gaps'}`,
+   678→    pitch: `${lead.businessName} currently has ${topGaps.length} measurable digital gap(s), starting with "${topGaps[0]?.gap || 'an outdated online presence'}". ${bestMatch ? `We fix this with ${bestMatch.offerLabel}.` : 'We specialise in fixing exactly these gaps.'}`,
+   679→    keyPoints: topGaps.map((g) => `${g.gap} — ${g.evidence}`),
+   680→    projectedOutcome: 'Estimated improvement in lead flow within 60-90 days (estimate, results vary)',
+   681→    callToAction: 'Worth a 15-minute call this week?',
+   682→  };
+   683→
+   684→  const parsed = parseAIJson<Partial<PipelinePitch>>(result.content, fallback);
+   685→
+   686→  return {
+   687→    headline:
+   688→      typeof parsed.headline === 'string' && parsed.headline.trim()
+   689→        ? parsed.headline.trim().slice(0, 150)
+   690→        : fallback.headline,
+   691→    pitch:
+   692→      typeof parsed.pitch === 'string' && parsed.pitch.trim()
+   693→        ? parsed.pitch.trim().slice(0, 1200)
+   694→        : fallback.pitch,
+   695→    keyPoints:
+   696→      asStringArray(parsed.keyPoints, 4).length > 0
+   697→        ? asStringArray(parsed.keyPoints, 4)
+   698→        : fallback.keyPoints,
+   699→    projectedOutcome:
+   700→      typeof parsed.projectedOutcome === 'string' && parsed.projectedOutcome.trim()
+   701→        ? parsed.projectedOutcome.trim().slice(0, 300)
+   702→        : fallback.projectedOutcome,
+   703→    callToAction:
+   704→      typeof parsed.callToAction === 'string' && parsed.callToAction.trim()
+   705→        ? parsed.callToAction.trim().slice(0, 200)
+   706→        : fallback.callToAction,
+   707→  };
+   708→}
+   709→
+   710→// ===== STEP 5 — Smart Email =====
+   711→
+   712→export async function runStepEmail(
+   713→  lead: LeadContext,
+   714→  research: PipelineResearch,
+   715→  gaps: PipelineGaps,
+   716→  pitch: PipelinePitch,
+   717→  userId: string
+   718→): Promise<PipelineEmail> {
+   719→  const topGap = gaps.gaps[0];
+   720→
+   721→  const system =
+   722→    'You write cold outreach emails for a service provider. The email must feel personally ' +
+   723→    'researched, not templated. STRICT RULES: ' +
+   724→    '(1) Subject ≤ 60 characters, names the company or their specific gap (e.g. "Cavalier Hospital - online booking gap"). No clickbait, no ALL CAPS, no emoji. ' +
+   725→    '(2) Body ≤ 150 words. First sentence references their actual business. Then address their ' +
+   726→    'exact problem using the measured evidence. Then the solution in one or two sentences. ' +
+   727→    '(3) End with a CTA relevant to THEIR business (e.g. appointment demo for a clinic, menu ' +
+   728→    'ordering for a restaurant). ' +
+   729→    '(4) Plain text only: no markdown, no bullet symbols, no placeholders like [Name] — the ' +
+   730→    'recipient name is unknown, use "Hi there" or "Hello". No sender name/signature at the end ' +
+   731→    '(the system adds it). ' +
+   732→    '(5) Reply with ONLY valid JSON: {"subject":string,"body":string,"cta":string,"postscript":string}. ' +
+   733→    'postscript is optional ("" if none) — a one-line P.S. is encouraged.';
+   734→
+   735→  const user = [
+   736→    `Prospect: ${lead.businessName}${lead.city ? ` in ${lead.city}` : ''}`,
+   737→    `Their business: ${research.summary || research.businessType}`,
+   738→    `Their #1 gap: ${topGap ? `${topGap.gap} (evidence: ${topGap.evidence}; impact: ${topGap.businessImpact})` : 'unknown'}`,
+   739→    `Other gaps: ${gaps.gaps.slice(1, 3).map((g) => g.gap).join('; ') || 'none'}`,
+   740→    `Pitch to base the email on:\n${pitch.pitch}`,
+   741→    `Desired CTA direction: ${pitch.callToAction}`,
+   742→    lead.email ? `Recipient email exists (do NOT include the address in the body).` : '',
+   743→  ]
+   744→    .filter(Boolean)
+   745→    .join('\n\n');
+   746→
+   747→  const result = await aiJson(system, user, userId, 'prospect_pipeline_email', 900);
+   748→
+   749→  const fallback: PipelineEmail = {
+   750→    subject: `${lead.businessName}${lead.city ? ` (${lead.city})` : ''}: ${topGap?.gap || 'quick question'}`.slice(0, 60),
+   751→    body: `Hello,\n\nI looked at ${lead.businessName}'s online presence and noticed ${topGap ? topGap.gap.toLowerCase() : 'a few gaps'} — ${topGap?.evidence || 'based on a quick audit'}.\n\n${pitch.pitch}\n\n${pitch.callToAction}`,
+   752→    cta: pitch.callToAction,
+   753→  };
+   754→
+   755→  const parsed = parseAIJson<Partial<PipelineEmail>>(result.content, fallback);
+   756→
+   757→  return {
+   758→    subject:
+   759→      typeof parsed.subject === 'string' && parsed.subject.trim()
+   760→        ? parsed.subject.trim().slice(0, 78)
+   761→        : fallback.subject,
+   762→    body:
+   763→      typeof parsed.body === 'string' && parsed.body.trim()
+   764→        ? parsed.body.trim().slice(0, 2200)
+   765→        : fallback.body,
+   766→    cta:
+   767→      typeof parsed.cta === 'string' && parsed.cta.trim()
+   768→        ? parsed.cta.trim().slice(0, 250)
+   769→        : fallback.cta,
+   770→    postscript:
+   771→      typeof parsed.postscript === 'string' && parsed.postscript.trim()
+   772→        ? parsed.postscript.trim().slice(0, 220)
+   773→        : undefined,
+   774→  };
+   775→}
+   776→

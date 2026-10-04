@@ -1,0 +1,930 @@
+     1→---
+     2→Task ID: starter-responsive-1
+     3→Agent: Super Z (main agent)
+     4→Task: AcquisitionOS — Starter checkout implementation + responsive billing/payment UI
+     5→
+     6→Work Log:
+     7→- Phase 1 diagnosis: audited pricing-page.tsx, upgrade-modal.tsx, billing-page.tsx,
+     8→  checkout-modal.tsx, subscription-store.ts, entitlement-service.ts, plan-config.ts,
+     9→  payment-service.ts, stripe/razorpay providers, checkout routes, provider-status.
+    10→  Found: backend already Starter-ready except razorpay-provider (rejected starter);
+    11→  "Coming Soon" driven by provider-status availability (all payment env vars missing);
+    12→  checkout-modal PLAN_ORDER missing 'starter'; NO viewport meta in root layout;
+    13→  upgrade-modal width conflict (base sm:max-w-lg beat max-w-5xl via cascade order →
+    14→  512px modal with 2/4-column card grid = the squeezed-cards bug).
+    15→- Implemented Starter: razorpay-provider + stripe-provider acceptance; UI surfaces
+    16→  (upgrade-modal, pricing-page, billing-page) replace Starter "Coming Soon" with real
+    17→  "Get Started"/"Switch to Annual" CTA + config-required notice; checkout-modal PLAN_ORDER fixed.
+    18→- Responsive: added Viewport export to src/app/layout.tsx; fixed DialogContent width
+    19→  classes (sm:max-w-5xl so twMerge dedupes base sm:max-w-lg); billing toggle flex-wrap;
+    20→  pricing-page addon grid 1→3 cols via min-[420px]: breakpoint.
+    21→- Tests: 29 new tests in starter-plan.test.ts + starter-checkout-providers.test.ts (all pass).
+    22→- E2E browser verification (agent-browser, viewport meta 320→1920): 0px page overflow,
+    23→  0px dialog overflow, grid 1col(<640)/2col(≥768)/4col(≥1024), modal 1024px on desktop
+    24→  (512px cap eliminated), Starter CTA enabled with notice, Pro/Elite Coming Soon preserved,
+    25→  comparison table inner-scroll only, "Get Started" click → honest no-provider toast.
+    26→  Screenshots in download/modal-*.png, download/billing-*.png.
+    27→- Test suite before/after comparison: identical pre-existing failures (incl. flaky
+    28→  tests/integration/auth-api health test that needs live dev server).
+    29→
+    30→Stage Summary:
+    31→- Commit: 9f47184c0fbe9ea2b8086db48ef2d134fea1cf44 on main (parent 0a4d3f2).
+    32→- Files changed: layout.tsx, upgrade-modal.tsx, pricing-page.tsx, billing-page.tsx,
+    33→  checkout-modal.tsx, payments/razorpay-provider.ts, payments/stripe-provider.ts + 2 test files.
+    34→- Env still required (names only): STRIPE_PRICE_STARTER_MONTHLY_ID,
+    35→  STRIPE_PRICE_STARTER_YEARLY_ID (+STRIPE_SECRET_KEY); optional RAZORPAY_PLAN_STARTER_*.
+    36→- DB: only app-generated test data (test user starter-e2e-20260923@test.local via public
+    37→  signup API + one pending unpaiid PaymentOrder from the create-order API test). No resets,
+    38→  no user/payment modifications.
+    39→
+    40→---
+    41→Task ID: payment-activation-1
+    42→Agent: Super Z (main agent)
+    43→Task: AcquisitionOS — FINAL PAYMENT ACTIVATION ARCHITECTURE (all paid plans ACTIVE, provider-neutral config)
+    44→
+    45→Work Log:
+    46→- Phase 1 diagnosis (read-only):
+    47→  * Starting state: branch main, HEAD 54b6ea8, clean tree. Prior session commit 9f47184
+    48→    already implemented Starter (backend + UI + tests).
+    49→  * Single source of truth confirmed: src/lib/payments/plan-config.ts (PLAN_PRICING:
+    50→    starter 499/4999, pro 1599/14999, elite 5199/44999 INR). Entitlements correct
+    51→    (150/25 starter, 750/∞ pro, 2000/∞ elite; levels free0<starter1<pro2<elite3).
+    52→  * ROOT CAUSE of "Coming Soon": GET /api/payments/provider-status derives
+    53→    planAvailability[plan][cycle].available = (STRIPE_SECRET_KEY && priceId) || RAZORPAY keys.
+    54→    .env has ZERO payment vars → available=false → pricing-page.tsx (line ~310),
+    55→    upgrade-modal.tsx computePlanButtonState (2 sites), billing-page.tsx (line ~642)
+    56→    render disabled "Coming Soon" for Pro/Elite (Starter special-cased prior session).
+    57→    Product-plan availability wrongly coupled to provider configuration.
+    58→  * Backend fully supports all 3 plans x 2 cycles: createPaymentOrder,
+    59→    createStripeCheckoutSession (resolvePlanPriceId → 4 env conventions),
+    60→    RazorpayPaymentProvider (recurring via RAZORPAY_PLAN_* else one-time order),
+    61→    StripePaymentProvider, create-checkout-session route, webhooks (plan-generic via
+    62→    order.plan/metadata/notes). Credit packs: STRIPE_PRICE_CREDITS_100/500/1000_ID +
+    63→    Razorpay credit addon orders. NO architecture change needed.
+    64→  * INCONSISTENCY: /api/payments/create-order route reads ONLY
+    65→    STRIPE_${PLAN}_${CYCLE}_PRICE_ID inline instead of resolvePlanPriceId → canonical
+    66→    STRIPE_PRICE_*_*_ID names ignored on that route. Must align.
+    67→  * .env.example missing canonical names: STRIPE_PRICE_PRO_MONTHLY_ID,
+    68→    STRIPE_PRICE_ELITE_MONTHLY_ID, RAZORPAY_PLAN_STARTER_MONTHLY,
+    69→    RAZORPAY_PLAN_STARTER_YEARLY.
+    70→  * Admin gate exists: withAdmin() in auth-middleware (isAdminRole via rbac).
+    71→  * Unrelated "Coming Soon" usages (integration-marketplace, whatsapp tab, meetings
+    72→    settings, invoice/payment history empty states) are NOT plan gating — untouched.
+    73→- Implemented (forward-only):
+    74→  * provider-status route: added planStatus (free/starter/pro/elite = ACTIVE,
+    75→    never provider-derived); planAvailability kept as provider-config status.
+    76→  * use-plan-availability: semantics updated — availability=false now means
+    77→    "configuration required" (notice under ENABLED CTA), never "Coming Soon".
+    78→  * pricing-page / upgrade-modal / billing-page: removed the Pro/Elite
+    79→    "Coming Soon" disabled-button branches; all paid plans render real CTAs
+    80→    (Get Started / Upgrade to Pro / Upgrade to Elite / Switch to Annual) and a
+    81→    per-plan config-required notice (no env var names, no secrets) when
+    82→    provider config is missing. computePlanButtonState exported for tests;
+    83→    'coming-soon' kind deleted from the state matrix.
+    84→  * create-order route: Stripe Price ID resolution aligned with the canonical
+    85→    resolvePlanPriceId (4 conventions incl. STRIPE_PRICE_{PLAN}_{CYCLE}_ID) —
+    86→    single provider-neutral mapping across all checkout routes.
+    87→  * NEW src/lib/payment-config-validator.ts + GET /api/payments/config-status
+    88→    (admin-only via withAdmin) + scripts/payment-config-report.mjs (CLI):
+    89→    report CONFIGURED/MISSING for credentials + all 6 Stripe Price IDs +
+    90→    6 Razorpay Plan IDs + credit-pack IDs; NEVER prints values.
+    91→  * .env.example: added STRIPE_PRICE_PRO_MONTHLY_ID, STRIPE_PRICE_ELITE_MONTHLY_ID,
+    92→    RAZORPAY_PLAN_STARTER_MONTHLY, RAZORPAY_PLAN_STARTER_YEARLY.
+    93→  * FIX pre-existing signin crash: generateAccessToken was called but not
+    94→    imported in /api/auth/signin (ReferenceError → 500 for every password
+    95→    sign-in). One import added; no auth logic/OAuth/OTP changes.
+    96→  * tests: NEW src/__tests__/lib/payment-activation.test.ts (51 tests: Pro/Elite
+    97→    pricing+GST 1599/288/1887, 14999/2700/17699, 5199/936/6135, 44999/8100/53099;
+    98→    750/2000 credits + unlimited leads; plan order; 6+6 env mappings; provider
+    99→    acceptance for all 6 combos; no invented IDs; UI matrix never 'coming-soon';
+   100→    validator never leaks values).
+   101→- E2E verification (browser, viewport matrix 320/360/390/414/430/600/768/820/
+   102→  1024/1280/1366/1440/1920 + phone landscape 844x390):
+   103→  * upgrade modal: 0 page overflow at every width; modal 288px@320 → 1024px cap
+   104→    @desktop; 3 paid CTAs enabled everywhere; "Coming Soon" ABSENT from DOM;
+   105→    notices render; Free = Current Plan (disabled); feature table internal scroll.
+   106→  * Clicks: Upgrade to Pro + credit-pack Buy Now → honest toast "No payment
+   107→    method is available right now…" — no fake payment, NO PaymentOrder rows
+   108→    created (DB verified).
+   109→  * billing page responsive; admin config-status live OK (401 unauth).
+   110→- DB safety: only app-generated test data (test users pay-e2e-20260923@
+   111→  acquisitionos.local via project create-verify-user script + signup API +
+   112→  settings/subscription relations to unblock sign-in). Pro user kattyboy785@
+   113→  gmail.com still 428 credits (verified untouched). 0 new PaymentOrders.
+   114→  No resets/truncates/deletes of any existing data.
+   115→Stage Summary:
+   116→- Files changed: provider-status/route.ts, use-plan-availability.ts,
+   117→  pricing-page.tsx, upgrade-modal.tsx, billing-page.tsx, create-order/route.ts,
+   118→  signin/route.ts (import fix), .env.example, worklog.md
+   119→- Files added: payment-config-validator.ts, config-status/route.ts,
+   120→  payment-config-report.mjs, payment-activation.test.ts,
+   121→  finalize-e2e-test-user.ts, tsconfig.scoped.json, E2E screenshots
+   122→- Env still required (names only): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+   123→  STRIPE_PRICE_{STARTER,PRO,ELITE}_{MONTHLY,YEARLY}_ID,
+   124→  STRIPE_PRICE_CREDITS_{100,500,1000}_ID, RAZORPAY_KEY_ID/KEY_SECRET/
+   125→  WEBHOOK_SECRET, RAZORPAY_PLAN_{STARTER,PRO,ELITE}_{MONTHLY,YEARLY}.
+   126→  After supplying them, checkout works with NO further code changes.
+   127→
+   128→---
+   129→Task ID: support-center-1
+   130→Agent: Super Z (main agent)
+   131→Task: AcquisitionOS — SUPPORT CENTER + DOWNGRADE + RESPONSIVE PRICING (real ticket flow, KB, admin console, responsive fixes)
+   132→
+   133→Work Log:
+   134→- Phase 1 diagnosis (read-only): starting HEAD d922d04 (main, clean tree).
+   135→  * "Contact Support to Downgrade" was a mailto: anchor (upgrade-modal.tsx
+   136→    + orphaned pricing-page.tsx) — no real ticket flow existed.
+   137→  * No SupportTicket/KB models; FeedbackReport/FeedbackComment/FeedbackStatusLog
+   138→    provided the exact schema conventions to mirror.
+   139→  * Overflow root cause: shadcn Button/Badge whitespace-nowrap + shrink-0 —
+   140→    long labels ("Contact Support to Downgrade") overflowed narrow 4-col cards.
+   141→- DB (additive only, snapshot db-backups/custom-20260923095125Z.db taken by
+   142→  db-safety script, 42 users preserved):
+   143→  * NEW models: SupportTicket (ticketNumber SUP-YYYY-XXXXXX unique, category/
+   144→    subcategory/subject/description/status OPEN|IN_PROGRESS|WAITING_FOR_USER|
+   145→    RESOLVED|CLOSED, priority LOW|NORMAL|HIGH|URGENT, currentPlan/requestedPlan/
+   146→    billingCycle, assignedTo, resolvedAt/closedAt, source, metadata),
+   147→    SupportTicketMessage (authorRole user|admin, isInternal), SupportTicketStatusLog,
+   148→    KnowledgeBaseArticle (slug unique, summary, content, tags/keywords JSON,
+   149→    helpful/notHelpful counters, published, sortOrder), KbArticleFeedback
+   150→    (unique articleId+userId).
+   151→  * PRE-EXISTING DRIFT FIX (data-preserving): declared Lead.websiteVerifiedAt/
+   152→    websiteStatus/websiteVerificationConfidence/websiteVerificationSource and
+   153→    LeadAnalysis.isStale/staleReason in schema — db push had demanded dropping
+   154→    them (real non-null data!); now push is purely additive. No data loss.
+   155→- Backend:
+   156→  * src/lib/support-constants.ts (client-safe taxonomy: 9 ticket categories +
+   157→    subcategories incl. billing→downgrade_plan, KB categories, statuses,
+   158→    priorities, labels).
+   159→  * src/lib/support-service.ts: SUP ticket numbers (collision-retry, same
+   160→    pattern as FB tickets), validation, create (status log + owner confirmation
+   161→    notification + best-effort email via existing sendEmail), messages (staff
+   162→    public reply → WAITING_FOR_USER + user notification; user reply on
+   163→    WAITING_FOR_USER/RESOLVED → OPEN; closed tickets block user messages;
+   164→    isInternal only for staff), status transitions (user: close/reopen only;
+   165→    staff: all) with audit log + notifications on staff changes.
+   166→  * API: POST/GET /api/support/tickets (owner-scoped list w/ pagination+stats),
+   167→    GET/PATCH /api/support/tickets/[id] (owner or super_admin; 404 for others
+   168→    — no existence leak; PATCH: user close/reopen, staff status/priority/
+   169→    assign with 'me' resolution), GET/POST /api/support/tickets/[id]/messages
+   170→    (isInternal filtered for users, flag ignored for non-staff),
+   171→    GET /api/admin/support/tickets (withSuperAdmin — platform-level data,
+   172→    search+filters+stats+pagination).
+   173→  * KB APIs: GET /api/support/kb/articles (weighted search: title 12/6,
+   174→    summary 6, category 4, tags 5, keywords 4, content 2 + match-gated
+   175→    popularity boost; category filter), GET .../[slug] (+related),
+   176→    GET/POST .../[slug]/feedback (upsert per user, counters stay accurate).
+   177→  * Notifications reuse createNotification (SSE realtime + polling): ticket
+   178→    created / support replied / status changed — all with actionUrl to ticket.
+   179→- Knowledge base: scripts/seed-kb.mjs — 20 idempotent articles documenting
+   180→  ONLY verified functionality (entitlement matrix, credit costs, plans/GST,
+   181→  add-on packs, rollover, trial, Stripe/Razorpay, OTP/Google auth, API keys,
+   182→  support ticket usage). Ran: 20 created.
+   183→- Frontend:
+   184→  * Shared SupportTicketForm (category/subcategory, subject, description,
+   185→    priority, plan-context chips, downgrade safety notice, success screen
+   186→    with ticket number) + SupportRequestDialog.
+   187→  * upgrade-modal.tsx: support CTA is now a real Button opening the dialog
+   188→    (billing→downgrade_plan, currentPlan/requestedPlan/billingCycle prefilled,
+   189→    subject auto-composed) — mailto removed. SupportRequestDialog renders
+   190→    inside the pricing modal.
+   191→  * pricing-page.tsx (orphaned but kept consistent): same replacement.
+   192→  * /support (search + 9 categories + popular articles + My Tickets +
+   193→    escalation band), /support/new (query-param prefill incl. failed-search
+   194→    query), /support/article/[slug] (content, helpful/not-helpful, related,
+   195→    escalation), /support/tickets/[id] (conversation, reply, close/reopen,
+   196→    status/priority/category/timestamps/agent).
+   197→  * Entry points: Support item in BOTH dashboard user dropdowns +
+   198→    "Help & Support" in settings sidebar + admin-nav Support entry.
+   199→  * /admin/support: queue stats, search+status/priority/category filters,
+   200→    detail w/ conversation incl. internal notes (amber, lock badge), public
+   201→    reply vs internal note switch, status/priority selects, assign-to-me.
+   202→- Responsive fixes (pricing cards): whitespace-normal+leading-snug+min-h-44px
+   203→  on card CTAs (both support + upgrade kinds), whitespace-normal on savings
+   204→  badges, min-w-0 break-words [overflow-wrap:anywhere] on feature labels,
+   205→  flex-wrap price row, lg:grid-cols-[repeat(4,minmax(0,1fr))] grids (modal +
+   206→  pricing page). No font shrinking.
+   207→- Tests: NEW src/__tests__/support/support-center.test.ts — 27 tests PASS:
+   208→  validation, transitions, staff-reply auto-WAITING_FOR_USER, user-reopen,
+   209→  closed-block, cross-user 404 (GET/PATCH/POST), list owner-scoping,
+   210→  client-identity override ignored, internal notes hidden from owner /
+   211→  visible to staff, KB ranking + keyword matching + 0-result + category.
+   212→  FIXED real KB bug found by tests (popularity boost applied to non-matching
+   213→  articles → any query returned results).
+   214→  Full suite: 914 pass / 30 fail — all 30 verified PRE-EXISTING at d922d04
+   215→  (same files fail with changes stashed). Lint: 0 errors in changed files.
+   216→- E2E (agent-browser, synthetic users support-e2e-{a,b,admin}-20260923@
+   217→  test.local created via PUBLIC signup API; plan/role overrides ONLY on
+   218→  these new synthetic accounts; no existing user touched):
+   219→  * Pricing modal: free card "Contact Support" for starter user → dialog
+   220→    prefilled (Billing & Subscription → Downgrade Plan, Starter→Free,
+   221→    monthly) → submitted → SUP-2026-E648PV shown → ticket persisted.
+   222→  * Ticket detail: user reply + refresh persistence; close → reopen works.
+   223→  * /support: search "credits" → 13 ranked results; nonsense → 0 + "We
+   224→    couldn't find an answer." + Create a Support Ticket (query prefilled);
+   225→    article helpful vote persisted; related articles; escalation buttons.
+   226→  * SECURITY: User A → User B ticket: API 404 AND page "Ticket not found";
+   227→    B's My Tickets shows only B's ticket; owner never sees internal notes.
+   228→  * Admin (super_admin): /admin/support lists both tickets w/ stats; public
+   229→    reply ("Support replied" notification delivered to owner), internal note
+   230→    (invisible to owner, visible to staff), status auto OPEN→WAITING_FOR_USER
+   231→    on reply, RESOLVED set (owner notified w/ actionUrl), Assign to me;
+   232→    non-super-admin redirected from /admin/* by the server-guarded layout.
+   233→  * Responsive: pricing modal measured at 320/360/390/414/430/640/768/820/
+   234→    1024/1280/1366/1440/1920 — pageOverflow=false, dialogOverflow=false,
+   235→    0 elements outside card bounds at EVERY width (screenshots in
+   236→    download/e2e-screenshots/). Support pages: 0 overflow at 320/390/768/1440.
+   237→- Git: commit <see final report> on main. No rollback/revert/reset; no DB
+   238→  reset; no existing user/subscription/credit/payment data modified.
+   239→
+   240→Stage Summary:
+   241→- Support Center shipped end-to-end (real tickets, real KB, real admin
+   242→  tooling, notifications wired to the existing infrastructure).
+   243→- Downgrade CTA now creates a REAL support ticket; subscription untouched.
+   244→- Pricing overflow bug fixed and verified across the full width matrix.
+   245→- Payments untouched: no provider/checkout/webhook/entitlement code changed.
+   246→
+   247→---
+   248→Task ID: 1
+   249→Agent: Super Z (main)
+   250→Task: FINAL CREDIT ADD-ONS + STARTER ₹399 PRICING UPDATE (targeted pricing-data/UI update only)
+   251→
+   252→Work Log:
+   253→- Diagnosed first: found canonical catalog src/app/api/payments/credit-addons/route.ts; Stripe env map in payment-service.ts CREDIT_ADDON_PRICE_IDS (100/500/1000); validation in create-checkout-session Branch B + razorpay-provider; UI arrays in pricing-page/upgrade-modal/credit-gate/credit-display/settings-panel; Starter monthly 499 in 6 backend/display configs.
+   254→- Canonical catalog → 4 new packs (credits_250 Starter Pack 599/₹707, credits_500 Growth 999/₹1,179, credits_1000 Pro 1,799/₹2,123, credits_2500 Power 3,999/₹4,719 badge "Best Value") + LEGACY_CREDIT_ADDONS (credits_100) for in-flight fulfillment safety.
+   255→- payment-service: env map → STRIPE_PRICE_CREDITS_{250,500,1000,2500}_ID; creditAmount type 250|500|1000|2500; PLAN_PRICING starter monthly 399 (USD 5).
+   256→- Checkout route + razorpay-provider validation updated; plan-config getCreditAddonGatewayAvailability → [250,500,1000,2500].
+   257→- Starter ₹399 applied in plan-config/payment-service/stripe-service/razorpay-service(39900p)/invoice-service/subscription-store; yearly 4999 untouched; Pro/Elite untouched.
+   258→- pricing-page: 4-pack card UI (label, big credits, base, +GST, bold total, ~USD, Buy Now, "Credits never expire"), new section copy, lg:grid-cols-4, savings badge hidden when ≤0; FIXED broken handleBuyAddon that posted plan:'pro' to create-order (would create a Pro subscription order!) → canonical create-checkout-session Branch B (Stripe redirect + Razorpay via existing openRazorpayCheckout).
+   259→- upgrade-modal: same 4-pack cards (2-col grid), copy, switch-annual label + badge guards for negative savings.
+   260→- credit-display: 4 packs + real checkout wiring (was display-only close); credit-gate: 4 chips in 2-col grid; settings-panel (legacy): 4 packs + canonical Branch B wiring (was legacy POST /api/payments/credit-addons that only created a pending order + fake success toast).
+   261→- payment-config-validator creditPacks keys 250/500/1000/2500; .env.example, STRIPE-SETUP.md, PAYMENT-CONFIGURATION md+html guides, recover-credentials.mjs, env-audit-result.json env names updated.
+   262→- Tests updated: starter-plan (399/72/471), subscription-store ($5/₹399), payment-gateways (399/5 pricing table).
+   263→- Verification: eslint clean on all changed files; vitest: starter-plan, payment-gateways, starter-checkout-providers, payment-activation, billing, credit-costs, tests/unit/credit-service PASS (89+180 tests). 7 PRE-EXISTING failures (subscription-store trial-status defaults, CREDIT_COSTS mismatch, deep_analysis cost) — proven unrelated by git diff (files/areas untouched).
+   264→- Browser (agent-browser, seed user pricing.verify@example.com): modal shows Starter ₹399/$5/₹72/₹471; yearly Starter ₹4,999/₹900/₹5,899 unchanged, no savings badge; Pro ₹1,887/₹17,699 + "Save ₹4,189"; Elite ₹6,135/₹53,099 + "Save ₹17,389"; 4 packs w/ all 8 required elements incl. Power Pack "Best Value"; Buy Now → honest gateway-config error (no envs in sandbox, no mock); GET /api/payments/credit-addons returns 4 packs; no horizontal overflow at 375/480/768/1440; Close reachable; screenshot download/modal-mobile-375.png.
+   265→- Git: single forward commit 1c50b62 on main (parent = pre-change HEAD ddecc3d). No rollback/revert/reset; no DB reset; existing users/subscriptions/credits/payments untouched; only additive seed user created for verification.
+   266→
+   267→Stage Summary:
+   268→- 4 new credit packs live in canonical catalog + all UI surfaces; old packs fully removed (only legacy fulfillment map retains credits_100 for payment safety).
+   269→- Starter monthly ₹399 (₹471 incl GST) consistent across backend configs and frontend display; yearly ₹5,899 untouched.
+   270→- Buy Now everywhere now uses the ONE canonical credit add-on checkout (Branch B); fixed a pre-existing bug where pricing-page pack click created a Pro subscription order.
+   271→- Required Stripe env vars: STRIPE_PRICE_CREDITS_250_ID/500/1000/2500 + new Starter Monthly ₹399 Price ID (STRIPE_PRICE_STARTER_MONTHLY_ID) — must be created in Stripe Dashboard (Prices immutable).
+   272→
+   273→---
+   274→Task ID: auth-oauth-otp-1
+   275→Agent: Super Z (main)
+   276→Task: FIX REAL GOOGLE OAUTH + MAGIC LINK/OTP (production-authentication bug fix; forward-only)
+   277→
+   278→Work Log:
+   279→- Reproduced BOTH failures with hard evidence before changing anything: GET /api/auth/google/state -> devMode:true (/auth/dev/google-consent simulated page); POST /api/auth/otp/request -> 500 "Internal server error"; /api/health -> database unhealthy.
+   280→- ROOT CAUSE (both): sandbox/workspace restore at 12:12 today moved the workspace and (a) truncated .env to only DATABASE_URL (real GOOGLE_CLIENT_ID/SECRET + SMTP creds lost from runtime env), (b) lost the db/ directory entirely (SQLite file missing -> Prisma "Unable to open database file" -> every DB-touching route 500s).
+   281→- DB restored per DATABASE-DR-RUNBOOK section 1 (documented incident): candidate profiling (git blob efbc216 vs previous workspace live file — identical logical content: 34 users/89 leads/32 subs/6 payments), PRAGMA integrity_check ok, guarded restore via `node scripts/db-safety.mjs restore --confirm` (tool refuses overwrite when live has MORE users), verify-recovery.cjs 12/13 (only audit-log count delta, self-explained). NO reset/recreate — exact live data file restored. kattyboy785 Pro/428 credits + mailtoprabhat72 Elite/1950 untouched (original IDs).
+   282→- Credentials restored via documented mechanism: bash ensure-env.sh -> scripts/recover-credentials.mjs (reads real creds from repo git history commits 9a178ee/5a02aa5, merges only missing keys, generates fresh JWT secrets, sets real-mode flags AUTH_DEV_MODE=false etc.). .env gitignored confirmed, never staged, no secret values printed anywhere.
+   283→- Code fix 1 (relay self-loop guard): b8bdac5's loop-safety fix had a remaining hole — when a gateway reports a STALE public host (x-forwarded-host of a previous preview domain), the origin-mismatch redirect targets the EXACT URL the browser is on -> ERR_TOO_MANY_REDIRECTS (user's screenshots). Added HMAC-signed one-hop marker cookie g_relay_hop (relayHopGuardValue(nonce, origin) keyed with relay secret; path-scoped /api/auth/google/relay; maxAge 120s): second pass finishes the flow instead of redirecting again. Forged markers rejected (server-keyed HMAC).
+   284→- Code fix 2 (magic-link wrong-origin redirect): magic-link/verify's local getDynamicOrigin trusted raw request.url FIRST (anti-pattern per app-url.ts) -> wrong-URL redirects behind preview gateway. dynamicRedirect now prefers canonical getOriginFromRequest from @/lib/app-url (same helper as relay/state routes).
+   285→- Code fix 3 (safe auth error handling): added classifyAuthErrorCategory() to lib/auth.ts; otp/request, otp/verify, magic-link/request catch-alls now return safe user messages ("Unable to send the login code right now...") + category-coded server logs; magic-link/verify no longer leaks error.message/detail to the browser.
+   286→- Tests executed (all real, none simulated): OTP request for kattyboy785@gmail.com -> REAL Gmail SMTP send (250 2.0.0 OK gsmtp, messageId); Google auth URL -> real accounts.google.com 302 -> /v3/signin/identifier (NO redirect_uri_mismatch -> callback URI registered for client 22873135381-*); SMTP transporter.verify() -> connection YES auth YES (scripts/verify-smtp-config.mjs); dev=1 callback param now REJECTED (auth_error=no_code) since real creds exist; state route -> real Google URL, devMode absent; /api/auth/config -> googleAvailable:true emailConfigured:true; relay loop matrix (5 cases incl. stale-gateway loop pass1/pass2, proto-only mismatch, forged cookie, invalid token) all correct; OTP: invalid email 400, nonexistent email no-enumeration, wrong OTP 401, IP rate-limit 429, unverified-email anti-enumeration path, FULL POSITIVE OTP login on synthetic user (200 + access/refresh cookies); magic link E2E on synthetic user (request -> SMTP 250 -> GET verify URL -> 307 to correct origin + cookies). Relay loop tests used DUMMY-payload tokens (scripts/diag_relay_loop.mjs); positive OTP/magic-link E2E used ONE synthetic user (authfix-e2e-20260923@test.local) created via PUBLIC signup API; NO real user touched.
+   287→- NOT testable in sandbox (honest limits): final Google account-consent click (requires user's browser/Google session) and receiving the email in a real mailbox (sandbox has no inbox) — everything up to those boundaries verified.
+   288→- Pre-existing test failures: 10 in auth-routes.test.ts/email.test.ts verified UNRELATED to this diff (they test signup/signin/config/email.ts error strings — none of these files' tested paths changed; diff is additive-only; vitest does not load .env as proven by AUTH-CONFIG logs showing GOOGLE_CLIENT_ID false in test process).
+   289→- Git: forward-only commit on main (parent = pre-change HEAD e3c97d1). No rollback/revert/reset/checkout; no DB reset; no secrets committed (.env gitignored, check-ignore YES).
+   290→
+   291→Stage Summary:
+   292→- Real Google OAuth active (no more simulated consent), real Gmail SMTP OTP/magic-link active (no more degraded mode / 500), relay redirect loop eliminated with server-keyed one-hop guard, magic-link redirects proxy-aware, safe error handling with diagnosable categories.
+   293→- Existing users/subscriptions/credits/payments byte-identical (guarded restore of the same live SQLite file; additive synthetic test user only).
+   294→- /api/health healthy; /api/auth/config googleAvailable:true emailConfigured:true.
+   295→
+   296→---
+   297→Task ID: auth-oauth-otp-2
+   298→Agent: Super Z (main)
+   299→Task: ACQUISITIONOS — REAL GOOGLE + GMAIL CREDENTIALS ALREADY PROVIDED (re-incident: dev-consent page + OTP 500 + magic-link 429 reappeared after workspace restore)
+   300→
+   301→Work Log:
+   302→- Read worklog auth-oauth-otp-1 first. Recorded baseline HEAD 1f1b715 (main). Found .env truncated to ONLY DATABASE_URL again (workspace restore, checkpoint commit 1f1b715 @ 16:21Z) and db/ data lost (schema-only 0-user file recreated 18:05).
+   303→- Read-only diagnosis before any change: state/route.ts line 16 `devMode = !clientId && isDevAuthDeliveryEnabled()` — GOOGLE_CLIENT_ID absent from running server -> simulated consent page; otp/request line 43 db.user.findUnique -> Prisma P2021 (server fd pointed at /tmp/custom.db, a 0-byte schema-less artifact created when db.ts writable-dir probe failed at boot because db/ dir did not exist); rate-limiter.ts 'auth' = 5 req/60s sliding window keyed ip:x-forwarded-for, timestamps recorded BEFORE handler -> outage 500s consumed the budget -> user saw 429 Too many requests on retries. OTP + magic-link share the same 'auth' bucket (both call withRateLimit(request,'auth')).
+   304→- Restored credentials via documented mechanism: node scripts/recover-credentials.mjs (merges only missing keys from git history 9a178ee/5a02aa5; fresh 64-hex JWT/NEXTAUTH/AUTH/CRON secrets; AUTH_DEV_MODE=false flags; masks every value; .env gitignored YES, staged NO). Final .env: 26 keys incl GOOGLE_CLIENT_ID/SECRET + SMTP_HOST/PORT/USER/PASSWORD/PASS + GMAIL_USER/APP_PASSWORD + EMAIL_FROM.
+   305→- Restored DB per DATABASE-DR-RUNBOOK: git blob 60f8e3b (commit efbc216, previously validated as identical logical content) -> db-backups/custom-restore-efbc216-20260923.db -> restore-test PASS (tables=105 users=34 leads=89 subs=32 ledger=149, isolated /tmp file, live untouched) -> guarded restore --confirm (live 0 users < snapshot 34; auto-snapshot of prior live state taken first). No reset/recreate — same live data file restored.
+   306→- Removed 0-byte /tmp/custom.db (empty artifact of broken boot; no tables, no data — prevented 'reuse existing /tmp DB' path from trusting an empty file). Restarted dev server: re-read restored .env, writable-path probe now passes, fd 43 -> /home/z/my-project/db/custom.db; /tmp/custom.db not recreated.
+   307→- Verification (all real): /api/health healthy + database healthy; /api/auth/config googleAvailable:true emailConfigured:true; /api/auth/google/state -> REAL accounts.google.com URL, redirect_uri=https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai/api/auth/callback/google, NO devMode field; SMTP transporter.verify() via scripts/verify-smtp-config.mjs -> connection YES auth YES (smtp.gmail.com:587 STARTTLS, masked metadata); Google boundary test with FULL authUrl (client_id 22873135381-* + state + prompt=select_account consent + access_type=offline) -> HTTP 302 to REAL account chooser, NO redirect_uri_mismatch (3/3 variants; earlier 000s were transient sandbox egress flakiness — proven by Google answering a malformed probe with a real param error); callback without code -> 307 /?auth_error=no_code.
+   308→- OTP E2E (additive test user authfix2-e2e-20260923@test.local created via PUBLIC signup API, HTTP 201): request 200 (no deliveryIssue field = SMTP accepted; OTP persisted, expiry ~600s) -> 401 on verify = correct anti-enumeration (emailVerified false) -> email verified via REAL /api/auth/verify-email flow (200) -> fresh request 200 -> verify 200 'Signed in successfully via OTP' + access_token/refresh_token cookies via existing setAuthCookies. OTP value read from DB for verification but NEVER printed.
+   309→- Magic link E2E: request 200 (token persisted, ~15 min expiry) -> GET verify?token=... -> 307 redirect to request origin + access_token/refresh_token cookies. No 429 after service restoration.
+   310→- Rate limiter demonstration: 7 rapid otp/request probes (nonexistent email, no emails sent) -> req1-5=200, req6-7=429 (exactly 5/60s as designed). Limiter left intact — the user's 429 was the correct limiter exhausted by outage 500s + retries; fix was restoring the service, not weakening protection.
+   311→- No source code changes needed: commit 73456c4 (previous session) already contains real-creds precedence, relay self-loop guard, dynamic origin, safe error handling. This incident was environment-loss recurrence, resolved via documented recovery tools + restart. HEAD before == after (1f1b715); working-tree deltas: dev.log (server log), scripts/verify-smtp-config.mjs (mode bit, pre-existing). .env + db/ + db-backups/ gitignored (check-ignore YES).
+   312→- NOT testable in sandbox (honest limits): final Google account-consent click (needs user's browser/Google session) and mailbox receipt of the emails (no inbox here) — verified up to those boundaries: Google's server accepts the exact redirect_uri; SMTP transport accepts the messages (250).
+   313→
+   314→Stage Summary:
+   315→- Real Google OAuth + real Gmail SMTP/OTP/magic-link ACTIVE again in the preview runtime; /auth/dev/google-consent unreachable while real credentials exist (explicit dev-only fallback code preserved).
+   316→- 34 users restored byte-identical from validated blob (kattyboy785 Pro/428, mailtoprabhat72 Elite/1950 untouched); ONE additive test user created via public API.
+   317→- 'Too many requests' root-caused (shared auth limiter, 5/min/IP, pre-handler counting) and left intact by design; underlying outage fixed instead.
+   318→- No rollback/revert/reset/checkout; no DB reset; no secrets printed or committed; unrelated systems untouched.
+   319→
+   320→---
+   321→Task ID: forensic-rc-1
+   322→Agent: Super Z (main)
+   323→Task: FORENSIC ROOT CAUSE INVESTIGATION ONLY (7 problems — no fixes, no commits)
+   324→
+   325→Work Log:
+   326→- READ-ONLY. Baseline HEAD e43e7bf (checkpoint @18:33Z). Found live recurrence mid-investigation: .env wiped to 1 key again, db/ wiped again (1 user), db-backups/ gone; server booted 02:08:25Z by platform supervisor (stdout->socket, EADDRINUSE collision from npm attempt in dev.log proves supervisor start WITHOUT ensure-env.sh).
+   327→- Live proof of Problem 4: only DB user = demo.google@acquisitionos.local created 02:23:57Z via dev-consent flow (state/route.ts:16 devMode=!clientId&&isDevAuthDeliveryEnabled). /api/auth/config googleAvailable HARDCODED true (config/route.ts:25) masks env loss until click; emailConfigured:false live.
+   328→- P1 traced end-to-end: getSubscriptionStatus catch SWALLOWS any DB error -> returns plan:'free' + subscription:null with HTTP 200 (subscription-service.ts:256-262; also 217 user?.plan||'free'); client syncFromBackend maps sub?.plan??credits.plan??'free' (subscription-store.ts:469) -> gate workflows-tab.tsx:2584/2602-2605 blocks; store DEFAULT plan:'free' until first sync (subscription-store.ts:273-281); 401 -> reset() (use-subscription-sync.ts:64-71); sync every 5min (line 21). DB plan NOT mutated (renew-subscriptions downgrades only cancelAtPeriodEnd; vercel.json has NO crons).
+   329→- P2: access JWT 15m + refresh 30d (auth.ts:32-34, cookies 207-222); refresh every 14m + visibilitychange (use-token-refresh.ts:6); refresh 401 -> logout() (lines 36-39); refresh 401s when Session rows missing (isSessionValid auth.ts:431-434 — DB wipe kills all sessions), user missing, or refresh JWT invalid; refresh ALSO under shared 'auth' limiter 5/60s/IP (refresh/route.ts:20) -> 429 delays -> access expires -> fetchUser catch setUser(null) (use-auth.ts) -> silent client logout. Restore cadence 2-4h (checkpoints 06:37/07:40/08:26/12:19/16:21/18:33 + pre-02:08) matches reported 30min-4h logouts.
+   330→- P3: Remember-me checkbox UNCONTROLLED, no state, no API field (auth-pages-v2.tsx:484-489) — cosmetic only; sessions fixed 15m/30d.
+   331→- P5: OTP failure = (F) env disappearance + (B) DB-wipe persistence failure (P2021 -> 500). SMTP transport verified OK when creds present.
+   332→- P6: 'auth' limiter 5/60s sliding window, key ip:<first XFF> fallback 'unknown' (ALL localhost traffic one bucket), in-memory Map (rate-limiter.ts:31,48-65,120-126); pre-handler counting -> outage 500s consume budget -> retries 429; OTP+magic-link+refresh+signin share bucket.
+   333→- P7: crons NOT scheduled (no vercel.json crons), renew-subscriptions legit; proven actor = workspace restore cycle + supervisor restart w/o env bootstrap + heap 98.5% pressure (health).
+   334→- No files modified (only dev.log by live server). No commit. No fixes applied.
+   335→
+   336→Stage Summary:
+   337→- Cross-cutting root cause: recurring workspace restores wipe untracked .env + db/ + db-backups/ and restart the server without credential recovery; every auth subsystem (OAuth/OTP/magic-link/session/subscription display) depends on those files; in-DB subscription data is NOT the thing changing — display/auth layers fall back to 'free'/logout on transient failures.
+   338→- Root cause report delivered; fixes intentionally NOT implemented per instruction.
+   339→
+   340→---
+   341→Task ID: permanent-auth-fix-1
+   342→Agent: Super Z (main)
+   343→Task: ACQUISITIONOS — IMPLEMENT THE PERMANENT AUTHENTICATION / SESSION / RUNTIME FIX (forward-only, based on accepted RCA)
+   344→
+   345→Work Log:
+   346→- Pre-flight: recorded baseline (branch main; session-start HEAD 5bb6d3a later orphaned by the platform checkpoint cycle — effective pre-change baseline e43e7bf, current auto-checkpoint HEAD ed256c2; clean tree). Found LIVE recurrence at start: .env wiped to DATABASE_URL-only + db/ gone again → boot-recovery (built this session) restored all 26 env keys + 34-user DB from validated git blob 60f8e3b automatically during testing.
+   347→- P1 (recurring state loss): NEW scripts/boot-recovery.mjs — single idempotent boot gate reusing EXISTING tools (recover-credentials.mjs, ensure-env.sh, db-safety.mjs): (a) credentials re-provisioned from git history when GOOGLE_CLIENT_ID missing; (b) db/ dir recreated; missing DB restored guarded (candidate validation via node:sqlite: full schema + User count, MOST-users source wins, circular self-created snapshots excluded, read-only-dest chmod retry); never creates an empty DB; (c) 0-byte /tmp/custom.db artifact removed. Wired into ACTUAL startup path: package.json dev+start scripts AND start.js preflight (spawnSync, ESM-safe). db.ts now mkdirs a missing db/ dir BEFORE any /tmp fallback (real read-only-FC behavior preserved).
+   348→- P12: prisma schema UserSession += rememberMe/lastActivityAt/absoluteExpiresAt (additive; npm run db:push = snapshot+push; 34 users + 465 sessions byte-preserved, verified).
+   349→- P5+P6 (remember me/idle/absolute): auth.ts createSession(rememberMe) writes policy fields; getSessionState() returns valid|missing|revoked|expired|idle_expired and THROWS on DB errors; touchSessionActivity() throttled (5 min); setAuthCookies(persist) — remembered=30d persistent cookie, unchecked=browser-session cookie; readRememberMeCookie(). Routes wired: signin/otp-verify/magic-link request+verify(remember=1)/google callback+relay/mfa-verify. Client: controlled checkbox on sign-in + OTP + magic-link forms, aqos_remember_me 10-min carrier cookie (auth-client.ts), MFA passthrough. Policy: remembered → 48h idle + 30d absolute; unchecked → normal non-remembered behavior; access JWT unchanged 15m.
+   350→- P4 (refresh): dedicated 'refresh' bucket (30/min); getSessionState-based; 401 codes NO_TOKEN/INVALID_TOKEN/SESSION_EXPIRED/SESSION_IDLE_EXPIRED/SESSION_REVOKED/USER_UNAVAILABLE vs 503 INFRASTRUCTURE_ERROR for every DB/rotation failure; rotation preserves rememberMe + persists cookie accordingly; touchSessionActivity on refresh. Client use-token-refresh: logout ONLY on authoritative 401 codes; 5xx/network → bounded backoff (60→480s, no infinite loop, no logout). use-auth fetchUser: setUser(null) ONLY on 401. /api/auth/me: 503 pass-through.
+   351→- P3 (subscription never Free): getSubscriptionStatus catch → unavailable:true (no plan:'free' result); /api/subscriptions/current → 503 SUBSCRIPTION_TEMPORARILY_UNAVAILABLE; store syncState idle|loading|verified|unavailable + hasEverVerified + markUnavailable (plan preserved); use-subscription-sync 401-only reset; PlanGate decision table (verified→plan decides; idle/loading→neutral loading; unavailable+verified-history→last-known-good decides; unavailable+never→neutral notice) — the exact "Workflows requires Pro" false gate; workflows-tab Elite check guarded by verified state.
+   352→- P7 (Google): config/route googleConfigured computed from real GOOGLE_CLIENT_ID+SECRET presence (googleAvailable now honest; safe booleans only); SignIn/SignUp show Google button only when configured + honest notice otherwise; dev-consent fallback remains unreachable with real creds (AUTH_DEV_MODE=false) and state route verified live → real accounts.google.com URL with real client_id, no devMode field.
+   353→- P8 (OTP): email-unconfigured → 503 EMAIL_NOT_CONFIGURED (no fake "sent"; devDelivery sandbox path preserved); SMTP send failure → 503 EMAIL_DELIVERY_FAILED; safe categories logged, no secrets.
+   354→- P9 (rate buckets): dedicated signin(10/min)/otp(5/min)/otp_verify(10/min)/magic_link(5/min)/refresh(30/min) keyed ip+HASHED(email) via authRateKeySuffix (never logs email); refundRateLimit returns slots consumed by infra failures (500/503/unconfigured paths in otp+magic routes); legacy 'auth' bucket retained for untouched routes; abuse protection intact (5/60s still enforced per bucket).
+   355→- P11: getAuthUser throws AuthError(503) on database-category errors (withAuth + /me pass through); infrastructure failures can no longer surface as anonymous/Free/logout anywhere.
+   356→- Tests: NEW tests/unit/permanent-auth-fix.test.ts (15: subscription 503 flag, store state machine incl. tests 13–18 semantics, bucket isolation/refund/abuse/key normalization) + NEW tests/unit/infra-failure-auth-semantics.test.ts (4: refresh 503-not-401 on P2021, /me 503, subscriptions/current 503 without free payload). Runtime suites scripts/verify-permanent-fix.sh (22 checks) + verify-permanent-fix-phase2.sh (17 checks incl. 1h/4h validity, full real-SMTP OTP E2E, full magic-link E2E, restart survival, boot-recovery no-op). Full vitest suite 932 passed; failures IDENTICAL to pre-change baseline (proven via read-only git worktree at e43e7bf: subscription-store 6/6, auth-routes 6/6 same names after updating that test's rate-limiter mock for the new authRateKeySuffix export, health 5/5, onboarding 4/4, email 4/4, api-key 3/3, jwt 1/1, credit 1/1; auth-api 1 load-flake passes 18/18 isolated) → ZERO regressions.
+   357→- Browser (agent-browser): sign-in page renders controlled remember-me checkbox; login with remember-me → aqos_remember_me=1 + access_token cookie + DB session rememberMe=true/absoluteExpiresAt SET; browser reload keeps session; in-page /api/auth/refresh → code=OK; dashboard loads w/ correct plan/credits; onboarding completed via DB for synthetic user; Workflows gate: FREE user → "Workflows requires Pro" (correct authoritative), PRO user (synthetic temp grant) → Workflows ACCESSIBLE, no false gate; screenshot download/e2e-screenshots/workflows-pro-no-false-gate.png; test user reverted to free, synthetic subscription row deleted, cookies cleared.
+   358→- Restart/recovery verification: npm run dev (supervisor path) boots through boot-recovery; app restart → existing session refreshes 200 + subscription 200; disaster simulation (.env+db/+db-backups deleted) → full auto-recovery in <1s from validated sources.
+   359→- Database safety: NO drop/reset/seed-over/prisma migrate reset; only additive column push + guarded same-data restore of the already-lost live DB + synthetic test user/row (created via public API, reverted after use).
+   360→- Git: forward-only commit on main (parent = ed256c2 auto-checkpoint). No rollback/revert/reset/checkout of old code; no secrets printed or committed (.env + db/ + db-backups/ gitignored); worktree used only in /tmp and removed.
+   361→
+   362→Stage Summary:
+   363→- All 12 priorities implemented; 39 runtime checks + 19 new unit tests + 932-pass suite with proven zero regressions.
+   364→- Recurring state loss closed at the actual startup path; credential/DB loss now self-heals in <1s at boot.
+   365→- Subscriptions and sessions can no longer be destroyed by transient failures: 503 semantics everywhere, client state preservation, coded refresh, bounded backoff.
+   366→- Remember Me is real: 48h idle + 30d absolute, server-authoritative, wired through every login channel.
+   367→
+   368→---
+   369→Task ID: discovery-hard-filters-1
+   370→Agent: Super Z (main)
+   371→Task: ACQUISITIONOS — AI LEAD DISCOVERY FILTER ENFORCEMENT BUG (fix current implementation forward, no rollback/reset)
+   372→
+   373→Work Log:
+   374→- Pre-flight: baseline HEAD f161a53 (clean); no rollback/revert/reset; DB untouched except additive columns (39→40 users incl. API-created test account; 89 leads preserved; 465+ sessions intact).
+   375→- DIAGNOSIS (all 12 questions answered with exact code): (1) parse-intent ParsedDiscoveryIntent had NO employee fields — "20 to 200 employees" survived only as free-text `requirements`; (2) buildSearchQueries deliberately excluded requirements from queries; (3) extraction prompt said "Prioritize" (soft); (4) sanitizeDiscoveredLeads checked only name/location/dupes; (5) NO employeeCount anywhere in DiscoveredLead/Prisma Lead/transformLead/UI card; (6) mock/fallback data NOT involved — Salesforce/Datadog etc. were real web-search results for an UNFILTERED query ("B2B SaaS companies in United States"); (7) the range was a soft preference by design.
+   376→- NEW src/lib/discovery/hard-criteria.ts: deterministic extraction (ranges/quotas/exclusions/website with exclusion-clause inversion; k/comma/unicode-dash forms; request-count never misread) + matchHardCriteria validator (UNKNOWN count → REJECT when range requested; out-of-range → REJECT; provider range must sit fully inside request; partial overlap → reject) + merge (intersect bounds, union exclusions) + describe helpers.
+   377→- parse-intent: structured criteria in prompt + normalizeParsed merges DETERMINISTIC (wins) with AI values; fallbackParse also extracts; Number(null)===0 "exactly 0 employees" regression caught live and guarded (aiNum rejects null/''/0); query cap 500→1000.
+   378→- /api/leads/discover: body criteria sanitized + SERVER-SIDE re-extraction from requirements text (old clients/bypassers still enforced); merge intersects.
+   379→- lead-discovery-service: Step 1b evidence enrichment (per-company web searches resolve employee counts + websites from explicit statements only; LLM forbidden to guess; domain↔company-name guard blocks misattributed sites like Juro→rfp.wiki) → Step 1c deterministic enforcement (before dedupe/credits/import) → rankVerifiedLeads (verified counts first) → import persists employeeCount/employeeRange; job.filteredOut column + honest messages with rejection reasons; size-bucket quoted queries ("51-200 employees" — standard directory labels intersecting the request) unshift FIRST; job-wide pacedZaiCall (4s spacing + 3× 429-backoff) after discovering rate-limited extractions surfaced as silently-empty results.
+   380→- Prisma ADDITIVE: Lead.employeeCount Int?/employeeRange String?, DiscoveryJob.filteredOut Int @default(0) — db push verified data-preserving (39 users/89 leads/482 sessions intact at push time).
+   381→- UI: DiscoveredLeadCard "Employees: 126" / "Employees: 51–200 (provider range)" (NEVER the requested range); lead-detail badge; hard-filter badge on parsed-intent card + honest-count explainer; honest notice "N verified matches found. We couldn't verify additional companies that meet all your criteria."; job card "N verified leads found · M rejected by hard filters"; fixed pre-existing imported→leadsAdded undefined bug via normalizeJobFromApi.
+   382→- Tests: NEW tests/unit/discovery-hard-criteria.test.ts (45: extraction A–E formats, validator incl. 70000/201/500/19/null cases, exclusions, website inversion, merge, zero-constraint regression) — all pass; 91 related tests green; known-failing suites re-proven identical at baseline HEAD via read-only git worktree (subscription-store/health/credit-costs fail at f161a53 exactly the same — pre-existing, not from this change).
+   383→- Live E2E (in-process pipeline + browser): full run produced EXACTLY 1 verified match — Textio, 126 employees, https://www.textio.com, USA — with 16–19 candidates rejected (Salesforce-class out-of-range, review platforms, agencies); edge queries A–E parse to correct constraints (50–100 / <100→99 / >500→501 / exactly 50 / 20-200+verified); browser-verified: hard-filter badge card, honest notice "0 verified matches found. We couldn't verify additional companies that meet all your criteria." on a throttled run, detail panel "126 employees" badge (screenshots in download/e2e-screenshots/).
+   384→- Safety: no drop/reset/migrate-reset; only additive db push; temp PRO grant on the API-created test account reverted; test lead/jobs/notifications cleaned; no secrets printed; unrelated modules (auth/subscription/pricing/workflows) untouched.
+   385→
+   386→Stage Summary:
+   387→- Hard criteria are now enforced server-side by a deterministic validator that AI ranking cannot override; unknown employee counts can never be presented as verified matches; honest counts replace padded result lists; employee data is stored and shown; provider bursts handled by a job-wide pacer; root cause fully mapped and fixed forward. Commit bec53b7 on main (parent f161a53).
+   388→
+   389→---
+   390→Task ID: auth-consistency-1
+   391→Agent: Super Z (main agent)
+   392→Task: AcquisitionOS — Fix Authentication Account Consistency (Google/OTP/Magic Link → same canonical User)
+   393→
+   394→Work Log:
+   395→- Baseline: HEAD a0b9333, clean tree. Verified auth-fix (4873adb) + discovery (bec53b7) intact.
+   396→- DB state (readonly, no reset): 1 user (kattyboy785@gmail.com, id cmufhfjuf0000ody7l3d0cs7a, real numeric googleId 113867854442001979950, authProvider=google), 34 sessions, 0 demo users. DB was reduced by workspace restore; current row is the REAL live account (created via real Google OAuth 2026-09-24) — NOT restored over.
+   397→- Traced all 5 auth entry paths: identical normalization (email.toLowerCase().trim()) → same User table; OTP/magic tokens stored ON the User row; Google callbacks OR-match [email, googleId], link identity, never duplicate; simulated consent gated by !GOOGLE_CLIENT_ID && devMode (false now); /api/auth/config honest {googleConfigured:true, emailConfigured:true}.
+   398→- Fixed 3 gaps (forward-only): (1) stale dev-google-* sub never replaced by real Google sub in both callbacks; (2) otp/verify + magic-link/verify POST returned bare 500 for DB failures instead of 503 INFRASTRUCTURE_ERROR; (3) boot-recovery only triggered on missing GOOGLE_CLIENT_ID — now also on missing SMTP/Resend creds.
+   399→- CRITICAL persistence fix: platform supervisor (mini-services/server-watchdog) spawns `next dev` DIRECTLY, bypassing npm run dev/start.js → boot-recovery NEVER ran on watchdog restarts. Patched watchdog to await runBootRecovery() before spawn.
+   400→- Tests: e2e-account-consistency.mjs (A Google identity, B/E OTP login+relogin, C/G Magic login+relogin, D/F/F2 logout — REAL SMTP, no secrets logged) 8/8 PASS; repeated post-restart 8/8 PASS; case-variant email (UPPERCASE) resolves same user, still 1 user / 0 demo; boot-recovery manual run 37ms no-op exit 0.
+   401→- Restart test: killed next dev → watchdog auto-restarted WITH recovery gate (new PID child of watchdog) → DB/users/creds intact → full E2E passed again.
+   402→- Unit tests: permanent-auth-fix 15/15; full suite 967 passed, failures identical to HEAD baseline (30 pre-existing env-dependent, verified via stash-run-pop; auth-api flake passes 18/18).
+   403→- Committed 531b587. No DB reset, no data deletion, no old code restored, no auth architecture change.
+   404→
+   405→Stage Summary:
+   406→- Same email now provably resolves to ONE canonical User via Google, OTP, and Magic Link (verified live, same User ID cmufhfjuf0000ody7l3d0cs7a across all methods + logout/re-login cycles + restart).
+   407→- Watchdog is now the 4th wired entrypoint for the existing boot-recovery gate (npm run dev, npm start, start.js, watchdog).
+   408→- Files changed: 2x Google callbacks, 2x verify routes, boot-recovery.mjs, server-watchdog/index.ts (+2 new test scripts).
+   409→
+   410→---
+   411→Task ID: diagnosis-discovery-assistant
+   412→Agent: Super Z (main agent)
+   413→Task: READ-ONLY investigation — Problem 1 (AI Discovery returns zero verified leads for hospital/usa) + Problem 2 (Quick Assistant "Server error") — diagnose only, NO code changes.
+   414→
+   415→Work Log:
+   416→- Traced discovery pipeline: discover-tab.tsx → POST /api/leads/discover → startDiscoveryJob → async processDiscoveryJob → searchSourceLeads (z-ai web_search + LLM extraction, model auto, temp 0) → sanitize → hard-criteria → import → status polling.
+   417→- Found 4 silent-failure sites in ai_search path: searchSourceLeads per-query catch→continue (L960-963), extractLeadsFromSearchResults catch→return [] (L1259-1262), enrichment catches→continue, plus "all"-mode settled-rejection notes only in notification text. Provider/AI errors become status=completed with 0 leads → "no verified leads were found this time" notification.
+   418→- Traced Quick Assistant: ai-chat-bubble.tsx → askSalesAssistant → POST /api/sales-assistant → withPermission('assistant:read') → ZAI.create() → chat.completions.create(thinking disabled) → 4 possible 500 sources (SDK init throw, provider call throw, empty content, JSON parse fail) → catch-all 500 "Failed to get sales assistant analysis" → client api-error-handler maps 500 to "Server error. Please try again later." No persistence of conversations (client-state only).
+   419→- DB (readonly node:sqlite, integrity ok): 110 tables, 34 users, 89 leads, 470 UserSessions. Latest DiscoveryJob = 2026-09-20 09:41 (hospital/usa run ABSENT). KEY PRECEDENT: Sep 20 09:33 ai_search job (restaurants/UAE) completed totalFound=0 errorMessage=null, and Sep 20 09:34 "all" job also 0 — identical search 7 min later returned 20 leads → silent provider failure signature already occurred in production.
+   420→- Runtime forensics: workspace restore 2026-09-24 15:15 UTC rolled DB back to ~Sep 22 04:15 snapshot → user's failed hospital/usa + assistant attempts (Sep 21–24 window) had their evidence destroyed. Current-boot watchdog log has ZERO /api/leads/discover and /api/sales-assistant requests. User active via Google OAuth (signin 15:37, refresh rotations to 17:11 today).
+   421→- Live probes (standalone Node, no DB writes): ZAI.create() OK (config /etc/.z-ai-config, host internal-api.z.ai); web_search "hospital businesses in usa" → 8 results; full 3-query hospital/usa pipeline replication → 23 raw results → 37 extracted candidates (would import ~37); assistant-shape chat with "hi" → valid JSON in 3.1s. Provider + pipeline healthy NOW; neither symptom reproduces currently.
+   422→- Env status (booleans only): DATABASE_URL→db/custom.db + integrity ok; GOOGLE_CLIENT_ID/SECRET SET; SMTP all SET (AUTH-CONFIG log: emailConfigured true); GOOGLE_SEARCH_API_KEY/CX SET; z-ai SDK configured via /etc/.z-ai-config. APP_URL MISSING (noted, not related).
+   423→- Silent-fallback scan across src/ done (list captured in report). git status: ZERO tracked-file modifications; only 4 new diagnostic scripts added under scripts/ (investigate-discovery-assistant.mjs, investigate-audit-trail.mjs, probe-zai-runtime.mjs, probe-discovery-pipeline.mjs).
+   424→
+   425→Stage Summary:
+   426→- Problem 1 root cause: silent-failure conversion of provider/AI errors into status=completed with 0 leads (structural, code-proven + Sep 20 precedent); the reported run occurred pre-restore (evidence destroyed); current pipeline verified working end-to-end for hospital/usa.
+   427→- Problem 2 root cause: catch-all 500 in /api/sales-assistant with 4 indistinguishable failure modes + SDK has NO fetch timeout; exact pre-restore trigger not forensically recoverable; provider healthy now.
+   428→- Shared cause: both depend on z-ai SDK; provider-layer failure in the pre-restore window explains both; misclassification (silent empty vs honest error) is the systemic defect.
+   429→- NO fixes implemented per instruction. Files-to-change + fix proposal + test plan delivered in chat report.
+   430→
+   431→---
+   432→Task ID: zai-401-fix-1
+   433→Agent: Super Z (main agent)
+   434→Task: FIX AI PIPELINE 401 AUTHENTICATION ERROR ("missing X-Token header") — Deep Research stage, Rangadore Memorial Hospital
+   435→
+   436→Work Log:
+   437→- Forensics: ProspectPipeline rows cmuimqfxt000bm5xkebew4yzc (16:54:16 UTC) and
+   438→  cmuimqz1r000zm5xk08prznlu (16:54:41 UTC) failed at STEP 1 (Deep Research) with
+   439→  error "All AI providers failed. Last error: API request failed with status 401:
+   440→  {"error":"missing X-Token header"}". Both runs auto-refunded 7 credits
+   441→  (AuditLog credits_refunded, balance 1943→1950). Read-only DB access (node:sqlite readOnly).
+   442→- RCA chain: pipeline-steps.ts runStepResearch → aiJson → executeAICompletion →
+   443→  callZAI (src/lib/ai/ai-provider.ts) → z-ai-web-dev-sdk createChatCompletion.
+   444→  SDK loadConfig() resolves .z-ai-config from cwd → $HOME → /etc (first valid
+   445→  wins; validity = baseUrl+apiKey). SDK attaches X-Token ONLY if config has
+   446→  non-empty 'token' field (`if (token) { headers['X-Token'] = token; }`).
+   447→  Error string format matches SDK dist/index.js:103 exactly.
+   448→- Timeline: dev server started 16:52 (HOME=/home/z, cwd=/home/z/my-project — no
+   449→  .z-ai-config at either location, so /etc/.z-ai-config is the resolved source).
+   450→  /etc/.z-ai-config re-provisioned by platform (root-owned, r--r--) at 16:57:17,
+   451→  AFTER the failures; now has all 5 fields incl. token (verified via presence
+   452→  booleans only — no secret values printed).
+   453→- Live verification: direct SDK call (no app credits, no DB writes) → gateway
+   454→  auth OK, model glm-4-plus, 449ms, response "OK" (scripts/verify-zai-gateway-auth.mjs).
+   455→- Fix (forward-only, no retry/fallback/endpoint changes):
+   456→  NEW src/lib/ai/zai-gateway-config.ts — read-only status probe mirroring SDK
+   457→  resolution; presence booleans only. callZAI pre-flight: missing config/token →
+   458→  fast actionable CONFIGURATION_ERROR naming file+field, NO doomed request;
+   459→  gateway 401/403 → actionable AUTH_ERROR. No values logged.
+   460→- Tests: NEW tests/unit/zai-gateway-auth.test.ts — 9/9 pass (X-Token attached
+   461→  from credential source; missing token → no outbound request; 401 → 3 attempts
+   462→  preserved + actionable error; OpenAI fallback intact; no leakage).
+   463→  Full suite A/B stash-baseline vs with-fix: identical pre-existing env-dependent
+   464→  failure sets (30-31 fails: SMTP/JWT/credits/onboarding); zero regressions.
+   465→- Committed 74f2464 (before: 994addc). No reset/rollback/reset of any data;
+   466→  DB untouched (read-only); dev server picked up change, /api/auth/config → HTTP 200.
+   467→
+   468→Stage Summary:
+   469→- Root cause: gateway config /etc/.z-ai-config lacked 'token' field at request
+   470→  time → SDK omitted mandatory X-Token header → gateway 401, folded by retry
+   471→  loop into "All AI providers failed". Config re-provisioned by platform at
+   472→  16:57:17; auth verified live. Code hardened to fail fast + actionable.
+   473→- Credential source: 'token' field of the resolved .z-ai-config (SDK contract,
+   474→  NOT an env var); candidate order cwd → $HOME → /etc.
+   475→- End-to-end pipeline NOT re-run against user data (would consume/modify
+   476→  credits — not authorized); the exact failing network request verified OK.
+   477→
+   478→---
+   479→Task ID: two-issue-fix-1
+   480→Agent: Super Z (main agent)
+   481→Task: STRICT TWO-ISSUE BUG FIX — (1) Remember Me 30-day persistence unreliable; (2) Settings → Monitoring HTTP 403
+   482→
+   483→Work Log:
+   484→- ISSUE 1 forensics: signin/OTP/magic-link/Google/MFA routes all pass rememberMe
+   485→  correctly (verified in code + DB: today's sessions have rememberMe=1).
+   486→  Session rows: expiresAt=30d + absoluteExpiresAt + lastActivityAt (throttled 5m).
+   487→  Found three verified defects:
+   488→  (a) REFRESH ROTATION RACE — /api/auth/refresh rotates single-use tokens
+   489→      (revoke old session → create new). Any two concurrent refreshes sharing
+   490→      the pre-rotation cookie (multi-tab 14-min intervals, tab-focus refreshes,
+   491→      double-mounted init) → the loser reads a just-REVOKED session →
+   492→      401 SESSION_REVOKED → hard logout. Operator has 22 live sessions
+   493→      (multi-tab user) → routine false logouts.
+   494→  (b) INIT-PATH INFRA FRAGILITY — auth-gate page-restore treated ANY refresh
+   495→      failure (503/network) as signed-out, violating the P11 semantics used
+   496→      elsewhere (transient ≠ logout).
+   497→  (c) 48h IDLE POLICY vs 30-DAY PROMISE — remembered sessions were
+   498→      invalidated after 48h without activity ("Session expired after 48 hours
+   499→      of inactivity"), i.e. a long weekend logged users out despite
+   500→      "Remember me for 30 days".
+   501→- ISSUE 1 fixes (forward-only):
+   502→  NEW src/lib/silent-refresh.ts — shared silent refresh serialized across
+   503→  tabs via Web Locks API (fallback: no lock), 10-min throttle for
+   504→  focus-triggered refreshes, isAuthoritativeLogout() classification
+   505→  (REAL_LOGOUT_CODES; legacy 401-without-code → authoritative; 5xx/network → never).
+   506→  use-token-refresh.ts — interval refresh force=true (keep-alive), visibility
+   507→  refresh throttled; same bounded-backoff semantics.
+   508→  auth-gate.tsx — restore path uses silentRefresh; only authoritative codes
+   509→  clear the user; 503/network keep rehydrated state.
+   510→  settings-shell.tsx — its ad-hoc 401-refresh now goes through silentRefresh
+   511→  (last unserialized caller closed).
+   512→  auth.ts getSessionState — remembered-session 48h idle-expiry REMOVED
+   513→  (policy correction per task requirement: 30-day persistence). Absolute
+   514→  30d ceiling, revocation, logout, deactivation all untouched.
+   515→  NOTE: line 898 `}, [mfaRequired, authPage])` was suspected corrupted —
+   516→  verified via code-point dump it is CORRECT (terminal display ate "[m" as
+   517→  ANSI reset). No change needed there.
+   518→- ISSUE 2 forensics: /api/metrics/dashboard guarded by withSuperAdmin
+   519→  (platform super_admin only, added in e51fdad Sep 21 as security fix for
+   520→  previously-unauthenticated route exposing slow-query SQL text + traces).
+   521→  Settings nav shows Monitoring to ALL users → 33/34 users (all owners)
+   522→  got 403. Operator's account is owner. super_admin account exists (1).
+   523→  Payload contains cross-tenant business metrics + raw SQL text + traces.
+   524→- ISSUE 2 fix: guard withSuperAdmin → withAdmin (super_admin/owner/admin;
+   525→  member/viewer/unauthenticated stay blocked) + ROLE-SCOPED PAYLOAD:
+   526→  super_admin = unchanged full platform view; owner/admin = business
+   527→  metrics filtered to their own userId (real DB queries, nothing fabricated),
+   528→  recentSlowQueries SQL text + traces stripped (cross-user artifacts).
+   529→  UI unchanged. Read-only aggregates — no billing/credit data modified.
+   530→- Tests: NEW tests/unit/remember-me-persistence.test.ts (15) — idle-policy
+   531→  regression, revoked/expired/missing authority, silentRefresh lock+throttle+
+   532→  classification. NEW tests/unit/metrics-dashboard-scope.test.ts (3) —
+   533→  super_admin unscoped + artifacts, owner scoped + stripped, 401 unauthenticated.
+   534→  18/18 pass. Full suite: identical pre-existing env-dependent failure set
+   535→  (30-31 in 9 files, matches documented baseline) — zero regressions.
+   536→- ESLint changed files: 0 errors (2 pre-existing unused-disable warnings in
+   537→  untouched settings-shell lines). npm run build: SUCCESS (all routes +
+   538→  standalone verified). Dev server smoke: /api/auth/config 200, /api/health
+   539→  200, / → 200; /api/metrics/dashboard unauthenticated → 401 (blocked).
+   540→  next-env.d.ts build-artifact flip restored (not part of the fix).
+   541→
+   542→Stage Summary:
+   543→- Remember Me: rotation-race serialization + init resilience + 30-day idle
+   544→  policy correction → session persists until 30d ceiling unless revoked.
+   545→- Monitoring: 403 resolved for authorized admin-level users via withAdmin +
+   546→  role-scoped payload; isolation preserved (own metrics only, no SQL/traces);
+   547→  unauthorized still blocked (401/403).
+   548→- No DB changes; no user/credit/billing data touched (read-only forensics).
+   549→
+   550→---
+   551→Task ID: otp-verify-fix-1
+   552→Agent: Super Z (main agent)
+   553→Task: OTP VERIFICATION FAILURE FIX — "Unable to verify the code right now. Please try again in a moment." on /api/auth/otp/verify
+   554→
+   555→Work Log:
+   556→- Forensics (read-only): dev.log was a stale EADDRINUSE artifact; live server
+   557→  stdout is a socket. Used DB forensics via node:sqlite on SNAPSHOT copies
+   558→  (never the live file) + AuditLog epoch decoding.
+   559→- Timeline proof: user kattyboy785@gmail.com requested OTP codes 18:33:16 and
+   560→  19:01:58 (both wrote loginOtp + AuditLog 'OTP login code generated'), yet user
+   561→  row ended with loginOtp CLEARED + no session + no success events +
+   562→  lastLoginAt still Sep 22. In verify/route.ts the OTP-clear step (line 152)
+   563→  runs ONLY after a successful secureCompare — so comparison SUCCEEDED and the
+   564→  throw happened in the post-comparison session-creation block.
+   565→- Root cause (proven on a disposable DB copy, scripts/otp-schema-proof.js):
+   566→  db.userSession.create and even userSession.findFirst throw Prisma P2022
+   567→  ("column does not exist"). Physical UserSession table had only 10 columns —
+   568→  rememberMe / lastActivityAt / absoluteExpiresAt (declared in schema.prisma by
+   569→  Task A commit ed256c2, Sep 24) were MISSING. This morning's workspace restore
+   570→  (≈18:31, .env mtime + dev.log EADDRINUSE) rolled db/custom.db back to a
+   571→  pre-Task-A snapshot. createSession is shared by OTP verify, password signin,
+   572→  AND refresh rotation → all three channels were throwing 500/503.
+   573→- prisma migrate diff (read-only) confirmed drift but its repair path emits
+   574→  DROP TABLE "UserSession" (+ SupportTicket creates, Lead alters — other
+   575→  restore casualties, OUT OF SCOPE). db push/migrate = destructive → forbidden.
+   576→- Fix (operational, additive-only, ZERO source-code changes):
+   577→  Backup db/custom.db → db/custom.db.backup-20260929-otp-schema (gitignored).
+   578→  Single transaction on the real DB: ALTER TABLE ADD COLUMN rememberMe
+   579→  BOOLEAN NOT NULL DEFAULT 0; lastActivityAt DATETIME; absoluteExpiresAt
+   580→  DATETIME; backfill lastActivityAt=createdAt. Idempotent, WAL-safe pre-checks,
+   581→  before/after row counts identical (465/34/1234/163/89), integrity_check ok,
+   582→  indexes intact. Proven on a copy FIRST (proof script phases A/B/C).
+   583→- E2E matrix on the LIVE server (qa@test.com fixture; OTP values never
+   584→  printed): health 200; request→OTP stored; invalid→401 no cookies; malformed
+   585→  →400; VALID+rememberMe→200 "Signed in successfully via OTP" +
+   586→  access_token 900s + refresh_token maxAge 2592000 (30d); session row
+   587→  rememberMe=true, absoluteExpiresAt=+30d, lastLoginAt updated; OTP cleared
+   588→  (one-time-use); reuse→400; expired OTP→400; resend→latest code wins;
+   589→  resent verify with rememberMe=false→200 + refresh_token session cookie +
+   590→  session rememberMe=false (unchecked behavior preserved).
+   591→- Refresh channel re-verified: /api/auth/refresh 200, refresh_token_rotated
+   592→  audit rows written, session IDs rotated, rememberMe carried through rotation
+   593→  (route lines 168/200). (Test script initially showed "same token" — JWT
+   594→  second-resolution iat makes consecutive signs byte-identical; DB confirms
+   595→  real rotation. Pre-existing design property, not changed.)
+   596→- Regression: tests/unit auth.test.ts + permanent-auth-fix + remember-me-
+   597→  persistence + infra-failure-auth-semantics → 112/112 PASS.
+   598→- Committed: scripts (forensics/proof/repair/e2e) + this worklog entry.
+   599→
+   600→Stage Summary:
+   601→- Root cause: workspace-restore DB rollback → UserSession missing Task A's
+   602→  rememberMe/lastActivityAt/absoluteExpiresAt columns → Prisma P2022 inside
+   603→  createSession on every login channel → OTP verify returned generic 500.
+   604→- Fix: additive schema repair only (3 columns + backfill); no code changed;
+   605→  no data lost (row counts + integrity verified; backup retained).
+   606→- Remaining (out of scope, disclosed): same restore also dropped OTHER schema
+   607→  pieces (SupportTicket* tables, Lead.employeeCount/employeeRange) — those
+   608→  features will error until a SEPARATE non-destructive repair; password
+   609→  signin untested end-to-end (no known passwords) but shares the now-proven
+   610→  createSession path; 3 test emails sent to fixture qa@test.com; fixture
+   611→  account gained 3 test sessions (left in place, expires naturally).
+   612→
+   613→---
+   614→Task ID: lead-discovery-master-1 (Phase A audit)
+   615→Agent: Super Z (main agent)
+   616→Task: MASTER LEAD DISCOVERY, ENRICHMENT & BULK EXPORT — Phase A: complete existing-system audit (spec: upload/Pasted Content_1790857107308.txt, 965 lines)
+   617→
+   618→Work Log:
+   619→- Verified workspace state first (spec §1): main @ 4dcb5c6, clean tree; prior fixes survived restore (metrics withAdmin, silent-refresh.ts, metrics test present). DB schema matches Prisma (Lead 52 cols, DiscoveryJob 21 cols incl filteredOut). Live: 89 leads / 34 users / 8 completed discovery jobs (92 imported, 11 dup, 17 failed → avg ~11.5/job = "small batch" complaint confirmed).
+   620→- Traced full flow: discover-tab.tsx → POST /api/leads/discover (clamp 1..50) → startDiscoveryJob → processDiscoveryJob (lead-discovery-service.ts, 1274 ln) → ai_search (z-ai web_search+LLM) or runSourceAdapter → hard-criteria gate → per-lead dedup + deductCredits + db.lead.create → status polling.
+   621→- Env facts (names only): configured = GOOGLE_SEARCH_API_KEY, GOOGLE_SEARCH_CX (website verification only, NOT discovery). All other source creds ABSENT (GOOGLE_MAPS_API_KEY, YELP_API_KEY, JUSTDIAL_*, INDIAMART_API_KEY, FACEBOOK_*, INSTAGRAM_*, LINKEDIN_*). Usable now: ai_search (no creds), yellow_pages (scrape, US), sulekha (scrape, IN).
+   622→
+   623→Audit findings (root causes):
+   624→1. LOW VOLUME: every API adapter caps 20 results, single page, NO pagination (Places next_page_token, Yelp offset, FB after-cursor all unused); Yellow Pages only 2 pages (~30 max); API route clamps maxResults≤50; AI-mode 100-request silently halved to 50; "all" merged cap max(maxResults, perSourceLimit*2).
+   625→2. FALSE NO-RESULTS: adapter error kinds exist but single-source adapter throw fails whole job without distinguishing no_results (genuine empty) vs rate_limited vs scrape_failed; sulekha URL-guessing breaks for non-India; yellow_pages hardcodes country='United States'.
+   626→3. ENTITLEMENT BYPASS: lead_discovery limit (free 10/starter 25) enforced ONLY on manual POST /api/leads, never on /api/leads/discover; data_export (free/starter disabled) NOT enforced on /api/leads/export — any plan can export today (disclosed, fix planned Phase G).
+   627→4. CREDIT INTEGRITY: deductCredits per lead has NO idempotencyKey and NO refund if db.lead.create fails after deduction (17 'failed' observed) — §12 violation.
+   628→5. EXPORT: CSV-only via /api/leads/export; getFilteredLeads IGNORES the search filter (bug); EXPORT_MAX_ROWS=5000 silently truncates; NO formula-injection guard; NO xlsx anywhere (Export Center UI claims XLSX/PDF but only fires toasts — façade); NO plan entitlement check.
+   629→6. GEO: Country type = 6 hardcoded values (types.ts:91); discover country input is free-text but Leads filter only knows 6; adapters hardcode US/India; no normalization (USA vs United States mismatch).
+   630→7. SSRF: website-scorer.ts and website-service.ts fetch arbitrary lead-supplied URLs with NO private-IP/redirect-revalidation guard (§6.1 violation).
+   631→8. DEDUP: checkDuplicate loads ALL leads w/ website/phone per candidate; fuzzy scan capped 500; no unique constraints; no merge-fill of missing fields; concurrent jobs can double-insert.
+   632→9. Tests: only discovery-hard-criteria (40+ cases) covers this domain; zero tests for adapters/registry/dedup/export/discover route.
+   633→10. Plan: implement in phases B→H per spec §16 with minimal additive changes; DB additions forward-only additive (prisma migrate diff checked before any push).
+   634→
+   635→Decision log:
+   636→- Skipped fullstack-dev init script (curl|bash): it cp -a's a scaffold tarball OVER the workspace → violates spec §1.3/1.4 (no overwrite/restore). Project already initialized and running.
+   637→- DB changes: additive-only; will verify with prisma migrate diff (read-only) before applying; no resets, no destructive SQL.
+   638→
+   639→Stage Summary:
+   640→- Phase A complete. Root causes identified with file/line evidence. Implementation order: B discovery reliability → C source honesty → D worldwide geo → E website/verification + SSRF → F dedup/filters → G export → H tests+report.
+   641→
+   642→---
+   643→Task ID: lead-discovery-master-2 (Phases B–H implementation + verification)
+   644→Agent: Super Z (main agent)
+   645→Task: Implement lead discovery reliability, worldwide geo, SSRF-safe website analysis, verification labels, dedup merge-fill, plan-aware bulk export; verify with tests + live E2E (spec §16 order).
+   646→
+   647→Work Log:
+   648→- Phase B (discovery reliability): source-adapters.ts — real pagination everywhere (Places next_page_token, Yelp offset 50/pg, LinkedIn start-offset, Facebook/IG after-cursor, Yellow Pages dynamic pages to target); scrape cap 20→50; provider-page ceiling 5; sourceUrl provenance on yelp/fb/yp/sulekha listings. lead-discovery-service.ts — RESULTS_PER_JOB 50→200 (env-overridable); DiscoverySourceError carries provider kind → 'no_results' now COMPLETES the job with the exact reason (blanket-failure bug fixed, §3.4); credits idempotencyKey `${jobId}:lead:${n}` + refundCredits on failed create (§12); bounded intent-preserving query expansion (synonym map, ≤10 queries, §3.3). discover route: clamp 1..500 (service ceiling still applies); free/starter lead_discovery allowance ENFORCED (remaining caps job target, exhausted → 429 upgrade hint) — closes the audited bypass.
+   649→- Phase C (source honesty): registry gained coverage metadata (yellow_pages=US, sulekha=India); adapters pre-flight coverage check resolves the requested country via the new countries module and refuses non-covered searches with an explicit coverage message — coverage limit ≠ zero-result system failure (§5). Facebook/Instagram preserve after-cursor partial results on mid-page failure.
+   650→- Phase D (worldwide): src/lib/countries.ts — full ISO 3166-1 (249), aliases (USA/UK/UAE/…), normalizeCountryName/countryCodeFor/extractCountryFromLocation/aliasesFor/searchCountries; country optional end-to-end (route validation, service params, job record, queries/adapters); canonical country stored at import; Leads page + Discover use searchable worldwide comboboxes (shadcn Popover+Command); GET /api/leads country filter matches canonical + aliases (legacy saved leads stay visible, never rewritten).
+   651→- Phase E (website + verification): src/lib/net/url-guard.ts — SSRF guard (scheme allowlist; DNS-checked private/loopback/link-local/metadata/CGNAT/TEST-NET v4+v6; manual redirects re-validated per hop; 8s timeout; 512KB cap); website-scorer + website-service probes routed through safeFetch. verification.ts — 5 labels (§7.2); import status = unverified, partially_verified only on 2-source corroboration; classifyWebsite → six §6.2 categories from observed evidence (probed-no-website stays "Not Yet Verified", estimates labelled). Schema: additive Lead.sourceUrl/discoveredVia/verificationStatus (migrate diff verified additive-only BEFORE db push; 52→55 cols).
+   652→- Phase F (dedup/filters): mergeFillDuplicate — duplicate sightings fill ONLY empty fields + append bounded provenance note + upgrade verification on independent source (§8, non-destructive, idempotent); GET /api/leads gained source/city/hasEmail/hasPhone/hasWebsite/verificationStatus/websiteStatus filters; Leads UI: source + contact-info selects.
+   653→- Phase G (export): exceljs added; exportXLSX (real .xlsx, text-format phone columns, bold header); CSV UTF-8 BOM; guardFormula injection protection on all cells; search-filter bug FIXED (was accepted, ignored); batched fetch (500/pg) through ALL matching rows; cap 5000→20000 env-overridable; truncation REPORTED (X-Export-Truncated + note), never silent; data_export entitlement enforced (free/starter 403 PLAN_REQUIRED; authz only — no new charges, pricing untouched); X-Record-Count/X-Total-Matching headers; Leads UI: CSV/Excel dropdown + honest counts toast; Export Center façade fixed (real leads downloads; unavailable formats report honestly).
+   654→- Phase H (verification): 96 unit tests green (countries 20, url-guard 17, verification 12, export-safety 10, hard-criteria regression 44 + more); full suite 1056 passed / 30 failed — failing files EXACTLY the pre-existing env-dependent baseline (auth/JWT/SMTP/credits/onboarding), zero in changed areas; ESLint 0 problems on all 19 changed files; tsc: no new error files vs baseline (one file fixed).
+   655→- Live E2E #1 (scripts/lead-discovery-e2e.js, fixture free account): 16/16 — worldwide ai_search job completed; persisted leads carry verificationStatus=unverified + discoveredVia; re-run dedup honest (same 3 companies → 0 re-imported, no double charge); yellow_pages+India completes with coverage message and 0 fabricated leads; free export 403 PLAN_REQUIRED; pro export real XLSX (ZIP magic, X-Record-Count=58 == user's lead count); search=zzz → 400.
+   656→- Live E2E #2 (scripts/lead-discovery-e2e2.js): requested 20, server CAPPED to remaining free allowance 7 (10 limit − 3 existing) — entitlement enforcement proven live; 7 real Canadian coffee shops imported, all with provenance; balance arithmetic 50→40 = exactly 10×(-1) ledger entries grouped by job referenceId (idempotency verified).
+   657→- Commits: c9153e3 (discovery), 7c7e12f (website/SSRF), b4a0aa6 (export/UI), + deps/worklog.
+   658→
+   659→Stage Summary:
+   660→- All 8 spec phases implemented with forward-only additive changes; DB diff verified additive before push; no resets, no billing changes, no existing data modified (only additive columns + new rows created by the controlled E2E on disposable fixture accounts).
+   661→- Remaining disclosures (§20.12/14): source credentials absent for Google Maps/Yelp/Facebook/Instagram/LinkedIn/JustDial/IndiaMART — those sources honestly report not_configured (registry-accurate); Yellow Pages/Sulekha geographic coverage limited by design and now labeled; z-ai web_search has no server-side page param so AI-search volume scales via query expansion (≤10 queries) rather than deep pagination; export cap 20000 default (env EXPORT_MAX_ROWS); starter-plan lead count semantics follow the existing lifetime-count convention (getFeatureUsage unchanged — disclosed, not silently changed); plan-value drift in DB ('PRO' uppercase row) predates this task and is untouched.
+   662→
+   663→---
+   664→Task ID: lead-discovery-pipeline-fix-1
+   665→Agent: Super Z (main agent)
+   666→Task: STRICT Lead Discovery, Persistence & Pipeline Fix — 4 issues: (1) discovery
+   667→capped at ~20 leads, (2) discovered leads not appearing in Leads page, (3)
+   668→"Add to Pipeline" always failing, (4) leads without email handling. Forward-only
+   669→minimal changes; no DB resets; no unrelated refactors; everything tested.
+   670→
+   671→Work Log:
+   672→- DIAGNOSIS (code + read-only DB forensics + live probes, zero data changes):
+   673→  * ISSUE 1 (20-cap): AI-chat intent parser fabricated `count: 20` when the user
+   674→    stated no number (prompt default + normalizeParsed + fallbackParse) →
+   675→    maxResults=20 → extraction prompt capped at 20 + query loop breaks at budget.
+   676→    Filter-mode worldwide runs targeted 200 correctly. Secondary volume limit:
+   677→    z-ai web_search returns max 10 results/query (num ignored — verified live);
+   678→    niches typed as synonym-values ("dentist", "restaurants") expanded to ZERO
+   679→    variants (forward-only synonym map) leaving only 4 base queries ≤ ~40 raw.
+   680→  * ISSUE 2 (not persisted): sanitizeDiscoveredLeads discarded ANY candidate with
+   681→    no own location; for worldwide runs (country omitted) params.city/country are
+   682→    undefined, so candidates legitimately lack location → EVERY extracted result
+   683→    silently dropped → job "completed" with totalFound=0, imported=0,
+   684→    filteredOut=0 (drop invisible). DB proof: operator's Oct 1 jobs (dentist,
+   685→    hospital, country='') imported 0 in ~12s while Sep 27 UAE/Dubai runs imported
+   686→    fine. Location-scoped searches were never affected (params always satisfied
+   687→    hasLocation).
+   688→  * ISSUE 3 (Add to Pipeline): client updateLead() issues PATCH /api/leads/[id];
+   689→    route implemented only GET/PUT/DELETE → Next.js 405 Method Not Allowed on
+   690→    EVERY click. Proven live pre-fix: PATCH→405, PUT→200 with identical auth.
+   691→  * ISSUE 4 (no-email leads): retention already correct (no email requirement in
+   692→    extraction/sanitize/import; DB holds such leads). Gap: no contact-availability
+   693→    surfacing on the Discover card.
+   694→- FIX 1+2 (src/lib/lead-discovery-service.ts): removed the silent worldwide drop
+   695→  in sanitizeDiscoveredLeads (name validation + dedupe retained); added reverse
+   696→  synonym lookup in nicheVariants ("dentist"→dental family, ≤3 like forward);
+   697→  exports of pure helpers + processDiscoveryJob for tests; pacer interval
+   698→  env-overridable (DISCOVERY_ZAI_MIN_INTERVAL_MS, default 4000 unchanged).
+   699→- FIX 1 parser (src/app/api/discovery/parse-intent/route.ts): count is now
+   700→  `number | null` — null when the user states no number (prompt + example +
+   701→  normalizeParsed + fallbackParse + count-strip regex guard); explicit counts
+   702→  still clamped 1..100. UI sends maxResults only for explicit counts →
+   703→  unspecified runs target RESULTS_PER_JOB (200) and stop at budget/data limits.
+   704→- FIX 1 UI + FIX 4 (src/components/dashboard/discover-tab.tsx): ParsedIntent.count
+   705→  nullable end-to-end (chip, honest-match notice, credit estimate, maxResults);
+   706→  Discover card gained honest contact-availability badges (Email / No email /
+   707→  Phone / Website / "Manual / research follow-up required" / Unverified) built
+   708→  ONLY from stored fields — nothing inferred, no channel claims.
+   709→- FIX 3 (src/app/api/leads/[id]/route.ts): PATCH delegates to the PUT handler
+   710→  (one code path: validation, ownership, audit); added actionable stage
+   711→  validation (unknown stage → 400 INVALID_STAGE listing valid stages, was a raw
+   712→  Prisma 500). Stage updates are inherently idempotent (scalar).
+   713→- FIX (src/app/api/leads/route.ts): POST /api/leads passed `tags: null` for
+   714→  tag-less payloads but schema has had `tags String @default("[]")` (required)
+   715→  since the initial commit → PrismaClientValidationError → 500 on every manual
+   716→  UI-less/API lead creation (UI masked it by always sending tags). Fixed to
+   717→  `undefined` so the schema default applies. Found while E2E-probing.
+   718→- ENVIRONMENT REPAIR (no codebase/DB change): regenerated Prisma client
+   719→  (npx prisma generate) — the running app's client predated today's schema in
+   720→  some input validations and produced misleading "Unknown argument userId"
+   721→  union errors for the required-null payload above; regeneration verified with
+   722→  standalone create probes. DB untouched (no push/migrate).
+   723→- TESTS: NEW tests/unit/discovery-volume-persistence.test.ts (14) — provider-
+   724→  accurate mocks (10 results/query): >20 imports across the full expanded query
+   725→  set (100 imports), budget respected (25), worldwide candidates persisted
+   726→  (regression), email-only/phone-only/contact-less retained with provenance +
+   727→  verificationStatus, duplicates counted honestly without charging, reverse-
+   728→  synonym expansion, query cap ≤10. NEW tests/unit/lead-patch-add-to-pipeline.test.ts
+   729→  (7) — PATCH=PUT success + audit, idempotent repeats, INVALID_STAGE 400,
+   730→  404 unknown, 403 foreign owner, 401/403 unauthenticated, PUT≡PATCH parity.
+   731→  Both suites 21/21 green. Adjacent suites (hard-criteria/countries/credits/
+   732→  verification/export) 109/109. FULL suite: 1077 passed / 30 failed — failing
+   733→  files EXACTLY the documented pre-existing env-dependent baseline
+   734→  (auth/JWT/SMTP/credits/onboarding), zero new. ESLint: 0 problems on all
+   735→  changed/new files. Full tsc --noEmit OOMs on this box while the dev server
+   736→  holds ~2.6GB (exit 134/137 at 1.5-2.2GB heap) — noted honestly; Next dev
+   737→  compile + runtime E2E cover the changed routes.
+   738→- LIVE E2E (fixture qa@test.com, signed token; all created rows deleted after;
+   739→  credit deductions by normal app rules disclosed): PATCH add-to-pipeline
+   740→  200 → stage persisted 'analyzed' → repeated PATCH idempotent → invalid stage
+   741→  400 INVALID_STAGE → 404/403/401-403 blocked; parse-intent count=null
+   742→  ("Find dentists in Mumbai") / 30 ("Find 30 gyms in Dubai"); WORLDWIDE ai_search
+   743→  run (no country, maxResults=30): completed with totalFound=26, imported=26,
+   744→  duplicates=0, failed=0 — 26 new leads queryable from GET /api/leads
+   745→  (refresh-stable), 24 without email / 23 with no contact at all retained;
+   746→  CreditsLedger: exactly 26 × -1 entries referencing the job, balance 50→24
+   747→  arithmetic consistent (idempotency keys prevent double-charge); cleanup
+   748→  removed all 27 probe rows (26 discovery + 1 API probe). Status endpoint
+   749→  /api/discovery/status returns honest per-field counts.
+   750→- Commits: see git log (single fix commit + worklog).
+   751→
+   752→Stage Summary:
+   753→- Root causes: parser-fabricated count=20 cap; sanitize silently destroying ALL
+   754→  worldwide candidates (the actual "results don't appear in Leads page" bug);
+   755→  missing PATCH route (405) for Add to Pipeline; no-email handling was already
+   756→  correct — surfaced honestly on the card instead. Bonus fix: tags:null 500 on
+   757→  manual lead creation (required-since-day-one schema default violated).
+   758→- No DB/schema changes; no billing/plan/credit-rule changes; no unrelated
+   759→  refactors; no fabricated data anywhere (badges derive from stored fields only).
+   760→- Remaining provider limits (disclosed, respected): web_search returns ≤10
+   761→  results/query (no server-side pagination) — ai_search volume scales via ≤10
+   762→  expanded queries per job (reverse synonyms now included); configured API
+   763→  sources (Maps/Yelp/LinkedIn/etc.) keep their own plan/pagination behavior
+   764→  unchanged. WhatsApp/SMS outreach is NOT claimed operational anywhere — card
+   765→  shows factual field availability only.
+   766→
+   767→---
+   768→Task ID: UX-FIX-1
+   769→Agent: Super Z (main agent)
+   770→Task: 8 targeted UI/UX + functionality fixes on AcquisitionOS main: (1) clickable
+   771→dashboard/Insights metric cards with real detail views, (2) AI outreach signature
+   772→from authenticated user profile, (3) remove duplicate bottom-left sidebar
+   773→Notifications/Credits widgets, (4) mobile responsiveness, (5) onboarding
+   774→basic-details form contrast, (6) Sales Assistant Markdown rendering, (7) Sales
+   775→Coach layout, (8) accuracy/regression checks. Forward-only, no DB changes.
+   776→
+   777→Work Log:
+   778→- DIAGNOSIS (code + live DB reads, zero data changes):
+   779→  * T1: StatCard/EnhancedStatCard static; compound metrics (Contacted=stage in
+   780→    contacted..negotiation incl. legacy 'interested', Hot=replyScore>70) not
+   781→    reproducible via Leads tab single-stage filter; Lead.stage is a String
+   782→    column (legacy 'interested' rows possible) — verified in schema.
+   783→  * T2: outreach-generation/followup-generation prompts carried NO sender
+   784→    identity → model invented "[Your Name]"; User has name/email/phone/company;
+   785→    company resolution mirrors GET /api/settings/profile
+   786→    (UserSettings.companyName → org name → legacy User.company).
+   787→  * T3: desktop sidebar duplicated CreditDisplay + NotificationCenter that
+   788→    already exist in desktop topbar AND mobile header.
+   789→  * T5: onboarding modal used .glass-card = oklch(1 0 0 / 0.06) (6% alpha) over
+   790→    bg-black/60 overlay → near-invisible form.
+   791→  * T6: assistant-tab rendered msg.content as plain text (default mode) and a
+   792→    line-parser that ignores **bold** (coach mode); react-markdown v10 already
+   793→    a dep (Outreach/Deals use it).
+   794→  * T7: inline lead-context card rendered on desktop IN ADDITION to the w-72
+   795→    right panel; coach banner + probability stack above the flex-1 chat.
+   796→- FIX T1: additive GET /api/leads params `stages` (comma-separated, validated
+   797→  against STAGE_ORDER + legacy 'interested') and `minReplyScore` (gte);
+   798→  additive /api/leads/stats fields contactedLeadCount/repliedLeadCount;
+   799→  fetchLeads client params extended; NEW src/components/dashboard/metric-
+   800→  detail-drawer.tsx (Sheet drawer, modes leads/deals/breakdown, records
+   801→  fetched with the metric's EXACT filter, row click → setSelectedLeadId +
+   802→  setActiveTab('leads') existing pattern, loading/empty/error states,
+   803→  aria-labelled, full-width on mobile); overview 7 stat cards wired (meeting
+   804→  cards → /dashboard/meetings), insights 4 metric cards wired (Reply Rate →
+   805→  honest breakdown incl. legacy '—' when missing; Close Rate → won+lost
+   806→  records; Avg Deal Value → deals with proposedPrice; Total Deals → all
+   807→  deals); Insights Stage Funnel rows became buttons (single-stage records,
+   808→  disabled-looking plain row for 0 counts).
+   809→- FIX T2: NEW src/lib/ai/sender-signature.ts (pure buildSenderSignatureBlock +
+   810→  applySenderSignature); outreach-generator loads the AUTHENTICATED user's
+   811→  profile (db select settings+organizations) and injects the signature block
+   812→  into prompts (senderSignature var) and post-processes the parsed body
+   813→  (placeholder tokens → real values, missing fields omitted cleanly, no-op on
+   814→  real signatures, never appends → no duplication); prompt-manager bumped
+   815→  outreach-generation → v3 and followup-generation → v2 (forward-only new
+   816→  versions). Client edit flow untouched (customMessage||generatedMessage
+   817→  already preserves user edits on regenerate).
+   818→- FIX T3: removed the sidebar's Credits Display + Notification Center rows
+   819→  (kept FollowUpReminders — unique to sidebar); topbar + mobile header
+   820→  untouched as the single surface for both features.
+   821→- FIX T5: onboarding card glass-card → bg-card border shadow-2xl (solid,
+   822→  theme-aware); max-h-[92svh] + internal scroll for short screens.
+   823→- FIX T6: assistant-tab renders msg.content via ReactMarkdown (both modes;
+   824→  prose classes, links target=_blank rel=noopener, no raw-HTML → XSS-safe);
+   825→  kept Quick Copy Replies + CopyableReply; removed only the verbatim-
+   826→  duplicated signals/hesitation/closing list blocks (data still on message
+   827→  objects). Also fixed the same defect in the floating Quick Assistant
+   828→  (ai-copilot-panel.tsx) — same pipeline, minimal change.
+   829→- FIX T7: inline lead-context card now lg:hidden (mobile-only; desktop uses
+   830→  the right panel); coach banner auto-hides once conversation starts; chat
+   831→  ScrollArea min-h-[160px] floor (no fixed heights); assistant header rows
+   832→  wrap on mobile.
+   833→- FIX T4: wrap/flex fixes in assistant header, outreach generated-message
+   834→  header + composer row; drawer full-width on mobile; onboarding max-h.
+   835→  Verified overflow=false at 390px on Overview/Leads/Insights/Assistant/
+   836→  Outreach via live browser.
+   837→- TESTS: NEW tests/unit/outreach-signature.test.ts (12), outreach-prompt-
+   838→  signature.test.ts (3), leads-metric-filters.test.ts (10 — incl. 401,
+   839→  backward-compat single-stage precedence, invalid-token drop-to-empty),
+   840→  leads-stats-reply-counts.test.ts (2). tests/unit total: 527 pass / 3 fail —
+   841→  the 3 (api-key-service expiry timing) verified identical on HEAD via
+   842→  git stash → pre-existing, zero new failures. Adjacent 10 suites 154/154.
+   843→  ESLint on all 19 changed/new files: 0 new problems (dashboard-layout
+   844→  set-state-in-effect error + api.ts unused-directive warnings pre-exist on
+   845→  HEAD). Scoped tsc (tsconfig.scope-uxfix.json, heap-capped): 0 errors in all
+   846→  changed files; 339 tree-wide errors are the pre-existing baseline.
+   847→- LIVE E2E (dev server :3000, fixture qa@test.com minted session token;
+   848→  probe leads created via POST /api/leads and DELETED after — final count 0;
+   849→  credit changes disclosed below):
+   850→  * GET /api/leads/stats returns contactedLeadCount/repliedLeadCount.
+   851→  * stages=discovered,analyzed → 1 probe lead; stages=won → 0; stages=not-a-
+   852→    stage → 0; minReplyScore=71 → replyScore 80 lead; stage=discovered
+   853→    unchanged (backward compat).
+   854→  * Browser (agent-browser, viewport 1440×900 + 390×844): topbar shows
+   855→    credits+notifications, sidebar shows only nav (T3 ✓); stat cards are
+   856→    buttons "Total Leads: N. View details"; click opens drawer with the
+   857→    exact record; row click → Leads tab with LeadDetailPanel open (T1 ✓);
+   858→    onboarding card solid opaque bg, lab(98.8…) alpha 1, no backdrop-filter
+   859→    (T5 ✓); real AI responses: default mode → <strong>Intent Analysis:/
+   860→    Buying Signals:/Hesitation Factors:/Recommended Response:</strong>, 5 <li>,
+   861→    zero literal '**'; coach mode → H2 🎯/🟢/🔴/💬 + H3 Professional/Casual,
+   862→    Quick Copy Replies intact (T6 ✓); coach+lead worst case on 390px: banner
+   863→    72px + inline card 68px (visible) + chat 233px + composer/send visible,
+   864→    no overflow (T7 ✓); desktop: inline card hidden, right panel shows lead
+   865→    context when expanded, composer visible (T7 ✓).
+   866→- CREDIT DISCLOSURE (fixture user, normal app rules): clicking "Skip" in the
+   867→  onboarding flow during browser verification awarded the app's one-time
+   868→  onboarding_bonus (+25 credits, ledger entry, balance 24→49 on qa@test.com);
+   869→  assistant/coach/widget live messages consumed a few sales_coaching credits
+   870→  via the normal credit rules. No billing/plan logic touched.
+   871→- ARTIFACTS: scripts/mint-qa-token.mjs (fixture token), scripts/inspect-qa-
+   872→  users.mjs (read-only), scripts/onboarding-solid-card.png, scripts/drawer-
+   873→  empty-state.png, tsconfig.scope-uxfix.json (scoped typecheck).
+   874→
+   875→Stage Summary:
+   876→- Root causes: no sender identity in generation prompts (+deterministic
+   877→  placeholder leakage); static metric cards without an exact-filter records
+   878→  path; literal duplication of topbar widgets in the sidebar; 6%-alpha glass
+   879→  card over a black overlay; plain-text rendering of Markdown chat content;
+   880→  duplicated lead-context panels + instructional banners squeezing the
+   881→  flex-1 chat area.
+   882→- 19 files changed/new; 27 new unit tests (all green); zero new lint/type/
+   883→  test regressions; no DB/schema/billing/auth changes; probe data fully
+   884→  cleaned up (leads count 0 for fixture).
+   885→- Honest limitations: (a) mobile Safari/DVW real-device touch behaviour not
+   886→  tested (headless Chromium only); (b) the Quick Assistant floating button
+   887→  did not mount during one verification pass (likely tab-context gating) —
+   888→  its markdown fix verified by the same pattern + lint/tsc, not a second live
+   889→  AI call; (c) drawers fetch up to 100 records and say "Open in Leads to see
+   890→  all" beyond that; (d) full tsc tree run still OOMs on this box — scoped
+   891→  config used instead; (e) WelcomeBanner mini-stats and Insights "Quick
+   892→  Stats" row left non-clickable (hardcoded/derived values there pre-date
+   893→  this task; making them clickable would surface non-real data).
+   894→
+   895→---
+   896→Task ID: contract-exec-1
+   897→Agent: Super Z (main agent)
+   898→Task: Execute ACQUISITIONOS absolute-preservation contract — verify workspace currency, verify PART 1A (Pro+Elite AI workflow entitlement) + PART 1B (phone) implementations, extend AGENTS.md to full contract, create manifests, run tests, final diff review.
+   899→
+   900→Work Log:
+   901→- Verified workspace is LATEST state (HEAD advanced 98aa357 → 9895a00 via platform auto-commit containing PART 1A/1B fixes + initial AGENTS.md; NOT a rollback).
+   902→- Protected-feature sweep: Lead Discovery/Workflows/Phone EXIST; user-context + discover context selector NOT FOUND (reported, not recreated per contract); Business Profiles partial (Offer Profile).
+   903→- Verified PART 1A: hasFeatureAccess(plan,'workflow_access') in ai-generate route; pro/elite enabled, free/starter 403 FEATURE_REQUIRED.
+   904→- Verified PART 1B: phone.ts 241 countries, MAX_LOCAL_PHONE_DIGITS=10, digits-only, legacy round-trip, client+server shared validation.
+   905→- Extended AGENTS.md 20 → 42 sections (7 parts), re-read, verified all contract phrases present.
+   906→- Created ACQUISITIONOS_CURRENT_STATE.md + ACQUISITIONOS_CODEBASE_MANIFEST.json (JSON validated).
+   907→- Tests: phone 25/25, entitlement 5/5, workflows unit 38/38 + integration 14/14 PASSED. health-credits (8) + auth-routes (3) failures proven PRE-EXISTING and unrelated (HEAD touched 0 api/health|auth files; env-dependent).
+   908→- Final diff: AGENTS.md (M), 2 manifests (new). No rollback commands, no DB writes, no unrelated changes.
+   909→- OBSERVATION: platform removed download/AQ-OS-current-workspace.tar.gz (186MB) mid-session; codebase unaffected; reported to user, no re-pack (forbidden).
+   910→
+   911→Stage Summary:
+   912→- Contract fully executed; workspace preserved forward-only; all three confirmations (no rollback / no DB reset / no unrelated changes) = YES with evidence.
+   913→
+   914→---
+   915→Task ID: forward-merge-1
+   916→Agent: Super Z (main agent)
+   917→Task: Forward-only merge of 2 missing features (user personal context, discover context/campaign selector), lead-detail UI overlay fix, tests, final archive.
+   918→
+   919→Work Log:
+   920→- PART 2 inspection: HEAD 69f1769 (platform commit of contract work); workspace latest; AGENTS.md 42 sections re-verified.
+   921→- PART 3/18 evidence: previous impls NOT recoverable (workspace, git history -S searches, upload specs, download artifacts) -> implemented forward-only per explicit authorization.
+   922→- PART 4: User Personal Context — schema UserSettings.personalContext (additive nullable, migrate diff verified ADD COLUMN only, db:push with snapshot); src/lib/personal-context.ts; GET/PUT /api/settings/personal-context; settings-shell "My Context" section + personal-context-settings.tsx; AI integration at outreach-generator (loadSenderProfile+user msg), ai-generate workflow route, leads/[id]/analyze, prospecting runStepMatch — all additive, empty-context = unchanged behaviour.
+   923→- PART 5: Discover context selector — schema DiscoveryJob.contextJson (additive); /api/leads/discover body.context {none|campaign|business}; campaign ownership verified (findFirst id+userId); instructions merged into requirements (hard-criteria extraction runs on merged text); campaign targeting fills EMPTY fields only; selector UI in discover-tab (both modes, localStorage persistence); entitlements/credits untouched.
+   924→- PART 10/11: Lead detail overlay ROOT CAUSE — anchor span rendered after `if (!lead) return null` while always-mounted panel ran its mount-only portal-resolution effect first -> portalContainer null forever -> body-portal fixed full-viewport sheet covered header/sidebar/footer. Fix: anchor rendered unconditionally in null branch (mirrors MetricDetailDrawer). Also fixed pre-existing jsx-no-comment-textnodes visible stray text in same component. Independent scrolling preserved (ScrollArea flex-1 min-h-0). No z-index changes.
+   925→- PART 15: 39 new tests (personal-context 15, route 10, discovery-context 11, portal regression 3); full relevant run 13 files 206/206 PASSED. Pre-existing unrelated failures reported: email(4), credit-service(2), subscription-store(5), health/auth api(11).
+   926→- Manifests updated; JSON validated. Archive created in download/ (see final report).
+   927→
+   928→Stage Summary:
+   929→- Both missing features merged forward with preserved current architecture; lead detail respects app shell; all protected features intact (206/206); no rollback/reset/destructive ops.
+   930→

@@ -1,0 +1,922 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useCallback, useEffect, useRef, useSyncExternalStore, Suspense } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  LayoutDashboard,
+     7→  Users,
+     8→  GitBranchPlus,
+     9→  Search,
+    10→  Send,
+    11→  Bot,
+    12→  BarChart3,
+    13→  HandshakeIcon,
+    14→  Shield,
+    15→  LayoutGrid,
+    16→  Menu,
+    17→  X,
+    18→  Rocket,
+    19→  Keyboard,
+    20→  Clock,
+    21→  Sparkles,
+    22→  MoreHorizontal,
+    23→  PanelLeftClose,
+    24→  PanelLeftOpen,
+    25→  Settings,
+    26→  MessageSquare,
+    27→  GitBranch,
+    28→  User,
+    29→  CreditCard,
+    30→  LogOut,
+    31→  ChevronDown,
+    32→  LifeBuoy,
+    33→} from 'lucide-react';
+    34→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+    35→import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuShortcut } from '@/components/ui/dropdown-menu';
+    36→import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+    37→import { useAppStore, pathToTab, SIDEBAR_COLLAPSED_STORAGE_KEY } from '@/lib/store';
+    38→import type { TabId } from '@/lib/types';
+    39→import { fetchReminders } from '@/lib/api';
+    40→import { useNotificationStore } from '@/lib/store';
+    41→import { useSettingsStore } from '@/lib/settings-store';
+    42→import { useSubscriptionStore } from '@/lib/subscription-store';
+    43→import { useAuthStore } from '@/lib/auth-store';
+    44→import { useAuth } from '@/hooks/use-auth';
+    45→import { useLegalStore } from '@/lib/legal-store';
+    46→import { Button } from '@/components/ui/button';
+    47→import { Badge } from '@/components/ui/badge';
+    48→import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+    49→import { ScrollArea } from '@/components/ui/scroll-area';
+    50→import { Separator } from '@/components/ui/separator';
+    51→import { cn } from '@/lib/utils';
+    52→import { ThemeToggle } from './theme-toggle';
+    53→import NotificationCenter from './notification-center';
+    54→const OverviewTab = React.lazy(() => import('./overview-tab'));
+    55→const LeadsTab = React.lazy(() => import('./leads-tab'));
+    56→const PipelineTab = React.lazy(() => import('./pipeline-tab'));
+    57→const DiscoverTab = React.lazy(() => import('./discover-tab'));
+    58→const OutreachTab = React.lazy(() => import('./outreach-tab'));
+    59→const MessagingTab = React.lazy(() => import('./messaging-tab'));
+    60→const AssistantTab = React.lazy(() => import('./assistant-tab'));
+    61→const InsightsTab = React.lazy(() => import('./insights-tab'));
+    62→const DealsTab = React.lazy(() => import('./deals-tab'));
+    63→const CompetitorTab = React.lazy(() => import('./competitor-tab'));
+    64→const SettingsShell = React.lazy(() => import('./settings-shell'));
+    65→const WorkflowsTab = React.lazy(() => import('./workflows-tab'));
+    66→const NotificationsTab = React.lazy(() => import('./notifications-tab'));
+    67→import PlanGate from './plan-gate';
+    68→import CreditGate from './credit-gate';
+    69→import { ErrorBoundary } from '@/components/error-boundary';
+    70→import { SkeletonPage } from '@/components/skeleton-page';
+    71→import ShortcutsDialog from './shortcuts-dialog';
+    72→import CommandPalette from './command-palette';
+    73→import QuickActionsFAB from './quick-actions-fab';
+    74→import FollowUpReminders from './follow-up-reminders';
+    75→// FIX 10: SettingsPanel floating mini-panel import REMOVED — the settings
+    76→// gear icon in the navbar switches the dashboard tab to 'settings' which
+    77→// renders the full-page SettingsShell instead of a floating mini-panel.
+    78→import OnboardingFlow from './onboarding-flow';
+    79→import CookieConsent from './cookie-consent';
+    80→import CreditDisplay from './credit-display';
+    81→import UpgradeModal from './upgrade-modal';
+    82→import AIChatBubble from './ai-chat-bubble';
+    83→import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+    84→// PART 5 — processes Stripe redirect params (?payment=success&session_id=…,
+    85→// ?credits_added=true&session_id=…, ?payment=cancelled) on dashboard mount:
+    86→// verifies the session server-side, activates the plan/credits and shows
+    87→// the "Welcome to [Plan Name]!" toast.
+    88→import { usePaymentRedirect } from '@/hooks/use-payment-redirect';
+    89→// FIX 5: FloatingFeedbackButton dead import removed — it rendered at the
+    90→// exact same position (bottom 80px right 20px) as the FeedbackProvider
+    91→// button mounted in the root layout, causing button overlap.
+    92→import { initAutoCapture } from '@/lib/feedback/auto-capture';
+    93→import { initCrashReporter, setCrashReporterUser } from '@/lib/feedback/crash-reporter';
+    94→
+    95→interface NavItem {
+    96→  id: TabId;
+    97→  label: string;
+    98→  icon: React.ElementType;
+    99→  shortLabel?: string;
+   100→}
+   101→
+   102→const NAV_ITEMS: NavItem[] = [
+   103→  { id: 'overview', label: 'Overview', icon: LayoutDashboard, shortLabel: 'Home' },
+   104→  { id: 'discover', label: 'Discover', icon: Search },
+   105→  { id: 'leads', label: 'Leads', icon: Users },
+   106→  { id: 'pipeline', label: 'Pipeline', icon: LayoutGrid },
+   107→  { id: 'outreach', label: 'Outreach', icon: Send },
+   108→  { id: 'workflows', label: 'Workflows', icon: GitBranch, shortLabel: 'Flows' },
+   109→  { id: 'messaging', label: 'Messaging', icon: MessageSquare, shortLabel: 'Msgs' },
+   110→  { id: 'assistant', label: 'Assistant', icon: Bot, shortLabel: 'AI' },
+   111→  { id: 'insights', label: 'Insights', icon: BarChart3 },
+   112→  { id: 'deals', label: 'Deals', icon: HandshakeIcon },
+   113→  { id: 'competitors', label: 'Competitors', icon: Shield, shortLabel: 'Rivals' },
+   114→  { id: 'settings', label: 'Settings', icon: Settings, shortLabel: 'Config' },
+   115→];
+   116→
+   117→// Page titles for tabs that are reachable but not present in the sidebar
+   118→// NAV_ITEMS (e.g. the full-page notifications history opened from the bell).
+   119→const EXTRA_TAB_TITLES: Partial<Record<TabId, string>> = {
+   120→  notifications: 'Notifications',
+   121→};
+   122→
+   123→function tabTitle(tab: TabId): string {
+   124→  return NAV_ITEMS.find((n) => n.id === tab)?.label ?? EXTRA_TAB_TITLES[tab] ?? 'Dashboard';
+   125→}
+   126→
+   127→function SidebarNav({
+   128→  activeTab,
+   129→  onTabChange,
+   130→  className,
+   131→  orientation = 'vertical',
+   132→  collapsed = false,
+   133→}: {
+   134→  activeTab: TabId;
+   135→  onTabChange: (tab: TabId) => void;
+   136→  className?: string;
+   137→  orientation?: 'vertical' | 'horizontal';
+   138→  collapsed?: boolean;
+   139→}) {
+   140→  return (
+   141→    <nav role="navigation" aria-label="Main navigation" className={cn('flex gap-1', orientation === 'vertical' ? 'flex-col' : 'flex-row', className)}>
+   142→      {NAV_ITEMS.map((item) => {
+   143→        const Icon = item.icon;
+   144→        const isActive = activeTab === item.id;
+   145→        const button = (
+   146→          <button
+   147→            key={item.id}
+   148→            onClick={() => onTabChange(item.id)}
+   149→            aria-label={collapsed && orientation === 'vertical' ? item.label : undefined}
+   150→            className={cn(
+   151→              'relative flex items-center rounded-lg text-sm font-medium transition-all duration-200',
+   152→              'hover:bg-accent hover:text-accent-foreground',
+   153→              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+   154→              collapsed && orientation === 'vertical' ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
+   155→              isActive
+   156→                ? 'bg-primary/10 text-primary font-semibold'
+   157→                : 'text-muted-foreground',
+   158→              orientation === 'horizontal' && 'flex-col gap-1 px-2 py-1.5 text-xs'
+   159→            )}
+   160→          >
+   161→            <Icon className="shrink-0 h-4 w-4" />
+   162→            {(!collapsed || orientation === 'horizontal') && (
+   163→              <span className={cn(orientation === 'horizontal' && 'hidden sm:inline')}>{item.label}</span>
+   164→            )}
+   165→            {isActive && orientation === 'vertical' && !collapsed && (
+   166→              <motion.div
+   167→                layoutId="sidebar-indicator"
+   168→                className="absolute left-0 h-6 w-1 rounded-r-full bg-primary"
+   169→                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+   170→              />
+   171→            )}
+   172→            {isActive && orientation === 'vertical' && collapsed && (
+   173→              <motion.div
+   174→                layoutId="sidebar-indicator-collapsed"
+   175→                className="absolute left-0 h-6 w-1 rounded-r-full bg-primary"
+   176→                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+   177→              />
+   178→            )}
+   179→            {isActive && orientation === 'horizontal' && (
+   180→              <motion.div
+   181→                layoutId="mobile-indicator"
+   182→                className="absolute -bottom-1 h-0.5 w-6 rounded-full bg-primary"
+   183→                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+   184→              />
+   185→            )}
+   186→          </button>
+   187→        );
+   188→
+   189→        // Collapsed desktop rail: labels are hidden, so expose the destination
+   190→        // via a right-side tooltip. Radix tooltips also open on keyboard focus,
+   191→        // which keeps the rail fully keyboard accessible.
+   192→        if (collapsed && orientation === 'vertical') {
+   193→          return (
+   194→            <Tooltip key={item.id}>
+   195→              <TooltipTrigger asChild>
+   196→                {button}
+   197→              </TooltipTrigger>
+   198→              <TooltipContent side="right" sideOffset={8}>
+   199→                {item.label}
+   200→              </TooltipContent>
+   201→            </Tooltip>
+   202→          );
+   203→        }
+   204→
+   205→        return button;
+   206→      })}
+   207→    </nav>
+   208→  );
+   209→}
+   210→
+   211→/* ===== Live Clock Component ===== */
+   212→function LiveClock() {
+   213→  const [time, setTime] = useState('');
+   214→
+   215→  useEffect(() => {
+   216→    const update = () => {
+   217→      const now = new Date();
+   218→      setTime(
+   219→        now.toLocaleTimeString('en-US', {
+   220→          hour12: false,
+   221→          hour: '2-digit',
+   222→          minute: '2-digit',
+   223→          second: '2-digit',
+   224→        })
+   225→      );
+   226→    };
+   227→    update();
+   228→    const interval = setInterval(update, 1000);
+   229→    return () => clearInterval(interval);
+   230→  }, []);
+   231→
+   232→  return (
+   233→    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+   234→      <Clock className="h-3 w-3" />
+   235→      <span className="font-mono tabular-nums">{time || '--:--:--'}</span>
+   236→    </div>
+   237→  );
+   238→}
+   239→
+   240→/* ===== Mobile Bottom Nav Item ===== */
+   241→function MobileNavItem({
+   242→  item,
+   243→  isActive,
+   244→  onClick,
+   245→}: {
+   246→  item: NavItem;
+   247→  isActive: boolean;
+   248→  onClick: () => void;
+   249→}) {
+   250→  const Icon = item.icon;
+   251→  return (
+   252→    <button
+   253→      onClick={onClick}
+   254→      className={cn(
+   255→        'relative flex flex-col items-center justify-center gap-0.5 rounded-lg px-1 xs:px-2 py-1 text-[10px] xs:text-xs transition-all duration-200 active:scale-95 min-w-0 flex-1',
+   256→        isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+   257→      )}
+   258→    >
+   259→      <div className={cn(
+   260→        'rounded-md p-0.5 xs:p-1 transition-all duration-200',
+   261→        isActive && 'bg-primary/10'
+   262→      )}>
+   263→        <Icon className="h-4 w-4 xs:h-[18px] xs:w-[18px]" />
+   264→      </div>
+   265→      <span className={cn(
+   266→        'truncate max-w-[48px] xs:max-w-none transition-all duration-200',
+   267→        isActive && 'font-semibold'
+   268→      )}>{item.shortLabel || item.label}</span>
+   269→      {isActive && (
+   270→        <motion.div
+   271→          layoutId="bottom-nav-glow"
+   272→          className="absolute -top-px left-1 right-1 h-0.5 rounded-full bg-primary"
+   273→          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+   274→        />
+   275→      )}
+   276→    </button>
+   277→  );
+   278→}
+   279→
+   280→export default function DashboardLayout({
+   281→  externalUpgradeModalOpen,
+   282→  onExternalUpgradeModalChange,
+   283→}: {
+   284→  externalUpgradeModalOpen?: boolean;
+   285→  onExternalUpgradeModalChange?: (open: boolean) => void;
+   286→}) {
+   287→  const { activeTab, setActiveTab, sidebarOpen, setSidebarOpen, sidebarCollapsed, setSidebarCollapsed } = useAppStore();
+   288→  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+   289→  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+   290→  const [moreNavOpen, setMoreNavOpen] = useState(false);
+   291→  // FIX 10: settingsOpen mini-panel state removed — the settings gear icon
+   292→  // navigates directly to the full-page settings tab (setActiveTab('settings')).
+   293→  const [onboardingOpen, setOnboardingOpen] = useState(false);
+   294→  const [internalUpgradeModalOpen, setInternalUpgradeModalOpen] = useState(false);
+   295→
+   296→  // Use external modal control if provided, otherwise use internal state
+   297→  const upgradeModalOpen = externalUpgradeModalOpen ?? internalUpgradeModalOpen;
+   298→  const setUpgradeModalOpen = onExternalUpgradeModalChange ?? setInternalUpgradeModalOpen;
+   299→
+   300→  const currentPlanName = useSubscriptionStore((s) => s.getPlanDetails().name);
+   301→  const rolloverCredits = useSubscriptionStore((s) => s.rolloverCredits);
+   302→  const addonCredits = useSubscriptionStore((s) => s.addonCredits);
+   303→  const creditWarningStatus = useSubscriptionStore((s) => s.creditWarningStatus);
+   304→
+   305→  // Get real user data from auth store
+   306→  const authUser = useAuthStore((s) => s.user);
+   307→  const { signOut } = useAuth();
+   308→
+   309→  // Compute user initials from real name
+   310→  const userInitials = authUser?.name
+   311→    ? authUser.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+   312→    : '??';
+   313→  const userDisplayName = authUser?.name || 'Unknown User';
+   314→  const userEmail = authUser?.email || '';
+   315→  const userAvatarUrl = authUser?.avatarUrl || null;
+   316→
+   317→  // Restore the persisted sidebar collapsed preference after mount.
+   318→  // (First render + SSR use the expanded default so hydration matches; the
+   319→  // stored value — if any — is applied immediately afterwards, before paint
+   320→  // of the interaction.)
+   321→  useEffect(() => {
+   322→    try {
+   323→      const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+   324→      if (stored === '1' || stored === '0') {
+   325→        const collapsed = stored === '1';
+   326→        if (collapsed !== useAppStore.getState().sidebarCollapsed) {
+   327→          useAppStore.setState({ sidebarCollapsed: collapsed });
+   328→        }
+   329→      }
+   330→    } catch {
+   331→      // storage unavailable — keep expanded default
+   332→    }
+   333→  }, []);
+   334→
+   335→  // Check if onboarding should show on first visit (hydration-safe via useSyncExternalStore)
+   336→  const onboardingCompleted = useSyncExternalStore(
+   337→    (callback) => {
+   338→      window.addEventListener('storage', callback);
+   339→      return () => window.removeEventListener('storage', callback);
+   340→    },
+   341→    () => localStorage.getItem('acquisitionos_onboarding_completed') !== null,
+   342→    () => true // Server: assume completed (don't show onboarding during SSR)
+   343→  );
+   344→  // DB-first completion check: the database is the source of truth for
+   345→  // onboarding state. A user who already completed (or skipped) the wizard on
+   346→  // another device/browser must not be forced through it again just because
+   347→  // this browser's localStorage is empty. localStorage is only used to skip
+   348→  // the network check instantly when it already knows the answer.
+   349→  const [onboardingChecked, setOnboardingChecked] = useState(false);
+   350→  useEffect(() => {
+   351→    if (onboardingChecked) return;
+   352→    if (onboardingCompleted) {
+   353→      setOnboardingChecked(true);
+   354→      return;
+   355→    }
+   356→    let cancelled = false;
+   357→    (async () => {
+   358→      try {
+   359→        const res = await fetch('/api/settings/onboarding', { credentials: 'include' });
+   360→        if (res.ok) {
+   361→          const data = await res.json();
+   362→          const done =
+   363→            data?.settings?.onboardingCompleted === true || data?.progress?.completed === true;
+   364→          if (done) {
+   365→            // Mirror the DB state into localStorage so subsequent visits skip
+   366→            // the network check.
+   367→            localStorage.setItem('acquisitionos_onboarding_completed', 'true');
+   368→            if (!cancelled) {
+   369→              setOnboardingChecked(true);
+   370→              return;
+   371→            }
+   372→          }
+   373→        }
+   374→      } catch {
+   375→        // Network/DB unavailable — fall through to the legacy behavior below.
+   376→      }
+   377→      if (!cancelled && !onboardingChecked) {
+   378→        setOnboardingChecked(true);
+   379→        setOnboardingOpen(true);
+   380→      }
+   381→    })();
+   382→    return () => {
+   383→      cancelled = true;
+   384→    };
+   385→  }, [onboardingChecked, onboardingCompleted]);
+   386→
+   387→  const reminderCheckInterval = useSettingsStore((s) => s.reminderCheckInterval);
+   388→
+   389→  const handleShowShortcuts = useCallback(() => setShortcutsOpen(true), []);
+   390→  const handleOpenCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
+   391→
+   392→  useKeyboardShortcuts({
+   393→    onShowShortcuts: handleShowShortcuts,
+   394→    onOpenCommandPalette: handleOpenCommandPalette,
+   395→    onNewLead: useCallback(() => {
+   396→      setActiveTab('leads');
+   397→    }, [setActiveTab]),
+   398→  });
+   399→
+   400→  // Listen for custom event from Command Palette to show shortcuts dialog
+   401→  useEffect(() => {
+   402→    const handler = () => {
+   403→      setCommandPaletteOpen(false);
+   404→      setTimeout(() => setShortcutsOpen(true), 150);
+   405→    };
+   406→    window.addEventListener('show-shortcuts', handler);
+   407→    return () => window.removeEventListener('show-shortcuts', handler);
+   408→  }, []);
+   409→
+   410→  // Overdue reminder notifications - check every 60s
+   411→  const notifiedReminderIds = useRef<Set<string>>(new Set());
+   412→  const addNotification = useNotificationStore((s) => s.addNotification);
+   413→
+   414→  useEffect(() => {
+   415→    const checkOverdueReminders = async () => {
+   416→      try {
+   417→        const overdueReminders = await fetchReminders(true);
+   418→        for (const reminder of overdueReminders) {
+   419→          if (!notifiedReminderIds.current.has(reminder.id)) {
+   420→            notifiedReminderIds.current.add(reminder.id);
+   421→            addNotification({
+   422→              type: 'stage_advanced',
+   423→              title: 'Follow-up Overdue',
+   424→              message: `${reminder.lead?.businessName ?? 'Unknown Lead'}: ${reminder.message.slice(0, 50)}`,
+   425→              timestamp: new Date(),
+   426→            });
+   427→          }
+   428→        }
+   429→      } catch {
+   430→        // Silently ignore errors in polling
+   431→      }
+   432→    };
+   433→
+   434→    checkOverdueReminders();
+   435→    const interval = setInterval(checkOverdueReminders, reminderCheckInterval * 1000);
+   436→    return () => clearInterval(interval);
+   437→  }, [addNotification, reminderCheckInterval]);
+   438→
+   439→  // ===== URL-to-Tab Synchronization =====
+   440→  // Reads the URL path on mount and popstate, and sets the active tab accordingly.
+   441→  // This enables direct navigation to /business-ai/leads, /business-ai/outreach, etc.
+   442→  useEffect(() => {
+   443→    const syncTabFromUrl = () => {
+   444→      const tab = pathToTab(window.location.pathname);
+   445→      if (tab && tab !== activeTab) {
+   446→        setActiveTab(tab);
+   447→      }
+   448→    };
+   449→    // Sync on mount
+   450→    syncTabFromUrl();
+   451→    // Sync on back/forward navigation
+   452→    window.addEventListener('popstate', syncTabFromUrl);
+   453→    return () => window.removeEventListener('popstate', syncTabFromUrl);
+   454→  }, []);
+   455→
+   456→  // ===== Stripe payment redirect handling (PART 5) =====
+   457→  usePaymentRedirect();
+   458→
+   459→  // ===== "Upgrade Plan" button in Settings → Billing =====
+   460→  // settings-shell dispatches the 'open-upgrade-modal' CustomEvent; this is
+   461→  // the (previously missing) listener that actually opens the modal.
+   462→  useEffect(() => {
+   463→    const openUpgradeModal = () => setUpgradeModalOpen(true);
+   464→    window.addEventListener('open-upgrade-modal', openUpgradeModal);
+   465→    return () => window.removeEventListener('open-upgrade-modal', openUpgradeModal);
+   466→  }, [setUpgradeModalOpen]);
+   467→
+   468→  const renderTab = () => {
+   469→    const content = (
+   470→      <Suspense fallback={<SkeletonPage />}>
+   471→        {(() => {
+   472→          switch (activeTab) {
+   473→            case 'overview': return <OverviewTab />;
+   474→            case 'leads': return <LeadsTab />;
+   475→            case 'pipeline': return <PipelineTab />;
+   476→            case 'discover': return <CreditGate action="lead_discovery" onUpgrade={() => setUpgradeModalOpen(true)}><DiscoverTab /></CreditGate>;
+   477→            case 'outreach': return <CreditGate action="outreach_message" onUpgrade={() => setUpgradeModalOpen(true)}><OutreachTab /></CreditGate>;
+   478→            case 'workflows': return <PlanGate requiredPlan="pro" featureName="Workflows" onUpgrade={() => setUpgradeModalOpen(true)}><WorkflowsTab /></PlanGate>;
+   479→            case 'messaging': return <MessagingTab />;
+   480→            case 'assistant': return <CreditGate action="sales_coaching" onUpgrade={() => setUpgradeModalOpen(true)}><AssistantTab /></CreditGate>;
+   481→            case 'insights': return <InsightsTab />;
+   482→            case 'deals': return <DealsTab />;
+   483→            case 'competitors': return <PlanGate requiredPlan="pro" featureName="Competitor Analysis" onUpgrade={() => setUpgradeModalOpen(true)}><CompetitorTab /></PlanGate>;
+   484→            case 'notifications': return <NotificationsTab />;
+   485→            case 'settings': return <SettingsShell />;
+   486→            default: return <OverviewTab />;
+   487→          }
+   488→        })()}
+   489→      </Suspense>
+   490→    );
+   491→    return content;
+   492→  };
+   493→
+   494→  // Mobile bottom nav: show 5 items directly + More for the remaining 3
+   495→  const primaryNavItems = NAV_ITEMS.slice(0, 5);
+   496→  const secondaryNavItems = NAV_ITEMS.slice(5);
+   497→  const isMoreActive = secondaryNavItems.some((item) => item.id === activeTab);
+   498→
+   499→  // h-full (not h-screen): this layout renders inside AuthGate's
+   500→  // flex-1 min-h-0 wrapper, which may be shorter than the viewport when
+   501→  // the Trial/CreditWarning banners are shown above it. A hard 100vh
+   502→  // height made the footer overflow and get clipped below the fold.
+   503→  return (
+   504→    <div className="h-full flex flex-col bg-background overflow-hidden">
+   505→      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:text-sm focus:font-medium">
+   506→        Skip to content
+   507→      </a>
+   508→      {/* ===== Mobile Header - Sticky at Top ===== */}
+   509→      {/* FIX 8: z-[100] (was z-50) so the mobile navbar sits ABOVE any
+   510→          overlay-style layers (Radix sheets/dialogs render at z-50) and
+   511→          its icons stay clickable even when a panel is open. */}
+   512→      <header role="banner" className="sticky top-0 flex h-12 sm:h-14 items-center gap-2 sm:gap-4 border-b bg-background/95 backdrop-blur-md px-2 sm:px-4 lg:hidden primary-accent-line shrink-0 z-[100]">
+   513→        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+   514→          <SheetTrigger asChild>
+   515→            <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9">
+   516→              <Menu className="h-5 w-5" />
+   517→              <span className="sr-only">Toggle navigation menu</span>
+   518→            </Button>
+   519→          </SheetTrigger>
+   520→          <SheetContent side="left" className="w-72 p-0">
+   521→            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+   522→            <SheetDescription className="sr-only">Navigation sidebar</SheetDescription>
+   523→            <div className="flex h-14 items-center border-b px-4 gradient-bg-animated">
+   524→              <Rocket className="h-6 w-6 text-primary mr-2" />
+   525→              <span className="font-bold text-lg gradient-text">AcquisitionOS</span>
+   526→            </div>
+   527→            <ScrollArea className="h-[calc(100vh-3.5rem)]">
+   528→              <div className="p-4">
+   529→                <SidebarNav
+   530→                  activeTab={activeTab}
+   531→                  onTabChange={(tab) => {
+   532→                    setActiveTab(tab);
+   533→                    setSidebarOpen(false);
+   534→                  }}
+   535→                />
+   536→              </div>
+   537→            </ScrollArea>
+   538→          </SheetContent>
+   539→        </Sheet>
+   540→        <div className="flex items-center gap-1.5 sm:gap-2">
+   541→          <Rocket className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+   542→          <span className="font-bold text-sm sm:text-base gradient-text">AcquisitionOS</span>
+   543→        </div>
+   544→        <div className="ml-auto flex items-center gap-0.5 sm:gap-2">
+   545→          <CreditDisplay compact onClick={() => setUpgradeModalOpen(true)} rolloverCredits={rolloverCredits} addonCredits={addonCredits} />
+   546→          <NotificationCenter />
+   547→          <Button
+   548→            variant="ghost"
+   549→            size="icon"
+   550→            className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:flex"
+   551→            onClick={() => setCommandPaletteOpen(true)}
+   552→            aria-label="Command palette"
+   553→          >
+   554→            <Search className="h-4 w-4" />
+   555→          </Button>
+   556→          <ThemeToggle size="sm" />
+   557→          <DropdownMenu>
+   558→            <DropdownMenuTrigger asChild>
+   559→              <button className="flex items-center rounded-lg hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="User menu">
+   560→                <Avatar className="h-7 w-7">
+   561→                  <AvatarImage src={userAvatarUrl || undefined} alt={userDisplayName} />
+   562→                  <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">{userInitials}</AvatarFallback>
+   563→                </Avatar>
+   564→              </button>
+   565→            </DropdownMenuTrigger>
+   566→            <DropdownMenuContent align="end" className="w-56">
+   567→              <DropdownMenuLabel className="font-normal">
+   568→                <div className="flex flex-col space-y-1">
+   569→                  <p className="text-sm font-medium leading-none">{userDisplayName}</p>
+   570→                  <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+   571→                  <Badge variant="outline" className="w-fit text-[10px] mt-1">{currentPlanName} Plan</Badge>
+   572→                </div>
+   573→              </DropdownMenuLabel>
+   574→              <DropdownMenuSeparator />
+   575→              <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
+   576→                <User className="mr-2 h-4 w-4" /> Profile
+   577→              </DropdownMenuItem>
+   578→              <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
+   579→                <Settings className="mr-2 h-4 w-4" /> Settings
+   580→              </DropdownMenuItem>
+   581→              <DropdownMenuItem onClick={() => setUpgradeModalOpen(true)} className="cursor-pointer">
+   582→                <CreditCard className="mr-2 h-4 w-4" /> Billing
+   583→              </DropdownMenuItem>
+   584→              <DropdownMenuItem
+   585→                onClick={() => window.open('/support', '_self')}
+   586→                className="cursor-pointer"
+   587→              >
+   588→                <LifeBuoy className="mr-2 h-4 w-4" /> Support
+   589→              </DropdownMenuItem>
+   590→              <DropdownMenuSeparator />
+   591→              <DropdownMenuItem onClick={async () => { await signOut(); }} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20">
+   592→                <LogOut className="mr-2 h-4 w-4" /> Log out
+   593→              </DropdownMenuItem>
+   594→            </DropdownMenuContent>
+   595→          </DropdownMenu>
+   596→          <span className="text-xs text-muted-foreground hidden md:inline">
+   597→            {tabTitle(activeTab)}
+   598→          </span>
+   599→        </div>
+   600→      </header>
+   601→
+   602→      {/* ===== Middle Section: Sidebar + Content ===== */}
+   603→      <div className="flex flex-1 min-h-0">
+   604→        {/* Desktop Sidebar — collapsible (expanded ≈256px / collapsed icon rail ≈64px).
+   605→            State persists in localStorage; mobile nav is separate and untouched.
+   606→            Expanded layout: logo → 12 nav items → Follow-up Reminders.
+   607→            (Credits + Notifications live ONLY in the topbar/mobile header — the
+   608→            old bottom-of-sidebar duplicates were removed; the topbar widgets
+   609→            remain the single, always-visible surface for both.) */}
+   610→        <aside
+   611→          className={cn(
+   612→            'hidden lg:flex lg:flex-col lg:border-r bg-sidebar shrink-0 transition-all duration-300 ease-in-out relative',
+   613→            sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+   614→          )}
+   615→          aria-label="Sidebar"
+   616→        >
+   617→          {/* Collapse/Expand handle — sits ON the sidebar/content border at the
+   618→              top (aligned with the logo row), replacing the old bottom-of-
+   619→              sidebar toggle that wasted a permanent footer row. The half-out
+   620→              position makes the border itself the affordance — a premium,
+   621→              unobtrusive notch. z-[120] keeps the button above the sticky
+   622→              topbar (z-[100]) whose background would otherwise paint over
+   623→              the 10px of the handle that overlaps the content side. */}
+   624→          <button
+   625→            type="button"
+   626→            className="absolute top-[18px] -right-[10px] z-[120] hidden lg:inline-flex h-5 w-5 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground hover:bg-accent hover:scale-110 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+   627→            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+   628→            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+   629→            aria-expanded={!sidebarCollapsed}
+   630→            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+   631→          >
+   632→            {sidebarCollapsed ? <PanelLeftOpen className="h-3 w-3" /> : <PanelLeftClose className="h-3 w-3" />}
+   633→          </button>
+   634→
+   635→          {/* Logo */}
+   636→          <div className="flex h-14 items-center gap-2 border-b px-4 gradient-bg-animated shrink-0">
+   637→            <Rocket className="h-6 w-6 text-primary shrink-0" />
+   638→            {!sidebarCollapsed && <span className="font-bold text-lg tracking-tight gradient-text">AcquisitionOS</span>}
+   639→          </div>
+   640→          {/* min-h-0: lets the Radix ScrollArea shrink below its content
+   641→              height inside this flex column. Without it the nav list forces
+   642→              the aside taller than the viewport, the h-screen root overflows
+   643→              (scrollHeight > clientHeight) and any programmatic scroll
+   644→              (focus/scrollIntoView) silently shifts the WHOLE layout up,
+   645→              leaving the footer floating mid-screen. */}
+   646→          <ScrollArea className="min-h-0 flex-1 py-4">
+   647→            <div className={cn('relative', sidebarCollapsed ? 'px-2' : 'px-3')}>
+   648→              <TooltipProvider>
+   649→                <SidebarNav activeTab={activeTab} onTabChange={setActiveTab} collapsed={sidebarCollapsed} />
+   650→              </TooltipProvider>
+   651→            </div>
+   652→          </ScrollArea>
+   653→          {/* Collapsible sections — hidden in the collapsed icon rail to keep it
+   654→              compact and intentional; all content is reachable in expanded state
+   655→              and stays untouched when expanded.
+   656→              NOTE: the old bottom "Credits Display" and "Notifications" rows were
+   657→              removed — both are already available in the desktop topbar and the
+   658→              mobile header (CreditDisplay + NotificationCenter there are the
+   659→              single source for those features). Follow-up Reminders is unique to
+   660→              the sidebar and stays. */}
+   661→          {!sidebarCollapsed && (
+   662→            <div className="border-t shrink-0">
+   663→              <FollowUpReminders />
+   664→            </div>
+   665→          )}
+   666→          {/* Collapse/Expand toggle moved to the border handle at the top of
+   667→              the sidebar (see aside top) — the bottom footer row it used to
+   668→              occupy is gone, freeing that space. */}
+   669→        </aside>
+   670→
+   671→        {/* Desktop Topbar + Main Content */}
+   672→        <div className="flex flex-col flex-1 min-w-0">
+   673→          {/* Desktop Topbar */}
+   674→          <header role="banner" className="hidden lg:flex sticky top-0 z-[100] h-14 items-center gap-4 border-b bg-background/95 backdrop-blur-md px-6 shrink-0">
+   675→            <h1 className="text-lg font-semibold">{tabTitle(activeTab)}</h1>
+   676→            <div className="ml-auto flex items-center gap-2">
+   677→              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setCommandPaletteOpen(true)} aria-label="Search">
+   678→                <Search className="h-4 w-4" />
+   679→              </Button>
+   680→              <CreditDisplay onClick={() => setUpgradeModalOpen(true)} rolloverCredits={rolloverCredits} addonCredits={addonCredits} />
+   681→              <NotificationCenter />
+   682→              <ThemeToggle size="sm" />
+   683→              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setActiveTab('settings')} aria-label="Settings">
+   684→                <Settings className="h-4 w-4" />
+   685→              </Button>
+   686→              {/* Profile dropdown with real user data */}
+   687→              <DropdownMenu>
+   688→                <DropdownMenuTrigger asChild>
+   689→                  <button
+   690→                    className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+   691→                    aria-label="User menu"
+   692→                  >
+   693→                    <Avatar className="h-8 w-8">
+   694→                      <AvatarImage src={userAvatarUrl || undefined} alt={userDisplayName} />
+   695→                      <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">{userInitials}</AvatarFallback>
+   696→                    </Avatar>
+   697→                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+   698→                  </button>
+   699→                </DropdownMenuTrigger>
+   700→                <DropdownMenuContent align="end" className="w-56">
+   701→                  <DropdownMenuLabel className="font-normal">
+   702→                    <div className="flex flex-col space-y-1">
+   703→                      <p className="text-sm font-medium leading-none">{userDisplayName}</p>
+   704→                      <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+   705→                      <Badge variant="outline" className="w-fit text-[10px] mt-1">{currentPlanName} Plan</Badge>
+   706→                    </div>
+   707→                  </DropdownMenuLabel>
+   708→                  <DropdownMenuSeparator />
+   709→                  <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
+   710→                    <User className="mr-2 h-4 w-4" />
+   711→                    Profile
+   712→                    <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+   713→                  </DropdownMenuItem>
+   714→                  <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
+   715→                    <Settings className="mr-2 h-4 w-4" />
+   716→                    Settings
+   717→                    <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+   718→                  </DropdownMenuItem>
+   719→                  <DropdownMenuItem onClick={() => setUpgradeModalOpen(true)} className="cursor-pointer">
+   720→                    <CreditCard className="mr-2 h-4 w-4" />
+   721→                    Billing
+   722→                  </DropdownMenuItem>
+   723→                  <DropdownMenuItem
+   724→                    onClick={() => window.open('/support', '_self')}
+   725→                    className="cursor-pointer"
+   726→                  >
+   727→                    <LifeBuoy className="mr-2 h-4 w-4" />
+   728→                    Support
+   729→                  </DropdownMenuItem>
+   730→                  <DropdownMenuSeparator />
+   731→                  <DropdownMenuItem
+   732→                    onClick={async () => { await signOut(); }}
+   733→                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20"
+   734→                  >
+   735→                    <LogOut className="mr-2 h-4 w-4" />
+   736→                    Log out
+   737→                    <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
+   738→                  </DropdownMenuItem>
+   739→                </DropdownMenuContent>
+   740→              </DropdownMenu>
+   741→            </div>
+   742→          </header>
+   743→          {/* Main Content Area — wrapped in a positioned region that spans
+   744→              exactly between the topbar (desktop) / mobile header and the
+   745→              footer / mobile bottom nav. Detail drawers (metric details,
+   746→              lead details, meeting details) portal HERE, so they are
+   747→              visually bounded by the app shell: they can never cover the
+   748→              topbar, header, footer, or navigation on any viewport. */}
+   749→          <div data-app-content-region className="relative flex flex-col flex-1 min-h-0">
+   750→            <main role="main" id="main-content" aria-label={tabTitle(activeTab) || 'Content'} className="flex-1 overflow-auto bg-grid relative min-w-0">
+   751→              <AnimatePresence mode="wait">
+   752→                <motion.div
+   753→                  key={activeTab}
+   754→                  initial={{ opacity: 0, y: 8 }}
+   755→                  animate={{ opacity: 1, y: 0 }}
+   756→                  exit={{ opacity: 0, y: -8 }}
+   757→                  transition={{ duration: 0.2, ease: 'easeOut' }}
+   758→                  className="h-full"
+   759→                >
+   760→                  <ErrorBoundary>{renderTab()}</ErrorBoundary>
+   761→                </motion.div>
+   762→              </AnimatePresence>
+   763→            </main>
+   764→          </div>
+   765→        </div>
+   766→      </div>
+   767→
+   768→      {/* ===== Mobile Bottom Nav - Sticky at Bottom ===== */}
+   769→      <div role="navigation" aria-label="Mobile navigation" className="lg:hidden shrink-0 border-t bg-background/95 backdrop-blur-md safe-bottom mt-auto z-[200]">
+   770→        <nav className="flex items-center justify-around px-0.5 xs:px-1 sm:px-2 py-0.5 sm:py-1">
+   771→          {primaryNavItems.map((item) => (
+   772→            <MobileNavItem
+   773→              key={item.id}
+   774→              item={item}
+   775→              isActive={activeTab === item.id}
+   776→              onClick={() => setActiveTab(item.id)}
+   777→            />
+   778→          ))}
+   779→          {/* More Button for secondary tabs */}
+   780→          <button
+   781→            onClick={() => setMoreNavOpen(true)}
+   782→            className={cn(
+   783→              'relative flex flex-col items-center justify-center gap-0.5 rounded-lg px-1 xs:px-2 py-1 text-[10px] xs:text-xs transition-all duration-200 active:scale-95 min-w-0 flex-1',
+   784→              isMoreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+   785→            )}
+   786→          >
+   787→            <div className={cn(
+   788→              'rounded-md p-0.5 xs:p-1 transition-all duration-200',
+   789→              isMoreActive && 'bg-primary/10'
+   790→            )}>
+   791→              <MoreHorizontal className="h-4 w-4 xs:h-[18px] xs:w-[18px]" />
+   792→            </div>
+   793→            <span className={cn(
+   794→              'truncate transition-all duration-200',
+   795→              isMoreActive && 'font-semibold'
+   796→            )}>More</span>
+   797→            {isMoreActive && (
+   798→              <motion.div
+   799→                layoutId="bottom-nav-glow-more"
+   800→                className="absolute -top-px left-1 right-1 h-0.5 rounded-full bg-primary"
+   801→                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+   802→              />
+   803→            )}
+   804→          </button>
+   805→          <Sheet open={moreNavOpen} onOpenChange={setMoreNavOpen}>
+   806→            <SheetContent side="bottom" className="rounded-t-2xl">
+   807→              <SheetTitle className="sr-only">More Navigation</SheetTitle>
+   808→              <SheetDescription className="sr-only">Additional navigation tabs</SheetDescription>
+   809→              <div className="py-4">
+   810→                <div className="flex items-center justify-between mb-4">
+   811→                  <h3 className="text-sm font-semibold text-muted-foreground">More Tabs</h3>
+   812→                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMoreNavOpen(false)}>
+   813→                    <X className="h-4 w-4" />
+   814→                    <span className="sr-only">Close</span>
+   815→                  </Button>
+   816→                </div>
+   817→                <div className="grid grid-cols-3 gap-3">
+   818→                  {secondaryNavItems.map((item) => {
+   819→                    const Icon = item.icon;
+   820→                    const isActive = activeTab === item.id;
+   821→                    return (
+   822→                      <button
+   823→                        key={item.id}
+   824→                        onClick={() => {
+   825→                          setActiveTab(item.id);
+   826→                          setMoreNavOpen(false);
+   827→                        }}
+   828→                        className={cn(
+   829→                          'flex flex-col items-center gap-2 rounded-xl p-4 transition-all duration-200 active:scale-95',
+   830→                          'hover:bg-accent',
+   831→                          isActive && 'bg-primary/10 ring-1 ring-primary/20'
+   832→                        )}
+   833→                      >
+   834→                        <Icon className={cn('h-6 w-6', isActive ? 'text-primary' : 'text-muted-foreground')} />
+   835→                        <span className={cn('text-xs', isActive && 'font-semibold text-primary')}>{item.label}</span>
+   836→                      </button>
+   837→                    );
+   838→                  })}
+   839→                </div>
+   840→              </div>
+   841→            </SheetContent>
+   842→          </Sheet>
+   843→        </nav>
+   844→        {/* Mobile mini footer bar */}
+   845→        <div className="border-t px-3 py-1 flex items-center justify-between text-[9px] xs:text-[10px] text-muted-foreground bg-background/60 backdrop-blur-sm">
+   846→          <Badge variant="outline" className="font-mono text-[8px] xs:text-[9px] h-3.5 px-1">v3.0.0</Badge>
+   847→          <span className="text-center truncate mx-2">AcquisitionOS &mdash; Client Acquisition</span>
+   848→          {/* PART 8: AI icon removed from the footer bar */}
+   849→          <span className="shrink-0">&nbsp;</span>
+   850→        </div>
+   851→      </div>
+   852→
+   853→      {/* ===== Desktop Footer - Sticky at Bottom (Part 8: Crafted with heart + LinkedIn link) ===== */}
+   854→      <footer role="contentinfo" className="border-t bg-background py-2.5 px-4 sm:px-6 text-xs text-muted-foreground hidden lg:flex items-center justify-between gap-4 relative overflow-hidden shrink-0 mt-auto">
+   855→        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+   856→        <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 shrink-0">v3.0.0</Badge>
+   857→        <span className="flex-1 text-center truncate px-2">
+   858→          AcquisitionOS &mdash; AI-Powered Client Acquisition System
+   859→        </span>
+   860→        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 flex-wrap justify-end">
+   861→          <button
+   862→            type="button"
+   863→            onClick={() => useLegalStore.getState().openLegal('privacy')}
+   864→            className="hover:text-foreground transition-colors shrink-0"
+   865→          >
+   866→            Privacy
+   867→          </button>
+   868→          <span className="text-muted-foreground/30 shrink-0">·</span>
+   869→          <button
+   870→            type="button"
+   871→            onClick={() => useLegalStore.getState().openLegal('terms')}
+   872→            className="hover:text-foreground transition-colors shrink-0"
+   873→          >
+   874→            Terms
+   875→          </button>
+   876→          {/* Live clock hidden between lg and xl so the footer cluster never
+   877→              overlaps the centered product line on 1024–1280px viewports */}
+   878→          <span className="text-muted-foreground/30 shrink-0 hidden xl:inline">·</span>
+   879→          <span className="hidden xl:block shrink-0">
+   880→            <LiveClock />
+   881→          </span>
+   882→          <span className="flex items-center gap-1 text-foreground shrink-0">
+   883→            Crafted with <span className="text-red-500">❤️</span> by{' '}
+   884→            <a
+   885→              href="https://www.linkedin.com/company/quantumfusion-solutions"
+   886→              target="_blank"
+   887→              rel="noopener noreferrer"
+   888→              className="text-primary hover:underline"
+   889→            >
+   890→              QuantumFusion Solutions
+   891→            </a>
+   892→          </span>
+   893→        </div>
+   894→      </footer>
+   895→
+   896→      {/* Command Palette */}
+   897→      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+   898→
+   899→      {/* Keyboard Shortcuts Dialog */}
+   900→      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+   901→
+   902→      {/* Quick Actions FAB (desktop only) */}
+   903→      <QuickActionsFAB />
+   904→
+   905→      {/* Onboarding Flow */}
+   906→      <OnboardingFlow
+   907→        open={onboardingOpen}
+   908→        onComplete={() => setOnboardingOpen(false)}
+   909→      />
+   910→
+   911→      {/* Cookie Consent Banner */}
+   912→      <CookieConsent />
+   913→
+   914→      {/* Upgrade Modal */}
+   915→      <UpgradeModal open={upgradeModalOpen} onOpenChange={setUpgradeModalOpen} />
+   916→
+   917→      {/* AI Chat Bubble (floating) */}
+   918→      <AIChatBubble />
+   919→    </div>
+   920→  );
+   921→}
+   922→

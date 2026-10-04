@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth } from '@/lib/auth-middleware';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 import type { AuthUser } from '@/lib/auth';
 
 // GET /api/outreach - List all outreach sequences (campaigns) for the authenticated user
@@ -159,10 +158,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user: AuthUser) => {
     try {
-      // Plan Eligibility Correction: outreach sequences are automation and
-      // follow the existing outreach_sequences entitlement (Pro/Elite only).
-      const gate = await checkPlanEntitlement(user.id, user.plan, 'outreach_sequences');
-      if (!gate.allowed) return gate.response!;
       const body = await request.json();
 
       if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {

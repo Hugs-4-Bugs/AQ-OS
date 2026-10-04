@@ -9,6 +9,7 @@ import { withDualAuthPermission } from '@/lib/auth-middleware';
 import { listWorkflows, createWorkflow } from '@/lib/workflow-service';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 import { withMonitoring } from '@/lib/observability/middleware';
+import { db } from '@/lib/db';
 
 // Need to import the type
 type CreateWorkflowStepInput = {
@@ -24,10 +25,6 @@ type CreateWorkflowStepInput = {
 export const GET = withMonitoring(async (request: NextRequest) => {
   return withDualAuthPermission(request, 'pipeline:read', async (user, apiKeyInfo) => {
     try {
-      // Plan Eligibility Correction: workflow automation is Pro/Elite only.
-      const entitlementCheck = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-      if (!entitlementCheck.allowed) return entitlementCheck.response!;
-
       const { searchParams } = new URL(request.url);
       const filters = {
         status: searchParams.get('status') || undefined,
@@ -68,7 +65,25 @@ export const POST = withMonitoring(async (request: NextRequest) => {
         edges,
         steps,
         status,
+        profileId,
       } = body as Record<string, unknown>;
+
+      // Business Profile association (optional): must exist AND belong to the
+      // authenticated user — no cross-user profile linkage.
+      let verifiedProfileId: string | undefined;
+      if (profileId && typeof profileId === 'string' && profileId.trim()) {
+        const profile = await db.businessProfile.findFirst({
+          where: { id: profileId.trim(), userId: user.id },
+          select: { id: true },
+        });
+        if (!profile) {
+          return NextResponse.json(
+            { error: 'Business profile not found for this account' },
+            { status: 400 }
+          );
+        }
+        verifiedProfileId = profile.id;
+      }
 
       const result = await createWorkflow(user.id, {
         name: String(name || ''),
@@ -79,6 +94,7 @@ export const POST = withMonitoring(async (request: NextRequest) => {
         edges: edges as unknown[] | undefined,
         steps: steps as CreateWorkflowStepInput[] | undefined,
         status: status ? String(status) : undefined,
+        profileId: verifiedProfileId,
       });
 
       if (!result.success) {

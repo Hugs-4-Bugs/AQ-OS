@@ -15,13 +15,10 @@ import {
   getDailyAutonomousUsage,
   type AutonomyMode,
 } from '@/lib/meetings/autonomy-engine';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // GET /api/settings/autonomy-mode — Retrieve autonomy mode and config
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const [mode, config, dailyUsage] = await Promise.all([
         getUserAutonomyMode(user.id),
@@ -51,8 +48,6 @@ export async function GET(request: NextRequest) {
 // PATCH /api/settings/autonomy-mode — Update autonomy mode
 export async function PATCH(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { mode, boundaries } = body;

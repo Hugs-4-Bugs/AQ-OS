@@ -1,0 +1,898 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — Website Resolution Service
+     3→//
+     4→// One canonical website per lead, with an explicit, verified lifecycle:
+     5→//
+     6→//   UNKNOWN  ──discovery──▶ candidate ──verification──▶ VERIFIED
+     7→//      │                                            │
+     8→//      └────── attempts exhausted ──▶ NOT_FOUND_AFTER_RESEARCH
+     9→//   stored URL dead / not the company ──▶ INVALID ──▶ rediscovery
+    10→//
+    11→// Guarantees required by the product spec:
+    12→//   - `website == null` NEVER means "company has no website".
+    13→//     It means UNKNOWN until research says otherwise.
+    14→//   - "No website" conclusions require NOT_FOUND_AFTER_RESEARCH status
+    15→//     (multiple legitimate discovery attempts) — never a null field.
+    16→//   - Candidates are verified against company signals (name, location,
+    17→//     phone, email domain, business description) with a confidence level.
+    18→//   - Verified websites are PERSISTED back to the lead so every
+    19→//     downstream consumer (analysis, research, outreach) sees them.
+    20→//   - Normal HTTP redirects are normal — never evidence of "no website".
+    21→//   - discovery runs on existing AcquisitionOS integrations only
+    22→//     (z-ai web_search, Google Custom Search, lead's own metadata).
+    23→// ═══════════════════════════════════════════════════════════════════
+    24→
+    25→import { db } from '@/lib/db';
+    26→import { safeFetch } from '@/lib/net/url-guard';
+    27→
+    28→// ===== STATUS MODEL =====
+    29→
+    30→export type WebsiteStatus =
+    31→  | 'VERIFIED'
+    32→  | 'NOT_FOUND_AFTER_RESEARCH'
+    33→  | 'UNKNOWN'
+    34→  | 'INVALID';
+    35→
+    36→export const WEBSITE_STATUS: Record<WebsiteStatus, WebsiteStatus> = {
+    37→  VERIFIED: 'VERIFIED',
+    38→  NOT_FOUND_AFTER_RESEARCH: 'NOT_FOUND_AFTER_RESEARCH',
+    39→  UNKNOWN: 'UNKNOWN',
+    40→  INVALID: 'INVALID',
+    41→};
+    42→
+    43→export type VerificationOutcome = 'VERIFIED' | 'UNCERTAIN' | 'REJECTED';
+    44→export type Confidence = 'high' | 'medium' | 'low';
+    45→
+    46→export interface WebsiteVerification {
+    47→  outcome: VerificationOutcome;
+    48→  confidence: Confidence;
+    49→  score: number;
+    50→  evidence: string[];
+    51→  finalUrl?: string;
+    52→  title?: string;
+    53→  contentSnippet?: string;
+    54→}
+    55→
+    56→export interface WebsiteResolution {
+    57→  status: WebsiteStatus;
+    58→  website: string | null;
+    59→  changed: boolean; // did we persist a different website than before?
+    60→  discoveredNow: boolean; // was the website found during THIS resolution?
+    61→  previousStatus: WebsiteStatus | null;
+    62→  confidence?: Confidence;
+    63→  evidence: string[];
+    64→  attempts: number;
+    65→  error?: string;
+    66→  /** First N chars of the verified homepage (text), for downstream AI. */
+    67→  homepageText?: string;
+    68→  pageTitle?: string;
+    69→}
+    70→
+    71→// ===== URL CANONICALIZATION (§3: one canonical representation) =====
+    72→
+    73→const DEFAULT_PORTS = [':80', ':443'];
+    74→const PREFIX_WWW = 'www.';
+    75→
+    76→/**
+    77→ * Canonicalize any user/LLM/search-provided website string:
+    78→ *  - trims whitespace, strips wrapping quotes/brackets
+    79→ *  - adds https:// when protocol missing
+    80→ *  - lowercases host, removes default ports
+    81→ *  - normalizes `www.` (kept canonical WITHOUT www; both are "same site")
+    82→ *  - removes trailing slash on the root path (deeper paths kept intact)
+    83→ *  - rejects non-http(s) protocols (javascript:, mailto:, etc.)
+    84→ * Returns null when the input cannot possibly be a website URL.
+    85→ */
+    86→export function canonicalizeWebsiteUrl(raw: unknown): string | null {
+    87→  if (!raw || typeof raw !== 'string') return null;
+    88→  let url = raw.trim();
+    89→  if (!url) return null;
+    90→
+    91→  // Strip common wrapping artifacts from LLM/search output.
+    92→  url = url.replace(/^["'<(]+|["'>)]+$/g, '').replace(/[,;]+$/, '');
+    93→
+    94→  // Explicit non-web protocols are never websites.
+    95→  if (/^(mailto:|tel:|javascript:|data:|ftp:)/i.test(url)) return null;
+    96→
+    97→  if (!/^https?:\/\//i.test(url)) {
+    98→    // "www.example.com" or "example.com" or "cytecare.com/"
+    99→    if (/^www\./i.test(url) || /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([/:?#].*)?$/i.test(url)) {
+   100→      url = 'https://' + url;
+   101→    } else {
+   102→      return null;
+   103→    }
+   104→  }
+   105→
+   106→  let parsed: URL;
+   107→  try {
+   108→    parsed = new URL(url);
+   109→  } catch {
+   110→    return null;
+   111→  }
+   112→
+   113→  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+   114→  if (!parsed.hostname || !parsed.hostname.includes('.')) return null;
+   115→  // Hostname must be plausible (letters/digits/dots/hyphens).
+   116→  if (!/^[a-z0-9][a-z0-9.-]*$/i.test(parsed.hostname)) return null;
+   117→
+   118→  let host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+   119→  if (host.startsWith(PREFIX_WWW)) host = host.slice(PREFIX_WWW.length);
+   120→
+   121→  const path = parsed.pathname.replace(/\/+$/, '') || '';
+   122→  const query = parsed.search || '';
+   123→
+   124→  const port = DEFAULT_PORTS.includes(parsed.port ? `:${parsed.port}` : '')
+   125→    ? ''
+   126→    : parsed.port
+   127→      ? `:${parsed.port}`
+   128→      : '';
+   129→
+   130→  return `${parsed.protocol}//${host}${port}${path}${query}`;
+   131→}
+   132→
+   133→/** The canonical host of a website URL (no www, lowercase). */
+   134→export function extractDomain(url: unknown): string | null {
+   135→  const canonical = canonicalizeWebsiteUrl(url);
+   136→  if (!canonical) return null;
+   137→  try {
+   138→    return new URL(canonical).hostname.toLowerCase();
+   139→  } catch {
+   140→    return null;
+   141→  }
+   142→}
+   143→
+   144→/**
+   145→ * True when two URL strings refer to the same canonical website
+   146→ * (`https://cytecare.com` === `https://www.cytecare.com/`).
+   147→ */
+   148→export function websitesMatch(a: unknown, b: unknown): boolean {
+   149→  const ca = canonicalizeWebsiteUrl(a);
+   150→  const cb = canonicalizeWebsiteUrl(b);
+   151→  if (!ca || !cb) return false;
+   152→  return ca === cb;
+   153→}
+   154→
+   155→// ===== FETCH HELPERS =====
+   156→
+   157→const FETCH_TIMEOUT_MS = 15000;
+   158→const PAGE_TEXT_LIMIT = 12000;
+   159→
+   160→const BROWSER_UA =
+   161→  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 AcquisitionOSBot/1.0';
+   162→
+   163→function htmlToText(html: string): string {
+   164→  return html
+   165→    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+   166→    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+   167→    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+   168→    .replace(/<!--[\s\S]*?-->/g, ' ')
+   169→    .replace(/<[^>]+>/g, ' ')
+   170→    .replace(/&nbsp;/gi, ' ')
+   171→    .replace(/&amp;/gi, '&')
+   172→    .replace(/&lt;/gi, '<')
+   173→    .replace(/&gt;/gi, '>')
+   174→    .replace(/&quot;/gi, '"')
+   175→    .replace(/\s+/g, ' ')
+   176→    .trim();
+   177→}
+   178→
+   179→function extractTitle(html: string): string | undefined {
+   180→  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+   181→  if (m) return htmlToText(m[1]).slice(0, 300);
+   182→  const og = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i);
+   183→  if (og) return og[1].slice(0, 300);
+   184→  return undefined;
+   185→}
+   186→
+   187→export interface PageProbe {
+   188→  reachable: boolean;
+   189→  /** True for definite death (NXDOMAIN / 404 / 410) — used for INVALID. */
+   190→  definitelyDead: boolean;
+   191→  finalUrl?: string;
+   192→  statusCode?: number;
+   193→  html?: string;
+   194→  text?: string;
+   195→  title?: string;
+   196→  error?: string;
+   197→}
+   198→
+   199→/**
+   200→ * Probe a website for real. Tries a direct fetch first (fast, follows
+   201→ * redirects — redirects are SUCCESS, not failure), then falls back to
+   202→ * the z-ai page_reader (handles JS-heavy sites). A guarded response
+   203→ * (403/406/429) still means the site EXISTS.
+   204→ */
+   205→export async function probeWebsite(url: string): Promise<PageProbe> {
+   206→  const canonical = canonicalizeWebsiteUrl(url);
+   207→  if (!canonical) return { reachable: false, definitelyDead: false, error: 'invalid_url' };
+   208→
+   209→  // 1) Direct fetch with redirect following — SSRF-safe (spec §6.1/§14):
+   210→  // lead-supplied URLs are attacker-controllable, so every hop is
+   211→  // re-validated against private/reserved address ranges via safeFetch.
+   212→  try {
+   213→    const result = await safeFetch(canonical, {
+   214→      timeoutMs: FETCH_TIMEOUT_MS,
+   215→      maxBytes: 512 * 1024,
+   216→      headers: { 'User-Agent': BROWSER_UA, Accept: 'text/html,*/*' },
+   217→    });
+   218→    if (result.status === 0 && result.error) {
+   219→      // Blocked (SSRF guard / DNS failure) or network error — fall through
+   220→      // to the page_reader fallback path before concluding anything.
+   221→      throw new Error(result.error);
+   222→    }
+   223→    const guarded = [403, 406, 429, 503].includes(result.status);
+   224→    const html = result.status < 400 ? result.body : '';
+   225→    return {
+   226→      reachable: result.status < 400 || guarded,
+   227→      definitelyDead: [404, 410].includes(result.status),
+   228→      finalUrl: result.finalUrl || canonical,
+   229→      statusCode: result.status,
+   230→      html,
+   231→      text: html ? htmlToText(html).slice(0, PAGE_TEXT_LIMIT) : undefined,
+   232→      title: html ? extractTitle(html) : undefined,
+   233→    };
+   234→  } catch (directErr) {
+   235→    // DNS failure / connection refused — try page_reader before concluding.
+   236→    const directMsg = directErr instanceof Error ? directErr.message : String(directErr);
+   237→    const reader = await probeWithPageReader(canonical);
+   238→    if (reader) return reader;
+   239→    return {
+   240→      reachable: false,
+   241→      definitelyDead:
+   242→        /enotfound|getaddrinfo|eai_again|econnrefused|could not be resolved|unable to resolve|name or service not known|not find/i.test(directMsg),
+   243→      error: directMsg,
+   244→    };
+   245→  }
+   246→}
+   247→
+   248→async function probeWithPageReader(url: string): Promise<PageProbe | null> {
+   249→  try {
+   250→    const { default: ZAI } = await import('z-ai-web-dev-sdk');
+   251→    const zai = await ZAI.create();
+   252→    const result = await Promise.race([
+   253→      zai.functions.invoke('page_reader', { url }),
+   254→      new Promise((_, reject) => setTimeout(() => reject(new Error('page_reader_timeout')), FETCH_TIMEOUT_MS + 5000)),
+   255→    ]);
+   256→    const html: string =
+   257→      (result as { data?: { html?: string } })?.data?.html ||
+   258→      (result as { html?: string })?.html ||
+   259→      (result as { content?: string })?.content ||
+   260→      '';
+   261→    if (!html) return null;
+   262→    return {
+   263→      reachable: true,
+   264→      definitelyDead: false,
+   265→      finalUrl: url,
+   266→      html: html.slice(0, PAGE_TEXT_LIMIT * 4),
+   267→      text: htmlToText(html).slice(0, PAGE_TEXT_LIMIT),
+   268→      title: extractTitle(html),
+   269→    };
+   270→  } catch (err) {
+   271→    // A definitive DNS resolution failure from the reader is conclusive:
+   272→    // the domain does not exist. Surface it instead of swallowing it.
+   273→    const msg = err instanceof Error ? err.message : String(err);
+   274→    if (/could not be resolved|enotfound|unable to resolve/i.test(msg)) {
+   275→      return { reachable: false, definitelyDead: true, error: 'dns_unresolvable' };
+   276→    }
+   277→    return null;
+   278→  }
+   279→}
+   280→
+   281→/**
+   282→ * Probe with an automatic page_reader retry when the direct fetch returns
+   283→ * a bot-challenge / JS shell (HTTP 200 but almost no readable text).
+   284→ */
+   285→export async function probeWebsiteWithRetry(url: string): Promise<PageProbe> {
+   286→  const first = await probeWebsite(url);
+   287→  const thin = !first.text || first.text.length < 300;
+   288→  if (!first.reachable || thin) {
+   289→    const reader = await probeWithPageReader(canonicalizeWebsiteUrl(url) || url);
+   290→    if (reader && (!first.reachable || (reader.text && reader.text.length > (first.text?.length || 0)))) {
+   291→      return reader;
+   292→    }
+   293→  }
+   294→  return first;
+   295→}
+   296→
+   297→// ===== DISCOVERY (§4: multi-source, existing integrations only) =====
+   298→
+   299→/** Hosts that are directories/socials/aggregators, never the company site. */
+   300→const NON_COMPANY_HOSTS = [
+   301→  'linkedin.', 'facebook.', 'instagram.', 'twitter.', 'x.com', 'youtube.',
+   302→  'justdial.', 'indiamart.', 'yelp.', 'sulekha.', 'yellowpages.', 'ypi.',
+   303→  'google.', 'maps.app.', 'goo.gl', 'wikipedia.', 'wikimedia.',
+   304→  'glassdoor.', 'indeed.', 'naukri.', 'shine.com', 'timesjobs.',
+   305→  'crunchbase.', 'bloomberg.', 'zoominfo.', 'pitchbook.', 'cbinsights.',
+   306→  'prnewswire.', 'businesswire.', 'medium.', 'quora.', 'reddit.',
+   307→  'play.google.', 'apps.apple.', 'trustpilot.', 'mouthshut.',
+   308→  'tripadvisor.', 'makemytrip.', 'booking.com', 'practo.', 'lybrate.',
+   309→  'economictimes.', 'indiatimes.', 'timesofindia.', 'ndtv.', 'hindu.',
+   310→];
+   311→
+   312→const NON_COMPANY_EXTENSIONS = ['.pdf', '.jpg', '.png', '.webp', '.doc', '.docx'];
+   313→
+   314→function isPlausibleCompanyUrl(u: string): boolean {
+   315→  const lower = u.toLowerCase();
+   316→  if (NON_COMPANY_HOSTS.some((h) => lower.includes(h))) return false;
+   317→  if (NON_COMPANY_EXTENSIONS.some((e) => lower.split('?')[0].endsWith(e))) return false;
+   318→  const domain = extractDomain(u);
+   319→  return !!domain && domain.includes('.');
+   320→}
+   321→
+   322→interface RawSearchResult {
+   323→  url: string;
+   324→  title?: string;
+   325→  snippet?: string;
+   326→}
+   327→
+   328→async function zaiWebSearch(query: string, num = 10): Promise<RawSearchResult[]> {
+   329→  try {
+   330→    const { default: ZAI } = await import('z-ai-web-dev-sdk');
+   331→    const zai = await ZAI.create();
+   332→    const results = (await zai.functions.invoke('web_search', { query, num })) as Array<{
+   333→      url?: string;
+   334→      link?: string;
+   335→      name?: string;
+   336→      title?: string;
+   337→      snippet?: string;
+   338→    }>;
+   339→    return (results || [])
+   340→      .map((r) => ({ url: (r.url || r.link || '') as string, title: r.title || r.name, snippet: r.snippet }))
+   341→      .filter((r) => !!r.url);
+   342→  } catch (err) {
+   343→    console.warn('[WebsiteService] z-ai web_search failed:', err instanceof Error ? err.message : err);
+   344→    return [];
+   345→  }
+   346→}
+   347→
+   348→async function googleCustomSearch(query: string): Promise<RawSearchResult[]> {
+   349→  const key = process.env.GOOGLE_SEARCH_API_KEY;
+   350→  const cx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_SEARCH_ENGINE_ID;
+   351→  if (!key || !cx) return [];
+   352→  try {
+   353→    const controller = new AbortController();
+   354→    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+   355→    const res = await fetch(
+   356→      `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=10`,
+   357→      { signal: controller.signal }
+   358→    );
+   359→    clearTimeout(timer);
+   360→    if (!res.ok) return [];
+   361→    const data = (await res.json()) as { items?: Array<{ link?: string; title?: string; snippet?: string }> };
+   362→    return (data.items || [])
+   363→      .map((i) => ({ url: i.link || '', title: i.title, snippet: i.snippet }))
+   364→      .filter((r) => !!r.url);
+   365→  } catch (err) {
+   366→    console.warn('[WebsiteService] Google Custom Search failed:', err instanceof Error ? err.message : err);
+   367→    return [];
+   368→  }
+   369→}
+   370→
+   371→// ===== NAME / SIGNAL HELPERS =====
+   372→
+   373→const STOP_TOKENS = new Set([
+   374→  'the', 'and', 'for', 'pvt', 'private', 'ltd', 'limited', 'llc', 'inc',
+   375→  'co', 'company', 'corp', 'corporation', 'group', 'global', 'india',
+   376→  'official', 'site', 'website', 'com',
+   377→]);
+   378→
+   379→export function nameTokens(name: string): string[] {
+   380→  return (name || '')
+   381→    .toLowerCase()
+   382→    .replace(/[^a-z0-9\s]/g, ' ')
+   383→    .split(/\s+/)
+   384→    .filter((t) => t.length >= 3 && !STOP_TOKENS.has(t));
+   385→}
+   386→
+   387→function domainNameTokens(domain: string): string[] {
+   388→  const base = domain.replace(/^www\./, '').split('.')[0];
+   389→  return base.split(/[-_.]/).filter((t) => t.length >= 3);
+   390→}
+   391→
+   392→interface LeadLikeForDiscovery {
+   393→  businessName: string;
+   394→  niche?: string | null;
+   395→  city?: string | null;
+   396→  country?: string | null;
+   397→  phone?: string | null;
+   398→  email?: string | null;
+   399→}
+   400→
+   401→async function collectCandidates(lead: LeadLikeForDiscovery): Promise<{ candidates: Map<string, { count: number; evidence: Set<string>; raw: Array<{ title?: string; snippet?: string }> }>; searchesRan: number }> {
+   402→  const location = [lead.city, lead.country].filter(Boolean).join(' ').trim();
+   403→  const queries = [
+   404→    `${lead.businessName} ${location} official website`.trim(),
+   405→    `${lead.businessName} ${lead.niche || ''} ${lead.city || ''} contact`.replace(/\s+/g, ' ').trim(),
+   406→    `"${lead.businessName}" website`,
+   407→  ];
+   408→
+   409→  const candidates = new Map<string, { count: number; evidence: Set<string>; raw: Array<{ title?: string; snippet?: string }> }>();
+   410→  let searchesRan = 0;
+   411→
+   412→  for (const q of queries) {
+   413→    let results: RawSearchResult[] = [];
+   414→    const google = await googleCustomSearch(q);
+   415→    if (google.length > 0) {
+   416→      results = google;
+   417→      searchesRan++;
+   418→    } else {
+   419→      const zai = await zaiWebSearch(q, 10);
+   420→      if (zai.length > 0) searchesRan++;
+   421→      results = zai;
+   422→    }
+   423→    if (results.length === 0) continue;
+   424→
+   425→    for (const r of results) {
+   426→      if (!isPlausibleCompanyUrl(r.url)) continue;
+   427→      const domain = extractDomain(r.url);
+   428→      if (!domain) continue;
+   429→      const entry = candidates.get(domain) || { count: 0, evidence: new Set<string>(), raw: [] };
+   430→      entry.count += 1;
+   431→      entry.raw.push({ title: r.title, snippet: r.snippet });
+   432→      if (r.title) entry.evidence.add(`search result title: "${r.title.slice(0, 160)}"`);
+   433→      if (r.snippet) entry.evidence.add(`search result snippet: "${r.snippet.slice(0, 200)}"`);
+   434→      candidates.set(domain, entry);
+   435→    }
+   436→
+   437→    // Stop early when a strong candidate has majority share.
+   438→    if (candidates.size > 0) {
+   439→      const top = [...candidates.entries()].sort((a, b) => b[1].count - a[1].count)[0];
+   440→      const totalRefs = [...candidates.values()].reduce((s, v) => s + v.count, 0);
+   441→      if (top && totalRefs >= 3 && top[1].count / totalRefs >= 0.5) break;
+   442→    }
+   443→  }
+   444→
+   445→  return { candidates, searchesRan };
+   446→}
+   447→
+   448→// ===== VERIFICATION (§5: company-match verification with confidence) =====
+   449→
+   450→/**
+   451→ * Verify that a candidate website really belongs to the company,
+   452→ * using REAL fetched content and deterministic signals only.
+   453→ *
+   454→ * `searchCorroboration` carries the search-result titles/snippets that
+   455→ * referenced this domain — even when a site blocks automated access
+   456→ * (bot challenge), a strong brand-aligned domain corroborated by
+   457→ * multiple search results remains verifiable evidence.
+   458→ */
+   459→export async function verifyWebsiteCandidate(
+   460→  lead: LeadLikeForDiscovery,
+   461→  candidateUrl: string,
+   462→  searchCorroboration?: Array<{ title?: string; snippet?: string }>
+   463→): Promise<WebsiteVerification> {
+   464→  const evidence: string[] = [];
+   465→  const probe = await probeWebsiteWithRetry(candidateUrl);
+   466→
+   467→  if (!probe.reachable) {
+   468→    return {
+   469→      outcome: 'REJECTED',
+   470→      confidence: probe.definitelyDead ? 'high' : 'low',
+   471→      score: 0,
+   472→      evidence: [probe.definitelyDead ? `site unreachable (definitively dead): ${probe.error || probe.statusCode}` : `site unreachable: ${probe.error || probe.statusCode}`],
+   473→    };
+   474→  }
+   475→
+   476→  if (probe.finalUrl && !websitesMatch(probe.finalUrl, candidateUrl)) {
+   477→    evidence.push(`resolved via redirect to ${canonicalizeWebsiteUrl(probe.finalUrl) || probe.finalUrl} (redirects are normal)`);
+   478→  }
+   479→
+   480→  const title = (probe.title || '').toLowerCase();
+   481→  const text = (probe.text || '').toLowerCase();
+   482→  const domain = extractDomain(candidateUrl) || '';
+   483→
+   484→  const tokens = nameTokens(lead.businessName);
+   485→  const fullBusinessName = lead.businessName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+   486→
+   487→  let score = 0;
+   488→
+   489→  // 1) Company name in page title (strongest branding signal).
+   490→  if (title) {
+   491→    if (tokens.length > 0 && tokens.every((t) => title.includes(t))) {
+   492→      score += 40;
+   493→      evidence.push(`page title "${probe.title}" contains the full business name`);
+   494→    } else {
+   495→      const inTitle = tokens.filter((t) => title.includes(t));
+   496→      if (inTitle.length / tokens.length >= 0.5 && inTitle.length >= 1) {
+   497→        score += 25;
+   498→        evidence.push(`page title contains ${inTitle.length}/${tokens.length} name tokens (${inTitle.join(', ')})`);
+   499→      } else if (title.includes(fullBusinessName.split(' ')[0]) && fullBusinessName.split(' ')[0].length >= 5) {
+   500→        score += 12;
+   501→        evidence.push(`page title contains the primary brand word "${fullBusinessName.split(' ')[0]}"`);
+   502→      }
+   503→    }
+   504→  }
+   505→
+   506→  // 2) Company name in page content.
+   507→  const inContent = tokens.filter((t) => text.includes(t));
+   508→  if (tokens.length > 0 && inContent.length / tokens.length >= 0.5) {
+   509→    score += 25;
+   510→    evidence.push(`page content mentions ${inContent.length}/${tokens.length} name tokens`);
+   511→  } else if (inContent.length >= 1) {
+   512→    score += 10;
+   513→    evidence.push(`page content mentions name token(s): ${inContent.join(', ')}`);
+   514→  }
+   515→
+   516→  // 3) Brand-token alignment between company name and domain.
+   517→  const dTokens = domainNameTokens(domain);
+   518→  const domainOverlap = tokens.filter((t) => dTokens.some((d) => d.includes(t) || t.includes(d)));
+   519→  if (tokens.length > 0 && domainOverlap.length / tokens.length >= 0.5) {
+   520→    score += 15;
+   521→    evidence.push(`domain "${domain}" aligns with the business name`);
+   522→  } else if (domainOverlap.length >= 1) {
+   523→    score += 6;
+   524→    evidence.push(`domain "${domain}" partially aligns with the business name (${domainOverlap.join(', ')})`);
+   525→  }
+   526→
+   527→  // 4) Email domain match (very strong when available).
+   528→  if (lead.email && lead.email.includes('@')) {
+   529→    const emailDomain = lead.email.split('@')[1].toLowerCase();
+   530→    const emailBase = emailDomain.replace(/^www\./, '').split('.')[0];
+   531→    if (emailDomain === domain || (emailBase.length >= 4 && domain.startsWith(emailBase))) {
+   532→      score += 25;
+   533→      evidence.push(`lead email domain (${emailDomain}) matches candidate domain`);
+   534→    }
+   535→  }
+   536→
+   537→  // 5) Phone number match (strong when available).
+   538→  if (lead.phone) {
+   539→    const digits = lead.phone.replace(/\D/g, '');
+   540→    if (digits.length >= 7 && text.replace(/\D/g, '').includes(digits.slice(-8))) {
+   541→      score += 15;
+   542→      evidence.push('lead phone number appears on the page');
+   543→    }
+   544→  }
+   545→
+   546→  // 6) Location match.
+   547→  const locationParts = [lead.city, lead.country].filter(Boolean).map((p) => (p as string).toLowerCase());
+   548→  const locationHits = locationParts.filter((p) => text.includes(p));
+   549→  if (locationHits.length > 0) {
+   550→    score += 10;
+   551→    evidence.push(`page references location (${locationHits.join(', ')})`);
+   552→  }
+   553→
+   554→  // 7) Niche/business-type keywords.
+   555→  if (lead.niche) {
+   556→    const nicheToken = lead.niche.toLowerCase().trim();
+   557→    if (nicheToken.length >= 4 && (text.includes(nicheToken) || title.includes(nicheToken))) {
+   558→      score += 5;
+   559→      evidence.push(`page mentions business type "${lead.niche}"`);
+   560→    }
+   561→  }
+   562→
+   563→  // 8) Search corroboration (§5): the discovery results that pointed at
+   564→  // this domain independently reference the company by name.
+   565→  const tokensLower = tokens;
+   566→  let corroborationHits = 0;
+   567→  if (searchCorroboration && searchCorroboration.length > 0) {
+   568→    for (const r of searchCorroboration.slice(0, 5)) {
+   569→      const blob = `${r.title || ''} ${r.snippet || ''}`.toLowerCase();
+   570→      const hit = tokensLower.length > 0 && tokensLower.filter((t) => blob.includes(t)).length / tokensLower.length >= 0.5;
+   571→      if (hit) corroborationHits++;
+   572→    }
+   573→    if (tokens.length > 0 && corroborationHits > 0) {
+   574→      score += Math.min(20, corroborationHits * 8);
+   575→      evidence.push(`${corroborationHits} independent search result(s) for this domain reference the company name`);
+   576→    }
+   577→  }
+   578→
+   579→  const domainAligned =
+   580→    tokens.length > 0 &&
+   581→    tokens.filter((t) => dTokens.some((d) => d.includes(t) || t.includes(d))).length / tokens.length >= 0.5;
+   582→
+   583→  // Bot-challenge fallback: reachable + brand-aligned domain + strong
+   584→  // independent search corroboration, but content unreadable (JS shell /
+   585→  // anti-bot wall). That combination is still a verified company site
+   586→  // (medium confidence) — it must NOT be treated as "no website".
+   587→  const thinContent = !text || text.length < 300;
+   588→  if (
+   589→    probe.reachable &&
+   590→    thinContent &&
+   591→    domainAligned &&
+   592→    tokens.length > 0 &&
+   593→    corroborationHits >= 1
+   594→  ) {
+   595→    score = Math.max(score, 55);
+   596→    evidence.push('site is live but served an anti-bot/JS challenge; verified via brand-aligned domain plus independent search corroboration');
+   597→  }
+   598→
+   599→  const outcome: VerificationOutcome =
+   600→    score >= 55 ? 'VERIFIED' : score >= 30 ? 'UNCERTAIN' : 'REJECTED';
+   601→  const confidence: Confidence = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+   602→
+   603→  return {
+   604→    outcome,
+   605→    confidence,
+   606→    score,
+   607→    evidence,
+   608→    finalUrl: probe.finalUrl,
+   609→    title: probe.title,
+   610→    contentSnippet: probe.text?.slice(0, 400),
+   611→  };
+   612→}
+   613→
+   614→// ===== RESOLUTION ORCHESTRATOR (§4/§7/§8/§12 state machine) =====
+   615→
+   616→interface LeadLikeFull extends LeadLikeForDiscovery {
+   617→  id: string;
+   618→  website?: string | null;
+   619→  hasWebsite?: boolean;
+   620→  websiteStatus?: string | null;
+   621→}
+   622→
+   623→export interface ResolveOptions {
+   624→  /** Persist findings to the lead record (default true). */
+   625→  persist?: boolean;
+   626→  /** Max discovery attempts (search query variants) per resolution. */
+   627→  maxAttempts?: number;
+   628→}
+   629→
+   630→function currentStatusOf(lead: LeadLikeFull): WebsiteStatus | null {
+   631→  if (lead.websiteStatus && ['VERIFIED', 'NOT_FOUND_AFTER_RESEARCH', 'UNKNOWN', 'INVALID'].includes(lead.websiteStatus)) {
+   632→    return lead.websiteStatus as WebsiteStatus;
+   633→  }
+   634→  // Legacy rows: a stored URL without status was treated as authoritative.
+   635→  if (lead.website) return 'VERIFIED';
+   636→  return null; // never researched
+   637→}
+   638→
+   639→/**
+   640→ * Resolve the authoritative website for a lead:
+   641→ *  1. Stored URL → probe it. Reachable → VERIFIED (re-confirmed).
+   642→ *     Definitively dead OR verified as another company → INVALID, then
+   643→ *     attempt rediscovery of a replacement.
+   644→ *  2. No stored URL → multi-source discovery → verification → persist.
+   645→ *  3. Attempts exhausted → NOT_FOUND_AFTER_RESEARCH (or UNKNOWN when the
+   646→ *     research infrastructure itself failed).
+   647→ *
+   648→ * When a website is discovered/confirmed NOW and the lead previously had
+   649→ * none (or a different one), all existing AI analyses for the lead are
+   650→ * marked STALE (§13) so contradictory research is never silently shown.
+   651→ */
+   652→export async function resolveLeadWebsite(
+   653→  leadInput: LeadLikeFull,
+   654→  options: ResolveOptions = {}
+   655→): Promise<WebsiteResolution> {
+   656→  const persist = options.persist !== false;
+   657→  const maxAttempts = options.maxAttempts ?? 3;
+   658→  const previousStatus = currentStatusOf(leadInput);
+   659→  const previousWebsite = leadInput.website ? canonicalizeWebsiteUrl(leadInput.website) : null;
+   660→
+   661→  let attempts = 0;
+   662→
+   663→  // ── Phase 1: stored URL present → probe & re-verify ────────────────
+   664→  if (previousWebsite) {
+   665→    attempts++;
+   666→    const probe = await probeWebsiteWithRetry(previousWebsite);
+   667→
+   668→    if (probe.reachable) {
+   669→      const verification = await verifyWebsiteCandidate(leadInput, previousWebsite);
+   670→      // A stored, reachable site that passes verification (or at least is
+   671→      // not REJECTED) stays authoritative.
+   672→      if (verification.outcome !== 'REJECTED') {
+   673→        if (persist && (previousStatus !== 'VERIFIED' || !leadInput.websiteStatus)) {
+   674→          await persistWebsiteState(leadInput.id, {
+   675→            website: previousWebsite,
+   676→            status: 'VERIFIED',
+   677→            confidence: verification.confidence,
+   678→            source: 'reconfirmed_existing',
+   679→          });
+   680→        }
+   681→        return {
+   682→          status: 'VERIFIED',
+   683→          website: previousWebsite,
+   684→          changed: false,
+   685→          discoveredNow: false,
+   686→          previousStatus,
+   687→          confidence: verification.confidence,
+   688→          evidence: verification.evidence,
+   689→          attempts,
+   690→          homepageText: probe.text?.slice(0, 6000),
+   691→          pageTitle: probe.title,
+   692→        };
+   693→      }
+   694→      // Stored URL belongs to a different company → INVALID, fall through
+   695→      // to rediscovery below.
+   696→      if (persist) {
+   697→        await persistWebsiteState(leadInput.id, { website: previousWebsite, status: 'INVALID', confidence: verification.confidence, source: 'verification_failed' });
+   698→      }
+   699→    } else if (probe.definitelyDead) {
+   700→      if (persist) {
+   701→        await persistWebsiteState(leadInput.id, { website: previousWebsite, status: 'INVALID', confidence: 'high', source: 'unreachable_dead' });
+   702→      }
+   703→    } else {
+   704→      // Transient network failure — do NOT invalidate; report UNKNOWN.
+   705→      return {
+   706→        status: 'UNKNOWN',
+   707→        website: previousWebsite,
+   708→        changed: false,
+   709→        discoveredNow: false,
+   710→        previousStatus,
+   711→        evidence: [`stored website could not be probed right now: ${probe.error || 'network error'}`],
+   712→        attempts,
+   713→        error: probe.error,
+   714→      };
+   715→    }
+   716→  }
+   717→
+   718→  // ── Phase 2: discovery (no usable stored URL) ───────────────────────
+   719→  const invalidStored = previousWebsite && currentStatusOfIfPersisted(leadInput) === 'INVALID';
+   720→  const { candidates, searchesRan } = await collectCandidates(leadInput);
+   721→  attempts += searchesRan;
+   722→
+   723→  if (searchesRan === 0) {
+   724→    // Research could not run at all → UNKNOWN (not "not found").
+   725→    return {
+   726→      status: 'UNKNOWN',
+   727→      website: previousWebsite,
+   728→      changed: false,
+   729→      discoveredNow: false,
+   730→      previousStatus,
+   731→      evidence: ['discovery could not run: no search provider available'],
+   732→      attempts,
+   733→      error: 'no_search_provider',
+   734→    };
+   735→  }
+   736→
+   737→  // Rank candidates: frequency first, then name-alignment of the domain.
+   738→  const tokens = nameTokens(leadInput.businessName);
+   739→  const ranked = [...candidates.entries()].sort((a, b) => {
+   740→    const align = (domain: string) => {
+   741→      const dTokens = domainNameTokens(domain);
+   742→      return tokens.filter((t) => dTokens.some((d) => d.includes(t) || t.includes(d))).length;
+   743→    };
+   744→    const freqDiff = b[1].count - a[1].count;
+   745→    const alignDiff = align(b[0]) - align(a[0]);
+   746→    return alignDiff !== 0 ? alignDiff : freqDiff;
+   747→  });
+   748→
+   749→  let verified: { domain: string; url: string; verification: WebsiteVerification; probe: PageProbe } | null = null;
+   750→  let uncertain: { domain: string; url: string; verification: WebsiteVerification } | null = null;
+   751→
+   752→  for (const [domain, meta] of ranked.slice(0, 3)) {
+   753→    if (attempts >= maxAttempts + searchesRan) break;
+   754→    const url = `https://${domain}`;
+   755→    const verification = await verifyWebsiteCandidate(leadInput, url, meta.raw);
+   756→    attempts++;
+   757→    if (verification.outcome === 'VERIFIED') {
+   758→      const probe = await probeWebsiteWithRetry(url);
+   759→      verified = { domain, url: canonicalizeWebsiteUrl(probe.finalUrl || url) || url, verification, probe };
+   760→      break;
+   761→    }
+   762→    if (verification.outcome === 'UNCERTAIN' && !uncertain) {
+   763→      uncertain = { domain, url, verification };
+   764→    }
+   765→  }
+   766→
+   767→  if (verified) {
+   768→    const changed = !previousWebsite || !websitesMatch(previousWebsite, verified.url);
+   769→    if (persist) {
+   770→      await persistWebsiteState(leadInput.id, {
+   771→        website: verified.url,
+   772→        status: 'VERIFIED',
+   773→        confidence: verified.verification.confidence,
+   774→        source: 'discovery_verified',
+   775→        markStaleAnalyses: changed,
+   776→      });
+   777→    }
+   778→    return {
+   779→      status: 'VERIFIED',
+   780→      website: verified.url,
+   781→      changed,
+   782→      discoveredNow: changed,
+   783→      previousStatus,
+   784→      confidence: verified.verification.confidence,
+   785→      evidence: [
+   786→        ...verified.verification.evidence,
+   787→        ...[...candidates.get(verified.domain)?.evidence || []],
+   788→      ],
+   789→      attempts,
+   790→      homepageText: verified.probe.text?.slice(0, 6000),
+   791→      pageTitle: verified.probe.title,
+   792→    };
+   793→  }
+   794→
+   795→  if (uncertain && uncertain.verification.score >= 30) {
+   796→    // Not confident enough to persist — surface as UNKNOWN with evidence.
+   797→    return {
+   798→      status: 'UNKNOWN',
+   799→      website: previousWebsite,
+   800→      changed: false,
+   801→      discoveredNow: false,
+   802→      previousStatus,
+   803→      evidence: [
+   804→        `best candidate ${uncertain.url} could not be confidently verified`,
+   805→        ...uncertain.verification.evidence,
+   806→      ],
+   807→      attempts,
+   808→    };
+   809→  }
+   810→
+   811→  // ── Phase 3: exhausted ──────────────────────────────────────────────
+   812→  const status: WebsiteStatus = invalidStored ? 'INVALID' : 'NOT_FOUND_AFTER_RESEARCH';
+   813→  return {
+   814→    status,
+   815→    website: previousWebsite, // preserved (never silently deleted)
+   816→    changed: false,
+   817→    discoveredNow: false,
+   818→    previousStatus,
+   819→    evidence: [
+   820→      `${searchesRan} discovery search(es) ran across multiple sources`,
+   821→      ranked.length > 0
+   822→        ? `${ranked.length} candidate domain(s) found, none could be verified as the company's website`
+   823→        : 'no plausible candidate domains found in search results',
+   824→    ],
+   825→    attempts,
+   826→  };
+   827→}
+   828→
+   829→function currentStatusOfIfPersisted(lead: LeadLikeFull): WebsiteStatus | null {
+   830→  // Reflects what WE just persisted inside this function's flow.
+   831→  return currentStatusOf(lead);
+   832→}
+   833→
+   834→// ===== PERSISTENCE (§7/§17) =====
+   835→
+   836→async function persistWebsiteState(
+   837→  leadId: string,
+   838→  params: {
+   839→    website: string | null;
+   840→    status: WebsiteStatus;
+   841→    confidence?: Confidence;
+   842→    source?: string;
+   843→    markStaleAnalyses?: boolean;
+   844→  }
+   845→): Promise<void> {
+   846→  const data: Record<string, unknown> = {
+   847→    websiteStatus: params.status,
+   848→    websiteVerifiedAt: new Date(),
+   849→    websiteVerificationConfidence: params.confidence ?? null,
+   850→    websiteVerificationSource: params.source ?? null,
+   851→  };
+   852→  if (params.website !== null && params.website !== undefined) {
+   853→    data.website = params.website;
+   854→    data.hasWebsite = true;
+   855→  }
+   856→
+   857→  await db.lead.update({ where: { id: leadId }, data });
+   858→
+   859→  // §13 — stale research handling: when the authoritative website state
+   860→  // changed (newly discovered / replaced / invalidated), existing AI
+   861→  // analyses based on the old state must never be presented as current.
+   862→  if (params.markStaleAnalyses) {
+   863→    try {
+   864→      await db.leadAnalysis.updateMany({
+   865→        where: { leadId },
+   866→        data: {
+   867→          isStale: true,
+   868→          staleReason: `website state changed to ${params.status}${params.website ? ` (${params.website})` : ''} after this analysis was generated`,
+   869→        },
+   870→      });
+   871→    } catch (err) {
+   872→      console.warn('[WebsiteService] Failed to mark stale analyses:', err);
+   873→    }
+   874→  }
+   875→
+   876→  console.log(
+   877→    `[WebsiteService] Persisted lead ${leadId}: website=${params.website || 'unchanged'} status=${params.status} confidence=${params.confidence || 'n/a'} source=${params.source || 'n/a'}`
+   878→  );
+   879→}
+   880→
+   881→/**
+   882→ * Read-side helper: the effective website status for UI/API responses,
+   883→ * mapping legacy rows sensibly (URL present = VERIFIED-by-source;
+   884→ * nothing = UNKNOWN — never "no website").
+   885→ */
+   886→export function effectiveWebsiteStatus(lead: {
+   887→  website?: string | null;
+   888→  websiteStatus?: string | null;
+   889→}): WebsiteStatus {
+   890→  if (
+   891→    lead.websiteStatus &&
+   892→    ['VERIFIED', 'NOT_FOUND_AFTER_RESEARCH', 'UNKNOWN', 'INVALID'].includes(lead.websiteStatus)
+   893→  ) {
+   894→    return lead.websiteStatus as WebsiteStatus;
+   895→  }
+   896→  return lead.website ? 'VERIFIED' : 'UNKNOWN';
+   897→}
+   898→

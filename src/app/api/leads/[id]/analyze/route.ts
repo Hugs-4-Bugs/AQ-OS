@@ -4,6 +4,7 @@ import ZAI from 'z-ai-web-dev-sdk';
 import { withAuth } from '@/lib/auth-middleware';
 import { canUserAccessLead } from '@/lib/lead-resolution';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
+import { loadPersonalContextForAi } from '@/lib/personal-context';
 
 // POST /api/leads/[id]/analyze - Deep AI analysis of a lead
 export async function POST(
@@ -72,7 +73,10 @@ Existing Notes: ${lead.notes || 'None'}
 ${webContext}
       `.trim();
 
-      // Use LLM for deep analysis
+      // Use LLM for deep analysis. The user's self-provided personal/business
+      // context (Settings → My Context) is appended so opportunity framing
+      // reflects what THIS user sells/goals; empty block → unchanged prompt.
+      const { block: userContextBlock } = await loadPersonalContextForAi(user.id);
       const completion = await zai.chat.completions.create({
         messages: [
           {
@@ -96,7 +100,9 @@ Be specific and analytical. Reference actual observations about the business. Re
           },
           {
             role: 'user',
-            content: `Analyze this business lead for digital acquisition opportunity:\n\n${leadContext}`,
+            content: `Analyze this business lead for digital acquisition opportunity:\n\n${leadContext}${
+              userContextBlock ? `\n\n${userContextBlock}` : ''
+            }`,
           },
         ],
         thinking: { type: 'disabled' },

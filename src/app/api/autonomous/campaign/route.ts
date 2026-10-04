@@ -9,14 +9,11 @@ import { withAuth } from '@/lib/auth-middleware';
 import { startAutonomousCampaign } from '@/lib/autonomous-outreach-engine';
 import { checkCreditSufficiency } from '@/lib/credit-service';
 import { db } from '@/lib/db';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // ===== POST: Start an Autonomous Campaign =====
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
 
@@ -124,8 +121,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const url = new URL(request.url);
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '20', 10), 100);

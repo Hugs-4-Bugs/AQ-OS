@@ -1,0 +1,1820 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — Lead Discovery Service
+     3→// Phase 7: Lead Discovery Engine + Scraping + Enrichment
+     4→//
+     5→// Async job-based discovery using z-ai-web-dev-sdk
+     6→// Supports: ai_search, google_maps, justdial, indiamart, yelp, etc.
+     7→// ═══════════════════════════════════════════════════════════════════
+     8→
+     9→import { db } from '@/lib/db';
+    10→import { deductCredits, refundCredits, CREDIT_COSTS } from '@/lib/credit-service';
+    11→import { logAuditEvent } from '@/lib/lead-audit';
+    12→import { checkDuplicate } from '@/lib/lead-dedup-service';
+    13→import { createNotificationOnce } from '@/lib/notification-service';
+    14→import ZAI from 'z-ai-web-dev-sdk';
+    15→import {
+    16→  getSourceStatusInfo,
+    17→  type DiscoverySourceId,
+    18→} from '@/lib/lead-discovery/source-registry';
+    19→import {
+    20→  runSourceAdapter,
+    21→  type AdapterErrorKind,
+    22→} from '@/lib/lead-discovery/source-adapters';
+    23→import { normalizeCountryName } from '@/lib/countries';
+    24→import { deriveImportVerificationStatus } from '@/lib/lead-discovery/verification';
+    25→import {
+    26→  type HardCriteria,
+    27→  type HardRejectReason,
+    28→  describeHardCriteria,
+    29→  describeRejectReason,
+    30→  hasEnforceableCriteria,
+    31→  hasEmployeeConstraint,
+    32→  matchHardCriteria,
+    33→} from '@/lib/discovery/hard-criteria';
+    34→
+    35→// ===== TYPES =====
+    36→
+    37→export type DiscoverySource =
+    38→  | 'all'
+    39→  | 'ai_search'
+    40→  | 'google_maps'
+    41→  | 'google_business'
+    42→  | 'justdial'
+    43→  | 'indiamart'
+    44→  | 'yelp'
+    45→  | 'yellow_pages'
+    46→  | 'sulekha'
+    47→  | 'linkedin'
+    48→  | 'instagram'
+    49→  | 'facebook';
+    50→
+    51→// Sources fanned out (in parallel) when the user selects "all".
+    52→// Keep in sync with the client-side ALL_SOURCES_COUNT (7).
+    53→const ALL_DISCOVERY_SOURCES: DiscoverySource[] = [
+    54→  'ai_search',
+    55→  'google_maps',
+    56→  'linkedin',
+    57→  'justdial',
+    58→  'indiamart',
+    59→  'yellow_pages',
+    60→  'sulekha',
+    61→];
+    62→
+    63→export interface DiscoveryParams {
+    64→  niche: string;
+    65→  /**
+    66→   * Optional since worldwide support (spec §5): when omitted the search
+    67→   * runs without a country constraint instead of failing validation.
+    68→   */
+    69→  country?: string;
+    70→  city?: string;
+    71→  source: DiscoverySource;
+    72→  maxResults?: number;
+    73→  requirements?: string;
+    74→  /**
+    75→   * Structured HARD criteria (employee range, website presence, excluded
+    76→   * types) extracted from the user's request. Enforced server-side AFTER
+    77→   * provider results arrive — AI ranking can never override them.
+    78→   */
+    79→  criteria?: HardCriteria | null;
+    80→  /**
+    81→   * Discover-page context/campaign selector (additive, optional). The
+    82→   * EFFECTIVE resolved context is persisted on the job row (contextJson)
+    83→   * so historical runs stay explainable. Legacy callers omit it → null.
+    84→   */
+    85→  context?: DiscoveryJobContext | null;
+    86→}
+    87→
+    88→/** Resolved context/campaign override attached to a discovery run. */
+    89→export interface DiscoveryJobContext {
+    90→  mode: 'none' | 'campaign' | 'business';
+    91→  campaignId?: string;
+    92→  campaignNiche?: string;
+    93→  /** Instructions merged into the discovery requirements (≤500 chars). */
+    94→  instructions?: string;
+    95→}
+    96→
+    97→export interface DiscoveredLead {
+    98→  businessName: string;
+    99→  ownerName?: string;
+   100→  website?: string;
+   101→  email?: string;
+   102→  phone?: string;
+   103→  whatsapp?: string;
+   104→  linkedin?: string;
+   105→  instagram?: string;
+   106→  facebook?: string;
+   107→  googleMapsListing?: string;
+   108→  reviews?: string;
+   109→  rating?: number;
+   110→  city?: string;
+   111→  country?: string;
+   112→  niche?: string;
+   113→  source: string;
+   114→  /** Provider listing URL (provenance) — where on the source this lead was found. */
+   115→  sourceUrl?: string;
+   116→  /** Search query / variation that produced this lead (spec §3.3 provenance). */
+   117→  discoveredVia?: string;
+   118→  /** Same identity returned by 2+ independent sources (spec §7.2 corroboration). */
+   119→  corroborated?: boolean;
+   120→  /** REAL street address or provider context (stored in Lead.notes). */
+   121→  address?: string;
+   122→  /** Actual employee count when the provider/LLM stated one. null = unknown. */
+   123→  employeeCount?: number | null;
+   124→  /** Provider employee RANGE when no exact count exists (e.g. "51-100", "10000+"). */
+   125→  employeeRange?: string | null;
+   126→}
+   127→
+   128→export interface DiscoveryJobResult {
+   129→  jobId: string;
+   130→  status: string;
+   131→  message: string;
+   132→}
+   133→
+   134→export interface DiscoveryJobStatus {
+   135→  id: string;
+   136→  status: string;
+   137→  source: string;
+   138→  niche: string;
+   139→  country: string;
+   140→  city: string | null;
+   141→  totalFound: number;
+   142→  imported: number;
+   143→  duplicates: number;
+   144→  failed: number;
+   145→  /** Candidates rejected by the deterministic hard-criteria validator. */
+   146→  filteredOut: number;
+   147→  errorMessage: string | null;
+   148→  startedAt: Date | null;
+   149→  completedAt: Date | null;
+   150→  createdAt: Date;
+   151→  updatedAt: Date;
+   152→  resultData?: DiscoveredLead[];
+   153→}
+   154→
+   155→// ===== Z-AI API PACING =====
+   156→
+   157→const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+   158→
+   159→// The z-ai endpoints (web_search AND chat) rate-limit bursts with 429. All
+   160→// SDK calls across all jobs share one pacer: minimum spacing between calls
+   161→// + retry-with-backoff on 429. This turns burst-failures into slow-but-
+   162→// reliable jobs instead of silently-empty extractions.
+   163→// (Env-overridable for unit tests: DISCOVERY_ZAI_MIN_INTERVAL_MS=0 removes
+   164→// pacing in mocked-provider tests. Production default is unchanged at 4s.)
+   165→const ZAI_MIN_INTERVAL_MS = parseInt(process.env.DISCOVERY_ZAI_MIN_INTERVAL_MS || '4000', 10);
+   166→const ZAI_RETRY_BACKOFFS_MS = [8000, 15000, 25000];
+   167→let lastZaiCallAt = 0;
+   168→
+   169→async function pacedZaiCall<T>(
+   170→  fn: () => Promise<T>,
+   171→  retries = ZAI_RETRY_BACKOFFS_MS.length
+   172→): Promise<T> {
+   173→  for (let attempt = 0; ; attempt++) {
+   174→    const now = Date.now();
+   175→    const wait = lastZaiCallAt + ZAI_MIN_INTERVAL_MS - now;
+   176→    if (wait > 0) await sleep(wait);
+   177→    lastZaiCallAt = Date.now();
+   178→    try {
+   179→      return await fn();
+   180→    } catch (err) {
+   181→      const retryable = err instanceof Error && /429|too many|rate/i.test(err.message);
+   182→      if (retryable && attempt < retries) {
+   183→        const backoff = ZAI_RETRY_BACKOFFS_MS[Math.min(attempt, ZAI_RETRY_BACKOFFS_MS.length - 1)];
+   184→        console.warn(`[DiscoveryService] z-ai API rate-limited — retrying in ${backoff / 1000}s (attempt ${attempt + 1}/${retries})`);
+   185→        await sleep(backoff);
+   186→        continue;
+   187→      }
+   188→      throw err;
+   189→    }
+   190→  }
+   191→}
+   192→
+   193→// ===== CONSTANTS =====
+   194→
+   195→const MAX_CONCURRENT_JOBS = parseInt(process.env.DISCOVERY_MAX_CONCURRENT_JOBS || '3', 10);
+   196→/**
+   197→ * Default per-job target. Raised 50 → 200 (spec §3.1: do not hardcode a
+   198→ * tiny global result limit when providers and the user's plan permit more;
+   199→ * still a bounded, rate-limit-respecting ceiling, env-overridable).
+   200→ */
+   201→const RESULTS_PER_JOB = parseInt(process.env.DISCOVERY_RESULTS_PER_JOB || '200', 10);
+   202→const CREDIT_COST_PER_LEAD = CREDIT_COSTS.lead_discovery;
+   203→
+   204→/**
+   205→ * Error thrown by discoverFromSource carrying the provider's structured
+   206→ * error kind — so the job processor can distinguish a genuine zero-result
+   207→ * search (kind: 'no_results') from a provider failure / rate limit and
+   208→ * complete the job honestly instead of reporting a blanket failure (§3.4).
+   209→ */
+   210→class DiscoverySourceError extends Error {
+   211→  kind: AdapterErrorKind;
+   212→  retryAfterMinutes?: number;
+   213→  constructor(message: string, kind: AdapterErrorKind, retryAfterMinutes?: number) {
+   214→    super(message);
+   215→    this.name = 'DiscoverySourceError';
+   216→    this.kind = kind;
+   217→    this.retryAfterMinutes = retryAfterMinutes;
+   218→  }
+   219→}
+   220→
+   221→// ===== JOB MANAGEMENT =====
+   222→
+   223→/**
+   224→ * Start a discovery job — creates job record and kicks off async processing.
+   225→ * Returns job ID immediately (non-blocking).
+   226→ */
+   227→export async function startDiscoveryJob(
+   228→  userId: string,
+   229→  params: DiscoveryParams,
+   230→  orgId?: string
+   231→): Promise<DiscoveryJobResult> {
+   232→  // Validate params — country is intentionally optional (worldwide search,
+   233→  // spec §5: "Support worldwide searches without requiring a country")
+   234→  if (!params.niche || !params.source) {
+   235→    return {
+   236→      jobId: '',
+   237→      status: 'failed',
+   238→      message: 'Missing required fields: niche, source',
+   239→    };
+   240→  }
+   241→
+   242→  // ── PRE-FLIGHT SOURCE CHECK ────────────────────────────────────────
+   243→  // A source without its real credentials is NEVER run. We refuse the job
+   244→  // up-front with the exact configuration message instead of returning
+   245→  // fake, mock, or placeholder leads.
+   246→  if (params.source !== 'all' && params.source !== 'ai_search') {
+   247→    const sourceInfo = getSourceStatusInfo(params.source as DiscoverySourceId);
+   248→    if (sourceInfo.status !== 'connected') {
+   249→      await logAuditEvent(userId, 'discovery_source_not_configured', {
+   250→        source: params.source,
+   251→        status: sourceInfo.status,
+   252→        missing: sourceInfo.requiredEnvVars.map((v) => v.name),
+   253→      });
+   254→      return {
+   255→        jobId: '',
+   256→        status: 'failed',
+   257→        message: sourceInfo.configMessage,
+   258→      };
+   259→    }
+   260→  }
+   261→
+   262→  // Check concurrent job limit
+   263→  const runningJobs = await db.discoveryJob.count({
+   264→    where: { userId, status: { in: ['pending', 'running'] } },
+   265→  });
+   266→
+   267→  if (runningJobs >= MAX_CONCURRENT_JOBS) {
+   268→    return {
+   269→      jobId: '',
+   270→      status: 'failed',
+   271→      message: `Maximum concurrent discovery jobs (${MAX_CONCURRENT_JOBS}) reached. Please wait for existing jobs to complete.`,
+   272→    };
+   273→  }
+   274→
+   275→  // Estimate credits needed (minimum 1)
+   276→  const estimatedResults = Math.min(params.maxResults || RESULTS_PER_JOB, RESULTS_PER_JOB);
+   277→  const creditsNeeded = estimatedResults * CREDIT_COST_PER_LEAD;
+   278→
+   279→  // Create job record
+   280→  const job = await db.discoveryJob.create({
+   281→    data: {
+   282→      userId,
+   283→      status: 'pending',
+   284→      source: params.source,
+   285→      niche: params.niche,
+   286→      country: params.country || '', // '' = worldwide (column is NOT NULL)
+   287→      city: params.city || null,
+   288→      totalFound: 0,
+   289→      imported: 0,
+   290→      duplicates: 0,
+   291→      failed: 0,
+   292→      // Persist the effective context/campaign override for explainability
+   293→      // (additive nullable column; legacy rows read as no context).
+   294→      contextJson: params.context
+   295→        ? JSON.stringify(params.context)
+   296→        : null,
+   297→    },
+   298→  });
+   299→
+   300→  // Audit log
+   301→  await logAuditEvent(userId, 'discovery_started', {
+   302→    jobId: job.id,
+   303→    source: params.source,
+   304→    niche: params.niche,
+   305→    country: params.country,
+   306→    city: params.city,
+   307→    estimatedResults,
+   308→    creditsNeeded,
+   309→  });
+   310→
+   311→  // Kick off async processing (non-blocking)
+   312→  processDiscoveryJob(job.id, userId, params, orgId).catch((err) => {
+   313→    console.error(`[DiscoveryService] Job ${job.id} failed:`, err);
+   314→  });
+   315→
+   316→  return {
+   317→    jobId: job.id,
+   318→    status: 'pending',
+   319→    message: `Discovery job started. Estimated ${estimatedResults} leads. Job ID: ${job.id}`,
+   320→  };
+   321→}
+   322→
+   323→/**
+   324→ * Get discovery job status by ID.
+   325→ */
+   326→export async function getDiscoveryJobStatus(jobId: string, userId: string): Promise<DiscoveryJobStatus | null> {
+   327→  const job = await db.discoveryJob.findFirst({
+   328→    where: { id: jobId, userId },
+   329→  });
+   330→
+   331→  if (!job) return null;
+   332→
+   333→  const resultData = job.resultData ? JSON.parse(job.resultData) : undefined;
+   334→
+   335→  return {
+   336→    id: job.id,
+   337→    status: job.status,
+   338→    source: job.source,
+   339→    niche: job.niche,
+   340→    country: job.country,
+   341→    city: job.city,
+   342→    totalFound: job.totalFound,
+   343→    imported: job.imported,
+   344→    duplicates: job.duplicates,
+   345→    failed: job.failed,
+   346→    filteredOut: job.filteredOut,
+   347→    errorMessage: job.errorMessage,
+   348→    startedAt: job.startedAt,
+   349→    completedAt: job.completedAt,
+   350→    createdAt: job.createdAt,
+   351→    updatedAt: job.updatedAt,
+   352→    resultData,
+   353→  };
+   354→}
+   355→
+   356→/**
+   357→ * List all discovery jobs for a user.
+   358→ */
+   359→export async function listDiscoveryJobs(
+   360→  userId: string,
+   361→  options?: { limit?: number; offset?: number; status?: string }
+   362→): Promise<{ jobs: DiscoveryJobStatus[]; total: number }> {
+   363→  const where: Record<string, unknown> = { userId };
+   364→  if (options?.status) where.status = options.status;
+   365→
+   366→  const [jobs, total] = await Promise.all([
+   367→    db.discoveryJob.findMany({
+   368→      where,
+   369→      orderBy: { createdAt: 'desc' },
+   370→      take: options?.limit || 20,
+   371→      skip: options?.offset || 0,
+   372→    }),
+   373→    db.discoveryJob.count({ where }),
+   374→  ]);
+   375→
+   376→  return {
+   377→    jobs: jobs.map((job) => ({
+   378→      id: job.id,
+   379→      status: job.status,
+   380→      source: job.source,
+   381→      niche: job.niche,
+   382→      country: job.country,
+   383→      city: job.city,
+   384→      totalFound: job.totalFound,
+   385→      imported: job.imported,
+   386→      duplicates: job.duplicates,
+   387→      failed: job.failed,
+   388→      filteredOut: job.filteredOut,
+   389→      errorMessage: job.errorMessage,
+   390→      startedAt: job.startedAt,
+   391→      completedAt: job.completedAt,
+   392→      createdAt: job.createdAt,
+   393→      updatedAt: job.updatedAt,
+   394→    })),
+   395→    total,
+   396→  };
+   397→}
+   398→
+   399→// ===== ASYNC JOB PROCESSOR =====
+   400→
+   401→/**
+   402→ * Process a discovery job in the background.
+   403→ * Uses z-ai-web-dev-sdk for web search + LLM extraction.
+   404→ */
+   405→export async function processDiscoveryJob(
+   406→  jobId: string,
+   407→  userId: string,
+   408→  params: DiscoveryParams,
+   409→  orgId?: string
+   410→): Promise<void> {
+   411→  // Mark as running
+   412→  await db.discoveryJob.update({
+   413→    where: { id: jobId },
+   414→    data: { status: 'running', startedAt: new Date() },
+   415→  });
+   416→
+   417→  try {
+   418→    const maxResults = Math.min(params.maxResults || RESULTS_PER_JOB, RESULTS_PER_JOB);
+   419→
+   420→    // Step 1: Use web search to find businesses
+   421→    let zai: ZAI;
+   422→    try {
+   423→      zai = await ZAI.create();
+   424→    } catch {
+   425→      throw new Error('Failed to initialize AI SDK. Check API configuration.');
+   426→    }
+   427→
+   428→    // Step 1a: Gather discovered leads — single source, or parallel fan-out across
+   429→    // all configured sources when the user selected "all" (merged + deduplicated).
+   430→    let discoveredLeads: DiscoveredLead[] = [];
+   431→    let skippedSourceNotes: string[] = [];
+   432→
+   433→    if (params.source === 'all') {
+   434→      // Distribute the per-source quota across the configured sources
+   435→      const perSourceLimit = Math.min(
+   436→        Math.max(5, Math.ceil(maxResults / ALL_DISCOVERY_SOURCES.length)),
+   437→        RESULTS_PER_JOB
+   438→      );
+   439→
+   440→      console.log(`[DiscoveryService] "all" mode: fanning out to ${ALL_DISCOVERY_SOURCES.length} sources in parallel (per-source limit ${perSourceLimit})`);
+   441→
+   442→      const settled = await Promise.allSettled(
+   443→        ALL_DISCOVERY_SOURCES.map((src) =>
+   444→          discoverFromSource(zai, { ...params, source: src, maxResults: perSourceLimit }, perSourceLimit)
+   445→        )
+   446→      );
+   447→
+   448→      // Merge fulfilled results; each lead keeps its own per-source tag.
+   449→      // Rejected sources are recorded as honest skip notes (config errors,
+   450→      // rate limits, API failures) — they never produce substitute data.
+   451→      for (let i = 0; i < settled.length; i++) {
+   452→        const outcome = settled[i];
+   453→        if (outcome.status === 'fulfilled') {
+   454→          discoveredLeads.push(...outcome.value);
+   455→        } else {
+   456→          const src = ALL_DISCOVERY_SOURCES[i];
+   457→          const reason = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+   458→          console.error(`[DiscoveryService] "all" mode: source ${src} skipped:`, reason);
+   459→          skippedSourceNotes.push(`${src}: ${reason}`);
+   460→        }
+   461→      }
+   462→
+   463→      const beforeDedupe = discoveredLeads.length;
+   464→      discoveredLeads = dedupeDiscoveredLeads(discoveredLeads);
+   465→      // Keep the merged set bounded so credit usage stays predictable
+   466→      discoveredLeads = discoveredLeads.slice(0, Math.max(maxResults, perSourceLimit * 2));
+   467→
+   468→      console.log(`[DiscoveryService] "all" mode: merged ${beforeDedupe} results → ${discoveredLeads.length} unique leads`);
+   469→    } else {
+   470→      discoveredLeads = await discoverFromSource(zai, params, maxResults);
+   471→    }
+   472→
+   473→    // Step 1b: EMPLOYEE-COUNT ENRICHMENT (only when an employee constraint
+   474→    // is requested). Per-company targeted searches resolve missing sizes
+   475→    // from REAL evidence before validation — so the hard gate has real
+   476→    // data to verify instead of rejecting every candidate as unknown.
+   477→    const hardCriteria =
+   478→      params.criteria && hasEnforceableCriteria(params.criteria) ? params.criteria : null;
+   479→    let filteredOut = 0;
+   480→    const filterReasons = new Map<HardRejectReason, number>();
+   481→
+   482→    if (hardCriteria && hasEmployeeConstraint(hardCriteria)) {
+   483→      try {
+   484→        const { enriched, enrichedCount } = await enrichLeadEvidence(zai, discoveredLeads, params);
+   485→        discoveredLeads = enriched;
+   486→        console.log(`[DiscoveryService] enrichment resolved evidence for ${enrichedCount} candidates`);
+   487→      } catch (enrichErr) {
+   488→        console.error('[DiscoveryService] enrichment failed (continuing with unenriched candidates):', enrichErr);
+   489→      }
+   490→    }
+   491→
+   492→    // Step 1c: HARD CRITERIA ENFORCEMENT (server-side, deterministic).
+   493→    // Runs AFTER provider results are received, BEFORE dedupe/credits/import.
+   494→    // This is INDEPENDENT of the AI extraction/ranking — a candidate that
+   495→    // violates an explicit hard constraint (or whose employee count cannot
+   496→    // be verified when an employee range was requested) is rejected here,
+   497→    // even if the AI scored it highly. Fewer verified results is honest;
+   498→    // padding the list with unverified companies is not acceptable.
+   499→    if (hardCriteria) {
+   500→      const beforeCount = discoveredLeads.length;
+   501→      const kept: DiscoveredLead[] = [];
+   502→      for (const lead of discoveredLeads) {
+   503→        const verdict = matchHardCriteria(lead, hardCriteria);
+   504→        if (verdict.match) {
+   505→          kept.push(lead);
+   506→        } else {
+   507→          filteredOut++;
+   508→          const reason = (verdict.reason || 'employee_count_unverified') as HardRejectReason;
+   509→          filterReasons.set(reason, (filterReasons.get(reason) || 0) + 1);
+   510→        }
+   511→      }
+   512→      discoveredLeads = rankVerifiedLeads(kept);
+   513→      console.log(
+   514→        `[DiscoveryService] hard criteria (${describeHardCriteria(hardCriteria)}): ${beforeCount} candidates → ${discoveredLeads.length} verified, ${filteredOut} rejected`
+   515→      );
+   516→    }
+   517→
+   518→    // Step 2: Deduplicate and import leads
+   519→    let imported = 0;
+   520→    let duplicates = 0;
+   521→    let failedCount = 0;
+   522→
+   523→    // Evidence-based verification tally (spec §7.2): the summary must state
+   524→    // HOW the stored verification labels were derived, never a blanket
+   525→    // "verified" claim. Corroboration by 2+ sources → partially_verified;
+   526→    // single-source imports stay unverified until a real verification
+   527→    // workflow assesses them.
+   528→    let partiallyVerifiedCount = 0;
+   529→    let unverifiedCount = 0;
+   530→
+   531→    // Bounded, evidence-based website reachability checks (no AI, no
+   532→    // credits, fail-open). Findings are stored per lead as an evidence note
+   533→    // (+ websiteStatus on success) — a failed probe is recorded as an
+   534→    // observation that may be temporary, never as a permanent judgment.
+   535→    let websiteProbes = new Map<string, WebsiteProbeOutcome>();
+   536→    try {
+   537→      websiteProbes = await probeWebsitesForEvidence(discoveredLeads);
+   538→      if (websiteProbes.size > 0) {
+   539→        console.log(`[DiscoveryService] website reachability probes: ${websiteProbes.size} domain(s) checked`);
+   540→      }
+   541→    } catch (probeErr) {
+   542→      console.warn('[DiscoveryService] website probe step failed (continuing without probe evidence):', probeErr instanceof Error ? probeErr.message : probeErr);
+   543→    }
+   544→
+   545→    for (const leadData of discoveredLeads) {
+   546→      try {
+   547→        // Check for duplicates
+   548→        const dupCheck = await checkDuplicate(userId, {
+   549→          businessName: leadData.businessName,
+   550→          website: leadData.website,
+   551→          email: leadData.email,
+   552→          phone: leadData.phone,
+   553→        });
+   554→
+   555→        if (dupCheck.isDuplicate) {
+   556→          duplicates++;
+   557→          // Preserve useful information from the duplicate listing instead of
+   558→          // discarding it (spec §8): fill empty fields + provenance. Non-
+   559→          // destructive, idempotent, never overwrites existing values.
+   560→          if (dupCheck.duplicateOf) {
+   561→            await mergeFillDuplicate(dupCheck.duplicateOf, leadData);
+   562→          }
+   563→          continue;
+   564→        }
+   565→
+   566→        // Deduct credit for this lead. Idempotency key = job + position,
+   567→        // so a retried/replayed job can NEVER double-charge the same slot
+   568→        // (spec §12: usage accounting must be idempotent).
+   569→        const creditResult = await deductCredits({
+   570→          userId,
+   571→          action: 'lead_discovery',
+   572→          cost: CREDIT_COST_PER_LEAD,
+   573→          referenceId: jobId,
+   574→          idempotencyKey: `${jobId}:lead:${imported}`,
+   575→        });
+   576→
+   577→        if (!creditResult.success) {
+   578→          failedCount++;
+   579→          continue;
+   580→        }
+   581→
+   582→        // Canonical country (spec §5 normalization) — falls back to the raw
+   583→        // value when it cannot be confidently resolved, never guesses.
+   584→        const rawCountry = leadData.country || params.country;
+   585→        const canonicalCountry = normalizeCountryName(rawCountry) || rawCountry;
+   586→
+   587→        // Honest import-time verification label: corroboration by 2+
+   588→        // independent sources during this run → partially_verified;
+   589→        // everything else → unverified (discovered, not yet assessed).
+   590→        const importVerificationStatus = deriveImportVerificationStatus(!!leadData.corroborated);
+   591→        if (importVerificationStatus === 'partially_verified') partiallyVerifiedCount++;
+   592→        else unverifiedCount++;
+   593→
+   594→        // Website probe evidence for THIS lead (when its domain was probed)
+   595→        let websiteStatus: string | null = null;
+   596→        let probeNote = '';
+   597→        if (leadData.website) {
+   598→          let host: string | null = null;
+   599→          try {
+   600→            host = new URL(leadData.website).host.replace(/^www\./, '');
+   601→          } catch {
+   602→            host = null;
+   603→          }
+   604→          const probe = host ? websiteProbes.get(host) : undefined;
+   605→          if (probe?.reachable) {
+   606→            // The site answered — that is real, time-stamped evidence.
+   607→            websiteStatus = 'VERIFIED';
+   608→            probeNote = `Website responded to discovery reachability check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}).`;
+   609→          } else if (probe) {
+   610→            probeNote = `Website did not respond during discovery check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}) — may be a temporary or regional issue, not yet verified.`;
+   611→          }
+   612→        }
+   613→
+   614→        try {
+   615→          // Create lead — tag with the lead's own source so "all" mode shows the real origin
+   616→          await db.lead.create({
+   617→            data: {
+   618→              userId,
+   619→              orgId: orgId || null,
+   620→              businessName: leadData.businessName,
+   621→              ownerName: leadData.ownerName || null,
+   622→              website: leadData.website || null,
+   623→              email: leadData.email || null,
+   624→              phone: leadData.phone || null,
+   625→              whatsapp: leadData.whatsapp || null,
+   626→              linkedin: leadData.linkedin || null,
+   627→              instagram: leadData.instagram || null,
+   628→              facebook: leadData.facebook || null,
+   629→              googleMapsListing: leadData.googleMapsListing || null,
+   630→              reviews: leadData.reviews || null,
+   631→              rating: leadData.rating || null,
+   632→              city: leadData.city || params.city || null,
+   633→              country: canonicalCountry,
+   634→              niche: leadData.niche || params.niche,
+   635→              source: leadData.source || params.source,
+   636→              stage: 'discovered',
+   637→              hasWebsite: !!leadData.website,
+   638→              employeeCount:
+   639→                typeof leadData.employeeCount === 'number' && Number.isFinite(leadData.employeeCount)
+   640→                  ? Math.round(leadData.employeeCount)
+   641→                  : null,
+   642→              employeeRange: leadData.employeeRange || null,
+   643→              sourceUrl: leadData.sourceUrl || null,
+   644→              discoveredVia: leadData.discoveredVia || null,
+   645→              verificationStatus: importVerificationStatus,
+   646→              notes: [leadData.address ? `Address: ${leadData.address}` : '', probeNote]
+   647→                .filter(Boolean)
+   648→                .join(' ') || null,
+   649→              websiteStatus,
+   650→            },
+   651→          });
+   652→        } catch (createErr) {
+   653→          // The lead was NOT saved — the credit must not be kept (spec §12:
+   654→          // never charge for a failed operation). Idempotent deduction means
+   655→          // the refund plus key makes retries safe.
+   656→          failedCount++;
+   657→          console.error(`[DiscoveryService] Failed to import lead — refunding credit:`, createErr);
+   658→          await refundCredits({
+   659→            userId,
+   660→            amount: CREDIT_COST_PER_LEAD,
+   661→            originalAction: 'lead_discovery',
+   662→            referenceId: jobId,
+   663→          }).catch((refundErr) => {
+   664→            console.error('[DiscoveryService] Credit refund failed (ledger keeps reference):', refundErr);
+   665→          });
+   666→          continue;
+   667→        }
+   668→
+   669→        imported++;
+   670→      } catch (leadErr) {
+   671→        failedCount++;
+   672→        console.error(`[DiscoveryService] Failed to import lead:`, leadErr);
+   673→      }
+   674→    }
+   675→
+   676→    // Update job as completed — filteredOut records honest rejection counts
+   677→    await db.discoveryJob.update({
+   678→      where: { id: jobId },
+   679→      data: {
+   680→        status: 'completed',
+   681→        totalFound: discoveredLeads.length,
+   682→        imported,
+   683→        duplicates,
+   684→        failed: failedCount,
+   685→        filteredOut,
+   686→        resultData: JSON.stringify(discoveredLeads.slice(0, 100)), // Store up to 100 results
+   687→        completedAt: new Date(),
+   688→      },
+   689→    });
+   690→
+   691→    // Audit log — includes the verification tally for traceability
+   692→    await logAuditEvent(userId, 'discovery_completed', {
+   693→      jobId,
+   694→      source: params.source,
+   695→      totalFound: discoveredLeads.length,
+   696→      imported,
+   697→      duplicates,
+   698→      failed: failedCount,
+   699→      verificationTally: {
+   700→        partially_verified: partiallyVerifiedCount,
+   701→        unverified: unverifiedCount,
+   702→      },
+   703→    });
+   704→
+   705→    // User-facing notification (deduped per discovery job) — HONEST counts:
+   706→    // the summary distinguishes corroboration-based "partially verified"
+   707→    // from single-source "not yet verified" and never calls AI-discovered
+   708→    // records "verified" (spec §7.2: verification requires a method).
+   709→    const summaryMessage = buildDiscoveryCompletionMessage({
+   710→      source: params.source || '',
+   711→      imported,
+   712→      partiallyVerified: partiallyVerifiedCount,
+   713→      unverified: unverifiedCount,
+   714→      duplicates,
+   715→      filteredOut,
+   716→      filterReasonFragments:
+   717→        hardCriteria && filterReasons.size > 0
+   718→          ? Array.from(filterReasons.entries()).slice(0, 3).map(([r, n]) => `${n} ${describeRejectReason(r)}`)
+   719→          : [],
+   720→      skippedSourceFragments: skippedSourceNotes.map((n) => n.split(':')[0].trim()).filter(Boolean),
+   721→    });
+   722→    await createNotificationOnce({
+   723→      userId,
+   724→      type: 'discovery_completed',
+   725→      title: 'Lead discovery completed',
+   726→      message: summaryMessage,
+   727→      actionUrl: imported > 0 ? '/business-ai/leads' : '/business-ai/discover',
+   728→      metadata: {
+   729→        jobId,
+   730→        source: params.source,
+   731→        totalFound: discoveredLeads.length,
+   732→        imported,
+   733→        duplicates,
+   734→        failed: failedCount,
+   735→        filteredOut,
+   736→        verificationTally: { partially_verified: partiallyVerifiedCount, unverified: unverifiedCount },
+   737→      },
+   738→      dedupeKey: `discovery:${jobId}:completed`,
+   739→    }).catch(() => {
+   740→      // Never fail the discovery path because of a notification problem
+   741→    });
+   742→  } catch (error) {
+   743→    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+   744→
+   745→    // ══ HONEST OUTCOME CLASSIFICATION (spec §3.4) ═════════════════
+   746→    // A provider that answered "no results" is NOT a failure. Blanket-
+   747→    // failing genuine zero-result searches is exactly what produced the
+   748→    // old misleading "No suitable leads found" behavior.
+   749→    if (error instanceof DiscoverySourceError && error.kind === 'no_results') {
+   750→      const reason = `No results: ${errorMessage}`;
+   751→      await db.discoveryJob.update({
+   752→        where: { id: jobId },
+   753→        data: {
+   754→          status: 'completed',
+   755→          totalFound: 0,
+   756→          imported: 0,
+   757→          duplicates: 0,
+   758→          failed: 0,
+   759→          filteredOut: 0,
+   760→          errorMessage: reason,
+   761→          completedAt: new Date(),
+   762→        },
+   763→      });
+   764→
+   765→      await logAuditEvent(userId, 'discovery_completed_empty', {
+   766→        jobId,
+   767→        source: params.source,
+   768→        reason: errorMessage,
+   769→      });
+   770→
+   771→      await createNotificationOnce({
+   772→        userId,
+   773→        type: 'discovery_completed',
+   774→        title: 'Lead discovery completed — no results',
+   775→        message: `No matching businesses were returned: ${errorMessage}`,
+   776→        actionUrl: '/business-ai/discover',
+   777→        metadata: { jobId, source: params.source, totalFound: 0, imported: 0 },
+   778→        dedupeKey: `discovery:${jobId}:completed`,
+   779→      }).catch(() => {
+   780→        // Never fail the discovery path because of a notification problem
+   781→      });
+   782→      return;
+   783→    }
+   784→
+   785→    // Provider failure / rate limit / infrastructure error — job failed,
+   786→    // with a truthful, actionable message (retry window when known).
+   787→    const friendlyMessage =
+   788→      error instanceof DiscoverySourceError && error.kind === 'rate_limited'
+   789→        ? `${errorMessage}${error.retryAfterMinutes ? ` (retry in ~${error.retryAfterMinutes} min)` : ''}`
+   790→        : errorMessage;
+   791→
+   792→    // Update job as failed
+   793→    await db.discoveryJob.update({
+   794→      where: { id: jobId },
+   795→      data: {
+   796→        status: 'failed',
+   797→        errorMessage: friendlyMessage,
+   798→        completedAt: new Date(),
+   799→      },
+   800→    });
+   801→
+   802→    // Audit log
+   803→    await logAuditEvent(userId, 'discovery_failed', {
+   804→      jobId,
+   805→      source: params.source,
+   806→      error: errorMessage,
+   807→    });
+   808→
+   809→    // User-facing notification — safe message only (the raw error stays in
+   810→    // the job record / audit log, never in the notification text).
+   811→    await createNotificationOnce({
+   812→      userId,
+   813→      type: 'discovery_failed',
+   814→      title: 'Lead discovery failed',
+   815→      message: `The discovery run for ${params.source || 'your sources'} could not be completed. Please try again from the Discover page.`,
+   816→      actionUrl: '/business-ai/discover',
+   817→      metadata: { jobId, source: params.source },
+   818→      dedupeKey: `discovery:${jobId}:failed`,
+   819→    }).catch(() => {
+   820→      // Never fail the discovery path because of a notification problem
+   821→    });
+   822→  }
+   823→}
+   824→
+   825→// ===== SEARCH QUERY BUILDER =====
+   826→
+   827→/**
+   828→ * REAL-DATA-ONLY dispatcher for one source.
+   829→ *  - ai_search        → built-in AI web search (existing z-ai flow, real results)
+   830→ *  - every other source → the source's real adapter (official API or live scraping)
+   831→ *
+   832→ * Throws on failure so single-source jobs fail with the exact provider error
+   833→ * (config missing / rate limited / API error) and "all"-mode fan-out records
+   834→ * the source as skipped. Fake or placeholder data is NEVER returned.
+   835→ */
+   836→async function discoverFromSource(
+   837→  zai: ZAI,
+   838→  params: DiscoveryParams,
+   839→  maxResults: number
+   840→): Promise<DiscoveredLead[]> {
+   841→  if (params.source === 'ai_search') {
+   842→    return sanitizeDiscoveredLeads(
+   843→      await searchSourceLeads(zai, params, maxResults),
+   844→      params,
+   845→      maxResults
+   846→    );
+   847→  }
+   848→
+   849→  const searchLocation = [params.city, params.country].filter(Boolean).join(', ');
+   850→  const result = await runSourceAdapter(
+   851→    params.source as DiscoverySourceId,
+   852→    params.niche,
+   853→    searchLocation,
+   854→    maxResults
+   855→  );
+   856→
+   857→  if (result.error) {
+   858→    // Surface the exact, honest reason — preserving the structured kind so
+   859→    // the job processor can distinguish "genuinely no results" from "provider
+   860→    // failed / rate limited" (spec §3.4) instead of a blanket failure.
+   861→    throw new DiscoverySourceError(
+   862→      result.error.message,
+   863→      result.error.kind,
+   864→      result.error.retryAfterMinutes
+   865→    );
+   866→  }
+   867→
+   868→  return sanitizeDiscoveredLeads(result.leads, params, maxResults);
+   869→}
+   870→
+   871→/**
+   872→ * Universal lead validation (applies to EVERY source, including AI search):
+   873→ *   1. A lead without a business name is discarded.
+   874→ *   2. Malformed / junk records are discarded (names that are actually URLs,
+   875→ *      email addresses, or pathologically long strings — clearly not a
+   876→ *      business identity).
+   877→ *   3. A candidate that EXPLICITLY contradicts the requested geography is
+   878→ *      discarded (its own stated country resolves to a different country
+   879→ *      than the one the user asked for). Candidates with NO stated country,
+   880→ *      or an unresolvable one, are kept — absence of evidence is not a
+   881→ *      contradiction (worldwide searches legitimately return such leads).
+   882→ *   4. Per-source duplicates are removed.
+   883→ *
+   884→ * NOTE — location is intentionally NOT a rejection criterion otherwise.
+   885→ * The previous rule ("a lead without any location information — its own, or
+   886→ * the search's — is discarded") could only ever fire on WORLDWIDE searches:
+   887→ * when the search itself had a location, `params.city`/`params.country`
+   888→ * made every candidate pass. On worldwide runs (no country/city selected)
+   889→ * candidates legitimately carry no location, so the rule silently
+   890→ * discarded ALL extracted results — the job then "completed" with
+   891→ * totalFound=0 and nothing persisted to the Leads page. Worldwide
+   892→ * candidates are now retained; location is displayed as "Unknown
+   893→ * location" when absent (matches the Leads UI).
+   894→ */
+   895→export function sanitizeDiscoveredLeads(
+   896→  leads: DiscoveredLead[],
+   897→  params: DiscoveryParams,
+   898→  maxResults: number
+   899→): DiscoveredLead[] {
+   900→  const seen = new Set<string>();
+   901→  const out: DiscoveredLead[] = [];
+   902→
+   903→  const requestedCountry = params.country
+   904→    ? normalizeCountryName(params.country)?.toLowerCase() || null
+   905→    : null;
+   906→
+   907→  for (const lead of leads) {
+   908→    const name = (lead.businessName || '').trim();
+   909→    if (!name || name.length < 2) continue;
+   910→
+   911→    // Malformed identity guard: a "business name" that is actually a URL,
+   912→    // an email address, or a >120-char fragment is extraction noise, not a
+   913→    // real business. Conservative — only unambiguous junk is dropped.
+   914→    const lowered = name.toLowerCase();
+   915→    if (
+   916→      lowered.includes('http://') ||
+   917→      lowered.includes('https://') ||
+   918→      lowered.startsWith('www.') ||
+   919→      lowered.includes('@') ||
+   920→      name.length > 120
+   921→    ) {
+   922→      continue;
+   923→    }
+   924→
+   925→    // Geography contradiction: the candidate EXPLICITLY states a country
+   926→    // that is different from the requested one. When either side cannot be
+   927→    // confidently canonicalized, the check is skipped (never guesses).
+   928→    if (requestedCountry && lead.country) {
+   929→      const candidateCountry = normalizeCountryName(lead.country)?.toLowerCase() || null;
+   930→      if (candidateCountry && candidateCountry !== requestedCountry) {
+   931→        continue;
+   932→      }
+   933→    }
+   934→
+   935→    const key = `${name.toLowerCase()}|${(lead.phone || lead.website || lead.city || '').toLowerCase()}`;
+   936→    if (seen.has(key)) continue;
+   937→    seen.add(key);
+   938→
+   939→    out.push({
+   940→      ...lead,
+   941→      businessName: name,
+   942→      source: lead.source || params.source,
+   943→    });
+   944→
+   945→    if (out.length >= maxResults) break;
+   946→  }
+   947→
+   948→  return out;
+   949→}
+   950→
+   951→/**
+   952→ * Deterministic ranking of VALIDATED leads (runs after hard-criteria
+   953→ * enforcement, before import):
+   954→ *   1. Leads with a verified exact employeeCount first, then range-only,
+   955→ *      then unknown — most verifiable evidence first.
+   956→ *   2. Within each tier: higher rating first, then leads with a website.
+   957→ * The ordering is stable, so results are reproducible for the same input.
+   958→ */
+   959→function rankVerifiedLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
+   960→  const evidenceTier = (lead: DiscoveredLead): number =>
+   961→    typeof lead.employeeCount === 'number' && Number.isFinite(lead.employeeCount) ? 0 : lead.employeeRange ? 1 : 2;
+   962→  return [...leads].sort((a, b) => {
+   963→    const tier = evidenceTier(a) - evidenceTier(b);
+   964→    if (tier !== 0) return tier;
+   965→    const rating = (b.rating ?? 0) - (a.rating ?? 0);
+   966→    if (rating !== 0) return rating;
+   967→    return (b.website ? 1 : 0) - (a.website ? 1 : 0);
+   968→  });
+   969→}
+   970→
+   971→// ===== DUPLICATE MERGE-FILL (spec §8) =====
+   972→
+   973→/**
+   974→ * Fill ONLY empty fields on an existing lead from a duplicate discovery
+   975→ * result. Never overwrites existing (stronger) evidence with incoming
+   976→ * (weaker) evidence — non-conflicting merge only. Idempotent: running
+   977→ * again changes nothing. Preserves the duplicate listing's provenance in
+   978→ * notes and upgrades verification when the second sighting comes from a
+   979→ * DIFFERENT source (independent corroboration, spec §7.2).
+   980→ */
+   981→async function mergeFillDuplicate(leadId: string, incoming: DiscoveredLead): Promise<void> {
+   982→  try {
+   983→    const existing = await db.lead.findUnique({ where: { id: leadId } });
+   984→    if (!existing) return;
+   985→
+   986→    const data: Record<string, unknown> = {};
+   987→    if (!existing.email && incoming.email) data.email = incoming.email;
+   988→    if (!existing.phone && incoming.phone) data.phone = incoming.phone;
+   989→    if (!existing.website && incoming.website) {
+   990→      data.website = incoming.website;
+   991→      data.hasWebsite = true;
+   992→    }
+   993→    if (!existing.sourceUrl && incoming.sourceUrl) data.sourceUrl = incoming.sourceUrl;
+   994→    if (
+   995→      incoming.employeeCount != null &&
+   996→      Number.isFinite(incoming.employeeCount) &&
+   997→      existing.employeeCount == null
+   998→    ) {
+   999→      data.employeeCount = Math.round(incoming.employeeCount);
+  1000→    }
+  1001→    if (incoming.employeeRange && !existing.employeeRange) {
+  1002→      data.employeeRange = incoming.employeeRange;
+  1003→    }
+  1004→
+  1005→    // Independent corroboration: same identity, different source
+  1006→    if (
+  1007→      existing.verificationStatus === 'unverified' &&
+  1008→      incoming.source &&
+  1009→      existing.source &&
+  1010→      existing.source !== incoming.source
+  1011→    ) {
+  1012→      data.verificationStatus = 'partially_verified';
+  1013→    }
+  1014→
+  1015→    const mergedSomething = Object.keys(data).length > 0;
+  1016→    if (!mergedSomething) return;
+  1017→
+  1018→    // Bounded provenance note (never overwrite the user's own notes)
+  1019→    const provenance = `Re-sighted via ${incoming.source}${incoming.sourceUrl ? ` — ${incoming.sourceUrl}` : ''}; merged non-conflicting fields only.`;
+  1020→    const currentNotes = existing.notes || '';
+  1021→    data.notes = (currentNotes ? `${currentNotes} | ` : '') + provenance;
+  1022→    if ((data.notes as string).length > 2000) {
+  1023→      data.notes = (data.notes as string).slice(-2000);
+  1024→    }
+  1025→
+  1026→    await db.lead.update({ where: { id: leadId }, data });
+  1027→  } catch (mergeErr) {
+  1028→    // Merge-fill is best-effort: the duplicate is still counted, never fatal
+  1029→    console.warn('[DiscoveryService] merge-fill skipped:', mergeErr instanceof Error ? mergeErr.message : mergeErr);
+  1030→  }
+  1031→}
+  1032→
+  1033→// ===== WEBSITE REACHABILITY PROBE (spec §6: evidence-based, bounded) =====
+  1034→
+  1035→const WEBSITE_PROBE_TIMEOUT_MS = 4000;
+  1036→const WEBSITE_PROBE_MAX_PER_JOB = parseInt(process.env.DISCOVERY_WEBSITE_PROBE_MAX || '20', 10);
+  1037→
+  1038→interface WebsiteProbeOutcome {
+  1039→  /** The server answered (any HTTP status) — network-level reachability. */
+  1040→  reachable: boolean;
+  1041→  /** Human-readable evidence: HTTP status, or the network error. */
+  1042→  detail: string;
+  1043→}
+  1044→
+  1045→/**
+  1046→ * Probe ONE website for network reachability. ANY HTTP response (including
+  1047→ * 401/403 bot blocks and 5xx) counts as "reachable" — the server answered.
+  1048→ * Only network-level failures (DNS, refused, TLS, timeout) are unreachable.
+  1049→ * A temporary failure is never stored as a permanent judgment: the evidence
+  1050→ * note explicitly says the site may be temporarily unavailable.
+  1051→ */
+  1052→async function probeWebsiteOnce(url: string): Promise<WebsiteProbeOutcome> {
+  1053→  try {
+  1054→    const response = await fetch(url, {
+  1055→      signal: AbortSignal.timeout(WEBSITE_PROBE_TIMEOUT_MS),
+  1056→      headers: {
+  1057→        'User-Agent': 'Mozilla/5.0 (compatible; AcquisitionOS-Bot/1.0; +https://acquisitionos.com)',
+  1058→        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  1059→      },
+  1060→      redirect: 'follow',
+  1061→    });
+  1062→    return { reachable: true, detail: `HTTP ${response.status}` };
+  1063→  } catch (err) {
+  1064→    const detail = err instanceof Error
+  1065→      ? (err.name === 'TimeoutError' || /timeout|abort/i.test(err.message) ? 'timed out' : err.message.slice(0, 120))
+  1066→      : 'network error';
+  1067→    return { reachable: false, detail };
+  1068→  }
+  1069→}
+  1070→
+  1071→/**
+  1072→ * Bounded reachability check for discovered leads that HAVE a website:
+  1073→ * sequential, domain-deduplicated, capped per job (fail-open — any probe
+  1074→ * problem never blocks the import). No AI calls, no credits.
+  1075→ */
+  1076→async function probeWebsitesForEvidence(
+  1077→  leads: DiscoveredLead[],
+  1078→  maxProbes = WEBSITE_PROBE_MAX_PER_JOB
+  1079→): Promise<Map<string, WebsiteProbeOutcome>> {
+  1080→  const byDomain = new Map<string, string>();
+  1081→  for (const lead of leads) {
+  1082→    const site = (lead.website || '').trim();
+  1083→    if (!site) continue;
+  1084→    try {
+  1085→      const host = new URL(site).host.replace(/^www\./, '');
+  1086→      if (!byDomain.has(host)) byDomain.set(host, site);
+  1087→    } catch {
+  1088→      // Unparseable URL — skip probing; the lead keeps its raw website value
+  1089→    }
+  1090→  }
+  1091→
+  1092→  const outcomes = new Map<string, WebsiteProbeOutcome>();
+  1093→  let probed = 0;
+  1094→  for (const [host, url] of byDomain) {
+  1095→    if (probed >= maxProbes) break;
+  1096→    probed++;
+  1097→    outcomes.set(host, await probeWebsiteOnce(url));
+  1098→    await sleep(300); // small stagger between probes
+  1099→  }
+  1100→  return outcomes;
+  1101→}
+  1102→
+  1103→// ===== HONEST COMPLETION SUMMARY (spec §7.2 / §10) =====
+  1104→
+  1105→export interface DiscoveryCompletionSummary {
+  1106→  source: string;
+  1107→  imported: number;
+  1108→  /** Leads tagged partially_verified (corroborated by 2+ sources). */
+  1109→  partiallyVerified: number;
+  1110→  /** Leads tagged unverified — discovered, not yet assessed. */
+  1111→  unverified: number;
+  1112→  duplicates: number;
+  1113→  filteredOut: number;
+  1114→  /** Preformatted rejection-reason fragments, e.g. ["12 unknown employee count"]. */
+  1115→  filterReasonFragments: string[];
+  1116→  /** Preformatted skipped-source fragments, e.g. ["yelp: not configured"]. */
+  1117→  skippedSourceFragments: string[];
+  1118→}
+  1119→
+  1120→/**
+  1121→ * Build the user-facing completion message. The word "verified" is NEVER
+  1122→ * used for leads whose stored status is unverified — corroboration by 2+
+  1123→ * sources is reported as "partially verified", single-source imports as
+  1124→ * "not yet verified". This is the honest summary required by spec §7.2:
+  1125→ * AI extraction alone is discovery, not verification.
+  1126→ */
+  1127→export function buildDiscoveryCompletionMessage(s: DiscoveryCompletionSummary): string {
+  1128→  const source = s.source || 'your sources';
+  1129→  if (s.imported <= 0) {
+  1130→    let message = `Discovery finished for ${source} — no leads were imported this time.`;
+  1131→    if (s.filteredOut > 0) {
+  1132→      message += ` ${s.filteredOut} candidate${s.filteredOut === 1 ? '' : 's'} rejected by hard filters${s.filterReasonFragments.length ? ' — ' + s.filterReasonFragments.slice(0, 3).join(', ') : ''}.`;
+  1133→    }
+  1134→    if (s.skippedSourceFragments.length > 0) {
+  1135→      message += ` Skipped: ${s.skippedSourceFragments.slice(0, 3).join(', ')}${s.skippedSourceFragments.length > 3 ? ` +${s.skippedSourceFragments.length - 3} more` : ''}.`;
+  1136→    }
+  1137→    return message;
+  1138→  }
+  1139→
+  1140→  const parts: string[] = [
+  1141→    `Discovery finished: ${s.imported} lead${s.imported === 1 ? '' : 's'} imported from ${source}`,
+  1142→  ];
+  1143→  if (s.partiallyVerified > 0 || s.unverified > 0) {
+  1144→    parts.push(
+  1145→      `${s.partiallyVerified} partially verified (same business seen in 2+ sources), ${s.unverified} not yet verified (single source — pending assessment)`
+  1146→    );
+  1147→  }
+  1148→  if (s.duplicates > 0) parts.push(`${s.duplicates} duplicate${s.duplicates === 1 ? '' : 's'} skipped`);
+  1149→  let message = parts.join(' — ') + '.';
+  1150→  if (s.filteredOut > 0) {
+  1151→    message += ` Hard filters rejected ${s.filteredOut} candidate${s.filteredOut === 1 ? '' : 's'}${s.filterReasonFragments.length ? ' — ' + s.filterReasonFragments.slice(0, 3).join(', ') : ''}.`;
+  1152→  }
+  1153→  if (s.skippedSourceFragments.length > 0) {
+  1154→    message += ` Skipped: ${s.skippedSourceFragments.slice(0, 3).join(', ')}${s.skippedSourceFragments.length > 3 ? ` +${s.skippedSourceFragments.length - 3} more` : ''}.`;
+  1155→  }
+  1156→  return message;
+  1157→}
+  1158→
+  1159→// ===== LEAD EVIDENCE ENRICHMENT =====
+  1160→
+  1161→/**
+  1162→ * Resolve missing hard-constraint data (employee count, website) for
+  1163→ * candidates via targeted per-company web searches.
+  1164→ *
+  1165→ * The generic provider (web search) has no native employee filter, and list
+  1166→ * pages rarely expose each company's size or URL in its snippet. Without
+  1167→ * this step nearly every candidate arrives with employeeCount = null and
+  1168→ * website = null, and an explicit "20-200 employees + website" request
+  1169→ * would (honestly) reject almost everything.
+  1170→ *
+  1171→ * Honesty guarantees:
+  1172→ *   - values come ONLY from explicit statements in real search evidence;
+  1173→ *   - the enrichment LLM is forbidden from estimating/averaging/guessing;
+  1174→ *   - evidence that states nothing leaves the field UNKNOWN, which the
+  1175→ *     hard validator then rejects — we never fabricate a passing value.
+  1176→ */
+  1177→async function enrichLeadEvidence(
+  1178→  zai: ZAI,
+  1179→  leads: DiscoveredLead[],
+  1180→  params: DiscoveryParams,
+  1181→  maxCandidates = 30,
+  1182→  batchSize = 5
+  1183→): Promise<{ enriched: DiscoveredLead[]; enrichedCount: number }> {
+  1184→  const needIndexes: number[] = [];
+  1185→  leads.forEach((lead, idx) => {
+  1186→    const needsSize = lead.employeeCount == null && !lead.employeeRange;
+  1187→    const needsSite = !lead.website;
+  1188→    if (needsSize || needsSite) needIndexes.push(idx);
+  1189→  });
+  1190→
+  1191→  if (needIndexes.length === 0) {
+  1192→    return { enriched: leads, enrichedCount: 0 };
+  1193→  }
+  1194→
+  1195→  const capped = needIndexes.slice(0, maxCandidates);
+  1196→  const updates = new Map<
+  1197→    number,
+  1198→    { employeeCount: number | null; employeeRange: string | null; website?: string | null }
+  1199→  >();
+  1200→
+  1201→  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  1202→
+  1203→  // One evidence search per candidate. All SDK calls go through the shared
+  1204→  // job-wide pacer (pacedZaiCall), which spaces calls out and retries 429s.
+  1205→  async function searchEvidence(lead: DiscoveredLead): Promise<Array<{ name?: string; url?: string; snippet?: string }>> {
+  1206→    const query = `"${lead.businessName}" ${params.niche} official website employees company size headcount`;
+  1207→    try {
+  1208→      const res = await pacedZaiCall(() => zai.functions.invoke('web_search', { query, num: 5 }));
+  1209→      return Array.isArray(res) ? res : [];
+  1210→    } catch (err) {
+  1211→      console.error(`[DiscoveryService] evidence search failed for "${lead.businessName}":`, err instanceof Error ? err.message : err);
+  1212→      return [];
+  1213→    }
+  1214→  }
+  1215→
+  1216→  for (let i = 0; i < capped.length; i += batchSize) {
+  1217→    const batch = capped.slice(i, i + batchSize);
+  1218→
+  1219→    // Gather REAL evidence for each company in the batch (staggered, retry-on-429)
+  1220→    const evidences: Array<{ status: 'fulfilled' | 'rejected'; value?: Array<{ name?: string; url?: string; snippet?: string }> }> = [];
+  1221→    for (let j = 0; j < batch.length; j++) {
+  1222→      const lead = leads[batch[j]];
+  1223→      if (j > 0) await sleep(1200); // stagger to stay under the rate limit
+  1224→      try {
+  1225→        evidences.push({ status: 'fulfilled', value: await searchEvidence(lead) });
+  1226→      } catch {
+  1227→        evidences.push({ status: 'rejected' });
+  1228→      }
+  1229→    }
+  1230→
+  1231→    const evidenceText = batch
+  1232→      .map((leadIdx, j) => {
+  1233→        const lead = leads[leadIdx];
+  1234→        const ev = evidences[j];
+  1235→        if (ev.status !== 'fulfilled' || !Array.isArray(ev.value) || ev.value.length === 0) {
+  1236→          return `[company ${j + 1}: ${lead.businessName}]\n(no search evidence found)`;
+  1237→        }
+  1238→        const rows = ev.value
+  1239→          .slice(0, 5)
+  1240→          .map((r: { name?: string; url?: string; snippet?: string }) =>
+  1241→            `- ${(r.name || '').slice(0, 120)}: ${(r.snippet || '').slice(0, 300)} (${r.url || ''})`
+  1242→          )
+  1243→          .join('\n');
+  1244→        return `[company ${j + 1}: ${lead.businessName}]\n${rows}`;
+  1245→      })
+  1246→      .join('\n\n');
+  1247→
+  1248→    try {
+  1249→      const response = await pacedZaiCall(() =>
+  1250→        zai.chat.completions.create({
+  1251→          messages: [
+  1252→            {
+  1253→              role: 'system',
+  1254→              content:
+  1255→                'You are a precise data extraction assistant. Return only valid JSON arrays. NEVER invent, estimate, or average values — extract only what the evidence explicitly states.',
+  1256→            },
+  1257→            {
+  1258→              role: 'user',
+  1259→              content: `For each company below, extract its official website and current employee count from the search evidence ONLY.
+  1260→Rules:
+  1261→- website: the company's OWN official website URL (e.g. https://acme.io) if it is clearly identifiable from the evidence (its domain appearing as the company's site, a LinkedIn/company-directory entry linking to it). Otherwise null. Never return a marketplace, news article, or job-board URL.
+  1262→- employeeCount/employeeRange: use ONLY explicit statements of employee count / headcount / company size (e.g. "85 employees", "51-200 employees", "10,000+ employees"). Exact number → employeeCount (employeeRange null). Only a range → employeeRange as that exact string (employeeCount null).
+  1263→- NEVER estimate or guess. If the evidence does not state a value, return null for that field.
+  1264→Return ONLY a JSON array with one object per company, in the same order as given: {"website": string|null, "employeeCount": number|null, "employeeRange": string|null}
+  1265→
+  1266→${evidenceText}`,
+  1267→          },
+  1268→        ],
+  1269→        model: 'auto',
+  1270→        // Deterministic evidence extraction — never creative
+  1271→        temperature: 0,
+  1272→      })
+  1273→      );
+  1274→
+  1275→      let cleaned = (response.choices?.[0]?.message?.content || '[]').trim();
+  1276→      if (cleaned.startsWith('```')) {
+  1277→        cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  1278→      }
+  1279→      const arr = JSON.parse(cleaned);
+  1280→      if (Array.isArray(arr)) {
+  1281→        batch.forEach((leadIdx, j) => {
+  1282→          const item = arr[j] as Record<string, unknown> | undefined;
+  1283→          if (!item) return;
+  1284→          const ec =
+  1285→            typeof item.employeeCount === 'number' &&
+  1286→            Number.isFinite(item.employeeCount) &&
+  1287→            item.employeeCount > 0
+  1288→              ? Math.round(item.employeeCount)
+  1289→              : null;
+  1290→          const er =
+  1291→            typeof item.employeeRange === 'string' && item.employeeRange.trim()
+  1292→              ? item.employeeRange.trim().slice(0, 40)
+  1293→              : null;
+  1294→          const site =
+  1295→            typeof item.website === 'string' && /^https?:\/\//i.test(item.website.trim())
+  1296→              ? item.website.trim()
+  1297→              : null;
+  1298→          // Deterministic anti-misattribution guard: only accept a resolved
+  1299→          // website when the domain clearly corresponds to the company name
+  1300→          // ("Juro" → juro.com ✓, "Juro" → rfp.wiki ✗). Prevents enrichment
+  1301→          // from attaching a directory/news domain to a company.
+  1302→          let guardedSite: string | null = null;
+  1303→          if (site) {
+  1304→            try {
+  1305→              const host = new URL(site).hostname.replace(/^www\./, '');
+  1306→              const domainRoot = host.split('.').slice(-2).join('.');
+  1307→              const nameToken = leads[leadIdx].businessName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  1308→              const domainToken = domainRoot.replace(/[^a-z0-9]/g, '');
+  1309→              if (nameToken.length >= 4 && domainToken.includes(nameToken)) {
+  1310→                guardedSite = site;
+  1311→              }
+  1312→            } catch {
+  1313→              guardedSite = null;
+  1314→            }
+  1315→          }
+  1316→          if (ec !== null || er !== null || guardedSite !== null) {
+  1317→            updates.set(leadIdx, { employeeCount: ec, employeeRange: er, website: guardedSite });
+  1318→          }
+  1319→        });
+  1320→      }
+  1321→    } catch (err) {
+  1322→      console.error('[DiscoveryService] evidence enrichment batch failed:', err);
+  1323→    }
+  1324→  }
+  1325→
+  1326→  const enriched = [...leads];
+  1327→  let enrichedCount = 0;
+  1328→  for (const [idx, data] of updates) {
+  1329→    const lead = enriched[idx];
+  1330→    // Fill ONLY missing values — never overwrite data the provider gave us
+  1331→    enriched[idx] = {
+  1332→      ...lead,
+  1333→      employeeCount: lead.employeeCount ?? data.employeeCount,
+  1334→      employeeRange: lead.employeeRange ?? data.employeeRange,
+  1335→      website: lead.website || data.website || undefined,
+  1336→    };
+  1337→    enrichedCount++;
+  1338→  }
+  1339→
+  1340→  console.log(
+  1341→    `[DiscoveryService] evidence enrichment: ${capped.length} candidates looked up, ${enrichedCount} resolved with evidence`
+  1342→  );
+  1343→
+  1344→  return { enriched, enrichedCount };
+  1345→}
+  1346→
+  1347→/**
+  1348→ * Run web-search + LLM extraction for ONE source. Used directly for single-source
+  1349→ * jobs and per-source inside the "all" parallel fan-out.
+  1350→ */
+  1351→async function searchSourceLeads(
+  1352→  zai: ZAI,
+  1353→  params: DiscoveryParams,
+  1354→  maxResults: number
+  1355→): Promise<DiscoveredLead[]> {
+  1356→  const discoveredLeads: DiscoveredLead[] = [];
+  1357→  const searchQueries = buildSearchQueries(params);
+  1358→  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  1359→
+  1360→  // The web_search provider rate-limits bursts (429). Searches run with a
+  1361→  // stagger and retry-with-backoff so a full job completes reliably.
+  1362→  async function searchOnce(query: string, num: number): Promise<Array<{ url: string; name: string; snippet: string }>> {
+  1363→    return pacedZaiCall(() => zai.functions.invoke('web_search', { query, num }));
+  1364→  }
+  1365→
+  1366→  for (let qi = 0; qi < searchQueries.length; qi++) {
+  1367→    const query = searchQueries[qi];
+  1368→    if (discoveredLeads.length >= maxResults) break;
+  1369→
+  1370→    try {
+  1371→      // Web search
+  1372→      const searchResults = await searchOnce(query, Math.min(20, maxResults - discoveredLeads.length));
+  1373→
+  1374→      console.log(`[DiscoveryService] "${query}" → ${searchResults.length} search results`);
+  1375→
+  1376→      if (searchResults.length === 0) continue;
+  1377→
+  1378→      // Extract structured lead data from search results using LLM
+  1379→      let leadsFromResults = await extractLeadsFromSearchResults(
+  1380→        zai,
+  1381→        searchResults,
+  1382→        params,
+  1383→        maxResults - discoveredLeads.length
+  1384→      );
+  1385→
+  1386→      // The extraction LLM is stochastic: for list/directory-style results it
+  1387→      // sometimes over-excludes and returns []. One relaxed retry keeps
+  1388→      // recall usable WITHOUT ever inventing data — the relaxed prompt still
+  1389→      // reports unknown sizes/counts as null and the hard validator remains
+  1390→      // the final gate.
+  1391→      if (leadsFromResults.length === 0) {
+  1392→        leadsFromResults = await extractLeadsFromSearchResults(
+  1393→          zai,
+  1394→          searchResults,
+  1395→          params,
+  1396→          maxResults - discoveredLeads.length,
+  1397→          true
+  1398→        );
+  1399→      }
+  1400→
+  1401→      // Record which search variation produced each lead (spec §3.3 provenance).
+  1402→      // Leads extracted from this query keep the query text; never overwrite
+  1403→      // a provenance tag set by a more specific inner step.
+  1404→      discoveredLeads.push(
+  1405→        ...leadsFromResults.map((l) => ({ ...l, discoveredVia: l.discoveredVia ?? query }))
+  1406→      );
+  1407→    } catch (searchErr) {
+  1408→      console.error(`[DiscoveryService] Search query failed: "${query}"`, searchErr);
+  1409→      // Continue with next query
+  1410→    }
+  1411→  }
+  1412→
+  1413→  return discoveredLeads;
+  1414→}
+  1415→
+  1416→/**
+  1417→ * Cross-source deduplication for "all" mode — merges results from parallel
+  1418→ * sources and removes duplicates by website, email or normalized business name.
+  1419→ * ALSO records cross-source corroboration: when the same business identity is
+  1420→ * returned by 2+ different sources, the lead is tagged `corroborated: true`
+  1421→ * (spec §7.2 — corroboration is identity confidence, never field-level proof).
+  1422→ */
+  1423→function dedupeDiscoveredLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
+  1424→  const seen = new Set<string>();
+  1425→  const unique: DiscoveredLead[] = [];
+  1426→  /** Key -> set of distinct sources that returned it (for corroboration). */
+  1427→  const keySources = new Map<string, Set<string>>();
+  1428→
+  1429→  const normalizeName = (name: string) =>
+  1430→    name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  1431→  const normalizeSite = (site?: string) =>
+  1432→    site ? site.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') : '';
+  1433→
+  1434→  const keysFor = (lead: DiscoveredLead): string[] => [
+  1435→    lead.website ? `site:${normalizeSite(lead.website)}` : '',
+  1436→    lead.email ? `email:${lead.email.toLowerCase()}` : '',
+  1437→    `name:${normalizeName(lead.businessName)}`,
+  1438→  ].filter(Boolean);
+  1439→
+  1440→  for (const lead of leads) {
+  1441→    const keys = keysFor(lead);
+  1442→
+  1443→    // Track which sources contributed to this identity
+  1444→    for (const k of keys) {
+  1445→      if (!keySources.has(k)) keySources.set(k, new Set());
+  1446→      keySources.get(k)!.add(lead.source);
+  1447→    }
+  1448→
+  1449→    // A lead is a duplicate if any of its keys was already seen
+  1450→    if (keys.some((k) => seen.has(k))) continue;
+  1451→    keys.forEach((k) => seen.add(k));
+  1452→    unique.push(lead);
+  1453→  }
+  1454→
+  1455→  // Corroborated = identity surfaced from 2+ independent sources
+  1456→  for (const lead of unique) {
+  1457→    const sources = new Set<string>();
+  1458→    for (const k of keysFor(lead)) {
+  1459→      for (const src of keySources.get(k) ?? []) sources.add(src);
+  1460→    }
+  1461→    if (sources.size >= 2) {
+  1462→      lead.corroborated = true;
+  1463→      // Provenance upgrade: record the independent sources explicitly
+  1464→      lead.discoveredVia = `corroborated by: ${Array.from(sources).sort().join(' + ')}`;
+  1465→    }
+  1466→  }
+  1467→
+  1468→  return unique;
+  1469→}
+  1470→
+  1471→/**
+  1472→ * Bounded, intent-preserving query expansion (spec §3.3). Adds industry
+  1473→ * synonyms and standard commercial phrasings — NEVER unrelated industries —
+  1474→ * so a niche with thin first-query recall still fills the requested result
+  1475→ * count without drifting from the user's intent. Hard-capped at 10 queries.
+  1476→ */
+  1477→const NICHE_SYNONYMS: Record<string, string[]> = {
+  1478→  dental: ['dentist', 'dental clinic', 'orthodontist'],
+  1479→  healthcare: ['medical clinic', 'doctor office', 'health center'],
+  1480→  clinic: ['medical clinic', 'health center'],
+  1481→  restaurant: ['restaurants', 'dining', 'eatery'],
+  1482→  cafe: ['coffee shop', 'café'],
+  1483→  gym: ['fitness center', 'fitness studio'],
+  1484→  fitness: ['gym', 'personal trainer'],
+  1485→  salon: ['hair salon', 'beauty salon'],
+  1486→  spa: ['day spa', 'wellness center'],
+  1487→  hotel: ['hotels', 'boutique hotel'],
+  1488→  'real estate': ['real estate agency', 'realtor', 'property agency'],
+  1489→  legal: ['law firm', 'attorney office'],
+  1490→  lawyer: ['law firm', 'attorney'],
+  1491→  accounting: ['accounting firm', 'CPA firm'],
+  1492→  construction: ['construction company', 'contractor'],
+  1493→  automotive: ['auto repair shop', 'car dealership'],
+  1494→  'e-commerce': ['online store', 'ecommerce company'],
+  1495→  manufacturing: ['manufacturer', 'factory'],
+  1496→  logistics: ['logistics company', 'freight company'],
+  1497→  education: ['training institute', 'tutoring center'],
+  1498→  marketing: ['marketing agency', 'digital marketing agency'],
+  1499→  software: ['software company', 'SaaS company'],
+  1500→  it: ['IT services company', 'IT company'],
+  1501→};
+  1502→
+  1503→/**
+  1504→ * Expand a niche into synonymous/commercial variants, preserving intent.
+  1505→ * Returns at most 3 synonyms, only when known — no generic padding.
+  1506→ *
+  1507→ * REVERSE LOOKUP: the map is keyed by the canonical niche ("dental"), but
+  1508→ * users type the variant ("dentist"). When the requested niche matches one
+  1509→ * of the map's synonym VALUES, its key and sibling synonyms are returned —
+  1510→ * otherwise niches like "dentist" or "restaurants" (a value of "restaurant")
+  1511→ * expand to nothing and the job runs with only the 4 base queries, capping
+  1512→ * real volume at ~40 raw results (the provider returns 10 per query).
+  1513→ */
+  1514→function nicheVariants(niche: string): string[] {
+  1515→  const key = niche.toLowerCase().trim();
+  1516→  if (NICHE_SYNONYMS[key]) return NICHE_SYNONYMS[key];
+  1517→  for (const [canonical, variants] of Object.entries(NICHE_SYNONYMS)) {
+  1518→    if (variants.includes(key)) {
+  1519→      // Siblings first (same industry, different phrasing), then the
+  1520→      // canonical key itself — bounded to 3 like the forward lookup.
+  1521→      const siblings = variants.filter((v) => v !== key);
+  1522→      return [...siblings, canonical].slice(0, 3);
+  1523→    }
+  1524→  }
+  1525→  return [];
+  1526→}
+  1527→
+  1528→export function buildSearchQueries(params: DiscoveryParams): string[] {
+  1529→  const { niche, country, city, source } = params;
+  1530→  // Worldwide-safe location string (spec §5): pieces that exist are joined;
+  1531→  // when neither is provided the queries run location-free.
+  1532→  const location = [city, country].filter(Boolean).join(', ');
+  1533→  const queries: string[] = [];
+  1534→
+  1535→  switch (source) {
+  1536→    case 'ai_search': {
+  1537→      queries.push(`${niche} businesses${location ? ` in ${location}` : ''}`);
+  1538→      queries.push(`${niche} companies ${location} contact details`.replace(/\s+/g, ' '));
+  1539→      queries.push(`best ${niche} services${location ? ` in ${location}` : ''} reviews`);
+  1540→      // Intent-preserving expansion (spec §3.3): synonyms of the SAME
+  1541→      // industry, not unrelated industries. Each variant reaches provider
+  1542→      // pages the primary phrasing misses, materially raising recall.
+  1543→      for (const variant of nicheVariants(niche)) {
+  1544→        queries.push(`${variant} businesses in ${location}`);
+  1545→        queries.push(`${variant} ${location} contact details`);
+  1546→      }
+  1547→      // Directory/list phrasing surfaces company-list pages that single-
+  1548→      // result pages miss — still strictly on-niche and on-location.
+  1549→      queries.push(`${niche} companies directory list ${location}`.replace(/\s+/g, ' '));
+  1550→      break;
+  1551→    }
+  1552→    case 'google_maps':
+  1553→      queries.push(`site:maps.google.com ${niche} ${location}`);
+  1554→      queries.push(`${niche} near ${location} google maps`);
+  1555→      break;
+  1556→    case 'justdial':
+  1557→      queries.push(`site:justdial.com ${niche} ${location}`);
+  1558→      break;
+  1559→    case 'indiamart':
+  1560→      queries.push(`site:indiamart.com ${niche} ${location}`);
+  1561→      break;
+  1562→    case 'yelp':
+  1563→      queries.push(`site:yelp.com ${niche} ${location}`);
+  1564→      break;
+  1565→    case 'yellow_pages':
+  1566→      queries.push(`site:yellowpages.com ${niche} ${location}`);
+  1567→      break;
+  1568→    case 'sulekha':
+  1569→      queries.push(`site:sulekha.com ${niche} ${location}`);
+  1570→      break;
+  1571→    case 'linkedin':
+  1572→      queries.push(`site:linkedin.com/company ${niche} ${location}`);
+  1573→      break;
+  1574→    case 'instagram':
+  1575→      queries.push(`site:instagram.com ${niche} business ${location}`);
+  1576→      break;
+  1577→    case 'facebook':
+  1578→      queries.push(`site:facebook.com ${niche} business ${location}`);
+  1579→      break;
+  1580→    default:
+  1581→      queries.push(`${niche} businesses in ${location}`);
+  1582→  }
+  1583→
+  1584→  // NOTE: requirements (e.g. "no website") are intentionally NOT appended to the
+  1585→  // search queries — doing so pollutes the queries with marketing-agency pages and
+  1586→  // kills recall. They are passed to the LLM extraction prompt instead, which
+  1587→  // prioritizes/filters businesses matching the requirements.
+  1588→  //
+  1589→  // EXCEPTION — explicit EMPLOYEE-COUNT criteria: when the user requested an
+  1590→  // employee range/count as a hard constraint, size-targeted queries ARE added
+  1591→  // — and run FIRST, because they are the ones that surface pages stating
+  1592→  // company sizes (directories, company lists, LinkedIn-size pages), which is
+  1593→  // what makes the subsequent hard validation able to VERIFY employee counts
+  1594→  // instead of rejecting everything as unknown. The provider rate-limits
+  1595→  // bursts, so the most valuable queries must not be last.
+  1596→  const c = params.criteria;
+  1597→  if (c && (c.exactEmployeeCount !== undefined || c.employeeMin !== undefined || c.employeeMax !== undefined)) {
+  1598→    const reqMin = c.exactEmployeeCount ?? c.employeeMin ?? 0;
+  1599→    const reqMax = c.exactEmployeeCount ?? c.employeeMax ?? Number.POSITIVE_INFINITY;
+  1600→
+  1601→    // Standard company-size buckets (the labels directories like LinkedIn/
+  1602→    // Wellfound/gregslist actually print in their snippets). Quoting them
+  1603→    // ("51-200 employees") surfaces pages whose snippets name companies
+  1604→    // WITH sizes — the highest-yield search strategy for size-verified
+  1605→    // discovery. Only buckets intersecting the requested range are used.
+  1606→    const BUCKETS: Array<{ label: string; min: number; max: number | null }> = [
+  1607→      { label: '1-10', min: 1, max: 10 },
+  1608→      { label: '11-50', min: 11, max: 50 },
+  1609→      { label: '51-200', min: 51, max: 200 },
+  1610→      { label: '201-500', min: 201, max: 500 },
+  1611→      { label: '501-1,000', min: 501, max: 1000 },
+  1612→      { label: '1,001-5,000', min: 1001, max: 5000 },
+  1613→      { label: '5,001-10,000', min: 5001, max: 10000 },
+  1614→      { label: '10,000+', min: 10000, max: null },
+  1615→    ];
+  1616→    const overlapping = BUCKETS.filter(
+  1617→      (b) => b.min <= reqMax && (b.max === null || b.max >= reqMin)
+  1618→    ).slice(0, 2);
+  1619→
+  1620→    const sizeDesc =
+  1621→      c.exactEmployeeCount !== undefined
+  1622→        ? `exactly ${c.exactEmployeeCount} employees`
+  1623→        : c.employeeMin !== undefined && c.employeeMax !== undefined
+  1624→          ? `${c.employeeMin}-${c.employeeMax} employees`
+  1625→          : c.employeeMin !== undefined
+  1626→            ? `more than ${c.employeeMin} employees`
+  1627→            : `fewer than ${c.employeeMax} employees`;
+  1628→
+  1629→    const sizeQueries: string[] = overlapping.map(
+  1630→      (b) => `${niche} companies in ${location} "${b.label} employees"`
+  1631→    );
+  1632→    sizeQueries.push(`mid-size ${niche} companies ${location} employee count ${sizeDesc}`);
+  1633→    queries.unshift(...sizeQueries);
+  1634→  }
+  1635→
+  1636→  // Provider rate limits make every query cost ~4s of pacing — keep the
+  1637→  // total bounded so a job cannot run unbounded, while still leaving room
+  1638→  // for expansion. The most valuable (size-targeted) queries run first.
+  1639→  return queries.slice(0, 10);
+  1640→}
+  1641→
+  1642→// ===== LLM EXTRACTION =====
+  1643→
+  1644→async function extractLeadsFromSearchResults(
+  1645→  zai: ZAI,
+  1646→  searchResults: Array<{ url: string; name: string; snippet: string }>,
+  1647→  params: DiscoveryParams,
+  1648→  maxLeads: number,
+  1649→  relaxed = false
+  1650→): Promise<DiscoveredLead[]> {
+  1651→  if (searchResults.length === 0) return [];
+  1652→
+  1653→  const resultsText = searchResults
+  1654→    .slice(0, 20)
+  1655→    .map((r, i) => `[${i + 1}] Name: ${r.name}\n    URL: ${r.url}\n    Snippet: ${r.snippet}`)
+  1656→    .join('\n\n');
+  1657→
+  1658→  // Hard criteria make the extraction itself strict — but the FINAL gate is
+  1659→  // the deterministic validator (matchHardCriteria), which the LLM cannot
+  1660→  // influence. Unknown employee counts must be reported honestly as null.
+  1661→  const c = params.criteria;
+  1662→  const hardFilterLines: string[] = [];
+  1663→  if (c) {
+  1664→    if (c.exactEmployeeCount !== undefined) {
+  1665→      hardFilterLines.push(`- Employee count: EXACTLY ${c.exactEmployeeCount} employees (inclusive). A company with any other employee count MUST NOT be included.`);
+  1666→    } else if (c.employeeMin !== undefined && c.employeeMax !== undefined) {
+  1667→      hardFilterLines.push(`- Employee count: between ${c.employeeMin} and ${c.employeeMax} (inclusive). A company with fewer than ${c.employeeMin} or more than ${c.employeeMax} employees MUST NOT be included.`);
+  1668→    } else if (c.employeeMin !== undefined) {
+  1669→      hardFilterLines.push(`- Employee count: at least ${c.employeeMin}. A company with fewer employees MUST NOT be included.`);
+  1670→    } else if (c.employeeMax !== undefined) {
+  1671→      hardFilterLines.push(`- Employee count: at most ${c.employeeMax}. A company with more employees MUST NOT be included.`);
+  1672→    }
+  1673→    if (c.excludeTypes.length > 0) {
+  1674→      hardFilterLines.push(`- Excluded company types (MUST NOT be included under any circumstances): ${c.excludeTypes.join(', ')}.`);
+  1675→    }
+  1676→    if (c.website === 'required') {
+  1677→      hardFilterLines.push('- Website: REQUIRED. Only include businesses that have a real website URL.');
+  1678→    } else if (c.website === 'absent') {
+  1679→      hardFilterLines.push('- Website: must be ABSENT. Only include businesses WITHOUT a website.');
+  1680→    }
+  1681→  }
+  1682→
+  1683→  const hardFilterBlock =
+  1684→    hardFilterLines.length > 0
+  1685→      ? `HARD FILTERS (a business that CONTRADICTS any of these MUST NOT appear in your output — e.g. evidence shows a clearly larger/smaller company size than the range, or the business IS an excluded type, or it clearly has no website):
+  1686→${hardFilterLines.join('\n')}
+  1687→IMPORTANT — do NOT over-exclude: if a business plausibly matches the niche and hard filters but its employee count or website is NOT VISIBLE in the snippets, still INCLUDE it with employeeCount: null / employeeRange: null / website: null. A later verification step looks up missing evidence. NEVER GUESS a value, and NEVER exclude a business merely because its size is unknown — exclude it ONLY when the evidence CONTRADICTS a filter.`
+  1688→      : '';
+  1689→
+  1690→  const softSignalBlock =
+  1691→    c && (c.growthSignals || c.hiringSignals)
+  1692→      ? `SOFT PREFERENCES (rank higher, never reject): ${[
+  1693→          c.growthSignals ? 'recent growth / expansion signals' : '',
+  1694→          c.hiringSignals ? 'hiring or recruiting activity' : '',
+  1695→        ].filter(Boolean).join(', ')}.`
+  1696→      : '';
+  1697→
+  1698→  const strictnessBlock = relaxed
+  1699→    ? `The previous extraction pass returned nothing. This is a SECOND, more inclusive pass:
+  1700→- Extract EVERY concrete business/company named in the results that fits the NICHE and is not an obviously excluded type.
+  1701→- Review/directory platforms (e.g. G2, Capterra) and media sites are NOT businesses of the niche — skip those.
+  1702→- If a size or website is not visible, include the business with employeeCount: null / employeeRange: null / website: null.
+  1703→- NEVER invent a value.`
+  1704→    : `Enforce the HARD FILTERS strictly, but do NOT over-exclude: unknown size/website is NOT a reason to exclude — include with nulls and let the verification step decide.`;
+  1705→
+  1706→  const prompt = `You are a business lead extraction assistant. Extract structured business lead data from the search results below.
+  1707→
+  1708→NICHE: ${params.niche}
+  1709→COUNTRY: ${params.country}
+  1710→CITY: ${params.city || 'Not specified'}
+  1711→TARGET SOURCE: ${params.source}
+  1712→QUALIFYING REQUIREMENTS: ${params.requirements || 'None — accept all matching businesses'}
+  1713→${hardFilterBlock ? `\n${hardFilterBlock}\n` : ''}${softSignalBlock ? `\n${softSignalBlock}\n` : ''}
+  1714→${strictnessBlock}
+  1715→
+  1716→SEARCH RESULTS:
+  1717→${resultsText}
+  1718→
+  1719→Extract each business as a JSON object with these fields:
+  1720→- businessName (required): The business/company name
+  1721→- ownerName: Owner or key contact person name if mentioned
+  1722→- website: Business website URL if available
+  1723→- email: Business email if found
+  1724→- phone: Phone number if found
+  1725→- whatsapp: WhatsApp number if different from phone
+  1726→- linkedin: LinkedIn page URL
+  1727→- instagram: Instagram page URL  
+  1728→- facebook: Facebook page URL
+  1729→- googleMapsListing: Google Maps URL if available
+  1730→- reviews: Review count or summary if mentioned
+  1731→- rating: Rating (number) if mentioned
+  1732→- employeeCount: (number or null) The business's ACTUAL employee count, but ONLY if explicitly stated in the search results (e.g. "85 employees", "headcount: 120"). NEVER estimate or invent this number. If not stated, use null.
+  1733→- employeeRange: (string or null) If the results only give an employee RANGE (e.g. "51-100", "201-500", "10,000+"), put that exact range string here and set employeeCount to null.
+  1734→- city: City if different from search
+  1735→- country: Country if different from search
+  1736→
+  1737→${hardFilterBlock ? 'Enforce the HARD FILTERS strictly. ' : ''}Prioritize businesses that match the qualifying requirements and soft preferences when present.
+  1738→Return ONLY a JSON array of objects. No explanation, no markdown.
+  1739→If no businesses found, return empty array [].
+  1740→Maximum ${maxLeads} results.`;
+  1741→
+  1742→  try {
+  1743→    const response = await pacedZaiCall(() =>
+  1744→      zai.chat.completions.create({
+  1745→        messages: [
+  1746→          { role: 'system', content: 'You are a precise data extraction assistant. Return only valid JSON arrays. No markdown, no explanations.' },
+  1747→          { role: 'user', content: prompt },
+  1748→        ],
+  1749→        model: 'auto',
+  1750→        // Data extraction must be deterministic — sampling variance was
+  1751→        // producing wildly different candidate yields between runs.
+  1752→        temperature: 0,
+  1753→      })
+  1754→    );
+  1755→
+  1756→    const content = response.choices?.[0]?.message?.content || '[]';
+  1757→
+  1758→    // Parse the LLM response - handle potential markdown wrapping
+  1759→    let cleaned = content.trim();
+  1760→    if (cleaned.startsWith('```')) {
+  1761→      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  1762→    }
+  1763→
+  1764→    const parsed = JSON.parse(cleaned);
+  1765→
+  1766→    if (!Array.isArray(parsed)) return [];
+  1767→
+  1768→    // Validate and normalize each lead
+  1769→    const normalized = parsed
+  1770→      .filter((lead: Record<string, unknown>) => lead.businessName && typeof lead.businessName === 'string')
+  1771→      .slice(0, maxLeads)
+  1772→      .map((lead: Record<string, unknown>) => ({
+  1773→        businessName: String(lead.businessName).trim(),
+  1774→        ownerName: lead.ownerName ? String(lead.ownerName).trim() : undefined,
+  1775→        website: lead.website ? normalizeUrl(String(lead.website)) : undefined,
+  1776→        email: lead.email ? String(lead.email).trim().toLowerCase() : undefined,
+  1777→        phone: lead.phone ? String(lead.phone).trim() : undefined,
+  1778→        whatsapp: lead.whatsapp ? String(lead.whatsapp).trim() : undefined,
+  1779→        linkedin: lead.linkedin ? normalizeUrl(String(lead.linkedin)) : undefined,
+  1780→        instagram: lead.instagram ? normalizeUrl(String(lead.instagram)) : undefined,
+  1781→        facebook: lead.facebook ? normalizeUrl(String(lead.facebook)) : undefined,
+  1782→        googleMapsListing: lead.googleMapsListing ? normalizeUrl(String(lead.googleMapsListing)) : undefined,
+  1783→        reviews: lead.reviews ? String(lead.reviews).trim() : undefined,
+  1784→        rating: typeof lead.rating === 'number' ? lead.rating : undefined,
+  1785→        employeeCount:
+  1786→          typeof lead.employeeCount === 'number' && Number.isFinite(lead.employeeCount) && lead.employeeCount >= 0
+  1787→            ? Math.round(lead.employeeCount)
+  1788→            : null,
+  1789→        employeeRange:
+  1790→          typeof lead.employeeRange === 'string' && lead.employeeRange.trim()
+  1791→            ? lead.employeeRange.trim().slice(0, 40)
+  1792→            : null,
+  1793→        city: lead.city ? String(lead.city).trim() : undefined,
+  1794→        country: lead.country ? String(lead.country).trim() : undefined,
+  1795→        niche: params.niche,
+  1796→        source: params.source,
+  1797→      }));
+  1798→    console.log(`[DiscoveryService] LLM extraction: ${normalized.length} candidates (raw ${Array.isArray(parsed) ? parsed.length : 0}, cap ${maxLeads})`);
+  1799→    if (normalized.length === 0) {
+  1800→      // Observability: an empty extraction must be distinguishable from an
+  1801→      // API failure or an unexpected response shape.
+  1802→      console.log(`[DiscoveryService] extraction empty — raw content (${content.length} chars): ${content.slice(0, 300)}`);
+  1803→    }
+  1804→    return normalized;
+  1805→  } catch (parseErr) {
+  1806→    console.error('[DiscoveryService] LLM extraction failed:', parseErr);
+  1807→    return [];
+  1808→  }
+  1809→}
+  1810→
+  1811→// ===== UTILITIES =====
+  1812→
+  1813→function normalizeUrl(url: string): string {
+  1814→  let normalized = url.trim();
+  1815→  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+  1816→    normalized = 'https://' + normalized;
+  1817→  }
+  1818→  return normalized;
+  1819→}
+  1820→

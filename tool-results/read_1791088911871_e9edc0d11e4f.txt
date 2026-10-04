@@ -1,0 +1,915 @@
+     1→// ═══════════════════════════════════════════════════════════════════
+     2→// AcquisitionOS — Workflow Action Execution Engine
+     3→// Phase 12: Execute each action type using existing services
+     4→// ═══════════════════════════════════════════════════════════════════
+     5→
+     6→import { db } from '@/lib/db';
+     7→import { resolveLeadForExecution } from '@/lib/lead-resolution';
+     8→import { sendEmail } from '@/lib/email';
+     9→import { moveLeadToStage } from '@/lib/pipeline-service';
+    10→import {
+    11→  buildSenderSignatureBlock,
+    12→  applySenderSignature,
+    13→} from '@/lib/ai/sender-signature';
+    14→import { loadSenderProfile } from '@/lib/ai/outreach-generator';
+    15→
+    16→// ===== TYPES =====
+    17→
+    18→export interface ActionContext {
+    19→  userId: string;
+    20→  workflowId: string;
+    21→  executionId: string;
+    22→  leadId?: string;
+    23→  triggerData?: Record<string, unknown>;
+    24→  previousOutputs?: Record<string, unknown>;
+    25→}
+    26→
+    27→export interface ActionResult {
+    28→  success: boolean;
+    29→  output?: Record<string, unknown>;
+    30→  error?: string;
+    31→  creditsUsed?: number;
+    32→}
+    33→
+    34→// ===== ACTION EXECUTOR =====
+    35→
+    36→/**
+    37→ * Execute a workflow action based on its type and config.
+    38→ * Uses existing services where possible.
+    39→ */
+    40→export async function executeAction(
+    41→  actionType: string,
+    42→  config: Record<string, unknown>,
+    43→  context: ActionContext
+    44→): Promise<ActionResult> {
+    45→  try {
+    46→    switch (actionType) {
+    47→      case 'send_email':
+    48→        return await executeSendEmail(config, context);
+    49→      case 'create_gmail_draft':
+    50→        return await executeCreateGmailDraft(config, context);
+    51→      case 'send_telegram':
+    52→        return await executeSendTelegram(config, context);
+    53→      case 'send_whatsapp':
+    54→        return await executeSendWhatsapp(config, context);
+    55→      case 'ai_analysis':
+    56→        return await executeAiAnalysis(config, context);
+    57→      case 'ai_outreach':
+    58→        return await executeAiOutreach(config, context);
+    59→      case 'move_lead_stage':
+    60→        return await executeMoveLeadStage(config, context);
+    61→      case 'update_tags':
+    62→        return await executeUpdateTags(config, context);
+    63→      case 'create_notification':
+    64→        return await executeCreateNotification(config, context);
+    65→      case 'wait_delay':
+    66→        return await executeWaitDelay(config, context);
+    67→      case 'conditional_branch':
+    68→        return await executeConditionalBranch(config, context);
+    69→      case 'webhook_call':
+    70→        return await executeWebhookCall(config, context);
+    71→      case 'export_data':
+    72→        return await executeExportData(config, context);
+    73→      case 'score_lead':
+    74→        return await executeScoreLead(config, context);
+    75→      case 'add_note':
+    76→        return await executeAddNote(config, context);
+    77→      case 'notify_low_credits':
+    78→        return await executeNotifyLowCredits(config, context);
+    79→      case 'notify_trial_ending':
+    80→        return await executeNotifyTrialEnding(config, context);
+    81→      default:
+    82→        return { success: false, error: `Unknown action type: ${actionType}` };
+    83→    }
+    84→  } catch (error) {
+    85→    return {
+    86→      success: false,
+    87→      error: error instanceof Error ? error.message : 'Action execution failed',
+    88→    };
+    89→  }
+    90→}
+    91→
+    92→// ===== ACTION IMPLEMENTATIONS =====
+    93→
+    94→async function executeSendEmail(
+    95→  config: Record<string, unknown>,
+    96→  context: ActionContext
+    97→): Promise<ActionResult> {
+    98→  const { to, subject, body } = config;
+    99→
+   100→  if (!to || !subject || !body) {
+   101→    return { success: false, error: 'Email requires to, subject, and body' };
+   102→  }
+   103→
+   104→  // Resolve template variables in subject/body
+   105→  const resolvedSubject = resolveTemplate(String(subject), context);
+   106→  const resolvedBody = resolveTemplate(String(body), context);
+   107→
+   108→  const result = await sendEmail({
+   109→    to: String(to),
+   110→    subject: resolvedSubject,
+   111→    html: resolvedBody,
+   112→    text: resolvedBody,
+   113→  });
+   114→
+   115→  return {
+   116→    success: result.sent,
+   117→    output: { messageId: result.messageId, devMode: result.devMode },
+   118→    error: result.error,
+   119→    creditsUsed: 2,
+   120→  };
+   121→}
+   122→
+   123→async function executeCreateGmailDraft(
+   124→  config: Record<string, unknown>,
+   125→  context: ActionContext
+   126→): Promise<ActionResult> {
+   127→  const { to, subject, body } = config;
+   128→
+   129→  if (!to || !subject || !body) {
+   130→    return { success: false, error: 'Gmail draft requires to, subject, and body' };
+   131→  }
+   132→
+   133→  // Check if user has a connected Gmail account
+   134→  const emailAccount = await db.emailAccount.findFirst({
+   135→    where: { userId: context.userId, status: 'active' },
+   136→  });
+   137→
+   138→  if (!emailAccount) {
+   139→    return { success: false, error: 'No active Gmail account connected' };
+   140→  }
+   141→
+   142→  // In production, this would call the Gmail API to create a draft
+   143→  // For now, create an outreach message as draft
+   144→  const message = await db.outreachMessage.create({
+   145→    data: {
+   146→      leadId: context.leadId || '',
+   147→      userId: context.userId,
+   148→      channel: 'email',
+   149→      direction: 'outbound',
+   150→      subject: resolveTemplate(String(subject), context),
+   151→      content: resolveTemplate(String(body), context),
+   152→      status: 'draft',
+   153→      generatedByAI: false,
+   154→    },
+   155→  });
+   156→
+   157→  return {
+   158→    success: true,
+   159→    output: { draftId: message.id, to: String(to) },
+   160→    creditsUsed: 2,
+   161→  };
+   162→}
+   163→
+   164→async function executeSendTelegram(
+   165→  config: Record<string, unknown>,
+   166→  context: ActionContext
+   167→): Promise<ActionResult> {
+   168→  const { message, chatId } = config;
+   169→
+   170→  if (!message) {
+   171→    return { success: false, error: 'Telegram action requires a message' };
+   172→  }
+   173→
+   174→  // Check if user has Telegram configured
+   175→  const telegramConfig = await db.telegramConfig.findFirst({
+   176→    where: { userId: context.userId, isConnected: true },
+   177→  });
+   178→
+   179→  if (!telegramConfig) {
+   180→    return { success: false, error: 'Telegram not connected' };
+   181→  }
+   182→
+   183→  // In production, this would send via Telegram Bot API
+   184→  // Create an outreach message record
+   185→  if (context.leadId) {
+   186→    await db.outreachMessage.create({
+   187→      data: {
+   188→        leadId: context.leadId,
+   189→        userId: context.userId,
+   190→        channel: 'telegram',
+   191→        direction: 'outbound',
+   192→        content: resolveTemplate(String(message), context),
+   193→        status: 'sent',
+   194→        generatedByAI: false,
+   195→        metadata: JSON.stringify({ chatId: chatId || telegramConfig.chatId }),
+   196→      },
+   197→    });
+   198→  }
+   199→
+   200→  return {
+   201→    success: true,
+   202→    output: { chatId: chatId || telegramConfig.chatId },
+   203→    creditsUsed: 2,
+   204→  };
+   205→}
+   206→
+   207→async function executeSendWhatsapp(
+   208→  config: Record<string, unknown>,
+   209→  context: ActionContext
+   210→): Promise<ActionResult> {
+   211→  const { message, phoneNumber } = config;
+   212→
+   213→  if (!message) {
+   214→    return { success: false, error: 'WhatsApp action requires a message' };
+   215→  }
+   216→
+   217→  // Check if user has WhatsApp configured
+   218→  const whatsappConfig = await db.whatsappConfig.findFirst({
+   219→    where: { userId: context.userId, isConnected: true },
+   220→  });
+   221→
+   222→  if (!whatsappConfig) {
+   223→    return { success: false, error: 'WhatsApp not connected' };
+   224→  }
+   225→
+   226→  // Create outreach message record
+   227→  if (context.leadId) {
+   228→    await db.outreachMessage.create({
+   229→      data: {
+   230→        leadId: context.leadId,
+   231→        userId: context.userId,
+   232→        channel: 'whatsapp',
+   233→        direction: 'outbound',
+   234→        content: resolveTemplate(String(message), context),
+   235→        status: 'sent',
+   236→        generatedByAI: false,
+   237→        metadata: JSON.stringify({ phoneNumber: phoneNumber || '' }),
+   238→      },
+   239→    });
+   240→  }
+   241→
+   242→  return {
+   243→    success: true,
+   244→    output: { phoneNumber: phoneNumber || '' },
+   245→    creditsUsed: 2,
+   246→  };
+   247→}
+   248→
+   249→async function executeAiAnalysis(
+   250→  config: Record<string, unknown>,
+   251→  context: ActionContext
+   252→): Promise<ActionResult> {
+   253→  const { prompt, model } = config;
+   254→
+   255→  if (!context.leadId) {
+   256→    return { success: false, error: 'AI analysis requires a lead context' };
+   257→  }
+   258→
+   259→  try {
+   260→    const chat = await createZaiChat();
+   261→
+   262→    const resolution = await resolveLeadForExecution(context.userId, context.leadId, {
+   263→      include: { leadAnalysis: true },
+   264→    });
+   265→    if (!resolution.ok) {
+   266→      return { success: false, error: 'Lead not found for AI analysis' };
+   267→    }
+   268→    const lead = resolution.lead;
+   269→
+   270→    const analysisPrompt = prompt
+   271→      ? resolveTemplate(String(prompt), context)
+   272→      : `Analyze this lead for sales potential: ${lead.businessName}. 
+   273→         Current stage: ${lead.stage}. Reply score: ${lead.replyScore}. 
+   274→         Conversion score: ${lead.conversionScore}. Urgency: ${lead.urgencyScore}.
+   275→         Provide a brief analysis and recommendations.`;
+   276→
+   277→    const response = await chat.sendMessage(analysisPrompt);
+   278→
+   279→    return {
+   280→      success: true,
+   281→      output: {
+   282→        analysis: response.text || response.content || '',
+   283→        leadId: context.leadId,
+   284→        model: model || 'default',
+   285→      },
+   286→      creditsUsed: 5,
+   287→    };
+   288→  } catch (error) {
+   289→    return {
+   290→      success: false,
+   291→      error: `AI analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+   292→    };
+   293→  }
+   294→}
+   295→
+   296→async function executeAiOutreach(
+   297→  config: Record<string, unknown>,
+   298→  context: ActionContext
+   299→): Promise<ActionResult> {
+   300→  const { channel, style, tone } = config;
+   301→
+   302→  if (!context.leadId) {
+   303→    return { success: false, error: 'AI outreach requires a lead context' };
+   304→  }
+   305→
+   306→  try {
+   307→    const chat = await createZaiChat();
+   308→
+   309→    const resolution = await resolveLeadForExecution(context.userId, context.leadId);
+   310→    if (!resolution.ok) {
+   311→      return { success: false, error: 'Lead not found for AI outreach' };
+   312→    }
+   313→    const lead = resolution.lead;
+   314→
+   315→    const outreachChannel = String(channel || 'email');
+   316→    const outreachStyle = style || 'professional';
+   317→    const outreachTone = tone || 'friendly';
+   318→
+   319→    // SENDER IDENTITY: the workflow acts on behalf of the user who owns it.
+   320→    // Real profile goes into the prompt; placeholder tokens the model still
+   321→    // emits are replaced before the draft is stored.
+   322→    const senderProfile = await loadSenderProfile(context.userId);
+   323→    const senderBlock = buildSenderSignatureBlock(senderProfile);
+   324→
+   325→    const prompt = `Generate a ${outreachStyle} ${outreachChannel} outreach message for:
+   326→      Business: ${lead.businessName}
+   327→      Owner: ${lead.ownerName || 'Unknown'}
+   328→      Niche: ${lead.niche || 'Unknown'}
+   329→      City: ${lead.city || 'Unknown'}
+   330→      Tone: ${outreachTone}
+   331→      
+   332→      Create a compelling, personalized message that addresses their potential needs.
+   333→
+   334→${senderBlock}`;
+   335→
+   336→    const response = await chat.sendMessage(prompt);
+   337→    const generatedMessage = applySenderSignature(
+   338→      response.text || response.content || '',
+   339→      senderProfile
+   340→    );
+   341→
+   342→    // Create outreach message record
+   343→    const message = await db.outreachMessage.create({
+   344→      data: {
+   345→        leadId: context.leadId,
+   346→        userId: context.userId,
+   347→        channel: outreachChannel,
+   348→        direction: 'outbound',
+   349→        subject: outreachChannel === 'email' ? `Re: ${lead.businessName}` : null,
+   350→        content: generatedMessage,
+   351→        status: 'draft',
+   352→        generatedByAI: true,
+   353→      },
+   354→    });
+   355→
+   356→    return {
+   357→      success: true,
+   358→      output: {
+   359→        messageId: message.id,
+   360→        channel: outreachChannel,
+   361→        generatedMessage,
+   362→      },
+   363→      creditsUsed: 5,
+   364→    };
+   365→  } catch (error) {
+   366→    return {
+   367→      success: false,
+   368→      error: `AI outreach failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+   369→    };
+   370→  }
+   371→}
+   372→
+   373→async function executeMoveLeadStage(
+   374→  config: Record<string, unknown>,
+   375→  context: ActionContext
+   376→): Promise<ActionResult> {
+   377→  // Accept both config shapes that legitimately exist in the system:
+   378→  // the workflow builder stores targetStage, the AI workflow generator
+   379→  // (and legacy steps) store stage. Same fallback the legacy executor uses.
+   380→  const targetStage = config.targetStage || config.stage;
+   381→
+   382→  if (!context.leadId) {
+   383→    return { success: false, error: 'Move lead stage requires a lead context' };
+   384→  }
+   385→
+   386→  if (!targetStage) {
+   387→    return { success: false, error: 'Target stage is required' };
+   388→  }
+   389→
+   390→  const result = await moveLeadToStage(
+   391→    context.leadId,
+   392→    String(targetStage),
+   393→    context.userId
+   394→  );
+   395→
+   396→  return {
+   397→    success: result.success,
+   398→    output: {
+   399→      leadId: result.leadId,
+   400→      fromStage: result.fromStage,
+   401→      toStage: result.toStage,
+   402→    },
+   403→    error: result.error,
+   404→    creditsUsed: 1,
+   405→  };
+   406→}
+   407→
+   408→async function executeUpdateTags(
+   409→  config: Record<string, unknown>,
+   410→  context: ActionContext
+   411→): Promise<ActionResult> {
+   412→  const { tags, action } = config;
+   413→
+   414→  if (!context.leadId) {
+   415→    return { success: false, error: 'Update tags requires a lead context' };
+   416→  }
+   417→
+   418→  if (!tags || !Array.isArray(tags)) {
+   419→    return { success: false, error: 'Tags array is required' };
+   420→  }
+   421→
+   422→  const tagsResolution = await resolveLeadForExecution(context.userId, context.leadId, {
+   423→    select: { tags: true },
+   424→  });
+   425→
+   426→  if (!tagsResolution.ok) {
+   427→    return { success: false, error: 'Lead not found' };
+   428→  }
+   429→  const lead = tagsResolution.lead;
+   430→
+   431→  let currentTags: string[] = [];
+   432→  try {
+   433→    currentTags = JSON.parse(lead.tags || '[]');
+   434→  } catch {
+   435→    currentTags = [];
+   436→  }
+   437→
+   438→  const tagAction = action || 'add';
+   439→  let newTags: string[];
+   440→
+   441→  if (tagAction === 'add') {
+   442→    newTags = [...new Set([...currentTags, ...tags.map(String)])];
+   443→  } else if (tagAction === 'remove') {
+   444→    newTags = currentTags.filter(t => !tags.map(String).includes(t));
+   445→  } else {
+   446→    newTags = tags.map(String);
+   447→  }
+   448→
+   449→  await db.lead.update({
+   450→    where: { id: context.leadId },
+   451→    data: { tags: JSON.stringify(newTags) },
+   452→  });
+   453→
+   454→  return {
+   455→    success: true,
+   456→    output: { previousTags: currentTags, newTags, action: tagAction },
+   457→    creditsUsed: 1,
+   458→  };
+   459→}
+   460→
+   461→async function executeCreateNotification(
+   462→  config: Record<string, unknown>,
+   463→  context: ActionContext
+   464→): Promise<ActionResult> {
+   465→  const { title, message, type, actionUrl } = config;
+   466→
+   467→  if (!title || !message) {
+   468→    return { success: false, error: 'Notification requires title and message' };
+   469→  }
+   470→
+   471→  const notification = await db.notification.create({
+   472→    data: {
+   473→      userId: context.userId,
+   474→      type: String(type || 'workflow'),
+   475→      title: resolveTemplate(String(title), context),
+   476→      message: resolveTemplate(String(message), context),
+   477→      actionUrl: actionUrl ? String(actionUrl) : null,
+   478→      deliveredVia: 'in_app',
+   479→    },
+   480→  });
+   481→
+   482→  return {
+   483→    success: true,
+   484→    output: { notificationId: notification.id },
+   485→    creditsUsed: 1,
+   486→  };
+   487→}
+   488→
+   489→async function executeWaitDelay(
+   490→  config: Record<string, unknown>,
+   491→  _context: ActionContext
+   492→): Promise<ActionResult> {
+   493→  const { duration, unit } = config;
+   494→
+   495→  if (!duration) {
+   496→    return { success: false, error: 'Delay requires a duration' };
+   497→  }
+   498→
+   499→  const durationNum = Number(duration);
+   500→  const delayUnit = String(unit || 'minutes');
+   501→
+   502→  // Convert to milliseconds
+   503→  let delayMs: number;
+   504→  switch (delayUnit) {
+   505→    case 'seconds': delayMs = durationNum * 1000; break;
+   506→    case 'minutes': delayMs = durationNum * 60 * 1000; break;
+   507→    case 'hours': delayMs = durationNum * 60 * 60 * 1000; break;
+   508→    case 'days': delayMs = durationNum * 24 * 60 * 60 * 1000; break;
+   509→    default: delayMs = durationNum * 60 * 1000; break;
+   510→  }
+   511→
+   512→  return {
+   513→    success: true,
+   514→    output: { delayMs, duration: durationNum, unit: delayUnit },
+   515→    creditsUsed: 0,
+   516→  };
+   517→}
+   518→
+   519→async function executeConditionalBranch(
+   520→  config: Record<string, unknown>,
+   521→  context: ActionContext
+   522→): Promise<ActionResult> {
+   523→  const { field, operator, value, trueBranch, falseBranch } = config;
+   524→
+   525→  if (!field || !operator) {
+   526→    return { success: false, error: 'Conditional branch requires field and operator' };
+   527→  }
+   528→
+   529→  // Get the field value from context
+   530→  let fieldValue: unknown;
+   531→  if (field === 'leadStage' && context.leadId) {
+   532→    const lead = await db.lead.findUnique({
+   533→      where: { id: context.leadId },
+   534→      select: { stage: true },
+   535→    });
+   536→    fieldValue = lead?.stage;
+   537→  } else if (field === 'leadScore' && context.leadId) {
+   538→    const lead = await db.lead.findUnique({
+   539→      where: { id: context.leadId },
+   540→      select: { conversionScore: true },
+   541→    });
+   542→    fieldValue = lead?.conversionScore;
+   543→  } else if (field === 'triggerData') {
+   544→    fieldValue = context.triggerData?.[String(field)];
+   545→  } else if (context.previousOutputs) {
+   546→    fieldValue = context.previousOutputs[String(field)];
+   547→  } else {
+   548→    fieldValue = context.triggerData?.[String(field)];
+   549→  }
+   550→
+   551→  // Evaluate condition
+   552→  let conditionMet = false;
+   553→  const compareValue = value;
+   554→
+   555→  switch (operator) {
+   556→    case 'eq': case '==': conditionMet = fieldValue == compareValue; break;
+   557→    case 'neq': case '!=': conditionMet = fieldValue != compareValue; break;
+   558→    case 'gt': case '>': conditionMet = Number(fieldValue) > Number(compareValue); break;
+   559→    case 'gte': case '>=': conditionMet = Number(fieldValue) >= Number(compareValue); break;
+   560→    case 'lt': case '<': conditionMet = Number(fieldValue) < Number(compareValue); break;
+   561→    case 'lte': case '<=': conditionMet = Number(fieldValue) <= Number(compareValue); break;
+   562→    case 'contains': conditionMet = String(fieldValue).includes(String(compareValue)); break;
+   563→    case 'not_contains': conditionMet = !String(fieldValue).includes(String(compareValue)); break;
+   564→    case 'in': conditionMet = String(compareValue).split(',').map(s => s.trim()).includes(String(fieldValue)); break;
+   565→    case 'not_in': conditionMet = !String(compareValue).split(',').map(s => s.trim()).includes(String(fieldValue)); break;
+   566→    default: conditionMet = false;
+   567→  }
+   568→
+   569→  return {
+   570→    success: true,
+   571→    output: {
+   572→      conditionMet,
+   573→      branch: conditionMet ? (trueBranch || 'true') : (falseBranch || 'false'),
+   574→      fieldValue,
+   575→      operator,
+   576→      compareValue,
+   577→    },
+   578→    creditsUsed: 0,
+   579→  };
+   580→}
+   581→
+   582→async function executeWebhookCall(
+   583→  config: Record<string, unknown>,
+   584→  context: ActionContext
+   585→): Promise<ActionResult> {
+   586→  const { url, method, headers, body } = config;
+   587→
+   588→  if (!url) {
+   589→    return { success: false, error: 'Webhook requires a URL' };
+   590→  }
+   591→
+   592→  try {
+   593→    const response = await fetch(String(url), {
+   594→      method: String(method || 'POST'),
+   595→      headers: {
+   596→        'Content-Type': 'application/json',
+   597→        ...(headers as Record<string, string> || {}),
+   598→      },
+   599→      body: body ? JSON.stringify({
+   600→        ...((typeof body === 'object' ? body : {}) as Record<string, unknown>),
+   601→        workflowId: context.workflowId,
+   602→        executionId: context.executionId,
+   603→        leadId: context.leadId,
+   604→        triggerData: context.triggerData,
+   605→      }) : JSON.stringify({
+   606→        workflowId: context.workflowId,
+   607→        executionId: context.executionId,
+   608→        leadId: context.leadId,
+   609→        triggerData: context.triggerData,
+   610→      }),
+   611→    });
+   612→
+   613→    let responseBody: unknown;
+   614→    try {
+   615→      responseBody = await response.json();
+   616→    } catch {
+   617→      responseBody = await response.text();
+   618→    }
+   619→
+   620→    return {
+   621→      success: response.ok,
+   622→      output: {
+   623→        statusCode: response.status,
+   624→        body: responseBody,
+   625→      },
+   626→      error: response.ok ? undefined : `Webhook returned ${response.status}`,
+   627→      creditsUsed: 1,
+   628→    };
+   629→  } catch (error) {
+   630→    return {
+   631→      success: false,
+   632→      error: `Webhook call failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+   633→    };
+   634→  }
+   635→}
+   636→
+   637→async function executeExportData(
+   638→  config: Record<string, unknown>,
+   639→  context: ActionContext
+   640→): Promise<ActionResult> {
+   641→  const { format, dataType, filters } = config;
+   642→
+   643→  if (!dataType) {
+   644→    return { success: false, error: 'Export requires a data type' };
+   645→  }
+   646→
+   647→  // For now, create a data export record
+   648→  const exportRecord = await db.dataExport.create({
+   649→    data: {
+   650→      userId: context.userId,
+   651→      type: String(format || 'csv'),
+   652→      status: 'pending',
+   653→    },
+   654→  });
+   655→
+   656→  return {
+   657→    success: true,
+   658→    output: {
+   659→      exportId: exportRecord.id,
+   660→      format: format || 'csv',
+   661→      dataType,
+   662→    },
+   663→    creditsUsed: 3,
+   664→  };
+   665→}
+   666→
+   667→async function executeScoreLead(
+   668→  config: Record<string, unknown>,
+   669→  context: ActionContext
+   670→): Promise<ActionResult> {
+   671→  if (!context.leadId) {
+   672→    return { success: false, error: 'Score lead requires a lead context' };
+   673→  }
+   674→
+   675→  try {
+   676→    const chat = await createZaiChat();
+   677→
+   678→    const resolution = await resolveLeadForExecution(context.userId, context.leadId);
+   679→    if (!resolution.ok) {
+   680→      return { success: false, error: 'Lead not found' };
+   681→    }
+   682→    const lead = resolution.lead;
+   683→
+   684→    const prompt = `Score this lead on a scale of 0-100 for sales conversion potential:
+   685→      Business: ${lead.businessName}
+   686→      Niche: ${lead.niche || 'Unknown'}
+   687→      Current stage: ${lead.stage}
+   688→      Reply score: ${lead.replyScore}
+   689→      Conversion score: ${lead.conversionScore}
+   690→      
+   691→      Return ONLY a number between 0-100.`;
+   692→
+   693→    const response = await chat.sendMessage(prompt);
+   694→    const scoreText = (response.text || response.content || '0').trim();
+   695→    const score = Math.min(100, Math.max(0, parseInt(scoreText.replace(/[^0-9]/g, ''), 10) || 0));
+   696→
+   697→    // Update lead scores
+   698→    await db.lead.update({
+   699→      where: { id: context.leadId },
+   700→      data: { conversionScore: score },
+   701→    });
+   702→
+   703→    // Create score record
+   704→    await db.leadScore.create({
+   705→      data: {
+   706→        leadId: context.leadId,
+   707→        scoreType: 'conversion',
+   708→        score,
+   709→        explanation: scoreText,
+   710→      },
+   711→    });
+   712→
+   713→    return {
+   714→      success: true,
+   715→      output: { leadId: context.leadId, score, explanation: scoreText },
+   716→      creditsUsed: 5,
+   717→    };
+   718→  } catch (error) {
+   719→    return {
+   720→      success: false,
+   721→      error: `Score lead failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+   722→    };
+   723→  }
+   724→}
+   725→
+   726→async function executeAddNote(
+   727→  config: Record<string, unknown>,
+   728→  context: ActionContext
+   729→): Promise<ActionResult> {
+   730→  const { content, pinned } = config;
+   731→
+   732→  if (!context.leadId) {
+   733→    return { success: false, error: 'Add note requires a lead context' };
+   734→  }
+   735→
+   736→  if (!content) {
+   737→    return { success: false, error: 'Note content is required' };
+   738→  }
+   739→
+   740→  const note = await db.leadNote.create({
+   741→    data: {
+   742→      leadId: context.leadId,
+   743→      userId: context.userId,
+   744→      content: resolveTemplate(String(content), context),
+   745→      pinned: Boolean(pinned),
+   746→    },
+   747→  });
+   748→
+   749→  return {
+   750→    success: true,
+   751→    output: { noteId: note.id },
+   752→    creditsUsed: 1,
+   753→  };
+   754→}
+   755→
+   756→async function executeNotifyLowCredits(
+   757→  config: Record<string, unknown>,
+   758→  context: ActionContext
+   759→): Promise<ActionResult> {
+   760→  const user = await db.user.findUnique({
+   761→    where: { id: context.userId },
+   762→    select: { credits: true, name: true, email: true },
+   763→  });
+   764→
+   765→  if (!user) {
+   766→    return { success: false, error: 'User not found' };
+   767→  }
+   768→
+   769→  const threshold = Number(config.threshold) || 10;
+   770→
+   771→  if (user.credits > threshold) {
+   772→    return {
+   773→      success: true,
+   774→      output: { skipped: true, reason: `Credits (${user.credits}) above threshold (${threshold})` },
+   775→      creditsUsed: 0,
+   776→    };
+   777→  }
+   778→
+   779→  // Create notification
+   780→  await db.notification.create({
+   781→    data: {
+   782→      userId: context.userId,
+   783→      type: 'credit_low',
+   784→      title: 'Low Credit Warning',
+   785→      message: `You have ${user.credits} credits remaining. Consider upgrading your plan or purchasing additional credits.`,
+   786→      deliveredVia: 'in_app',
+   787→      metadata: JSON.stringify({ credits: user.credits, threshold }),
+   788→    },
+   789→  });
+   790→
+   791→  // Also send email if configured
+   792→  if (user.email) {
+   793→    await sendEmail({
+   794→      to: user.email,
+   795→      subject: 'Low Credit Warning — AcquisitionOS',
+   796→      html: `<p>Hi ${user.name || 'there'},</p><p>You have <strong>${user.credits}</strong> credits remaining.</p>`,
+   797→      text: `Hi ${user.name || 'there'}, You have ${user.credits} credits remaining.`,
+   798→    });
+   799→  }
+   800→
+   801→  return {
+   802→    success: true,
+   803→    output: { credits: user.credits, threshold },
+   804→    creditsUsed: 0,
+   805→  };
+   806→}
+   807→
+   808→async function executeNotifyTrialEnding(
+   809→  config: Record<string, unknown>,
+   810→  context: ActionContext
+   811→): Promise<ActionResult> {
+   812→  const user = await db.user.findUnique({
+   813→    where: { id: context.userId },
+   814→    select: { isTrial: true, trialEndsAt: true, name: true, email: true, plan: true },
+   815→  });
+   816→
+   817→  if (!user || !user.isTrial || !user.trialEndsAt) {
+   818→    return {
+   819→      success: true,
+   820→      output: { skipped: true, reason: 'Not on trial or no trial end date' },
+   821→      creditsUsed: 0,
+   822→    };
+   823→  }
+   824→
+   825→  const daysUntilExpiry = Math.ceil(
+   826→    (user.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+   827→  );
+   828→
+   829→  const notifyThreshold = Number(config.daysThreshold) || 3;
+   830→
+   831→  if (daysUntilExpiry > notifyThreshold) {
+   832→    return {
+   833→      success: true,
+   834→      output: { skipped: true, reason: `Trial ends in ${daysUntilExpiry} days (threshold: ${notifyThreshold})` },
+   835→      creditsUsed: 0,
+   836→    };
+   837→  }
+   838→
+   839→  // Create notification
+   840→  await db.notification.create({
+   841→    data: {
+   842→      userId: context.userId,
+   843→      type: 'trial_ending',
+   844→      title: 'Trial Ending Soon',
+   845→      message: `Your ${user.plan} plan trial ends in ${daysUntilExpiry} day(s). Upgrade to keep access to all features.`,
+   846→      deliveredVia: 'in_app',
+   847→      metadata: JSON.stringify({ daysUntilExpiry, trialEndsAt: user.trialEndsAt }),
+   848→    },
+   849→  });
+   850→
+   851→  return {
+   852→    success: true,
+   853→    output: { daysUntilExpiry, trialEndsAt: user.trialEndsAt },
+   854→    creditsUsed: 0,
+   855→  };
+   856→}
+   857→
+   858→// ===== TEMPLATE VARIABLE RESOLVER =====
+   859→
+   860→function resolveTemplate(template: string, context: ActionContext): string {
+   861→  let resolved = template;
+   862→
+   863→  // Replace common variables
+   864→  const replacements: Record<string, string> = {
+   865→    '{{leadId}}': context.leadId || '',
+   866→    '{{workflowId}}': context.workflowId,
+   867→    '{{executionId}}': context.executionId,
+   868→    '{{userId}}': context.userId,
+   869→  };
+   870→
+   871→  // Add trigger data variables
+   872→  if (context.triggerData) {
+   873→    for (const [key, value] of Object.entries(context.triggerData)) {
+   874→      replacements[`{{trigger.${key}}}`] = String(value ?? '');
+   875→    }
+   876→  }
+   877→
+   878→  // Add previous output variables
+   879→  if (context.previousOutputs) {
+   880→    for (const [key, value] of Object.entries(context.previousOutputs)) {
+   881→      replacements[`{{output.${key}}}`] = String(value ?? '');
+   882→    }
+   883→  }
+   884→
+   885→  for (const [placeholder, value] of Object.entries(replacements)) {
+   886→    resolved = resolved.replace(new RegExp(escapeRegExp(placeholder), 'g'), value);
+   887→  }
+   888→
+   889→  return resolved;
+   890→}
+   891→
+   892→function escapeRegExp(string: string): string {
+   893→  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+   894→}
+   895→
+   896→// ── Local adapter ─────────────────────────────────────────────────
+   897→// The z-ai-web-dev-sdk package does not export `createChat`; emulate the
+   898→// chat.sendMessage() interface used above via ZAI.create().
+   899→
+   900→async function createZaiChat(): Promise<{
+   901→  sendMessage: (prompt: string) => Promise<{ text?: string; content?: string }>;
+   902→}> {
+   903→  const { default: ZAI } = await import('z-ai-web-dev-sdk');
+   904→  const zai = await ZAI.create();
+   905→  return {
+   906→    sendMessage: async (prompt: string) => {
+   907→      const completion = (await zai.chat.completions.create({
+   908→        messages: [{ role: 'user', content: prompt }],
+   909→      })) as { choices?: Array<{ message?: { content?: string } }> };
+   910→      const text = completion.choices?.[0]?.message?.content ?? '';
+   911→      return { text, content: text };
+   912→    },
+   913→  };
+   914→}
+   915→

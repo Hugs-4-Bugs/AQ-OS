@@ -5,7 +5,7 @@
 
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
-import { executeAction, getLeadTemplateVars, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
+import { executeAction, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
 import { deductExecutionCredits, getActionCreditCost, checkExecutionLimit } from '@/lib/workflow-credits';
 import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
@@ -140,7 +140,21 @@ export async function executeWorkflow(
         // who started the run — never against a null/system owner.
         userId,
         status: 'running',
-        triggerData: triggerData ? JSON.stringify(triggerData) : null,
+        // Effective-configuration snapshot: historical runs stay explainable
+        // (what the workflow was, and with which settings, at run time).
+        triggerData: triggerData
+          ? JSON.stringify({
+              ...triggerData,
+              workflowSnapshot: {
+                name: workflow.name,
+                triggerType: workflow.triggerType,
+                requiresApproval: workflow.requiresApproval,
+                profileId: workflow.profileId ?? null,
+                stepCount: steps.length,
+                snapshottedAt: new Date().toISOString(),
+              },
+            })
+          : null,
         triggerEvent: triggerData ? JSON.stringify(triggerData) : null,
         currentStep: 0,
         totalSteps: steps.length,
@@ -207,12 +221,18 @@ async function runSteps(
   const previousOutputs: Record<string, unknown> = {};
   let shouldContinue = true;
 
-  // Lead template variables ({{lead.email}}, {{lead.name}}, …) — fetched
-  // ONCE per execution so every step can address the lead in context
-  // (e.g. send_email to {{lead.email}}) without extra queries.
-  const leadVars = await getLeadTemplateVars(triggerData?.leadId as string | undefined).catch(
-    () => ({}) as Record<string, string>
-  );
+  // Workflow-level approval gate: loaded once so execute/resume/retry paths
+  // all enforce the same "human approval before send" behavior.
+  let requiresApproval = false;
+  try {
+    const wf = await db.workflowDefinition.findUnique({
+      where: { id: workflowId },
+      select: { requiresApproval: true },
+    });
+    requiresApproval = wf?.requiresApproval ?? false;
+  } catch {
+    requiresApproval = false;
+  }
 
   for (let i = 0; i < steps.length && shouldContinue; i++) {
     const step = steps[i];
@@ -231,7 +251,7 @@ async function runSteps(
       leadId: triggerData?.leadId as string | undefined,
       triggerData,
       previousOutputs,
-      leadVars,
+      requiresApproval,
     });
 
     // Store output
@@ -367,8 +387,22 @@ export async function processStep(
   try {
     let result: ActionResult;
 
+    // The action type rides in config.actionType; fall back to step.type for
+    // legacy steps that stored the action type directly.
+    const actionType = String(step.config?.actionType || step.type);
+
+    // ── Approval-gated sends are charged ONLY when actually delivered ──
+    // When the workflow requires approval, send actions park a draft and
+    // return early — no delivery happens in this step, so no credits are
+    // deducted here (the human-approved send path carries the cost).
+    const SEND_ACTIONS = new Set(['send_email', 'send_telegram', 'send_whatsapp']);
+    const approvalSkipsCharge = Boolean(context.requiresApproval) && SEND_ACTIONS.has(actionType);
+
     // Deduct credits before execution
-    const creditResult = await deductExecutionCredits(context.userId, step.type);
+    let creditResult = { success: true, creditsUsed: 0, error: undefined as string | undefined };
+    if (!approvalSkipsCharge) {
+      creditResult = await deductExecutionCredits(context.userId, step.type);
+    }
 
     if (!creditResult.success && creditResult.creditsUsed > 0) {
       // Only fail if the action actually costs credits and we can't afford them
@@ -400,7 +434,6 @@ export async function processStep(
     // while executeAction dispatches on the ACTION type ('send_email' | 'wait_delay' | ...).
     // The action type always rides in config.actionType; fall back to step.type for
     // legacy steps that stored the action type directly.
-    const actionType = String(step.config?.actionType || step.type);
     result = await executeAction(actionType, step.config, context);
 
     const durationMs = Date.now() - startTime;

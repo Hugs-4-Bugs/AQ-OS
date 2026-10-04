@@ -5,10 +5,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
-import { db } from '@/lib/db';
-import { startDiscoveryJob, type DiscoverySource } from '@/lib/lead-discovery-service';
+import {
+  startDiscoveryJob,
+  type DiscoverySource,
+  type DiscoveryJobContext,
+} from '@/lib/lead-discovery-service';
 import { getEntitlements, type PlanType } from '@/lib/entitlement-service';
 import { getFeatureUsage } from '@/lib/entitlement-middleware';
+import { db } from '@/lib/db';
 import {
   extractHardCriteria,
   hasEnforceableCriteria,
@@ -52,60 +56,133 @@ export async function POST(request: NextRequest) {
       const sanitizedNiche = niche.trim().substring(0, 200);
       const sanitizedCountry = country && typeof country === 'string' ? country.trim().substring(0, 100) : undefined;
       const sanitizedCity = city ? String(city).trim().substring(0, 100) : undefined;
-
-      // ── DISCOVERY OPERATION IDENTITY (credit integrity) ───────────
-      // One logical start = one requestId = one job = one billing event.
-      // A replayed POST (network retry, React Query retry, remount race,
-      // double-click) must NEVER create a second chargeable job.
-      const requestId = typeof body.requestId === 'string' ? body.requestId.trim().substring(0, 120) : '';
-      if (requestId) {
-        const sameOperation = await db.discoveryJob.findFirst({
-          where: { userId: user.id, idempotencyKey: requestId },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (sameOperation) {
-          // Observe the existing operation — do not start (or charge) again.
-          return NextResponse.json(
-            {
-              jobId: sameOperation.id,
-              status: sameOperation.status,
-              message: 'Discovery already in progress — returning the existing job.',
-              deduped: true,
-            },
-            { status: 202 }
-          );
-        }
-      }
-      // Defense in depth: an IDENTICAL search that is still pending/running
-      // is returned instead of silently starting a second chargeable job.
-      // Completed/failed jobs never match — a deliberate re-run is fine.
-      const identicalActive = await db.discoveryJob.findFirst({
-        where: {
-          userId: user.id,
-          status: { in: ['pending', 'running'] },
-          source,
-          niche: sanitizedNiche,
-          country: sanitizedCountry || '',
-          city: sanitizedCity || null,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (identicalActive) {
-        return NextResponse.json(
-          {
-            jobId: identicalActive.id,
-            status: identicalActive.status,
-            message: 'An identical discovery is already running — showing its progress instead of starting a duplicate.',
-            deduped: true,
-          },
-          { status: 202 }
-        );
-      }
       // Upper bound 500 — the effective ceiling stays RESULTS_PER_JOB (200
       // unless env-overridden) inside the service; the route bound only
       // rejects absurd inputs (spec §3.1: no tiny hardcoded caps).
       const sanitizedMaxResults = maxResults ? Math.min(Math.max(parseInt(String(maxResults), 10) || 10, 1), 500) : undefined;
       const sanitizedRequirements = requirements ? String(requirements).trim().substring(0, 1000) : undefined;
+
+      // ── CONTEXT / CAMPAIGN SELECTOR (additive, optional) ─────────
+      // body.context: { mode: 'none'|'campaign'|'business', campaignId? }
+      // 'campaign' → the campaign's customInstructions merge into the
+      //   discovery requirements; campaign niche/country/city FILL EMPTY
+      //   fields only (user-entered values always win). Ownership is
+      //   verified server-side — cross-user campaign ids are rejected.
+      // 'business' → the user's own business context (Settings → My
+      //   Context + My Offer) becomes discovery instructions.
+      // 'none'/absent → unchanged behaviour.
+      let context: DiscoveryJobContext | null = null;
+      let contextInstructions: string | undefined;
+      const rawContext = body?.context;
+      if (rawContext && typeof rawContext === 'object' && !Array.isArray(rawContext)) {
+        const mode = rawContext.mode;
+        if (mode === 'campaign') {
+          const campaignId = typeof rawContext.campaignId === 'string' ? rawContext.campaignId.trim() : '';
+          if (!campaignId) {
+            return NextResponse.json(
+              { error: 'context.campaignId is required when context.mode is "campaign"' },
+              { status: 400 }
+            );
+          }
+          const campaign = await db.acquisitionCampaign.findFirst({
+            where: { id: campaignId, userId: user.id },
+            select: { id: true, niche: true, country: true, city: true, customInstructions: true },
+          });
+          if (!campaign) {
+            return NextResponse.json(
+              { error: 'Selected campaign not found for this account' },
+              { status: 400 }
+            );
+          }
+          contextInstructions = campaign.customInstructions
+            ? String(campaign.customInstructions).trim().substring(0, 500)
+            : undefined;
+          context = {
+            mode: 'campaign',
+            campaignId: campaign.id,
+            campaignNiche: campaign.niche ? String(campaign.niche).substring(0, 200) : undefined,
+            instructions: contextInstructions,
+          };
+          // Campaign targeting FILLS EMPTY discovery fields only — explicit
+          // user input on the Discover form always takes precedence.
+          if (!sanitizedNiche && campaign.niche) context.campaignNiche = String(campaign.niche).substring(0, 200);
+        } else if (mode === 'business') {
+          const settings = await db.userSettings.findUnique({
+            where: { userId: user.id },
+            select: { businessDescription: true, servicesOffered: true, personalContext: true },
+          });
+          const parts: string[] = [];
+          if (settings?.businessDescription?.trim()) {
+            parts.push(`User business: ${settings.businessDescription.trim().substring(0, 300)}`);
+          }
+          if (settings?.personalContext?.trim()) {
+            try {
+              const pc = JSON.parse(settings.personalContext) as Record<string, unknown>;
+              const pcBits = [pc.targetAudience, pc.whatYouDo, pc.goals, pc.positioning]
+                .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+                .map((v) => v.trim().substring(0, 150));
+              if (pcBits.length > 0) parts.push(`User context: ${pcBits.join('; ')}`);
+            } catch {
+              // Malformed personal context must never block discovery.
+            }
+          }
+          contextInstructions = parts.length > 0 ? parts.join(' | ').substring(0, 500) : undefined;
+          context = { mode: 'business', instructions: contextInstructions };
+        } else if (mode === 'profile') {
+          const profileId = typeof rawContext.profileId === 'string' ? rawContext.profileId.trim() : '';
+          if (!profileId) {
+            return NextResponse.json(
+              { error: 'context.profileId is required when context.mode is "profile"' },
+              { status: 400 }
+            );
+          }
+          const profile = await db.businessProfile.findFirst({
+            where: { id: profileId, userId: user.id },
+            select: {
+              id: true, name: true, status: true, industry: true, description: true,
+              productsServices: true, offers: true, valueProposition: true,
+              targetAudience: true, targetIndustries: true, geographicMarket: true,
+              painPoints: true, customInstructions: true,
+            },
+          });
+          if (!profile) {
+            return NextResponse.json(
+              { error: 'Selected business profile not found for this account' },
+              { status: 400 }
+            );
+          }
+          if (profile.status !== 'active') {
+            return NextResponse.json(
+              { error: 'Selected business profile is archived — activate it or choose another' },
+              { status: 400 }
+            );
+          }
+          const bits: string[] = [];
+          if (profile.description?.trim()) bits.push(`Business: ${profile.description.trim().substring(0, 200)}`);
+          if (profile.industry?.trim()) bits.push(`Industry: ${profile.industry.trim().substring(0, 100)}`);
+          if (profile.productsServices?.trim()) bits.push(`Offering: ${profile.productsServices.trim().substring(0, 200)}`);
+          if (profile.offers?.trim()) bits.push(`Offers: ${profile.offers.trim().substring(0, 150)}`);
+          if (profile.valueProposition?.trim()) bits.push(`Value prop: ${profile.valueProposition.trim().substring(0, 150)}`);
+          if (profile.targetAudience?.trim()) bits.push(`Targets: ${profile.targetAudience.trim().substring(0, 150)}`);
+          if (profile.geographicMarket?.trim()) bits.push(`Market: ${profile.geographicMarket.trim().substring(0, 100)}`);
+          if (profile.painPoints?.trim()) bits.push(`Pain points addressed: ${profile.painPoints.trim().substring(0, 150)}`);
+          if (profile.customInstructions?.trim()) bits.push(`Instructions: ${profile.customInstructions.trim().substring(0, 200)}`);
+          contextInstructions = bits.length > 0 ? bits.join(' | ').substring(0, 500) : undefined;
+          context = { mode: 'profile', profileId: profile.id, instructions: contextInstructions };
+        } else if (mode !== 'none' && mode !== undefined && mode !== null) {
+          return NextResponse.json(
+            { error: 'context.mode must be one of: none, campaign, business, profile' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Merge context instructions into the requirements text so the whole
+      // existing discovery pipeline (queries + hard-criteria extraction)
+      // consumes them without any change to its internals.
+      const effectiveRequirements = contextInstructions
+        ? [sanitizedRequirements, contextInstructions].filter(Boolean).join(' | ').substring(0, 1500)
+        : sanitizedRequirements;
 
       // ── HARD CRITERIA (defense in depth) ─────────────────────────
       // 1. Structured criteria from the client (AI parser output).
@@ -114,7 +191,9 @@ export async function POST(request: NextRequest) {
       //    direct API call) cannot bypass an explicit "20 to 200
       //    employees" constraint. Numeric bounds intersect strictly.
       const clientCriteria = normalizeCriteriaInput(body.criteria);
-      const textCriteria = extractHardCriteria(sanitizedRequirements || '');
+      // Extracted from the EFFECTIVE (context-merged) text so constraints
+      // inside campaign/business context instructions are enforced too.
+      const textCriteria = extractHardCriteria(effectiveRequirements || '');
       const mergedCriteria = mergeHardCriteria(clientCriteria, textCriteria);
       const effectiveCriteria = hasEnforceableCriteria(mergedCriteria) ? mergedCriteria : null;
 
@@ -149,33 +228,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Start discovery job
-      // BUSINESS CONTEXT (spec §3): optional selected business profile +
-      // campaign overrides — persisted with the job, resolved (and
-      // ownership-checked) when used for search/research/outreach.
-      const campaign = body.campaign && typeof body.campaign === 'object' ? body.campaign : null;
       const result = await startDiscoveryJob(user.id, {
         niche: sanitizedNiche,
         country: sanitizedCountry || undefined,
         city: sanitizedCity,
         source,
         maxResults: effectiveMaxResults,
-        requirements: sanitizedRequirements,
+        requirements: effectiveRequirements,
         criteria: effectiveCriteria ?? EMPTY_CRITERIA,
-        businessProfileId: typeof body.businessProfileId === 'string' ? body.businessProfileId : null,
-        // EXPLICIT None (spec §8): useBusinessContext:false means the user
-        // chose "None" — run WITHOUT any business profile; never substitute
-        // the default profile. Absent/undefined keeps existing behavior.
-        useBusinessContext: body.useBusinessContext === false ? false : undefined,
-        campaign: campaign ? {
-          objective: typeof campaign.objective === 'string' ? campaign.objective.trim().substring(0, 500) || undefined : undefined,
-          audience: typeof campaign.audience === 'string' ? campaign.audience.trim().substring(0, 500) || undefined : undefined,
-          offer: typeof campaign.offer === 'string' ? campaign.offer.trim().substring(0, 500) || undefined : undefined,
-          outcome: typeof campaign.outcome === 'string' ? campaign.outcome.trim().substring(0, 500) || undefined : undefined,
-          cta: typeof campaign.cta === 'string' ? campaign.cta.trim().substring(0, 300) || undefined : undefined,
-          tone: typeof campaign.tone === 'string' ? campaign.tone.trim().substring(0, 200) || undefined : undefined,
-          instructions: typeof campaign.instructions === 'string' ? campaign.instructions.trim().substring(0, 1000) || undefined : undefined,
-        } : null,
-        idempotencyKey: requestId || null,
+        context,
       }, user.orgId ?? undefined);
 
       if (result.status === 'failed') {

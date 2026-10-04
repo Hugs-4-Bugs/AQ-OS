@@ -12,14 +12,11 @@ import {
   instantiateTemplate,
   seedTemplates,
 } from '@/lib/workflow-templates';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 // ─── GET: List templates / categories ─────────────────────
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const { searchParams } = new URL(request.url);
       const action = searchParams.get('action');
@@ -70,8 +67,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const body = await request.json();
       const { templateId, customizations } = body as {

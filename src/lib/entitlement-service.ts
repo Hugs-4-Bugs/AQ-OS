@@ -5,7 +5,6 @@
 
 import { db } from '@/lib/db';
 import { logEntitlementEvent } from '@/lib/billing-audit';
-import { BUSINESS_PROFILE_LIMITS } from '@/lib/plan-feature-limits';
 
 // ===== TYPES =====
 
@@ -27,9 +26,9 @@ export type FeatureKey =
   | 'api_access'
   | 'chatbot_access'
   | 'team_members'
-  | 'business_profiles'
   | 'white_label'
-  | 'custom_integrations';
+  | 'custom_integrations'
+  | 'business_profiles';
 
 export interface EntitlementConfig {
   limit: number | null; // null = unlimited
@@ -58,14 +57,16 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     api_access:           { limit: 0,   enabled: false },
     chatbot_access:       { limit: 0,   enabled: false },
     team_members:         { limit: 1,   enabled: true },
-    // Plan Eligibility Correction: active business profiles/niches per plan.
-    business_profiles:    { limit: BUSINESS_PROFILE_LIMITS.free, enabled: true },
     white_label:          { limit: 0,   enabled: false },
     custom_integrations:  { limit: 0,   enabled: false },
+    // Active Business Profiles (limit applies to ACTIVE profiles only):
+    // free=1, starter=1, pro=3, elite=7 — enforced server-side in the
+    // profile CRUD routes. Downgrade never deletes profiles; archived and
+    // over-limit profiles are preserved read-only.
+    business_profiles:    { limit: 1,   enabled: true },
   },
   // Starter — basic features only (final pricing/plan update, Sep 2026).
   // Same feature set as Free except the monthly lead limit is 25.
-  // Plan Eligibility Correction: workflow_access stays DISABLED for Starter.
   starter: {
     lead_discovery:       { limit: 25,  enabled: true },
     deep_analysis:        { limit: 0,   enabled: false },
@@ -82,12 +83,10 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     api_access:           { limit: 0,   enabled: false },
     chatbot_access:       { limit: 0,   enabled: false },
     team_members:         { limit: 1,   enabled: true },
-    business_profiles:    { limit: BUSINESS_PROFILE_LIMITS.starter, enabled: true },
     white_label:          { limit: 0,   enabled: false },
     custom_integrations:  { limit: 0,   enabled: false },
+    business_profiles:    { limit: 1,   enabled: true },
   },
-  // Plan Eligibility Correction: autonomous workflows + the AI Business
-  // Growth Agent automation are exclusive to Pro and Elite (workflow_access).
   pro: {
     lead_discovery:       { limit: null, enabled: true },
     deep_analysis:        { limit: null, enabled: true },
@@ -104,9 +103,9 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     api_access:           { limit: null, enabled: true },
     chatbot_access:       { limit: null, enabled: true },
     team_members:         { limit: 3,   enabled: true },
-    business_profiles:    { limit: BUSINESS_PROFILE_LIMITS.pro, enabled: true },
     white_label:          { limit: 0,   enabled: false },
     custom_integrations:  { limit: 0,   enabled: false },
+    business_profiles:    { limit: 3,   enabled: true },
   },
   elite: {
     lead_discovery:       { limit: null, enabled: true },
@@ -124,9 +123,9 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     api_access:           { limit: null, enabled: true },
     chatbot_access:       { limit: null, enabled: true },
     team_members:         { limit: 10,  enabled: true },
-    business_profiles:    { limit: BUSINESS_PROFILE_LIMITS.elite, enabled: true },
     white_label:          { limit: null, enabled: true },
     custom_integrations:  { limit: null, enabled: true },
+    business_profiles:    { limit: 7,   enabled: true },
   },
 };
 

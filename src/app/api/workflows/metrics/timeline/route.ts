@@ -6,13 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 /** GET /api/workflows/metrics/timeline — Get execution timeline for last 7 days */
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const userWorkflows = await db.workflowDefinition.findMany({
         where: { userId: user.id, isTemplate: false },

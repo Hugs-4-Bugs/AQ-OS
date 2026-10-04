@@ -13,9 +13,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
+      // Entitlement check: workflow_access feature (Pro/Elite) — creating
+      // copies of workflows is a plan-gated capability like creation itself.
+      const entitlementCheck = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
+      if (!entitlementCheck.allowed) return entitlementCheck.response!;
+
       const { id } = await params;
       const workflow = await duplicateWorkflow(id, user.id);
 

@@ -1,0 +1,1944 @@
+[00:00:01.908] Server  WARN    [instrumentation] No new env vars loaded from .env files (all already set in process.env)
+[00:00:01.910] Server  LOG     ─────────────────────────────────────────────────
+[00:00:01.910] Server  LOG     [env-safeguard] Environment Variable Health Report
+[00:00:01.910] Server  LOG       Status: CRITICAL
+[00:00:01.910] Server  ERROR     CRITICAL — Missing required: JWT Secret
+[00:00:01.910] Server  WARN      DEGRADED — Missing/degraded: SMTP Host, SMTP Port, SMTP User, SMTP Password, SMTP Pass (alias), Gmail User (alias), Gmail App Password (alias), Gmail Password (alias), SMTP From, Resend API Key, Google Client ID, Google Client Secret, Cron Secret
+[00:00:01.910] Server  LOG       Auth Summary:
+[00:00:01.910] Server  LOG         Dev Mode: ENABLED ⚠️
+[00:00:01.910] Server  LOG         Email (SMTP): NOT CONFIGURED ✗
+[00:00:01.910] Server  LOG         Google OAuth: NOT CONFIGURED ✗
+[00:00:01.910] Server  LOG     ─────────────────────────────────────────────────
+[00:00:01.910] Server  WARN    
+[00:00:01.910] Server  WARN    ═══════════════════════════════════════════════════════
+[00:00:01.910] Server  WARN      AcquisitionOS — Auth Provider Startup Check
+[00:00:01.910] Server  WARN    ═══════════════════════════════════════════════════════
+[00:00:01.910] Server  ERROR     STARTUP ERROR: GOOGLE_CLIENT_ID is NOT SET in environment
+[00:00:01.910] Server  ERROR     STARTUP ERROR: GOOGLE_CLIENT_SECRET is NOT SET in environment
+[00:00:01.910] Server  ERROR     STARTUP ERROR: AUTH_SECRET is NOT SET in environment
+[00:00:01.910] Server  ERROR     STARTUP ERROR: NEXTAUTH_SECRET is NOT SET in environment
+[00:00:01.910] Server  WARN      STARTUP OK: DATABASE_URL is configured
+[00:00:01.910] Server  ERROR     STARTUP ERROR: JWT_SECRET is NOT SET in environment
+[00:00:01.910] Server  ERROR     SMTP ERROR: SMTP_HOST is NOT SET (magic link emails will fail)
+[00:00:01.910] Server  ERROR     SMTP ERROR: SMTP_PORT is NOT SET (magic link emails will fail)
+[00:00:01.910] Server  ERROR     SMTP ERROR: SMTP_USER is NOT SET (magic link emails will fail)
+[00:00:01.910] Server  ERROR     SMTP ERROR: SMTP_PASSWORD is NOT SET (magic link emails will fail)
+[00:00:01.910] Server  WARN      Google OAuth : UNAVAILABLE
+[00:00:01.910] Server  WARN      App URL      : http://localhost:3000
+[00:00:01.910] Server  WARN      Database     : CONFIGURED
+[00:00:01.910] Server  WARN    ═══════════════════════════════════════════════════════
+[00:00:01.910] Server  WARN    
+[00:00:01.910] Server  WARN    WARNING: Google OAuth credentials not properly configured. Check FC Secrets panel for GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] user    : SMTP_USER=MISSING, SMTP_USERNAME=MISSING, GMAIL_USER=MISSING, EMAIL_USER=MISSING, EMAIL_USERNAME=MISSING, MAIL_USER=MISSING, MAIL_USERNAME=MISSING
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] pass    : SMTP_PASSWORD=MISSING, SMTP_PASS=MISSING, SMTP_AUTH_PASSWORD=MISSING, GMAIL_APP_PASSWORD=MISSING, GMAIL_PASSWORD=MISSING, EMAIL_PASSWORD=MISSING, EMAIL_PASS=MISSING, MAIL_PASSWORD=MISSING, MAIL_PASS=MISSING
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] host    : SMTP_HOST=MISSING, MAIL_HOST=MISSING, EMAIL_HOST=MISSING
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] port    : SMTP_PORT=MISSING, MAIL_PORT=MISSING, EMAIL_PORT=MISSING
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] from    : SMTP_FROM=MISSING, EMAIL_FROM=MISSING, MAIL_FROM=MISSING, MAIL_FROM_ADDRESS=MISSING
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] resend  : RESEND_API_KEY=MISSING
+[00:00:01.911] Server  LOG     [SMTP-Env-Diag] resolved: user=MISSING, pass=MISSING, configured=NO
+[00:00:01.912] Server  INFO    [Sentry] No NEXT_PUBLIC_SENTRY_DSN configured — Sentry is in no-op mode
+[00:00:01.972] Server  LOG     ✓ Ready in 1672ms
+[00:27:19.238] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[00:27:19.241] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[00:27:19.245] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[00:27:23.598] Server  LOG     ○ Compiling / ...
+[00:27:32.224] Server  ERROR   (node:40999) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[00:52:44.088] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[00:52:44.097] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[00:52:44.100] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[00:53:20.044] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[00:53:20.045] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[00:53:20.046] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[00:53:20.192] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.295] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.398] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.502] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.607] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.714] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.818] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:20.924] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.029] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.133] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.239] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.342] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.444] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.547] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.649] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.752] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.855] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:21.958] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.061] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.163] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.266] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.370] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.473] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.577] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.681] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.784] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.887] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:22.990] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.094] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.198] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.302] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.407] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.512] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.617] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.722] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.825] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:23.930] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.033] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.136] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.240] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.343] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.446] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.551] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.654] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.759] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.862] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:24.965] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.070] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.176] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.281] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.387] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.493] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.597] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.701] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.804] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:25.907] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.012] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.116] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.219] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.322] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.426] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.529] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.634] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.737] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.841] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:26.946] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.049] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.153] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.256] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.359] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.463] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.567] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.671] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.774] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.877] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:27.982] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.085] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.188] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.293] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.397] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.500] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.604] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.708] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.811] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:28.914] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.017] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.121] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.225] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.329] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.433] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.538] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.641] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.746] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.851] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:29.955] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.058] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.162] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.265] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.369] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.472] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.575] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.678] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.783] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.887] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:30.990] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.095] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.201] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.305] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.411] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.515] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.618] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.722] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.825] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:31.930] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.033] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.137] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.242] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.345] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.450] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.555] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.659] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.763] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.867] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:32.970] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.073] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.177] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.280] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.384] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.487] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.590] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.693] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.797] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:33.901] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.006] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.111] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.216] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.321] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.423] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.527] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.630] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.733] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.836] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:34.940] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.045] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.149] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.252] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.356] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.459] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.563] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.667] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.770] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.873] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:35.978] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.082] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.185] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.288] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.392] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.494] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.598] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.703] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.806] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:36.911] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.016] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.122] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.226] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.330] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.435] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.538] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.642] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.747] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.850] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:37.954] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.058] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.162] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.264] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.368] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.471] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.573] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.677] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.780] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.883] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:38.986] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.091] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.196] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.301] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.406] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.511] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.615] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.719] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.822] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:39.925] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.028] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.131] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.233] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.338] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.443] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.548] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.652] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.756] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.859] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:40.963] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.067] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.170] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.287] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.390] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.496] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.600] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.702] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.803] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:41.907] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.010] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.114] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.229] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.334] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.439] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.543] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.647] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.749] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.852] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:42.955] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.059] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.163] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.267] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.370] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.475] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.581] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.685] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.789] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.892] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:43.997] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.100] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.203] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.307] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.411] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.515] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.617] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.720] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.823] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:44.926] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.029] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.133] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.235] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.339] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.443] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.547] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.652] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.754] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.857] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:45.960] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.063] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.167] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.272] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.376] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.481] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.585] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.688] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.792] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.895] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:46.999] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.105] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.208] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.312] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.416] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.520] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.625] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.729] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.832] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:47.937] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.041] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.145] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.249] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.352] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.458] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.564] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.669] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.773] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.880] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:48.984] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.088] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.191] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.296] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.402] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.508] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.614] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.721] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.824] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:49.928] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.032] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.136] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.241] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.347] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.450] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.554] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.658] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.762] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.866] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:50.970] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.074] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.179] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.282] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.386] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.490] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.593] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.698] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.804] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:51.908] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.011] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.115] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.219] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.324] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.428] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.532] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.634] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.737] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.839] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:52.945] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.049] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.152] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.256] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.360] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.463] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.567] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.670] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.773] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.877] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:53.982] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.086] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.190] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.293] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.397] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.502] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.606] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.712] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.817] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:54.922] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.028] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.131] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.236] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.340] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.444] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.547] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.651] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.754] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.857] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:55.961] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.064] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.167] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.272] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.376] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.481] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.585] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.689] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.794] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:56.900] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.005] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.110] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.216] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.321] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.425] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.529] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.634] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.736] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.841] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:57.945] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.048] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.152] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.256] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.360] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.464] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.568] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.672] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.775] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.880] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:58.984] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.088] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.193] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.298] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.405] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.510] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.614] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.718] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.822] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:53:59.925] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.029] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.132] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.236] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.340] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.445] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.550] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.653] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.757] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.861] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:00.966] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.069] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.172] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.275] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.378] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.482] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.587] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.690] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.794] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:01.900] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.005] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.110] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.216] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.323] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.427] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.531] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.636] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.739] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.843] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:02.948] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.052] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.156] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.260] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.363] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.467] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.571] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.675] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.779] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.883] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:03.986] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.092] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.198] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.305] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.411] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.517] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.621] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.725] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.829] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:04.932] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.036] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.140] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.243] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.346] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.450] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.553] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.657] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.763] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.867] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:05.970] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.073] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.176] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.280] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.385] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.489] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.593] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.696] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.798] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:06.903] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.007] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.112] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.217] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.323] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.426] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.530] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.636] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.740] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.841] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:07.945] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.047] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.150] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.253] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.356] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.458] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.561] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.663] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.767] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.870] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:08.975] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.079] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.183] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.287] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.391] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.497] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.602] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.707] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.811] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:09.916] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.021] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.125] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.230] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.334] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.437] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.541] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.645] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.748] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.855] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:10.961] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.066] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.170] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.274] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.378] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.482] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.587] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.690] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.797] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:11.901] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.005] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.108] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.212] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.316] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.420] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.526] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.630] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.736] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[00:54:12.841] Server  ERROR   Failed to flush logs to file: Error: ENOSPC: no space left on device, write
+[02:03:53.437] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[02:03:53.483] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:03:53.503] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:45.658] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[02:05:45.661] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:45.667] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:46.849] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[02:05:46.850] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:46.850] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:47.927] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[02:05:47.928] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:47.930] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:49.001] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[02:05:49.003] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:05:49.005] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:26:26.613] Server  LOG       Reload env: .env
+[02:39:24.712] Server  LOG       Reload env: .env
+[02:59:47.401] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[02:59:47.404] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[02:59:47.406] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[03:17:35.806] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[03:59:07.031] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[03:59:07.032] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[03:59:07.034] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[03:59:07.091] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:59:07.304] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head>
+                          <body
+                            className="geist_a71539c9-module__T19VSG__variable geist_mono_8d43a2aa-module__8Li5zG__var..."
+-                           __processed_ddcdacc4-1b45-45fb-95dd-08ba6b064cc2__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6Im5pbWxtZWpibW5lY25hZ2hnbWJhaG1iYWRk..."
+                          >
+                            ...
+                              <ToastViewport ref={null} className="fixed top-...">
+                                <DismissableLayerBranch ref={{current:null}} role="region" aria-label="Notificati..." ...>
+                                  <Primitive.div role="region" aria-label="Notificati..." tabIndex={-1} style={{...}} ...>
+                                    <div
+                                      role="region"
+                                      aria-label="Notifications (F8)"
+                                      tabIndex={-1}
+                                      style={{pointerEvents:"none"}}
+                                      ref={function}
+-                                     bis_skin_checked="1"
+                                    >
+                  ...
+
+[03:59:07.304] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <RedirectBoundary>
+      <RedirectErrorBoundary router={{...}}>
+        <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>
+          <SegmentViewNode type="page" pagePath="page.tsx">
+            <SegmentTrieNode>
+            <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+              <Home params={Promise} searchParams={Promise}>
+                <Providers>
+                  <ErrorBoundary fallback={<GlobalErrorFallback>}>
+                    <QueryClientProvider client={{}}>
+                      <J attribute="class" defaultTheme="light" enableSystem={false} storageKey="acquisitio..." ...>
+                        <AuthGate>
+                          <LegalPages>
+                          <LoadingScreen>
+                            <div
+                              className="h-screen flex flex-col items-center justify-center bg-background"
+-                             bis_skin_checked="1"
+                            >
+                              <div
+                                className="relative"
+-                               bis_skin_checked="1"
+                              >
+                                <div
+                                  className="absolute inset-0 rounded-full bg-primary/20 animate-ping"
+-                                 bis_skin_checked="1"
+                                >
+                                <div
+                                  className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-c..."
+-                                 bis_skin_checked="1"
+                                >
+                              ...
+          ...
+        ...
+
+[03:59:08.661] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[03:59:08.693] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[03:59:38.926] Server  LOG     [EmailService] sendEmail called: to=kattyboy785@gmail.com, subject=Your login code — AcquisitionOS, activeProvider=smtp
+[03:59:38.927] Server  LOG     [EmailService] Attempting SMTP to smtp.gmail.com:587…
+[03:59:38.956] Server  LOG     [EmailService] SMTP connecting to smtp.gmail.com:587 (secure=false, user=SET)
+[03:59:41.154] Server  ERROR   [EmailService] ✗ SMTP permanent error (no retry): Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-34ef98d925csm14174553eec.0 - gsmtp
+[03:59:41.156] Server  WARN    [EmailService] ✗ SMTP failed: "Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-34ef98d925csm14174553eec.0 - gsmtp"
+[03:59:41.157] Server  ERROR   [EmailService] ✗ All real providers failed (lastError=Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-34ef98d925csm14174553eec.0 - gsmtp). No preview/test inbox fallback available.
+[03:59:41.157] Server  LOG     OTP email result: failed — Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-34ef98d925csm14174553eec.0 - gsmtp
+[03:59:41.158] Server  LOG     [OTP Delivery] recipientDomain=gmail.com provider=smtp attempted=true sent=false messageId=n/a failureCategory=smtp_auth
+[04:23:21.862] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:23:21.996] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:23:22.031] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:23:23.646] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:23:23.805] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:23:24.579] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:23:24.580] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:23:24.581] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:23:24.615] Server  WARN    [Google OAuth State] env vars: GOOGLE_CLIENT_ID=SET, GOOGLE_CLIENT_SECRET=SET
+[04:23:24.615] Server  WARN    [Google OAuth State] Generated auth URL. redirectUri=http://localhost:3000/api/auth/callback/google, origin=http://localhost:3000
+[04:23:24.615] Server  WARN    [Google OAuth State] resolvedOrigin=http://localhost:3000, fwd-host=localhost:3000, host=localhost:3000, origin-header=NONE
+[04:23:34.678] Server  LOG     [G-CB] ===== CALLBACK REACHED ===== (id=gcb-1791022946517-g6czvj)
+[04:23:34.679] Server  LOG     [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true
+[04:23:34.679] Server  LOG     [AUTH-CONFIG] GOOGLE_CLIENT_SECRET set: true
+[04:23:34.679] Server  LOG     [G-CB] Step 1: code received: true, state: true, error: none
+[04:23:34.680] Server  LOG     [G-CB] stateOrigin=NONE, fwd-host=localhost:3000, host=localhost:3000
+[04:23:34.680] Server  LOG     [Google Callback gcb-1791022946517-g6czvj] clientId=SET (2287313538...), clientSecret=SET
+[04:23:34.681] Server  LOG     [Google Callback gcb-1791022946517-g6czvj] redirect_uri from state: http://localhost:3000/api/auth/callback/google, origin: http://localhost:3000
+[04:23:34.681] Server  LOG     [Google Callback gcb-1791022946517-g6czvj] Final redirect_uri for token exchange: http://localhost:3000/api/auth/callback/google
+[04:23:34.683] Server  LOG     [Google Callback gcb-1791022946517-g6czvj] Auth module loaded
+[04:23:34.686] Server  LOG     [Google Callback gcb-1791022946517-g6czvj] DB module loaded
+[04:23:34.686] Server  LOG     [G-CB] Step 2: token exchange starting (redirect_uri=http://localhost:3000/api/auth/callback/google)
+[04:23:35.171] Server  ERROR   [Google Callback gcb-1791022946517-g6czvj] ✗ Token exchange FAILED (status=401): "{\n  \"error\": \"invalid_client\",\n  \"error_description\": \"The provided client secret is invalid.\"\n}"
+[04:23:35.172] Server  ERROR   [G-CB] FAILED — handleGoogleOAuth returned failureCode: google_invalid_client_secret
+[04:23:35.497] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:23:35.498] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:23:35.498] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:23:35.535] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[04:23:35.676] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head>
+                          <body
+                            className="geist_a71539c9-module__T19VSG__variable geist_mono_8d43a2aa-module__8Li5zG__var..."
+-                           __processed_07de3e3d-3adb-4392-b91e-277592abf863__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6Im5pbWxtZWpibW5lY25hZ2hnbWJhaG1iYWRk..."
+                          >
+                            ...
+                              <ToastViewport ref={null} className="fixed top-...">
+                                <DismissableLayerBranch ref={{current:null}} role="region" aria-label="Notificati..." ...>
+                                  <Primitive.div role="region" aria-label="Notificati..." tabIndex={-1} style={{...}} ...>
+                                    <div
+                                      role="region"
+                                      aria-label="Notifications (F8)"
+                                      tabIndex={-1}
+                                      style={{pointerEvents:"none"}}
+                                      ref={function}
+-                                     bis_skin_checked="1"
+                                    >
+                  ...
+
+[04:23:35.676] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <RedirectBoundary>
+      <RedirectErrorBoundary router={{...}}>
+        <InnerLayoutRouter url="/?auth_err..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+          <SegmentViewNode type="page" pagePath="page.tsx">
+            <SegmentTrieNode>
+            <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+              <Home params={Promise} searchParams={Promise}>
+                <Providers>
+                  <ErrorBoundary fallback={<GlobalErrorFallback>}>
+                    <QueryClientProvider client={{}}>
+                      <J attribute="class" defaultTheme="light" enableSystem={false} storageKey="acquisitio..." ...>
+                        <AuthGate>
+                          <LegalPages>
+                          <LoadingScreen>
+                            <div
+                              className="h-screen flex flex-col items-center justify-center bg-background"
+-                             bis_skin_checked="1"
+                            >
+                              <div
+                                className="relative"
+-                               bis_skin_checked="1"
+                              >
+                                <div
+                                  className="absolute inset-0 rounded-full bg-primary/20 animate-ping"
+-                                 bis_skin_checked="1"
+                                >
+                                <div
+                                  className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-c..."
+-                                 bis_skin_checked="1"
+                                >
+                              ...
+          ...
+        ...
+
+[04:23:35.737] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:23:35.751] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:28:44.298] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:28:44.299] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:28:44.302] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:51.300] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:39:51.308] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:51.313] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:54.849] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:39:54.852] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:54.853] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:54.938] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[04:39:55.155] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:39:55.162] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head>
+                          <body
+                            className="geist_a71539c9-module__T19VSG__variable geist_mono_8d43a2aa-module__8Li5zG__var..."
+-                           __processed_7b1c76cb-47d9-4ca1-8796-661204946ca5__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6Im5pbWxtZWpibW5lY25hZ2hnbWJhaG1iYWRk..."
+                          >
+                            ...
+                              <ToastViewport ref={null} className="fixed top-...">
+                                <DismissableLayerBranch ref={{current:null}} role="region" aria-label="Notificati..." ...>
+                                  <Primitive.div role="region" aria-label="Notificati..." tabIndex={-1} style={{...}} ...>
+                                    <div
+                                      role="region"
+                                      aria-label="Notifications (F8)"
+                                      tabIndex={-1}
+                                      style={{pointerEvents:"none"}}
+                                      ref={function}
+-                                     bis_skin_checked="1"
+                                    >
+                  ...
+
+[04:39:55.162] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <RedirectBoundary>
+      <RedirectErrorBoundary router={{...}}>
+        <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>
+          <SegmentViewNode type="page" pagePath="page.tsx">
+            <SegmentTrieNode>
+            <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+              <Home params={Promise} searchParams={Promise}>
+                <Providers>
+                  <ErrorBoundary fallback={<GlobalErrorFallback>}>
+                    <QueryClientProvider client={{}}>
+                      <J attribute="class" defaultTheme="light" enableSystem={false} storageKey="acquisitio..." ...>
+                        <AuthGate>
+                          <LegalPages>
+                          <LoadingScreen>
+                            <div
+                              className="h-screen flex flex-col items-center justify-center bg-background"
+-                             bis_skin_checked="1"
+                            >
+                              <div
+                                className="relative"
+-                               bis_skin_checked="1"
+                              >
+                                <div
+                                  className="absolute inset-0 rounded-full bg-primary/20 animate-ping"
+-                                 bis_skin_checked="1"
+                                >
+                                <div
+                                  className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-c..."
+-                                 bis_skin_checked="1"
+                                >
+                              ...
+          ...
+        ...
+
+[04:39:55.177] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:39:56.447] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:39:56.449] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:56.451] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:39:56.466] Server  WARN    [Google OAuth State] env vars: GOOGLE_CLIENT_ID=SET, GOOGLE_CLIENT_SECRET=SET
+[04:39:56.466] Server  WARN    [Google OAuth State] Generated auth URL. redirectUri=http://localhost:3000/api/auth/callback/google, origin=http://localhost:3000
+[04:39:56.466] Server  WARN    [Google OAuth State] resolvedOrigin=http://localhost:3000, fwd-host=localhost:3000, host=localhost:3000, origin-header=NONE
+[04:40:17.272] Server  LOG     [G-CB] ===== CALLBACK REACHED ===== (id=gcb-1791023949064-335bqc)
+[04:40:17.272] Server  LOG     [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true
+[04:40:17.272] Server  LOG     [AUTH-CONFIG] GOOGLE_CLIENT_SECRET set: true
+[04:40:17.272] Server  LOG     [G-CB] Step 1: code received: true, state: true, error: none
+[04:40:17.273] Server  LOG     [G-CB] stateOrigin=NONE, fwd-host=localhost:3000, host=localhost:3000
+[04:40:17.273] Server  LOG     [Google Callback gcb-1791023949064-335bqc] clientId=SET (2287313538...), clientSecret=SET
+[04:40:17.274] Server  LOG     [Google Callback gcb-1791023949064-335bqc] redirect_uri from state: http://localhost:3000/api/auth/callback/google, origin: http://localhost:3000
+[04:40:17.274] Server  LOG     [Google Callback gcb-1791023949064-335bqc] Final redirect_uri for token exchange: http://localhost:3000/api/auth/callback/google
+[04:40:17.275] Server  LOG     [Google Callback gcb-1791023949064-335bqc] Auth module loaded
+[04:40:17.276] Server  LOG     [Google Callback gcb-1791023949064-335bqc] DB module loaded
+[04:40:17.276] Server  LOG     [G-CB] Step 2: token exchange starting (redirect_uri=http://localhost:3000/api/auth/callback/google)
+[04:40:17.902] Server  ERROR   [Google Callback gcb-1791023949064-335bqc] ✗ Token exchange FAILED (status=401): "{\n  \"error\": \"invalid_client\",\n  \"error_description\": \"The provided client secret is invalid.\"\n}"
+[04:40:17.902] Server  ERROR   [G-CB] FAILED — handleGoogleOAuth returned failureCode: google_invalid_client_secret
+[04:40:18.214] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:40:18.218] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:40:18.220] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:40:18.244] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[04:40:18.401] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head>
+                          <body
+                            className="geist_a71539c9-module__T19VSG__variable geist_mono_8d43a2aa-module__8Li5zG__var..."
+-                           __processed_06a3ddad-2fb2-4c72-99ee-28f985cfd677__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6Im5pbWxtZWpibW5lY25hZ2hnbWJhaG1iYWRk..."
+                          >
+                            ...
+                              <ToastViewport ref={null} className="fixed top-...">
+                                <DismissableLayerBranch ref={{current:null}} role="region" aria-label="Notificati..." ...>
+                                  <Primitive.div role="region" aria-label="Notificati..." tabIndex={-1} style={{...}} ...>
+                                    <div
+                                      role="region"
+                                      aria-label="Notifications (F8)"
+                                      tabIndex={-1}
+                                      style={{pointerEvents:"none"}}
+                                      ref={function}
+-                                     bis_skin_checked="1"
+                                    >
+                  ...
+
+[04:40:18.401] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <RedirectBoundary>
+      <RedirectErrorBoundary router={{...}}>
+        <InnerLayoutRouter url="/?auth_err..." tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+          <SegmentViewNode type="page" pagePath="page.tsx">
+            <SegmentTrieNode>
+            <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+              <Home params={Promise} searchParams={Promise}>
+                <Providers>
+                  <ErrorBoundary fallback={<GlobalErrorFallback>}>
+                    <QueryClientProvider client={{}}>
+                      <J attribute="class" defaultTheme="light" enableSystem={false} storageKey="acquisitio..." ...>
+                        <AuthGate>
+                          <LegalPages>
+                          <LoadingScreen>
+                            <div
+                              className="h-screen flex flex-col items-center justify-center bg-background"
+-                             bis_skin_checked="1"
+                            >
+                              <div
+                                className="relative"
+-                               bis_skin_checked="1"
+                              >
+                                <div
+                                  className="absolute inset-0 rounded-full bg-primary/20 animate-ping"
+-                                 bis_skin_checked="1"
+                                >
+                                <div
+                                  className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-c..."
+-                                 bis_skin_checked="1"
+                                >
+                              ...
+          ...
+        ...
+
+[04:40:18.468] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:40:18.506] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:40:18.613] Browser ERROR   unhandledRejection: TypeError: Cannot read properties of undefined (reading 'M_ID')
+[04:40:18.613] Browser ERROR   unhandledRejection: TypeError: Cannot read properties of undefined (reading 'M_ID')
+[04:40:18.613] Browser ERROR   unhandledRejection: TypeError: Cannot read properties of undefined (reading 'M_ID')
+[04:48:13.258] Server  WARN    ⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+   98 |  */
+   99 | function loadEnvFiles(): void {
+> 100 |   const cwd = process.cwd();
+      |               ^^^^^^^^^^^
+  101 |   const candidates = [
+  102 |     path.join(cwd, '.env.local'),
+  103 |     path.join(cwd, '.env.production'),
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+[04:48:13.260] Server  WARN    ⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+  27 |  */
+  28 |
+> 29 | import * as fs from 'fs';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  30 | import * as path from 'path';
+  31 |
+  32 | // ---------------------------------------------------------------------------
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:48:13.264] Server  WARN    ⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+  28 |
+  29 | import * as fs from 'fs';
+> 30 | import * as path from 'path';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  31 |
+  32 | // ---------------------------------------------------------------------------
+  33 | // .env file parser
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[04:48:13.278] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[04:48:13.603] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head>
+                          <body
+                            className="geist_a71539c9-module__T19VSG__variable geist_mono_8d43a2aa-module__8Li5zG__var..."
+-                           __processed_b7b8ba9b-cf99-4549-b336-1b358a2ebc72__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6Im5pbWxtZWpibW5lY25hZ2hnbWJhaG1iYWRk..."
+                          >
+                            ...
+                              <ToastViewport ref={null} className="fixed top-...">
+                                <DismissableLayerBranch ref={{current:null}} role="region" aria-label="Notificati..." ...>
+                                  <Primitive.div role="region" aria-label="Notificati..." tabIndex={-1} style={{...}} ...>
+                                    <div
+                                      role="region"
+                                      aria-label="Notifications (F8)"
+                                      tabIndex={-1}
+                                      style={{pointerEvents:"none"}}
+                                      ref={function}
+-                                     bis_skin_checked="1"
+                                    >
+                  ...
+
+[04:48:13.603] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <RedirectBoundary>
+      <RedirectErrorBoundary router={{...}}>
+        <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>
+          <SegmentViewNode type="page" pagePath="page.tsx">
+            <SegmentTrieNode>
+            <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+              <Home params={Promise} searchParams={Promise}>
+                <Providers>
+                  <ErrorBoundary fallback={<GlobalErrorFallback>}>
+                    <QueryClientProvider client={{}}>
+                      <J attribute="class" defaultTheme="light" enableSystem={false} storageKey="acquisitio..." ...>
+                        <AuthGate>
+                          <LegalPages>
+                          <LoadingScreen>
+                            <div
+                              className="h-screen flex flex-col items-center justify-center bg-background"
+-                             bis_skin_checked="1"
+                            >
+                              <div
+                                className="relative"
+-                               bis_skin_checked="1"
+                              >
+                                <div
+                                  className="absolute inset-0 rounded-full bg-primary/20 animate-ping"
+-                                 bis_skin_checked="1"
+                                >
+                                <div
+                                  className="relative h-16 w-16 rounded-full bg-primary/10 flex items-center justify-c..."
+-                                 bis_skin_checked="1"
+                                >
+                              ...
+          ...
+        ...
+
+[04:48:13.768] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
+[04:48:13.804] Server  WARN    [AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai

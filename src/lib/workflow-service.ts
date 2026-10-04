@@ -19,6 +19,8 @@ export interface CreateWorkflowInput {
   steps?: CreateWorkflowStepInput[];
   status?: string;
   orgId?: string;
+  /** Optional Business Profile association (ownership verified by caller). */
+  profileId?: string;
 }
 
 export interface CreateWorkflowStepInput {
@@ -140,6 +142,10 @@ export async function createWorkflow(
         triggerConfig: data.triggerConfig ? JSON.stringify(data.triggerConfig) : null,
         nodes: JSON.stringify(data.nodes || []),
         edges: JSON.stringify(data.edges || []),
+        // Optional Business Profile association (one workflow ↔ one profile).
+        // The association is validated by the route: the profile must exist AND
+        // belong to the same user before reaching this layer.
+        ...(data.profileId ? { profileId: data.profileId } : {}),
         status: data.status || 'draft',
         version: 1,
       },

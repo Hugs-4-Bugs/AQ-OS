@@ -36,6 +36,7 @@ import {
   QrCode,
   Briefcase,
   Building2,
+  BookUser,
   Plus,
   LifeBuoy,
 } from 'lucide-react';
@@ -57,21 +58,34 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthStore } from '@/lib/auth-store';
 import { useAppStore } from '@/lib/store';
 import { useSubscriptionStore } from '@/lib/subscription-store';
+import {
+  COUNTRY_CALLING_CODES,
+  DEFAULT_PHONE_ISO,
+  MAX_LOCAL_PHONE_DIGITS,
+  composePhone,
+  countryByIso,
+  dialForCountryName,
+  filterNationalInput,
+  parseStoredPhone,
+  validateSubmittedPhone,
+} from '@/lib/phone';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from 'next-themes';
 import { useSettingsStore } from '@/lib/settings-store';
 import { toast } from 'sonner';
 import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
 import OfferProfileSettings from '@/components/dashboard/offer-profile-settings';
-import BusinessProfilesSettings from '@/components/dashboard/business-profiles-settings';
+import PersonalContextSettings from '@/components/dashboard/personal-context-settings';
+import BusinessProfileSettings from '@/components/dashboard/business-profile-settings';
 import { useLegalStore } from '@/lib/legal-store';
 import ObservabilityDashboard from '@/components/dashboard/observability-dashboard';
 
-type SettingsSection = 'profile' | 'offer' | 'business-profiles' | 'notifications' | 'billing' | 'security' | 'appearance' | 'integrations' | 'api' | 'data' | 'legal' | 'monitoring';
+type SettingsSection = 'profile' | 'context' | 'profiles' | 'offer' | 'notifications' | 'billing' | 'security' | 'appearance' | 'integrations' | 'api' | 'data' | 'legal' | 'monitoring';
 
 const SETTINGS_NAV = [
   { id: 'profile' as const, label: 'Profile', icon: User },
-  { id: 'business-profiles' as const, label: 'Business Profiles', icon: Building2 },
+  { id: 'context' as const, label: 'My Context', icon: BookUser },
+  { id: 'profiles' as const, label: 'Business Profiles', icon: Building2 },
   { id: 'offer' as const, label: 'My Offer', icon: Briefcase },
   { id: 'notifications' as const, label: 'Notifications', icon: Bell },
   { id: 'billing' as const, label: 'Billing', icon: CreditCard },
@@ -118,7 +132,7 @@ export default function SettingsShell() {
   const pendingSection = useAppStore((s) => s.pendingSettingsSection);
   const clearPendingSettingsSection = useAppStore((s) => s.clearPendingSettingsSection);
   const VALID_SECTIONS: SettingsSection[] = [
-    'profile', 'business-profiles', 'offer', 'notifications', 'billing', 'security',
+    'profile', 'context', 'offer', 'notifications', 'billing', 'security',
     'appearance', 'integrations', 'api', 'data', 'legal', 'monitoring',
   ];
   useEffect(() => {
@@ -160,6 +174,12 @@ export default function SettingsShell() {
   const [profileLoadedOnce, setProfileLoadedOnce] = useState(false);
   const [profileLoadFailed, setProfileLoadFailed] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+
+  // ── Phone: country calling code (dropdown) + local number ────
+  // The calling code is selected separately and does NOT count toward the
+  // 10-digit local-number limit. Shared logic lives in @/lib/phone.
+  const [phoneDialIso, setPhoneDialIso] = useState<string>(DEFAULT_PHONE_ISO);
+  const [phoneNational, setPhoneNational] = useState<string>('');
 
   // ── Billing state ────────────────────────────────────────────
   const [billing, setBilling] = useState<BillingData>({
@@ -284,6 +304,7 @@ export default function SettingsShell() {
           company: data.profile?.company || '',
           avatar: data.profile?.avatar || '',
         });
+        applyStoredPhone(data.profile?.phone || '', data.profile?.country || '');
         setProfileLoadedOnce(true);
       } else if (res.status === 401) {
         // Access token expired — try one refresh, then re-fetch so the form
@@ -304,6 +325,7 @@ export default function SettingsShell() {
               company: data.profile?.company || '',
               avatar: data.profile?.avatar || '',
             });
+            applyStoredPhone(data.profile?.phone || '', data.profile?.country || '');
             setProfileLoadedOnce(true);
             return;
           }
@@ -530,6 +552,22 @@ useEffect(() => {
     };
   }, []);
 
+  // ── Phone helpers ─────────────────────────────────────────
+  // Prefill the country-code selector + local number from the stored value.
+  // Legacy values are preserved as-is; if the saved local part exceeds the
+  // 10-digit limit it is surfaced (not silently truncated) so the user can
+  // correct it.
+  const applyStoredPhone = useCallback((storedPhone: string, storedCountry: string) => {
+    const parsed = parseStoredPhone(storedPhone, storedCountry);
+    const isoForDial = parsed.dial
+      ? (COUNTRY_CALLING_CODES.find((c) => c.dial === parsed.dial)?.iso ?? DEFAULT_PHONE_ISO)
+      : (dialForCountryName(storedCountry)
+          ? (COUNTRY_CALLING_CODES.find((c) => c.dial === dialForCountryName(storedCountry))?.iso ?? DEFAULT_PHONE_ISO)
+          : DEFAULT_PHONE_ISO);
+    setPhoneDialIso(isoForDial);
+    setPhoneNational(parsed.national);
+  }, []);
+
   // ── Save profile ─────────────────────────────────────────────
   const handleSaveProfile = useCallback(async () => {
     // Never write to the DB from a form that never hydrated — the fields
@@ -537,6 +575,27 @@ useEffect(() => {
     if (!profileLoadedOnce) {
       toast.error('Profile has not loaded yet. Please wait or reload the page before saving.');
       return;
+    }
+    // Compose the phone from the selected country code + local number.
+    // The calling code does NOT count toward the 10-digit local limit.
+    const trimmedNational = phoneNational.trim();
+    const selectedDial = countryByIso(phoneDialIso)?.dial ?? dialForCountryName(profile.country) ?? '';
+    const phoneToSave = trimmedNational
+      ? (selectedDial ? composePhone(selectedDial, trimmedNational) : trimmedNational)
+      : '';
+    // Mirror the server's round-trip rule: a value that is byte-identical or
+    // digit-identical to the STORED value is an untouched legacy round-trip
+    // and must not be blocked (preserves existing records).
+    const loadedDigits = (profile.phone || '').replace(/\D/g, '');
+    const isPhoneRoundTrip =
+      phoneToSave === (profile.phone || '') ||
+      phoneToSave.replace(/\D/g, '') === loadedDigits;
+    if (!isPhoneRoundTrip) {
+      const phoneCheck = validateSubmittedPhone(phoneToSave);
+      if (!phoneCheck.valid) {
+        toast.error(phoneCheck.error || 'Invalid phone number');
+        return;
+      }
     }
     setProfileSaving(true);
     try {
@@ -546,7 +605,7 @@ useEffect(() => {
         credentials: 'include',
         body: JSON.stringify({
           name: profile.name,
-          phone: profile.phone,
+          phone: phoneToSave,
           country: profile.country,
           company: profile.company,
           avatar: profile.avatar,
@@ -556,6 +615,7 @@ useEffect(() => {
       if (res.ok) {
         // Refresh auth user data so navbar updates
         await fetchUser();
+        setProfile(p => ({ ...p, phone: phoneToSave }));
         toast.success('Profile updated successfully');
       } else {
         const data = await res.json();
@@ -566,7 +626,7 @@ useEffect(() => {
     } finally {
       setProfileSaving(false);
     }
-  }, [profile, fetchUser]);
+  }, [profile, phoneDialIso, phoneNational, fetchUser]);
 
   // ── Request OTP for in-app password change ──────────────────
   const handleSendPasswordOtp = useCallback(async () => {
@@ -1107,12 +1167,44 @@ useEffect(() => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Phone</Label>
-                        <Input
-                          value={profile.phone}
-                          onChange={(e) => setProfile(p => ({ ...p, phone: e.target.value }))}
-                          placeholder="+1 (555) 000-0000"
-                          className="h-9"
-                        />
+                        <div className="flex gap-2">
+                          <Select value={phoneDialIso} onValueChange={(v) => setPhoneDialIso(v)}>
+                            <SelectTrigger className="h-9 w-[150px] shrink-0" aria-label="Country calling code">
+                              <SelectValue>
+                                {(() => {
+                                  const c = countryByIso(phoneDialIso);
+                                  return c ? `+${c.dial}` : 'Code';
+                                })()}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[280px] overflow-y-auto">
+                              {COUNTRY_CALLING_CODES.map((c) => (
+                                <SelectItem key={c.iso} value={c.iso}>
+                                  {c.name} (+{c.dial})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={phoneNational}
+                            onChange={(e) => setPhoneNational(filterNationalInput(e.target.value))}
+                            placeholder="Local number"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            maxLength={MAX_LOCAL_PHONE_DIGITS}
+                            className="h-9 flex-1"
+                          />
+                        </div>
+                        {phoneNational.length > MAX_LOCAL_PHONE_DIGITS && (
+                          <p className="text-xs text-destructive">
+                            This saved number has {phoneNational.length} digits. Local numbers are limited to {MAX_LOCAL_PHONE_DIGITS} digits (the country code is not counted). Please update or clear it before saving.
+                          </p>
+                        )}
+                        {phoneNational.length > 0 && phoneNational.length <= MAX_LOCAL_PHONE_DIGITS && (
+                          <p className="text-xs text-muted-foreground">
+                            Country code +{countryByIso(phoneDialIso)?.dial ?? '…'} is selected separately and does not count toward the {MAX_LOCAL_PHONE_DIGITS}-digit limit.
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Country</Label>
@@ -1145,20 +1237,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* ═══ BUSINESS PROFILES (who is reaching out — context for discovery/research/outreach) ═══ */}
-          {activeSection === 'business-profiles' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold">Business Profiles</h3>
-                <p className="text-sm text-muted-foreground">
-                  Multiple businesses, one account. Pick the profile the AI should use as your
-                  identity for lead discovery, website research and outreach.
-                </p>
-              </div>
-              <BusinessProfilesSettings />
-            </div>
-          )}
-
           {/* ═══ MY OFFER (what you sell — powers the 5-step prospect pipeline) ═══ */}
           {activeSection === 'offer' && (
             <div className="space-y-6">
@@ -1169,6 +1247,36 @@ useEffect(() => {
                 </p>
               </div>
               <OfferProfileSettings />
+            </div>
+          )}
+
+          {/* ═══ MY CONTEXT (user preference / personal business context —
+              DISTINCT from Business Profiles and from My Offer; powers AI
+              personalization for workflows, outreach and analysis) ═══ */}
+          {activeSection === 'context' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold">My Context</h3>
+                <p className="text-sm text-muted-foreground">
+                  About you — what you do, goals, audience and communication style. The AI uses this to personalize workflows, outreach and analysis.
+                </p>
+              </div>
+              <PersonalContextSettings />
+            </div>
+          )}
+
+          {/* ═══ BUSINESS PROFILES (multiple user-owned profiles — a DISTINCT
+              capability from My Context and from My Offer; plan limits
+              enforced server-side: pro=3 / elite=7 active) ═══ */}
+          {activeSection === 'profiles' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold">Business Profiles</h3>
+                <p className="text-sm text-muted-foreground">
+                  One profile per business/niche — offers, target market, tone and instructions. Select one on the Discover page or attach it to workflows.
+                </p>
+              </div>
+              <BusinessProfileSettings />
             </div>
           )}
 

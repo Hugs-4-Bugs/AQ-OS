@@ -17,14 +17,11 @@ describe('outreach prompt templates — sender signature wiring', () => {
       senderSignature: buildSenderSignatureBlock({ name: 'Priya Sharma', email: 'priya@example.com' }),
     });
 
-    // v4 (universal personalization) keeps every v3 signature guarantee and
-    // adds the sender-business context + honesty rules.
-    expect(prompt.version).toBe(4);
+    expect(prompt.version).toBe(3);
     expect(prompt.content).toContain('Name: Priya Sharma');
     expect(prompt.content).toContain('Email: priya@example.com');
     expect(prompt.content).not.toContain('{{senderSignature}}');
     expect(prompt.content).toContain('never use placeholders like [Your Name]');
-    expect(prompt.content).toContain('{{senderBusiness}}'); // wired from the business profile
   });
 
   it('followup-generation current version substitutes {{senderSignature}} fully', () => {

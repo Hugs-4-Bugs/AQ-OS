@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAssistantChatStore } from '@/lib/assistant-chat-store';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
   Send,
@@ -63,13 +62,20 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { STAGE_LABELS } from '@/lib/types';
 import type { AssistantMessage } from '@/lib/types';
+import {
+  listConversations,
+  loadConversation,
+  saveConversation,
+  deleteConversation,
+  generateConversationTitle,
+  type AssistantConversation,
+} from '@/lib/assistant-conversation-store';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 // ─── LocalStorage Keys ────────────────────────────────────
 const SAVED_RESPONSES_KEY = 'acq-os-saved-responses';
 const PINNED_MESSAGES_KEY = 'acq-os-pinned-messages';
-
 interface SavedResponse {
   id: string;
   content: string;
@@ -242,19 +248,6 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// ─── Chat Session Type ────────────────────────────────────
-
-interface ChatSession {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-  leadId?: string;
-  leadName?: string;
-  mode: 'default' | 'sales_coach';
-}
-
 // ─── Deal Probability Bar ─────────────────────────────────
 
 function DealProbabilityBar({ probability }: { probability: number }) {
@@ -330,24 +323,21 @@ export default function AssistantTab() {
   const [localOverride, setLocalOverride] = useState<string | null>(null);
   const effectiveLeadId = localOverride !== null ? (localOverride || null) : selectedLeadId;
 
-  // Chat state — SHARED session conversation (assistant-chat-store).
-  // The transcript intentionally lives across tab switches for this
-  // session; transient generation state (in-flight request, spinner) is
-  // handled by the store and NEVER survives an abort. Nothing here
-  // auto-sends on remount.
-  const messages = useAssistantChatStore((s) => s.messages);
-  const isGenerating = useAssistantChatStore((s) => s.isGenerating);
-  const dealProbability = useAssistantChatStore((s) => s.dealProbability);
-  const sendAssistantMessage = useAssistantChatStore((s) => s.sendMessage);
-  const removeLastAssistantMessage = useAssistantChatStore((s) => s.removeLastAssistantMessage);
-  const clearAssistantConversation = useAssistantChatStore((s) => s.clear);
+  // Chat state
+  const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [input, setInput] = useState('');
   const [showContext, setShowContext] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showAllChips, setShowAllChips] = useState(false);
+  // Durable conversation identity + persisted history (transient state stays in React)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const activeConversationIdRef = useRef<string | null>(null);
+  const [conversations, setConversations] = useState<AssistantConversation[]>([]);
+  const [regenerating, setRegenerating] = useState(false);
 
   // Sales Coach Mode
   const [salesCoachMode, setSalesCoachMode] = useState(false);
+  const [dealProbability, setDealProbability] = useState<number | null>(null);
 
   // Session history
   const [sessionsOpen, setSessionsOpen] = useState(false);
@@ -378,15 +368,51 @@ export default function AssistantTab() {
     enabled: !!effectiveLeadId,
   });
 
-  // Fetch chat sessions
-  const { data: sessionsData } = useQuery({
-    queryKey: ['chat-sessions'],
-    queryFn: async () => {
-      const res = await fetch('/api/chat-sessions');
-      if (!res.ok) throw new Error('Failed to fetch sessions');
-      return res.json() as Promise<{ sessions: ChatSession[]; total: number }>;
-    },
-  });
+  // Fetch chat sessions — REMOVED: the backend /api/chat-sessions route was a
+  // dead end (sessions were never created and clicking one only showed a
+  // toast). History now comes from the durable local conversation store below.
+
+  // ── Durable layer: restore conversation history on mount ──
+  // Navigation away unmounts this component (transient state dies with it —
+  // that is correct and safe: no stuck "thinking", no duplicate requests).
+  // What the user HAS seen (completed exchanges) is durable and restored here
+  // WITHOUT re-sending anything.
+  useEffect(() => {
+    const list = listConversations(localStorage);
+    setConversations(list);
+    const latest = list[0];
+    if (latest && latest.messages.length > 0) {
+      activeConversationIdRef.current = latest.id;
+      setActiveConversationId(latest.id);
+      setMessages(latest.messages.slice(-200));
+      setSalesCoachMode(latest.mode === 'sales_coach');
+    }
+  }, []);
+
+  // ── Durable layer: persist completed exchanges whenever messages change ──
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      let id = activeConversationIdRef.current;
+      if (!id) {
+        id = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        activeConversationIdRef.current = id;
+        setActiveConversationId(id);
+      }
+      const firstUser = messages.find((m) => m.role === 'user');
+      saveConversation(localStorage, {
+        id,
+        title: firstUser ? generateConversationTitle(firstUser.content) : 'Assistant chat',
+        messages: messages.slice(-200),
+        mode: salesCoachMode ? 'sales_coach' : 'default',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setConversations(listConversations(localStorage));
+    } catch {
+      // Persistence is best-effort — never break the chat on storage errors.
+    }
+  }, [messages, salesCoachMode]);
 
   const selectedLead = leads?.find((l) => l.id === effectiveLeadId);
 
@@ -425,6 +451,89 @@ export default function AssistantTab() {
     return NO_LEAD_PROMPTS.map((p) => ({ ...p }));
   }, [effectiveLeadId, salesCoachMode]);
 
+  const assistantMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/sales-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: effectiveLeadId || null,
+          message: input,
+          context: conversationContext,
+          salesCoachMode,
+          currentPage: activeTab,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to get response');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.mode === 'sales_coach') {
+        const response: AssistantMessage = {
+          id: `asst-${Date.now()}`,
+          role: 'assistant',
+          content: data.content || '',
+          buyingSignals: [],
+          hesitationFactors: [],
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, response].slice(-200));
+        if (data.dealProbability != null) {
+          setDealProbability(data.dealProbability);
+        }
+      } else {
+        const analysis = data.analysis || {};
+        const psych = data.psychologicalApproach || {};
+        const closing = data.closingStrategy || {};
+
+        const buyingSignals = Array.isArray(analysis.buyingSignals)
+          ? analysis.buyingSignals as string[]
+          : [];
+        const hesitationFactors = Array.isArray(analysis.hesitationPoints)
+          ? analysis.hesitationPoints as string[]
+          : [];
+
+        const contentParts: string[] = [];
+
+        if (analysis.intent) {
+          contentParts.push(`**Intent Analysis:** ${analysis.intent}`);
+        }
+        if (buyingSignals.length > 0) {
+          contentParts.push(`**Buying Signals:**\n${buyingSignals.map((s: string) => `- ${s}`).join('\n')}`);
+        }
+        if (hesitationFactors.length > 0) {
+          contentParts.push(`**Hesitation Factors:**\n${hesitationFactors.map((s: string) => `- ${s}`).join('\n')}`);
+        }
+        if (data.suggestedResponse) {
+          contentParts.push(`**Recommended Response:**\n${data.suggestedResponse}`);
+        }
+        if (psych.framework || psych.lever) {
+          contentParts.push(`**Psychological Approach:** ${psych.framework || ''} — ${psych.lever || ''}. ${psych.rationale || ''}`);
+        }
+        if (closing.type || closing.nextMilestone) {
+          contentParts.push(`**Closing Strategy:** ${closing.type || ''}. Next milestone: ${closing.nextMilestone || 'N/A'}. Timing: ${closing.timing || 'N/A'}`);
+        }
+
+        const response: AssistantMessage = {
+          id: `asst-${Date.now()}`,
+          role: 'assistant',
+          content: contentParts.join('\n\n'),
+          intentAnalysis: analysis.intent as string | undefined,
+          buyingSignals,
+          hesitationFactors,
+          recommendedResponse: data.suggestedResponse as string | undefined,
+          closingStrategy: closing.type as string | undefined,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, response].slice(-200));
+      }
+      setInput('');
+    },
+    onError: () => {
+      toast.error('Failed to get AI response');
+    },
+  });
+
   const handleLeadSelect = useCallback((value: string) => {
     if (value === 'none') {
       setLocalOverride('');
@@ -436,33 +545,17 @@ export default function AssistantTab() {
   }, [setSelectedLeadId]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || isGenerating) return;
-    const content = input;
-    setInput('');
-    void sendAssistantMessage(
-      {
-        content,
-        leadId: effectiveLeadId || null,
-        context: conversationContext,
-        salesCoachMode,
-        currentPage: activeTab,
-      },
-      'tab',
-    );
-  }, [input, effectiveLeadId, isGenerating, sendAssistantMessage, conversationContext, salesCoachMode, activeTab]);
+    if (!input.trim() || assistantMutation.isPending || regenerating) return;
 
-  // LIFECYCLE: leaving the Assistant tab aborts an in-flight generation
-  // initiated here (this architecture does not intentionally support
-  // background generation). The shared store records an explicit
-  // cancellation note; remounting never re-fires the request.
-  useEffect(() => {
-    return () => {
-      const s = useAssistantChatStore.getState();
-      if (s.isGenerating && s.generatingSurface === 'tab') {
-        s.abortGeneration();
-      }
+    const userMsg: AssistantMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: input,
+      createdAt: new Date().toISOString(),
     };
-  }, []);
+    setMessages((prev) => [...prev, userMsg].slice(-200));
+    assistantMutation.mutate();
+  }, [input, effectiveLeadId, assistantMutation]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -480,26 +573,99 @@ export default function AssistantTab() {
   };
 
   const handleRegenerate = () => {
+    // Double-fire guard: regenerate used to bypass useMutation with a raw
+    // fetch + setTimeout, so Send/Regenerate stayed enabled mid-flight and
+    // parallel requests could append duplicate assistant replies.
+    if (regenerating || assistantMutation.isPending) return;
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-    if (!lastUserMsg || isGenerating) return;
+    if (!lastUserMsg) return;
 
-    // Drop the previous assistant answer and re-run the SAME prompt through
-    // the shared send path (pending-gated, abortable — one request).
-    removeLastAssistantMessage();
-    void sendAssistantMessage(
-      {
-        content: lastUserMsg.content,
-        leadId: effectiveLeadId || null,
-        context: conversationContext,
-        salesCoachMode,
-        currentPage: activeTab,
-      },
-      'tab',
-    );
+    setRegenerating(true);
+
+    setMessages((prev) => {
+      const lastAssistantIdx = prev.map((m) => m.role).lastIndexOf('assistant');
+      if (lastAssistantIdx === -1) return prev;
+      return prev.slice(0, lastAssistantIdx);
+    });
+
+    setInput(lastUserMsg.content);
+    setTimeout(() => {
+      const res = fetch('/api/sales-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: effectiveLeadId || null,
+          message: lastUserMsg.content,
+          context: conversationContext,
+          salesCoachMode,
+          currentPage: activeTab,
+        }),
+      });
+      res.then(async (r) => {
+        if (!r.ok) throw new Error('Failed');
+        const data = await r.json();
+        if (data.mode === 'sales_coach') {
+          const response: AssistantMessage = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: data.content || '',
+            buyingSignals: [],
+            hesitationFactors: [],
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, response].slice(-200));
+          if (data.dealProbability != null) {
+            setDealProbability(data.dealProbability);
+          }
+        } else {
+          const analysis = data.analysis || {};
+          const psych = data.psychologicalApproach || {};
+          const closing = data.closingStrategy || {};
+          const buyingSignals = Array.isArray(analysis.buyingSignals) ? analysis.buyingSignals as string[] : [];
+          const hesitationFactors = Array.isArray(analysis.hesitationPoints) ? analysis.hesitationPoints as string[] : [];
+
+          const contentParts: string[] = [];
+          if (analysis.intent) contentParts.push(`**Intent Analysis:** ${analysis.intent}`);
+          if (buyingSignals.length > 0) contentParts.push(`**Buying Signals:**\n${buyingSignals.map((s: string) => `- ${s}`).join('\n')}`);
+          if (hesitationFactors.length > 0) contentParts.push(`**Hesitation Factors:**\n${hesitationFactors.map((s: string) => `- ${s}`).join('\n')}`);
+          if (data.suggestedResponse) contentParts.push(`**Recommended Response:**\n${data.suggestedResponse}`);
+          if (psych.framework || psych.lever) contentParts.push(`**Psychological Approach:** ${psych.framework || ''} — ${psych.lever || ''}. ${psych.rationale || ''}`);
+          if (closing.type || closing.nextMilestone) contentParts.push(`**Closing Strategy:** ${closing.type || ''}. Next milestone: ${closing.nextMilestone || 'N/A'}. Timing: ${closing.timing || 'N/A'}`);
+
+          const response: AssistantMessage = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: contentParts.join('\n\n'),
+            intentAnalysis: analysis.intent as string | undefined,
+            buyingSignals,
+            hesitationFactors,
+            recommendedResponse: data.suggestedResponse as string | undefined,
+            closingStrategy: closing.type as string | undefined,
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, response].slice(-200));
+        }
+      }).catch(() => {
+        toast.error('Failed to regenerate response');
+      }).finally(() => {
+        setRegenerating(false);
+      });
+    }, 100);
   };
 
   const handleClearChat = () => {
-    clearAssistantConversation();
+    // "Cleared" means the durable copy goes too — otherwise the next remount
+    // would silently restore the conversation the user just cleared.
+    if (activeConversationIdRef.current) {
+      try {
+        deleteConversation(localStorage, activeConversationIdRef.current);
+      } catch {}
+    }
+    activeConversationIdRef.current = null;
+    setActiveConversationId(null);
+    setMessages([]);
+    setConversations(listConversations(localStorage));
+    setDealProbability(null);
     toast.success('Chat cleared');
   };
 
@@ -625,7 +791,7 @@ export default function AssistantTab() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isGenerating]);
+  }, [messages, assistantMutation.isPending]);
 
   // Last AI message for regenerate
   const lastAssistantMsg = useMemo(
@@ -690,7 +856,7 @@ export default function AssistantTab() {
                 )}
                 onClick={() => {
                   setSalesCoachMode(!salesCoachMode);
-                  useAssistantChatStore.setState({ dealProbability: null });
+                  setDealProbability(null);
                   toast.success(salesCoachMode ? 'Standard mode activated' : 'Sales Coach mode activated');
                 }}
               >
@@ -712,18 +878,24 @@ export default function AssistantTab() {
                   </div>
                   <ScrollArea className="max-h-64">
                     <div className="p-2">
-                      {sessionsData?.sessions && sessionsData.sessions.length > 0 ? (
-                        sessionsData.sessions.map((session: ChatSession) => (
+                      {conversations.length > 0 ? (
+                        conversations.map((session: AssistantConversation) => (
                           <button
                             key={session.id}
-                            className="w-full text-left p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+                            className={cn(
+                              'w-full text-left p-2 rounded-lg hover:bg-muted/50 transition-colors group',
+                              session.id === activeConversationId && 'bg-muted/60'
+                            )}
                             onClick={() => {
-                              // Sessions carry metadata + mode only — the
-                              // live chat surface does not persist message
-                              // transcripts, so say exactly what happens.
-                              setSalesCoachMode(session.mode === 'sales_coach');
+                              const loaded = loadConversation(localStorage, session.id);
+                              if (loaded) {
+                                activeConversationIdRef.current = loaded.id;
+                                setActiveConversationId(loaded.id);
+                                setMessages(loaded.messages.slice(-200));
+                                setSalesCoachMode(loaded.mode === 'sales_coach');
+                                toast.info(`Loaded: ${loaded.title}`);
+                              }
                               setSessionsOpen(false);
-                              toast.info(`Restored "${session.title}" coach mode. Full transcripts are not stored.`);
                             }}
                           >
                             <div className="flex items-center gap-2">
@@ -740,14 +912,14 @@ export default function AssistantTab() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium truncate">{session.title}</p>
                                 <p className="text-[10px] text-muted-foreground">
-                                  {session.messageCount} messages · {formatRelativeTime(session.updatedAt)}
+                                  {session.messages.length} messages · {formatRelativeTime(session.updatedAt)}
                                 </p>
                               </div>
                             </div>
                           </button>
                         ))
                       ) : (
-                        <p className="text-xs text-muted-foreground text-center py-4">No previous sessions</p>
+                        <p className="text-xs text-muted-foreground text-center py-4">No previous conversations yet</p>
                       )}
                     </div>
                   </ScrollArea>
@@ -1046,7 +1218,7 @@ export default function AssistantTab() {
                                     size="sm"
                                     className="h-6 px-2 text-[10px] text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200 min-h-[24px]"
                                     onClick={handleRegenerate}
-                                    disabled={isGenerating}
+                                    disabled={assistantMutation.isPending}
                                   >
                                     <RefreshCw className="h-3 w-3 mr-1" />
                                     Regenerate
@@ -1119,7 +1291,7 @@ export default function AssistantTab() {
               })}
 
               {/* Thinking indicator */}
-              {isGenerating && (
+              {assistantMutation.isPending && (
                 <motion.div
                   className="flex gap-3"
                   initial={{ opacity: 0, y: 8 }}
@@ -1250,7 +1422,7 @@ export default function AssistantTab() {
               />
               <Button
                 onClick={handleSend}
-                disabled={!input.trim() || isGenerating}
+                disabled={!input.trim() || assistantMutation.isPending}
                 size="icon"
                 className={cn(
                   "shrink-0 self-end h-11 w-11 transition-all duration-200 hover:shadow-lg btn-ripple active:scale-95",
@@ -1259,7 +1431,7 @@ export default function AssistantTab() {
                     : "bg-primary hover:bg-primary/90 hover:shadow-primary/20"
                 )}
               >
-                {isGenerating ? (
+                {assistantMutation.isPending ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4" />

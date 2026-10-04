@@ -5,11 +5,14 @@
 //   Lead Queue → per-lead prospect pipeline (concurrency-limited)
 //   → per-lead status tracking → honest per-lead results.
 //
-// Pattern: DiscoveryJob (DB row + detached processing + status polling).
-// Credits: charged per lead by startProspectPipeline (its own idempotency
-// + refund semantics). Before starting, the UI shows the estimated cost
+// Pattern: ResearchJob (DB row + detached processing + status polling) —
+// mirrors the DiscoveryJob pattern. Credits are charged per lead BY the
+// prospect pipeline itself (its own idempotency + refund semantics, cost =
+// PIPELINE_CREDIT_COST). Before starting, the UI shows the estimated cost
 // (leads × per-lead cost) — the batch never silently consumes credits:
 // when the balance runs out, remaining leads are SKIPPED with a reason.
+// Per-lead progress lives in the job's results JSON; the Lead row itself
+// is never annotated (no researchStatus on leads).
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
@@ -18,7 +21,7 @@ import {
   startProspectPipeline,
   runProspectPipeline,
 } from './pipeline';
-import { PIPELINE_CREDIT_COSTS, type ResearchDepth } from './types';
+import { PIPELINE_CREDIT_COST, type ResearchDepth } from './types';
 
 const DEFAULT_CONCURRENCY = parseInt(process.env.RESEARCH_BATCH_CONCURRENCY || '2', 10);
 const MAX_BATCH_SIZE = parseInt(process.env.RESEARCH_BATCH_MAX || '200', 10);
@@ -35,7 +38,7 @@ export interface BatchResearchResult {
 export interface BatchLeadResult {
   leadId: string;
   businessName: string;
-  status: 'completed' | 'failed' | 'skipped' | 'needs_review';
+  status: 'completed' | 'failed' | 'skipped';
   pipelineId?: string;
   error?: string;
 }
@@ -140,6 +143,7 @@ export async function startBatchResearch(
     success: true,
     jobId: job.id,
     total: owned.length,
+    estimatedCostPerLead: PIPELINE_CREDIT_COST,
   };
 }
 
@@ -155,7 +159,6 @@ async function processBatchResearch(jobId: string): Promise<void> {
   } catch {
     leadIds = [];
   }
-  const depth: ResearchDepth = job.depth === 'quick' ? 'quick' : 'deep';
   const concurrency = Number.isFinite(DEFAULT_CONCURRENCY) && DEFAULT_CONCURRENCY > 0
     ? Math.min(DEFAULT_CONCURRENCY, 4)
     : 2;
@@ -178,8 +181,9 @@ async function processBatchResearch(jobId: string): Promise<void> {
   const runOne = async (leadId: string): Promise<void> => {
     const businessName = nameById.get(leadId) || 'Unknown';
 
-    // Credit gate BEFORE starting this lead — never silently overdraw
-    const perLeadCost = PIPELINE_CREDIT_COSTS[depth];
+    // Credit gate BEFORE starting this lead — never silently overdraw.
+    // The per-lead cost is the prospect pipeline's own constant charge.
+    const perLeadCost = PIPELINE_CREDIT_COST;
     const balance = await checkCreditSufficiency(job.userId, perLeadCost);
     if (!balance.sufficient) {
       row.results.push({
@@ -193,16 +197,7 @@ async function processBatchResearch(jobId: string): Promise<void> {
       return;
     }
 
-    // Mark queued → the pipeline itself sets researching/running
-    await db.lead.updateMany({
-      where: { id: leadId },
-      data: { researchStatus: 'queued' },
-    }).catch(() => {});
-
-    const started = await startProspectPipeline(job.userId, leadId, {
-      depth,
-      autoRun: false,
-    });
+    const started = await startProspectPipeline(job.userId, leadId);
     if (!started.success || !started.pipelineId) {
       row.results.push({
         leadId,
@@ -211,10 +206,6 @@ async function processBatchResearch(jobId: string): Promise<void> {
         error: started.error || 'Could not start pipeline',
       });
       row.skippedCount += 1;
-      await db.lead.updateMany({
-        where: { id: leadId, researchStatus: 'queued' },
-        data: { researchStatus: 'not_researched' },
-      }).catch(() => {});
       return;
     }
 
@@ -225,16 +216,8 @@ async function processBatchResearch(jobId: string): Promise<void> {
         select: { status: true, error: true },
       });
       if (pipeline?.status === 'completed') {
-        // completed vs needs_review (insufficient data) is already on the lead
-        const lead = await db.lead.findUnique({
-          where: { id: leadId },
-          select: { researchStatus: true },
-        });
-        const status: BatchLeadResult['status'] =
-          lead?.researchStatus === 'needs_review' ? 'needs_review' : 'completed';
-        row.results.push({ leadId, businessName, status, pipelineId: started.pipelineId });
-        if (status === 'completed') row.completedCount += 1;
-        else row.skippedCount += 1;
+        row.results.push({ leadId, businessName, status: 'completed', pipelineId: started.pipelineId });
+        row.completedCount += 1;
       } else {
         row.results.push({
           leadId,
@@ -259,7 +242,7 @@ async function processBatchResearch(jobId: string): Promise<void> {
 
   // Bounded-concurrency worker pool over the lead queue
   let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, leadIds.length) }, async () => {
+  const workers = Array.from({ length: Math.min(concurrency, Math.max(leadIds.length, 1)) }, async () => {
     while (cursor < leadIds.length && !stopReason) {
       const leadId = leadIds[cursor++];
       await runOne(leadId);
@@ -278,10 +261,6 @@ async function processBatchResearch(jobId: string): Promise<void> {
       error: stopReason || 'Not processed',
     });
     row.skippedCount += 1;
-    await db.lead.updateMany({
-      where: { id: leadId, researchStatus: { in: ['queued', 'researching'] } },
-      data: { researchStatus: 'not_researched' },
-    }).catch(() => {});
   }
 
   await db.researchJob.update({

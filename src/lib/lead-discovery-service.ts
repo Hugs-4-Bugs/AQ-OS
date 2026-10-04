@@ -77,28 +77,23 @@ export interface DiscoveryParams {
    * provider results arrive — AI ranking can never override them.
    */
   criteria?: HardCriteria | null;
-  /** Business context (spec §3): which of the user's business profiles this
-   * job runs as + campaign-specific overrides. Ownership is verified in
-   * resolveBusinessContext when the context is USED (never trusted blindly). */
-  businessProfileId?: string | null;
-  /** EXPLICIT None (spec §8): when false, the job runs WITHOUT business
-   * context — null businessProfileId must NOT fall back to the default. */
-  useBusinessContext?: boolean;
-  campaign?: {
-    objective?: string;
-    audience?: string;
-    offer?: string;
-    outcome?: string;
-    cta?: string;
-    tone?: string;
-    instructions?: string;
-  } | null;
   /**
-   * Credit-integrity identity for this logical operation (client-generated
-   * UUID). When supplied, a replayed start returns the SAME job instead of
-   * creating a second chargeable one (one operation → one billing event).
+   * Discover-page context/campaign selector (additive, optional). The
+   * EFFECTIVE resolved context is persisted on the job row (contextJson)
+   * so historical runs stay explainable. Legacy callers omit it → null.
    */
-  idempotencyKey?: string | null;
+  context?: DiscoveryJobContext | null;
+}
+
+/** Resolved context/campaign override attached to a discovery run. */
+export interface DiscoveryJobContext {
+  mode: 'none' | 'campaign' | 'business' | 'profile';
+  campaignId?: string;
+  campaignNiche?: string;
+  /** Business Profile association (mode 'profile'). */
+  profileId?: string;
+  /** Instructions merged into the discovery requirements (≤500 chars). */
+  instructions?: string;
 }
 
 export interface DiscoveredLead {
@@ -296,21 +291,11 @@ export async function startDiscoveryJob(
       imported: 0,
       duplicates: 0,
       failed: 0,
-      // Business context (spec §3) — persisted with the job so later
-      // research and outreach replay the SAME context.
-      businessProfileId: params.businessProfileId || null,
-      campaignObjective: params.campaign?.objective || null,
-      campaignAudience: params.campaign?.audience || null,
-      campaignOffer: params.campaign?.offer || null,
-      campaignOutcome: params.campaign?.outcome || null,
-      campaignCta: params.campaign?.cta || null,
-      campaignTone: params.campaign?.tone || null,
-      campaignInstructions: params.campaign?.instructions || null,
-      // Operation identity — enables request-level dedupe upstream.
-      idempotencyKey: params.idempotencyKey || null,
-      // EXPLICIT None — persisted so later replays also skip the default
-      // profile instead of silently re-attaching business context.
-      useBusinessContext: params.useBusinessContext === false ? false : true,
+      // Persist the effective context/campaign override for explainability
+      // (additive nullable column; legacy rows read as no context).
+      contextJson: params.context
+        ? JSON.stringify(params.context)
+        : null,
     },
   });
 
@@ -559,14 +544,7 @@ export async function processDiscoveryJob(
       console.warn('[DiscoveryService] website probe step failed (continuing without probe evidence):', probeErr instanceof Error ? probeErr.message : probeErr);
     }
 
-    // Key the credit slot on the CANDIDATE INDEX (stable per job), not on
-    // the mutable `imported` counter: when a lead create fails and is
-    // refunded, the counter does not advance, so a counter key would make
-    // the NEXT candidate collide with the refunded row and import free.
-    // With a stable slot index every candidate has its own billing slot
-    // and a replayed job can never double-charge any slot.
-    for (let leadSlot = 0; leadSlot < discoveredLeads.length; leadSlot++) {
-      const leadData = discoveredLeads[leadSlot];
+    for (const leadData of discoveredLeads) {
       try {
         // Check for duplicates
         const dupCheck = await checkDuplicate(userId, {
@@ -595,7 +573,7 @@ export async function processDiscoveryJob(
           action: 'lead_discovery',
           cost: CREDIT_COST_PER_LEAD,
           referenceId: jobId,
-          idempotencyKey: `${jobId}:lead:${leadSlot}`,
+          idempotencyKey: `${jobId}:lead:${imported}`,
         });
 
         if (!creditResult.success) {
@@ -684,6 +662,9 @@ export async function processDiscoveryJob(
             amount: CREDIT_COST_PER_LEAD,
             originalAction: 'lead_discovery',
             referenceId: jobId,
+            // Same slot identity as the deduction — a retried/replayed job can
+            // never double-refund the same lead slot (one charge ↔ one refund).
+            idempotencyKey: `${jobId}:lead:${imported}:refund`,
           }).catch((refundErr) => {
             console.error('[DiscoveryService] Credit refund failed (ledger keeps reference):', refundErr);
           });
@@ -1556,16 +1537,6 @@ export function buildSearchQueries(params: DiscoveryParams): string[] {
   const location = [city, country].filter(Boolean).join(', ');
   const queries: string[] = [];
 
-  // BUSINESS-CONTEXT QUERIES (spec §3/§6): when a campaign override or the
-  // selected business profile says WHO the user targets, add 1-2 intent-
-  // driven queries so discovery surfaces prospects relevant to the SENDER'S
-  // offer — e.g. "corporate wellness providers partnering with hospitals" —
-  // while keeping every query on-niche and on-location.
-  const offerHint = params.campaign?.offer?.trim() || params.campaign?.audience?.trim() || '';
-  const contextQuery = offerHint && source === 'ai_search'
-    ? `${niche} businesses serving ${offerHint}${location ? ` in ${location}` : ''}`.replace(/\s+/g, ' ')
-    : '';
-
   switch (source) {
     case 'ai_search': {
       queries.push(`${niche} businesses${location ? ` in ${location}` : ''}`);
@@ -1581,7 +1552,6 @@ export function buildSearchQueries(params: DiscoveryParams): string[] {
       // Directory/list phrasing surfaces company-list pages that single-
       // result pages miss — still strictly on-niche and on-location.
       queries.push(`${niche} companies directory list ${location}`.replace(/\s+/g, ' '));
-      if (contextQuery) queries.unshift(contextQuery);
       break;
     }
     case 'google_maps':

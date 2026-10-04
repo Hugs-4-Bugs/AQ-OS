@@ -1,0 +1,802 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useEffect, useCallback, useRef } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import {
+     7→  Search,
+     8→  Sparkles,
+     9→  Plus,
+    10→  Loader2,
+    11→  MapPin,
+    12→  Tag,
+    13→  Building2,
+    14→  Zap,
+    15→  FileUp,
+    16→  Clock,
+    17→  Eye,
+    18→  Trash2,
+    19→  TrendingUp,
+    20→  Globe,
+    21→  CheckCircle2,
+    22→  XCircle,
+    23→  AlertCircle,
+    24→  RefreshCw,
+    25→  ChevronDown,
+    26→  ExternalLink,
+    27→  Layers,
+    28→  PencilLine,
+    29→  SlidersHorizontal,
+    30→  Users,
+    31→  ShieldCheck,
+    32→  Mail,
+    33→  Phone,
+    34→} from 'lucide-react';
+    35→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    36→import { Input } from '@/components/ui/input';
+    37→import { Button } from '@/components/ui/button';
+    38→import { Badge } from '@/components/ui/badge';
+    39→import { Skeleton } from '@/components/ui/skeleton';
+    40→import { Separator } from '@/components/ui/separator';
+    41→import { Progress } from '@/components/ui/progress';
+    42→import { ScrollArea } from '@/components/ui/scroll-area';
+    43→import {
+    44→  AlertDialog,
+    45→  AlertDialogAction,
+    46→  AlertDialogCancel,
+    47→  AlertDialogContent,
+    48→  AlertDialogDescription,
+    49→  AlertDialogFooter,
+    50→  AlertDialogHeader,
+    51→  AlertDialogTitle,
+    52→} from '@/components/ui/alert-dialog';
+    53→import {
+    54→  Select,
+    55→  SelectContent,
+    56→  SelectItem,
+    57→  SelectTrigger,
+    58→  SelectValue,
+    59→} from '@/components/ui/select';
+    60→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+    61→import {
+    62→  Command,
+    63→  CommandEmpty,
+    64→  CommandGroup,
+    65→  CommandInput,
+    66→  CommandItem,
+    67→  CommandList,
+    68→} from '@/components/ui/command';
+    69→import { COUNTRIES } from '@/lib/countries';
+    70→import { fetchLeads, updateLead } from '@/lib/api';
+    71→import { useAppStore } from '@/lib/store';
+    72→import { cn } from '@/lib/utils';
+    73→import type { Lead, LeadStage } from '@/lib/types';
+    74→import LeadImportDialog from './lead-import-dialog';
+    75→import { toast } from 'sonner';
+    76→
+    77→// ─── Discovery Source Config ─────────────────────────────
+    78→const DISCOVERY_SOURCES = [
+    79→  { value: 'all', label: 'All Sources', icon: Layers, color: 'text-primary' },
+    80→  { value: 'ai_search', label: 'AI Search', icon: Sparkles, color: 'text-violet-500' },
+    81→  { value: 'google_maps', label: 'Google Maps', icon: MapPin, color: 'text-red-500' },
+    82→  { value: 'google_business', label: 'Google Business', icon: Globe, color: 'text-blue-500' },
+    83→  { value: 'justdial', label: 'JustDial', icon: Search, color: 'text-yellow-500' },
+    84→  { value: 'indiamart', label: 'IndiaMart', icon: Building2, color: 'text-orange-500' },
+    85→  { value: 'yelp', label: 'Yelp', icon: Star, color: 'text-red-400' },
+    86→  { value: 'yellow_pages', label: 'Yellow Pages', icon: Search, color: 'text-yellow-600' },
+    87→  { value: 'sulekha', label: 'Sulekha', icon: Globe, color: 'text-teal-500' },
+    88→  { value: 'linkedin', label: 'LinkedIn', icon: Building2, color: 'text-blue-600' },
+    89→  { value: 'instagram', label: 'Instagram', icon: Globe, color: 'text-pink-500' },
+    90→  { value: 'facebook', label: 'Facebook', icon: Globe, color: 'text-blue-500' },
+    91→] as const;
+    92→
+    93→// Sources fanned out when "All Sources" is selected (must match server-side ALL_DISCOVERY_SOURCES)
+    94→const ALL_SOURCES_COUNT = 7;
+    95→
+    96→function Star(props: React.SVGProps<SVGSVGElement>) {
+    97→  return (
+    98→    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    99→      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+   100→    </svg>
+   101→  );
+   102→}
+   103→
+   104→// ─── Discovery Source Status (real-time from server env) ─────
+   105→interface DiscoverySourceStatus {
+   106→  id: string;
+   107→  label: string;
+   108→  type: 'ai' | 'api' | 'scrape';
+   109→  description: string;
+   110→  status: 'connected' | 'not_configured' | 'error';
+   111→  configMessage: string;
+   112→  requiredEnvVars: Array<{ name: string; label: string; required: boolean }>;
+   113→  optionalEnvVars: Array<{ name: string; label: string; required: boolean }>;
+   114→  signupUrl: string | null;
+   115→  notes: string | null;
+   116→  noSetupRequired: boolean;
+   117→}
+   118→
+   119→// ─── Discovery Job Types ─────────────────────────────────
+   120→interface DiscoveryJob {
+   121→  id: string;
+   122→  status: 'pending' | 'running' | 'completed' | 'failed';
+   123→  source: string;
+   124→  niche: string;
+   125→  country: string;
+   126→  city?: string;
+   127→  totalFound: number;
+   128→  leadsAdded: number;
+   129→  duplicatesSkipped: number;
+   130→  errors: number;
+   131→  /** Candidates rejected by the server-side hard-criteria validator. */
+   132→  filteredOut?: number;
+   133→  resultData?: Array<{
+   134→    businessName: string;
+   135→    ownerName?: string;
+   136→    niche?: string;
+   137→    city?: string;
+   138→    country?: string;
+   139→    email?: string;
+   140→    phone?: string;
+   141→    website?: string;
+   142→    rating?: number;
+   143→    employeeCount?: number | null;
+   144→    employeeRange?: string | null;
+   145→  }>;
+   146→  createdAt: string;
+   147→  completedAt?: string;
+   148→  message?: string;
+   149→  errorMessage?: string;
+   150→}
+   151→
+   152→/** The status API returns imported/duplicates/failed — normalize once so
+   153→ *  the UI never renders "undefined leads found" after completion. */
+   154→function normalizeJobFromApi(raw: Partial<DiscoveryJob> & Record<string, unknown>): DiscoveryJob {
+   155→  return {
+   156→    ...(raw as unknown as DiscoveryJob),
+   157→    leadsAdded: (raw.leadsAdded as number | undefined) ?? (raw.imported as number | undefined) ?? 0,
+   158→    duplicatesSkipped: (raw.duplicatesSkipped as number | undefined) ?? (raw.duplicates as number | undefined) ?? 0,
+   159→    errors: (raw.errors as number | undefined) ?? (raw.failed as number | undefined) ?? 0,
+   160→    filteredOut: (raw.filteredOut as number | undefined) ?? 0,
+   161→  };
+   162→}
+   163→
+   164→// ─── AI Chat Mode Types ─────────────────────────────────
+   165→interface ParsedIntent {
+   166→  niche: string;
+   167→  location: string;
+   168→  country: string;
+   169→  city: string;
+   170→  /**
+   171→   * Explicitly requested lead count, or null when the user did not state
+   172→   * one. Mirrors the parser contract: no invented default — the job then
+   173→   * runs until the provider/data limits are exhausted instead of stopping
+   174→   * at 20.
+   175→   */
+   176→  count: number | null;
+   177→  requirements: string;
+   178→  /** Structured HARD criteria — enforced server-side after discovery. */
+   179→  criteria?: {
+   180→    employeeMin: number | null;
+   181→    employeeMax: number | null;
+   182→    exactEmployeeCount: number | null;
+   183→    website: 'required' | 'absent' | 'any';
+   184→    excludeTypes: string[];
+   185→    growthSignals: boolean;
+   186→    hiringSignals: boolean;
+   187→  };
+   188→}
+   189→
+   190→interface DiscoveryVars {
+   191→  niche: string;
+   192→  country: string;
+   193→  city?: string;
+   194→  source: string;
+   195→  maxResults?: number;
+   196→  requirements?: string;
+   197→  criteria?: ParsedIntent['criteria'];
+   198→}
+   199→
+   200→/** Human label for the parsed hard criteria (badges + honest notices). */
+   201→function describeCriteria(criteria?: ParsedIntent['criteria']): string {
+   202→  if (!criteria) return '';
+   203→  const parts: string[] = [];
+   204→  if (criteria.exactEmployeeCount != null) parts.push(`exactly ${criteria.exactEmployeeCount} employees`);
+   205→  else if (criteria.employeeMin != null && criteria.employeeMax != null) parts.push(`${criteria.employeeMin}–${criteria.employeeMax} employees`);
+   206→  else if (criteria.employeeMin != null) parts.push(`≥ ${criteria.employeeMin} employees`);
+   207→  else if (criteria.employeeMax != null) parts.push(`≤ ${criteria.employeeMax} employees`);
+   208→  if (criteria.website === 'required') parts.push('website required');
+   209→  if (criteria.website === 'absent') parts.push('no website');
+   210→  if (criteria.excludeTypes?.length) parts.push(`excludes: ${criteria.excludeTypes.join(', ')}`);
+   211→  return parts.join(' · ');
+   212→}
+   213→
+   214→// ─── Helper Functions ────────────────────────────────────
+   215→function getScoreBorderColor(score: number): string {
+   216→  if (score >= 70) return 'border-t-emerald-500';
+   217→  if (score >= 40) return 'border-t-amber-500';
+   218→  return 'border-t-red-500';
+   219→}
+   220→
+   221→function getScoreBarClass(score: number): string {
+   222→  if (score >= 70) return 'bg-emerald-500';
+   223→  if (score >= 40) return 'bg-amber-500';
+   224→  return 'bg-red-500';
+   225→}
+   226→
+   227→function formatRelativeTime(dateStr: string): string {
+   228→  const date = new Date(dateStr);
+   229→  const now = new Date();
+   230→  const diffMs = now.getTime() - date.getTime();
+   231→  const diffMins = Math.floor(diffMs / 60000);
+   232→  const diffHours = Math.floor(diffMins / 60);
+   233→  const diffDays = Math.floor(diffHours / 24);
+   234→  if (diffMins < 1) return 'Just now';
+   235→  if (diffMins < 60) return `${diffMins}m ago`;
+   236→  if (diffHours < 24) return `${diffHours}h ago`;
+   237→  if (diffDays === 1) return 'Yesterday';
+   238→  if (diffDays < 7) return `${diffDays}d ago`;
+   239→  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+   240→}
+   241→
+   242→const STATUS_STYLES: Record<string, string> = {
+   243→  pending: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/25',
+   244→  running: 'bg-blue-500/15 text-blue-500 border-blue-500/25',
+   245→  completed: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/25',
+   246→  failed: 'bg-red-500/15 text-red-500 border-red-500/25',
+   247→};
+   248→
+   249→const STATUS_ICONS: Record<string, React.ElementType> = {
+   250→  pending: Clock,
+   251→  running: Loader2,
+   252→  completed: CheckCircle2,
+   253→  failed: XCircle,
+   254→};
+   255→
+   256→// ─── Recent Discovery Jobs List ──────────────────────────
+   257→function DiscoveryJobsList({ onJobClick }: { onJobClick: (job: DiscoveryJob) => void }) {
+   258→  const [jobs, setJobs] = useState<DiscoveryJob[]>(() => {
+   259→    if (typeof window === 'undefined') return [];
+   260→    try {
+   261→      const stored = localStorage.getItem('acquisitionos_discovery_jobs');
+   262→      return stored ? JSON.parse(stored) : [];
+   263→    } catch { return []; }
+   264→  });
+   265→  const loading = false;
+   266→
+   267→  if (loading) {
+   268→    return (
+   269→      <div className="space-y-2">
+   270→        {Array.from({ length: 3 }).map((_, i) => (
+   271→          <Skeleton key={i} className="h-16 w-full rounded-lg" />
+   272→        ))}
+   273→      </div>
+   274→    );
+   275→  }
+   276→
+   277→  if (jobs.length === 0) return null;
+   278→
+   279→  return (
+   280→    <div className="space-y-2">
+   281→      {jobs.slice(0, 5).map((job) => {
+   282→        const StatusIcon = STATUS_ICONS[job.status] || Clock;
+   283→        return (
+   284→          <motion.button
+   285→            key={job.id}
+   286→            initial={{ opacity: 0, x: -10 }}
+   287→            animate={{ opacity: 1, x: 0 }}
+   288→            onClick={() => onJobClick(job)}
+   289→            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/20 transition-colors text-left"
+   290→          >
+   291→            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 shrink-0">
+   292→              <StatusIcon className={cn('h-4 w-4', job.status === 'running' && 'animate-spin', STATUS_STYLES[job.status]?.split(' ')[1])} />
+   293→            </div>
+   294→            <div className="flex-1 min-w-0">
+   295→              <p className="text-xs font-medium truncate">
+   296→                {job.niche} · {job.country}{job.city ? ` · ${job.city}` : ''}
+   297→              </p>
+   298→              <div className="flex items-center gap-2 mt-0.5">
+   299→                <Badge variant="outline" className={cn('text-[9px] border', STATUS_STYLES[job.status])}>
+   300→                  {job.status}
+   301→                </Badge>
+   302→                {job.status === 'completed' && (
+   303→                  <span className="text-[10px] text-muted-foreground">
+   304→                    {job.leadsAdded} leads found
+   305→                  </span>
+   306→                )}
+   307→              </div>
+   308→            </div>
+   309→            <div className="shrink-0 text-right">
+   310→              <p className="text-[10px] text-muted-foreground">
+   311→                {formatRelativeTime(job.createdAt)}
+   312→              </p>
+   313→            </div>
+   314→          </motion.button>
+   315→        );
+   316→      })}
+   317→    </div>
+   318→  );
+   319→}
+   320→
+   321→// ─── Discovery Job Progress Card ─────────────────────────
+   322→function DiscoveryJobProgress({
+   323→  job,
+   324→  onComplete,
+   325→}: {
+   326→  job: DiscoveryJob;
+   327→  onComplete: (job: DiscoveryJob) => void;
+   328→}) {
+   329→  const [currentJob, setCurrentJob] = useState<DiscoveryJob>(job);
+   330→  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+   331→
+   332→  useEffect(() => {
+   333→    if (currentJob.status !== 'running' && currentJob.status !== 'pending') return;
+   334→
+   335→    intervalRef.current = setInterval(async () => {
+   336→      try {
+   337→        const res = await fetch(`/api/leads/discover/status/${currentJob.id}`);
+   338→        if (res.ok) {
+   339→          const data = await res.json();
+   340→          const updatedJob = normalizeJobFromApi(data.job);
+   341→          setCurrentJob(updatedJob);
+   342→
+   343→          if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+   344→            if (intervalRef.current) clearInterval(intervalRef.current);
+   345→            onComplete(updatedJob);
+   346→
+   347→            // Update localStorage
+   348→            try {
+   349→              const stored = localStorage.getItem('acquisitionos_discovery_jobs');
+   350→              const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
+   351→              const idx = jobs.findIndex(j => j.id === updatedJob.id);
+   352→              if (idx >= 0) jobs[idx] = updatedJob;
+   353→              else jobs.unshift(updatedJob);
+   354→              localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+   355→            } catch {}
+   356→          }
+   357→        }
+   358→      } catch {}
+   359→    }, 3000);
+   360→
+   361→    return () => {
+   362→      if (intervalRef.current) clearInterval(intervalRef.current);
+   363→    };
+   364→  }, [currentJob.id, currentJob.status, onComplete]);
+   365→
+   366→  const progress = currentJob.status === 'completed' ? 100 :
+   367→    currentJob.status === 'running' ? 60 :
+   368→    currentJob.status === 'pending' ? 10 : 0;
+   369→
+   370→  const progressSteps = [
+   371→    { label: 'Connecting', done: progress >= 10 },
+   372→    { label: 'Searching', done: progress >= 40 },
+   373→    { label: 'Analyzing', done: progress >= 60 },
+   374→    { label: 'Complete', done: progress >= 100 },
+   375→  ];
+   376→
+   377→  return (
+   378→    <Card className="border-primary/20 overflow-hidden">
+   379→      <CardContent className="p-4 space-y-3">
+   380→        <div className="flex items-center justify-between">
+   381→          <div className="flex items-center gap-2">
+   382→            {currentJob.status === 'running' || currentJob.status === 'pending' ? (
+   383→              <div className="relative">
+   384→                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+   385→                <div className="absolute inset-0 rounded-full animate-ping bg-primary/20" />
+   386→              </div>
+   387→            ) : currentJob.status === 'completed' ? (
+   388→              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+   389→            ) : (
+   390→              <XCircle className="h-4 w-4 text-red-500" />
+   391→            )}
+   392→            <span className="text-sm font-medium">
+   393→              {currentJob.status === 'pending' ? 'Queuing discovery...' :
+   394→                currentJob.status === 'running' ? 'Discovering leads...' :
+   395→                currentJob.status === 'completed' ? 'Discovery complete!' :
+   396→                'Discovery failed'}
+   397→            </span>
+   398→          </div>
+   399→          <Badge variant="outline" className={cn('text-[10px] border', STATUS_STYLES[currentJob.status])}>
+   400→            {currentJob.status}
+   401→          </Badge>
+   402→        </div>
+   403→        <Progress value={progress} className="h-2" />
+   404→        {/* Progress steps */}
+   405→        <div className="flex items-center gap-1">
+   406→          {progressSteps.map((step, i) => (
+   407→            <div key={step.label} className="flex items-center gap-1 flex-1">
+   408→              <div className={cn(
+   409→                'h-1.5 w-1.5 rounded-full shrink-0 transition-colors',
+   410→                step.done ? 'bg-primary' : 'bg-muted-foreground/20'
+   411→              )} />
+   412→              <span className={cn(
+   413→                'text-[9px] truncate transition-colors',
+   414→                step.done ? 'text-primary font-medium' : 'text-muted-foreground/50'
+   415→              )}>{step.label}</span>
+   416→              {i < progressSteps.length - 1 && (
+   417→                <div className={cn('flex-1 h-px', step.done ? 'bg-primary/40' : 'bg-muted-foreground/10')} />
+   418→              )}
+   419→            </div>
+   420→          ))}
+   421→        </div>
+   422→        <div className="flex items-center justify-between text-xs text-muted-foreground">
+   423→          <span>{currentJob.niche} · {currentJob.country}{currentJob.city ? ` · ${currentJob.city}` : ''}</span>
+   424→          {currentJob.status === 'completed' && (
+   425→            <span className="text-emerald-500 font-medium">
+   426→              {currentJob.leadsAdded} verified lead{currentJob.leadsAdded === 1 ? '' : 's'} found
+   427→              {currentJob.filteredOut ? ` · ${currentJob.filteredOut} rejected by hard filters` : ''}
+   428→            </span>
+   429→          )}
+   430→          {currentJob.status === 'failed' && (currentJob.errorMessage || currentJob.message) && (
+   431→            <span className="text-red-500 truncate max-w-[280px]" title={currentJob.errorMessage || currentJob.message}>
+   432→              {currentJob.errorMessage || currentJob.message}
+   433→            </span>
+   434→          )}
+   435→        </div>
+   436→      </CardContent>
+   437→    </Card>
+   438→  );
+   439→}
+   440→
+   441→// ─── Discovered Lead Card ────────────────────────────────
+   442→function DiscoveredLeadCard({
+   443→  lead,
+   444→  onAddToPipeline,
+   445→  onViewDetails,
+   446→  isAdding,
+   447→  isAdded,
+   448→}: {
+   449→  lead: Lead;
+   450→  onAddToPipeline: (id: string) => void;
+   451→  onViewDetails: (id: string) => void;
+   452→  isAdding: boolean;
+   453→  isAdded: boolean;
+   454→}) {
+   455→  const scoreBorder = getScoreBorderColor(lead.conversionScore);
+   456→
+   457→  return (
+   458→    <motion.div
+   459→      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+   460→      animate={{ opacity: 1, y: 0, scale: 1 }}
+   461→      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   462→    >
+   463→      <Card className={cn('card-glow card-shine border-t-4 hover-lift transition-all cursor-pointer group', scoreBorder)}
+   464→        onClick={() => onViewDetails(lead.id)}
+   465→      >
+   466→        <CardContent className="p-4 space-y-3">
+   467→          <div className="flex items-start gap-2">
+   468→            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10 text-primary font-bold text-sm shrink-0 group-hover:bg-primary/20 transition-colors">
+   469→              {lead.businessName.charAt(0).toUpperCase()}
+   470→            </div>
+   471→            <div className="flex-1 min-w-0">
+   472→              <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{lead.businessName}</h4>
+   473→              {lead.ownerName && (
+   474→                <p className="text-xs text-muted-foreground mt-0.5">{lead.ownerName}</p>
+   475→              )}
+   476→            </div>
+   477→            {lead.source && (
+   478→              <Badge variant="outline" className="text-[10px] shrink-0">
+   479→                {lead.source}
+   480→              </Badge>
+   481→            )}
+   482→          </div>
+   483→
+   484→          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   485→            <MapPin className="h-3 w-3 shrink-0" />
+   486→            {[lead.city, lead.country].filter(Boolean).join(', ') || 'Unknown location'}
+   487→          </div>
+   488→
+   489→          {/* CONTACT AVAILABILITY — honest, per-field badges from REAL stored
+   490→              data only. A lead without an email is never discarded: it stays
+   491→              fully usable for phone-based or manual follow-up. Nothing here
+   492→              is inferred or fabricated: a channel is shown ONLY when the
+   493→              corresponding field was actually returned by the source.
+   494→              verificationStatus distinguishes verified from unverified
+   495→              contact details (single-source listings are unverified). */}
+   496→          <div className="flex flex-wrap items-center gap-1.5">
+   497→            {lead.email ? (
+   498→              <Badge variant="outline" className="text-[10px] gap-1 bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400">
+   499→                <Mail className="h-3 w-3" /> Email
+   500→              </Badge>
+   501→            ) : (
+   502→              <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+   503→                <XCircle className="h-3 w-3" /> No email
+   504→              </Badge>
+   505→            )}
+   506→            {lead.phone && (
+   507→              <Badge variant="outline" className="text-[10px] gap-1 bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400">
+   508→                <Phone className="h-3 w-3" /> Phone
+   509→              </Badge>
+   510→            )}
+   511→            {lead.website && (
+   512→              <Badge variant="outline" className="text-[10px] gap-1 bg-violet-500/10 border-violet-500/25 text-violet-600 dark:text-violet-400">
+   513→                <Globe className="h-3 w-3" /> Website
+   514→              </Badge>
+   515→            )}
+   516→            {(!lead.email && !lead.phone) && (
+   517→              <span className="text-[10px] text-muted-foreground">
+   518→                Manual / research follow-up required
+   519→              </span>
+   520→            )}
+   521→            {lead.verificationStatus === 'unverified' && (
+   522→              <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+   523→                <AlertCircle className="h-3 w-3" /> Unverified
+   524→              </Badge>
+   525→            )}
+   526→          </div>
+   527→
+   528→          {/* ACTUAL employee data from the provider — never the requested range.
+   529→              A range (e.g. "51-100") is shown honestly as a provider range. */}
+   530→          {(typeof lead.employeeCount === 'number' || lead.employeeRange) && (
+   531→            <div className="flex items-center gap-2 text-xs">
+   532→              <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+   533→              <span className="font-medium text-foreground">
+   534→                Employees: {typeof lead.employeeCount === 'number'
+   535→                  ? lead.employeeCount.toLocaleString()
+   536→                  : `${lead.employeeRange} (provider range)`}
+   537→              </span>
+   538→            </div>
+   539→          )}
+   540→
+   541→          {lead.rating && (
+   542→            <div className="flex items-center gap-1">
+   543→              <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+   544→              <span className="text-xs font-medium">{lead.rating.toFixed(1)}</span>
+   545→            </div>
+   546→          )}
+   547→
+   548→          <div className="space-y-2">
+   549→            <div className="space-y-1">
+   550→              <div className="flex justify-between text-xs">
+   551→                <span className="text-muted-foreground">Conversion</span>
+   552→                <span className="font-mono font-medium text-emerald-500">{lead.conversionScore}%</span>
+   553→              </div>
+   554→              <div className="w-full bg-muted rounded-full h-1.5">
+   555→                <div
+   556→                  className={cn('rounded-full h-1.5 transition-all', getScoreBarClass(lead.conversionScore))}
+   557→                  style={{ width: `${lead.conversionScore}%` }}
+   558→                />
+   559→              </div>
+   560→            </div>
+   561→          </div>
+   562→
+   563→          <Separator />
+   564→
+   565→          <div className="flex gap-2">
+   566→            <Button
+   567→              size="sm"
+   568→              variant="secondary"
+   569→              className="flex-1 gap-1 active:scale-95 transition-all min-h-[36px]"
+   570→              disabled={isAdded || isAdding}
+   571→              onClick={(e) => {
+   572→                e.stopPropagation();
+   573→                onAddToPipeline(lead.id);
+   574→              }}
+   575→            >
+   576→              {isAdding ? (
+   577→                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+   578→              ) : isAdded ? (
+   579→                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+   580→              ) : (
+   581→                <Plus className="h-3.5 w-3.5" />
+   582→              )}
+   583→              {isAdded ? 'In Pipeline' : 'Add to Pipeline'}
+   584→            </Button>
+   585→            <Button
+   586→              size="sm"
+   587→              variant="outline"
+   588→              onClick={(e) => {
+   589→                e.stopPropagation();
+   590→                onViewDetails(lead.id);
+   591→              }}
+   592→              className="gap-1 border-primary/20 hover:bg-primary/10 active:scale-95 transition-all min-h-[36px]"
+   593→            >
+   594→              <Eye className="h-3.5 w-3.5" />
+   595→              View
+   596→            </Button>
+   597→          </div>
+   598→        </CardContent>
+   599→      </Card>
+   600→    </motion.div>
+   601→  );
+   602→}
+   603→
+   604→// ─── Main Discover Tab Component ─────────────────────────
+   605→export default function DiscoverTab() {
+   606→  const queryClient = useQueryClient();
+   607→  const { setSelectedLeadId, setActiveTab } = useAppStore();
+   608→
+   609→  // Fetch real-time source configuration status (drives dropdown hints + config banner)
+   610→  const { data: sourceStatusData } = useQuery<DiscoverySourceStatus[]>({
+   611→    queryKey: ['discovery-source-status'],
+   612→    queryFn: async () => {
+   613→      const res = await fetch('/api/discovery/sources');
+   614→      if (!res.ok) throw new Error('Failed to load source status');
+   615→      const data = await res.json();
+   616→      return data.sources as DiscoverySourceStatus[];
+   617→    },
+   618→    staleTime: 60_000,
+   619→  });
+   620→  const sourceStatuses = sourceStatusData ?? [];
+   621→  const sourceStatusById = new Map(sourceStatuses.map((s) => [s.id, s]));
+   622→
+   623→  // Form state
+   624→  const [source, setSource] = useState<string>('ai_search');
+   625→  const [niche, setNiche] = useState('');
+   626→  const [country, setCountry] = useState('');
+   627→  const [countryOpen, setCountryOpen] = useState(false);
+   628→  const [city, setCity] = useState('');
+   629→
+   630→  // Search mode: classic filters or AI chat
+   631→  const [searchMode, setSearchMode] = useState<'filters' | 'ai'>('filters');
+   632→  const [aiQuery, setAiQuery] = useState('');
+   633→  const [aiParsing, setAiParsing] = useState(false);
+   634→  const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
+   635→
+   636→  // "All Sources" credit-cost confirmation
+   637→  const [allSourcesConfirmOpen, setAllSourcesConfirmOpen] = useState(false);
+   638→  const [pendingStart, setPendingStart] = useState<DiscoveryVars | undefined>(undefined);
+   639→
+   640→  // The exact config message for the currently selected source (empty when usable).
+   641→  // Unconfigured sources are shown in the dropdown but can NEVER run — no fake data.
+   642→  const selectedSourceStatus =
+   643→    source !== 'all' ? sourceStatusById.get(source) : undefined;
+   644→  const selectedSourceBlocked =
+   645→    !!selectedSourceStatus && selectedSourceStatus.status !== 'connected';
+   646→  const selectedSourceConfigMessage = selectedSourceBlocked
+   647→    ? selectedSourceStatus!.configMessage ||
+   648→      `${selectedSourceStatus!.label} requires API configuration. Go to Settings → Integrations to connect this source.`
+   649→    : '';
+   650→
+   651→  // Jobs state
+   652→  const [activeJob, setActiveJob] = useState<DiscoveryJob | null>(null);
+   653→  const [discoveredLeads, setDiscoveredLeads] = useState<Lead[]>([]);
+   654→  // Honest verified-matches notice — shown when hard filters returned fewer
+   655→  // verified companies than requested. Never padded with unverified leads.
+   656→  const [honestMatchNotice, setHonestMatchNotice] = useState<string | null>(null);
+   657→  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+   658→  const [pipelineAddingIds, setPipelineAddingIds] = useState<Set<string>>(new Set());
+   659→  const [importOpen, setImportOpen] = useState(false);
+   660→
+   661→  // Discovery history
+   662→  const [discoveryHistory, setDiscoveryHistory] = useState<Array<{
+   663→    niche: string; country: string; city: string; resultCount: number; timestamp: number;
+   664→  }>>([]);
+   665→
+   666→  // Load history
+   667→  useEffect(() => {
+   668→    try {
+   669→      const stored = localStorage.getItem('acquisitionos_discovery_history');
+   670→      if (stored) setDiscoveryHistory(JSON.parse(stored));
+   671→    } catch {}
+   672→  }, []);
+   673→
+   674→  // Fetch recently discovered leads
+   675→  const { data: allLeadsResult } = useQuery({
+   676→    queryKey: ['leads', { source: 'discovery' }],
+   677→    queryFn: () => fetchLeads({ limit: 20 }),
+   678→  });
+   679→
+   680→  const recentlyDiscovered = allLeadsResult?.leads
+   681→    ?.filter((l: Lead) => l.source === 'discovery')
+   682→    ?.sort((a: Lead, b: Lead) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+   683→    ?.slice(0, 5) ?? [];
+   684→
+   685→  // Popular niches from lead data
+   686→  const popularNiches = (() => {
+   687→    if (!allLeadsResult?.leads) return [];
+   688→    const nicheCounts: Record<string, number> = {};
+   689→    allLeadsResult.leads.forEach((l: Lead) => {
+   690→      if (l.niche) nicheCounts[l.niche] = (nicheCounts[l.niche] || 0) + 1;
+   691→    });
+   692→    return Object.entries(nicheCounts)
+   693→      .map(([name, count]) => ({ name, count }))
+   694→      .sort((a, b) => b.count - a.count)
+   695→      .slice(0, 8);
+   696→  })();
+   697→
+   698→  // Start discovery mutation — accepts explicit variables (AI Chat Mode) or falls back to filter state
+   699→  const discoverMutation = useMutation({
+   700→    mutationFn: async (vars?: DiscoveryVars) => {
+   701→      const payload = {
+   702→        niche: (vars?.niche ?? niche).trim(),
+   703→        country: (vars?.country ?? country).trim() || undefined,
+   704→        city: (vars?.city ?? city).trim() || undefined,
+   705→        source: vars?.source ?? source,
+   706→        maxResults: vars?.maxResults || undefined,
+   707→        requirements: vars?.requirements || undefined,
+   708→        // Structured HARD criteria from the AI parser — enforced server-side
+   709→        criteria: vars?.criteria || undefined,
+   710→      };
+   711→      const res = await fetch('/api/leads/discover', {
+   712→        method: 'POST',
+   713→        headers: { 'Content-Type': 'application/json' },
+   714→        body: JSON.stringify(payload),
+   715→      });
+   716→      if (!res.ok) {
+   717→        const data = await res.json().catch(() => ({}));
+   718→        throw new Error(data.error || 'Failed to start discovery');
+   719→      }
+   720→      const data = await res.json();
+   721→      return { data, payload };
+   722→    },
+   723→    onSuccess: ({ data, payload }) => {
+   724→      const job: DiscoveryJob = {
+   725→        id: data.jobId,
+   726→        status: data.status || 'pending',
+   727→        source: payload.source,
+   728→        niche: payload.niche,
+   729→        country: payload.country || '',
+   730→        city: payload.city,
+   731→        totalFound: 0,
+   732→        leadsAdded: 0,
+   733→        duplicatesSkipped: 0,
+   734→        errors: 0,
+   735→        createdAt: new Date().toISOString(),
+   736→        message: data.message,
+   737→      };
+   738→      setActiveJob(job);
+   739→
+   740→      // Save to localStorage
+   741→      try {
+   742→        const stored = localStorage.getItem('acquisitionos_discovery_jobs');
+   743→        const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
+   744→        jobs.unshift(job);
+   745→        localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+   746→      } catch {}
+   747→
+   748→      toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
+   749→    },
+   750→    onError: (error: Error) => {
+   751→      toast.error('Failed to start discovery', { description: error.message });
+   752→    },
+   753→  });
+   754→
+   755→  // Central start handler — "All Sources" requires a credit-cost confirmation first
+   756→  const handleStartDiscovery = useCallback((vars?: DiscoveryVars) => {
+   757→    if ((vars?.source ?? source) === 'all') {
+   758→      setPendingStart(vars);
+   759→      setAllSourcesConfirmOpen(true);
+   760→      return;
+   761→    }
+   762→    discoverMutation.mutate(vars);
+   763→  }, [source, discoverMutation]);
+   764→
+   765→  // ── AI Chat Mode handlers ────────────────────────────────
+   766→  const handleAiParse = async () => {
+   767→    const query = aiQuery.trim();
+   768→    if (!query || aiParsing) return;
+   769→    setAiParsing(true);
+   770→    setParsedIntent(null);
+   771→    try {
+   772→      const res = await fetch('/api/discovery/parse-intent', {
+   773→        method: 'POST',
+   774→        headers: { 'Content-Type': 'application/json' },
+   775→        body: JSON.stringify({ query }),
+   776→      });
+   777→      const data = await res.json().catch(() => ({}));
+   778→      if (!res.ok) throw new Error(data.error || 'Failed to read your request');
+   779→      setParsedIntent(data.parsed as ParsedIntent);
+   780→    } catch (err) {
+   781→      toast.error('Could not read your request', {
+   782→        description: err instanceof Error ? err.message : 'Please try rephrasing your description.',
+   783→      });
+   784→    } finally {
+   785→      setAiParsing(false);
+   786→    }
+   787→  };
+   788→
+   789→  const handleEditFilters = () => {
+   790→    // Fill the existing filter fields with the parsed values and switch to Filter Mode
+   791→    if (parsedIntent) {
+   792→      setNiche(parsedIntent.niche);
+   793→      setCountry(parsedIntent.country);
+   794→      setCity(parsedIntent.city || '');
+   795→    }
+   796→    setSearchMode('filters');
+   797→  };
+   798→
+   799→  // Credit-cost estimate shown in the "All Sources" confirmation
+   800→  const allSourcesCreditsEstimate = (() => {
+
+[showing lines 1-800 of 1529; use offset=801 with limit to continue reading]

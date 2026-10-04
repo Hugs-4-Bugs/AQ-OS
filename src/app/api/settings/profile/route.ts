@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { validateSubmittedPhone } from '@/lib/phone';
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,8 +69,41 @@ export async function PUT(request: NextRequest) {
     const { name, phone, country, avatar, company } = body;
 
     const updateData: Record<string, unknown> = {};
+
+    // ── Phone validation (server-side source of truth) ────────────
+    // The local number is at most 10 digits and digits-only; the country
+    // calling code is selected separately (UI) and does NOT count toward
+    // that limit. A submitted value that is byte-identical OR digit-identical
+    // to the STORED value is treated as an untouched round-trip and accepted
+    // verbatim — this preserves legacy records (which pre-date validation)
+    // and never blocks unrelated profile saves (name/company/etc.). Only
+    // NEW or EDITED values must satisfy the current rules.
+    if (phone !== undefined && phone !== null) {
+      const submittedPhone = String(phone).trim();
+      const existingUser = await db.user.findUnique({
+        where: { id: authUser.id },
+        select: { phone: true },
+      });
+      const storedPhone = (existingUser?.phone ?? '').trim();
+
+      const isRoundTrip =
+        submittedPhone === storedPhone ||
+        submittedPhone.replace(/\D/g, '') === storedPhone.replace(/\D/g, '');
+
+      if (!isRoundTrip) {
+        const phoneCheck = validateSubmittedPhone(submittedPhone);
+        if (!phoneCheck.valid) {
+          return NextResponse.json(
+            { error: phoneCheck.error || 'Invalid phone number' },
+            { status: 400 }
+          );
+        }
+      }
+
+      updateData.phone = submittedPhone;
+    }
+
     if (name !== undefined) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone;
     if (country !== undefined) updateData.country = country;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (company !== undefined) {

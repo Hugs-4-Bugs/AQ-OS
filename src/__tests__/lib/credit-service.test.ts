@@ -328,7 +328,12 @@ describe('credit-service', () => {
   describe('utility functions', () => {
     it('getActionCost returns correct cost for known action', () => {
       expect(getActionCost('lead_discovery')).toBe(1);
-      expect(getActionCost('deep_analysis')).toBe(1.5);
+      // NOTE: `src/lib/credit-service.ts` is the RUNTIME source of truth for
+      // billing (discovery/enrichment import CREDIT_COSTS from it). The older
+      // `src/lib/credit-costs.ts` copy diverges (1.5); this assertion pins the
+      // value that is actually charged at runtime so tests cannot silently
+      // assert a cost the user is never billed.
+      expect(getActionCost('deep_analysis')).toBe(5);
     });
 
     it('getActionCost returns 0 for unknown action', () => {
@@ -339,6 +344,114 @@ describe('credit-service', () => {
       const costs = getAllCreditCosts();
       expect(costs.lead_discovery).toBe(1);
       expect(Object.keys(costs)).toHaveLength(8);
+    });
+  });
+
+  // ── Idempotency WRITE-PATH regression (double-charge prevention) ──
+  // Root-cause regression guard: the ledger row MUST be written under the same
+  // composite action label that the pre-check looks for. The historical bug was
+  // that the write used the plain action, so the lookup never matched and a
+  // replay/retry double-charged. The read-side-only mocks above could never
+  // catch it, so these tests pin the write side explicitly.
+
+  describe('idempotency write-path regression', () => {
+    it('writes the deduction under the composite idempotent action and replays return alreadyProcessed without a second charge', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ credits: 50, plan: 'free' });
+      mockPrisma.user.update.mockResolvedValue({ credits: 49 });
+
+      // First call: no existing ledger row, then capture what was written.
+      mockPrisma.creditsLedger.findFirst.mockResolvedValueOnce(null);
+      let written: { id: string; userId: string; action: string; credits: number; balance: number } | null = null;
+      mockPrisma.creditsLedger.create.mockImplementation((args: { data: { userId: string; action: string; credits: number; balance: number } }) => {
+        written = { id: 'ledger-idem-1', ...args.data };
+        return written;
+      });
+
+      const first = await deductCredits({
+        userId: 'user-1',
+        action: 'lead_discovery',
+        cost: 1,
+        referenceId: 'job-1',
+        idempotencyKey: 'job-1:lead:3',
+      });
+
+      expect(first.success).toBe(true);
+      expect(first.alreadyProcessed).toBeUndefined();
+      // THE REGRESSION: the row must be written under the composite label
+      // (`${action}_idempotent_${key}`) that the pre-check queries.
+      expect(written!.action).toBe('lead_discovery_idempotent_job-1:lead:3');
+      expect(mockPrisma.creditsLedger.create).toHaveBeenCalledTimes(1);
+
+      // Replay with the same key: the pre-check must now MATCH the written row
+      // and no second deduction may occur.
+      mockPrisma.creditsLedger.findFirst.mockResolvedValueOnce(written);
+      mockPrisma.user.findUnique.mockResolvedValue({ credits: 49, plan: 'free' });
+
+      const replay = await deductCredits({
+        userId: 'user-1',
+        action: 'lead_discovery',
+        cost: 1,
+        referenceId: 'job-1',
+        idempotencyKey: 'job-1:lead:3',
+      });
+
+      expect(replay.success).toBe(true);
+      expect(replay.alreadyProcessed).toBe(true);
+      expect(replay.newBalance).toBe(49);
+      expect(mockPrisma.creditsLedger.create).toHaveBeenCalledTimes(1); // still exactly one charge
+    });
+
+    it('writes the refund under the composite idempotent action and replays return alreadyProcessed without a second refund', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ credits: 49 });
+      mockPrisma.user.update.mockResolvedValue({ credits: 50 });
+
+      mockPrisma.creditsLedger.findFirst.mockResolvedValueOnce(null);
+      let written: { id: string; action: string; credits: number; balance: number } | null = null;
+      mockPrisma.creditsLedger.create.mockImplementation((args: { data: { userId: string; action: string; credits: number; balance: number } }) => {
+        written = { id: 'ledger-refund-1', ...args.data };
+        return written;
+      });
+
+      const first = await refundCredits({
+        userId: 'user-1',
+        amount: 1,
+        originalAction: 'lead_discovery',
+        referenceId: 'job-1',
+        idempotencyKey: 'job-1:lead:3:refund',
+      });
+
+      expect(first.success).toBe(true);
+      expect(first.alreadyProcessed).toBeUndefined();
+      expect(written!.action).toBe('lead_discovery_refund_idempotent_job-1:lead:3:refund');
+      expect(mockPrisma.creditsLedger.create).toHaveBeenCalledTimes(1);
+
+      // Replay: pre-check matches the written row → no second refund.
+      mockPrisma.creditsLedger.findFirst.mockResolvedValueOnce(written);
+      mockPrisma.user.findUnique.mockResolvedValue({ credits: 50 });
+
+      const replay = await refundCredits({
+        userId: 'user-1',
+        amount: 1,
+        originalAction: 'lead_discovery',
+        referenceId: 'job-1',
+        idempotencyKey: 'job-1:lead:3:refund',
+      });
+
+      expect(replay.success).toBe(true);
+      expect(replay.alreadyProcessed).toBe(true);
+      expect(mockPrisma.creditsLedger.create).toHaveBeenCalledTimes(1); // still exactly one refund
+    });
+
+    it('plain deductions (no key) keep writing the plain action label', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ credits: 50, plan: 'free' });
+      mockPrisma.user.update.mockResolvedValue({ credits: 49 });
+      mockPrisma.creditsLedger.create.mockResolvedValue({ id: 'ledger-plain' });
+
+      await deductCredits({ userId: 'user-1', action: 'lead_discovery', cost: 1 });
+
+      expect(mockPrisma.creditsLedger.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: 'lead_discovery' }) })
+      );
     });
   });
 });

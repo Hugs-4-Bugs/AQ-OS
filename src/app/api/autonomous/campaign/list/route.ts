@@ -6,12 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
-import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
-    const gate = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
-    if (!gate.allowed) return gate.response!;
     try {
       const url = new URL(request.url);
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);

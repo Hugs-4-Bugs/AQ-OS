@@ -77,12 +77,17 @@ Analyze this lead and return a JSON object with these EXACT fields:
     "gaps": ["array of tech gaps"]
   },
   "recommendations": ["array of actionable next steps"],
-  "purchaseProbability": number (0-100),
+  "purchaseProbability": number (0-100 — your qualitative confidence in FIT, not a claimed conversion metric),
   "outreachPriority": "low|medium|high|critical",
-  "estimatedDealSize": "string - estimated deal size range",
+  "estimatedDealSize": "string - estimate ONLY if lead data supports a size band (e.g. staff count, site scale); otherwise exactly 'unknown — insufficient evidence'",
   "bestApproach": "string - how to approach this lead",
-  "keyPainPoints": ["array of specific pain points to address"]
+  "keyPainPoints": ["array of specific pain points to address, each grounded in the provided evidence"]
 }
+
+EVIDENCE & HONESTY RULES (binding):
+- Ground every claim in the provided lead information. Do NOT fabricate revenue, profit, customer counts, percentages, conversion rates, ROI, payback periods, or money lost.
+- If impact cannot be reliably quantified with the available evidence, say so explicitly (e.g. "impact cannot be reliably quantified with the available evidence") instead of inventing a number.
+- Any estimate must be visibly qualified as an estimate with its basis.
 
 Be specific, data-driven, and actionable. Return ONLY valid JSON.`,
         createdAt: '2025-01-15',
@@ -152,8 +157,8 @@ Be analytical, evidence-based, and explain your reasoning. Return ONLY valid JSO
     name: 'Outreach Generation',
     description: 'Generate personalized outreach messages for different channels',
     category: 'outreach',
-    currentVersion: 4,
-    variables: ['leadContext', 'businessName', 'ownerName', 'niche', 'channel', 'tone', 'language', 'senderSignature', 'senderBusiness', 'campaignContext'],
+    currentVersion: 3,
+    variables: ['leadContext', 'businessName', 'ownerName', 'niche', 'channel', 'tone', 'language', 'senderSignature'],
     versions: [
       {
         version: 1,
@@ -183,7 +188,7 @@ Generate outreach content and return a JSON object:
   "followUpSuggestion": "string - suggested follow-up approach",
   "personalizationPoints": ["array of what makes this personalized"],
   "toneAnalysis": "string - how the tone matches the target",
-  "estimatedReplyRate": number (0-100),
+  "estimatedReplyRate": number (0-100 — your qualitative confidence in message quality based ONLY on the provided evidence; this is an internal heuristic, never a measured or guaranteed outcome),
   "alternativeVersions": {
     "formal": "string - formal version of the message",
     "casual": "string - casual version",
@@ -226,7 +231,7 @@ Generate outreach content and return a JSON object:
   "followUpSuggestion": "string - suggested follow-up approach",
   "personalizationPoints": ["array of what makes this personalized"],
   "toneAnalysis": "string - how the tone matches the target",
-  "estimatedReplyRate": number (0-100),
+  "estimatedReplyRate": number (0-100 — your qualitative confidence in message quality based ONLY on the provided evidence; this is an internal heuristic, never a measured or guaranteed outcome),
   "alternativeVersions": {
     "formal": "string - formal version of the message",
     "casual": "string - casual version",
@@ -246,65 +251,6 @@ Return ONLY valid JSON.`,
         createdAt: '2026-10-02',
         description: 'Adds authenticated sender signature block (no more [Your Name] placeholders)',
       },
-      {
-        version: 4,
-        content: `You are an expert outreach writer. You write for the SENDER'S OWN business — which can be from ANY industry (wellness, hospitality, retail, consulting, manufacturing, software, marketing, education, …). You NEVER assume the sender sells websites, software, or marketing unless the sender's business context says so.
-
-=== RECIPIENT (verified information only) ===
-{{leadContext}}
-
-Recipient business: {{businessName}}
-Contact: {{ownerName}}
-Recipient niche: {{niche}}
-
-=== SENDER ===
-{{senderBusiness}}
-
-{{senderSignature}}
-
-{{campaignContext}}
-
-=== MESSAGE REQUIREMENTS ===
-Channel: {{channel}}
-Tone: {{tone}}
-Language: {{language}}
-
-Write a genuinely personalized first-touch message that:
-1. Opens with why THIS recipient is relevant to the sender's stated goal — based ONLY on the recipient facts above (their business, niche, location, services, or website observations listed in the lead context).
-2. Briefly says what the sender offers (from SENDER context) and why it may be relevant to this recipient — e.g. a wellness studio might offer corporate wellness for hospital staff; a software company its actual product; a marketing agency its marketing services. Use the sender's real offer, never a default.
-3. States the requested outcome and uses the sender's preferred call to action (or a suitable, truthful one if none is set).
-
-STRICT HONESTY RULES (violations are failures):
-- Do NOT invent relationships, prior conversations, customer results, statistics, awards, or recipient-specific problems.
-- Do NOT claim the recipient has website problems, needs a website/redesign, needs marketing/SEO, or has any other business gap UNLESS the lead context above explicitly shows it (e.g. digitalWeaknesses or opportunityNotes observed during research).
-- Do NOT force the message into a website-audit or software-sales template.
-- If the sender context is missing or empty, write a short, honest, professional introduction that asks a relevant question — do not fabricate an offer.
-- Personalization must be specific: reference real recipient facts. A message that merely replaces the recipient's name in a generic template is a failure.
-- The message must remain truthful, professional and natural, in {{language}}.
-
-Generate outreach content and return a JSON object:
-{
-  "subject": "string - email subject line (for email channel)",
-  "body": "string - main message body",
-  "callToAction": "string - specific CTA",
-  "followUpSuggestion": "string - suggested follow-up approach",
-  "personalizationPoints": ["array of the real recipient facts used"],
-  "toneAnalysis": "string - how the tone matches the target",
-  "estimatedReplyRate": number (0-100),
-  "alternativeVersions": {
-    "formal": "string - formal version of the message",
-    "casual": "string - casual version",
-    "urgent": "string - urgency-driven version"
-  }
-}
-
-- Keep it concise (under 150 words for email, under 100 for WhatsApp/LinkedIn)
-- Sign the message ONLY with the real sender details given above; never use placeholders like [Your Name]
-
-Return ONLY valid JSON.`,
-        createdAt: '2026-10-02',
-        description: 'Universal context-driven personalization: sender business profile + campaign overrides, strict honesty rules, any industry',
-      },
     ],
   },
 
@@ -315,7 +261,7 @@ Return ONLY valid JSON.`,
     description: 'Generate follow-up messages for leads that have gone silent',
     category: 'outreach',
     currentVersion: 2,
-    variables: ['leadContext', 'businessName', 'previousMessage', 'daysSinceLastContact', 'channel', 'senderSignature', 'senderBusiness', 'campaignContext', 'tone', 'language'],
+    variables: ['leadContext', 'businessName', 'previousMessage', 'daysSinceLastContact', 'channel', 'senderSignature'],
     versions: [
       {
         version: 1,
@@ -344,7 +290,7 @@ Make it feel natural, not pushy. Reference specific value propositions. Return O
       },
       {
         version: 2,
-        content: `You are a follow-up message expert for AcquisitionOS. Generate compelling follow-up messages that re-engage silent leads. The sender may be from ANY industry — write about the sender's actual offer from the SENDER BUSINESS CONTEXT below, never a generic website/software pitch.
+        content: `You are a follow-up message expert for AcquisitionOS. Generate compelling follow-up messages that re-engage silent leads.
 
 Lead Information:
 {{leadContext}}
@@ -353,16 +299,8 @@ Business: {{businessName}}
 Previous Message Sent: {{previousMessage}}
 Days Since Last Contact: {{daysSinceLastContact}}
 Channel: {{channel}}
-Tone: {{tone}}
-Language: {{language}}
-
-{{senderBusiness}}
 
 {{senderSignature}}
-
-{{campaignContext}}
-
-Honesty: do not invent new claims, results, or recipient problems that were not in the previous message or the lead context.
 
 Return a JSON object:
 {
