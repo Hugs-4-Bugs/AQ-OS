@@ -1,33 +1,41 @@
 # ═══════════════════════════════════════════════════════════════════
-# AcquisitionOS — Docker Compose (Development)
-# All services for local development
+# AcquisitionOS — Complete Local Development Stack
+# All services for local development in one command: docker compose up --build
 # ═══════════════════════════════════════════════════════════════════
-
-version: "3.9"
 
 services:
   # ── PostgreSQL ────────────────────────────────────────────────────
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
+    container_name: acquisitionos-postgres
+    restart: unless-stopped
     environment:
+      POSTGRES_USER: acquisitionos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acquisitionos_secret}
       POSTGRES_DB: acquisitionos
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acquisitionos_dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U acquisitionos -d acquisitionos"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+      start_period: 10s
+    networks:
+      - acquisitionos-local
 
   # ── Redis ─────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    container_name: acquisitionos-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     ports:
@@ -37,22 +45,56 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    networks:
+      - acquisitionos-local
+
+  # ── Mailpit (Local SMTP Testing) ──────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: acquisitionos-mailpit
     restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "0"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    networks:
+      - acquisitionos-local
 
   # ── FastAPI Backend ───────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: acquisitionos-backend
+    restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-acquisitionos_dev}@postgres:5432/acquisitionos
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - ENVIRONMENT=development
+      # Database
+      DATABASE_URL: "postgresql+asyncpg://acquisitionos:${POSTGRES_PASSWORD:-acquisitionos_secret}@postgres:5432/acquisitionos"
+      DATABASE_URL_SYNC: "postgresql://acquisitionos:${POSTGRES_PASSWORD:-acquisitionos_secret}@postgres:5432/acquisitionos"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acquisitionos_secret}
+      # Redis
+      REDIS_URL: "redis://redis:6379/0"
+      # Celery
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      # SMTP (Mailpit)
+      SMTP_HOST: "mailpit"
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      SMTP_USE_TLS: "false"
+      # App
+      APP_ENV: "local"
+      ENVIRONMENT: "development"
+      LOG_LEVEL: "debug"
+      FRONTEND_URL: "http://localhost:3000"
+      ALLOWED_ORIGINS: "http://localhost:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,78 +102,104 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    restart: unless-stopped
+    networks:
+      - acquisitionos-local
 
   # ── Celery Worker ─────────────────────────────────────────────────
   celery-worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 -Q celery,email,billing,scraping,notifications,maintenance,workflows
+    container_name: acquisitionos-celery-worker
+    restart: unless-stopped
+    command: ["celery", "-A", "app.celery_app", "worker", "--loglevel=debug", "--concurrency=2"]
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-acquisitionos_dev}@postgres:5432/acquisitionos
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      DATABASE_URL: "postgresql+asyncpg://acquisitionos:${POSTGRES_PASSWORD:-acquisitionos_secret}@postgres:5432/acquisitionos"
+      REDIS_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      APP_ENV: "local"
+      LOG_LEVEL: "debug"
     depends_on:
-      - backend
-      - redis
-    restart: unless-stopped
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - acquisitionos-local
 
   # ── Celery Beat (Scheduler) ───────────────────────────────────────
   celery-beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    container_name: acquisitionos-celery-beat
+    restart: unless-stopped
+    command: ["celery", "-A", "app.celery_app", "beat", "--loglevel=debug"]
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-acquisitionos_dev}@postgres:5432/acquisitionos
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      APP_ENV: "local"
+      LOG_LEVEL: "debug"
     depends_on:
-      - backend
-      - redis
-    restart: unless-stopped
+      redis:
+        condition: service_healthy
+    networks:
+      - acquisitionos-local
 
   # ── Celery Flower (Monitoring) ────────────────────────────────────
   celery-flower:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: acquisitionos-celery-flower
+    restart: unless-stopped
     command: celery -A app.celery_app flower --port=5555
     ports:
       - "5555:5555"
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
     depends_on:
-      - celery-worker
-      - redis
-    restart: unless-stopped
+      celery-worker:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - acquisitionos-local
 
   # ── Next.js Frontend ──────────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    command: npm run dev
+    container_name: acquisitionos-frontend
+    restart: unless-stopped
+    command: bun run dev
     volumes:
       - ./src:/app/src
       - /app/node_modules
+      - /app/.next
+    environment:
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      DATABASE_URL: "file:/app/data/custom.db"
     ports:
       - "3000:3000"
     depends_on:
-      - backend
-    restart: unless-stopped
+      backend:
+        condition: service_started
+    networks:
+      - acquisitionos-local
 
   # ── Nginx Reverse Proxy ───────────────────────────────────────────
   nginx:
     image: nginx:alpine
+    container_name: acquisitionos-nginx
+    restart: unless-stopped
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -140,8 +208,16 @@ services:
     depends_on:
       - frontend
       - backend
-    restart: unless-stopped
+    networks:
+      - acquisitionos-local
+
+networks:
+  acquisitionos-local:
+    driver: bridge
+    name: acquisitionos-local
 
 volumes:
   postgres_data:
+    name: acquisitionos-postgres-data
   redis_data:
+    name: acquisitionos-redis-data

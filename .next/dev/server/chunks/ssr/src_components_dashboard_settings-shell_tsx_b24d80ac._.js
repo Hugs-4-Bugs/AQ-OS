@@ -38,6 +38,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$qr$2d$code$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__QrCode$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/qr-code.js [app-ssr] (ecmascript) <export default as QrCode>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$briefcase$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Briefcase$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/briefcase.js [app-ssr] (ecmascript) <export default as Briefcase>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$building$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Building2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/building-2.js [app-ssr] (ecmascript) <export default as Building2>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$book$2d$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__BookUser$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/book-user.js [app-ssr] (ecmascript) <export default as BookUser>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$life$2d$buoy$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__LifeBuoy$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/life-buoy.js [app-ssr] (ecmascript) <export default as LifeBuoy>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$silent$2d$refresh$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/silent-refresh.ts [app-ssr] (ecmascript)");
@@ -57,16 +58,20 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$c
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$auth$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/auth-store.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/store.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$subscription$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/subscription-store.ts [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/phone.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$auth$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/hooks/use-auth.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$themes$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next-themes/dist/index.mjs [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$settings$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/settings-store.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/sonner/dist/index.mjs [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$api$2d$keys$2d$panel$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/dashboard/api-keys-panel.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$offer$2d$profile$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/dashboard/offer-profile-settings.tsx [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$business$2d$profiles$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/dashboard/business-profiles-settings.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$personal$2d$context$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/dashboard/personal-context-settings.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$business$2d$profile$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/dashboard/business-profile-settings.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$legal$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/legal-store.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$observability$2d$dashboard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/dashboard/observability-dashboard.tsx [app-ssr] (ecmascript)");
 'use client';
+;
+;
 ;
 ;
 ;
@@ -103,7 +108,12 @@ const SETTINGS_NAV = [
         icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__User$3e$__["User"]
     },
     {
-        id: 'business-profiles',
+        id: 'context',
+        label: 'My Context',
+        icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$book$2d$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__BookUser$3e$__["BookUser"]
+    },
+    {
+        id: 'profiles',
         label: 'Business Profiles',
         icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$building$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Building2$3e$__["Building2"]
     },
@@ -169,7 +179,7 @@ function SettingsShell() {
     const clearPendingSettingsSection = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAppStore"])((s)=>s.clearPendingSettingsSection);
     const VALID_SECTIONS = [
         'profile',
-        'business-profiles',
+        'context',
         'offer',
         'notifications',
         'billing',
@@ -216,6 +226,11 @@ function SettingsShell() {
     const [profileLoadedOnce, setProfileLoadedOnce] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [profileLoadFailed, setProfileLoadFailed] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [profileSaving, setProfileSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    // ── Phone: country calling code (dropdown) + local number ────
+    // The calling code is selected separately and does NOT count toward the
+    // 10-digit local-number limit. Shared logic lives in @/lib/phone.
+    const [phoneDialIso, setPhoneDialIso] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DEFAULT_PHONE_ISO"]);
+    const [phoneNational, setPhoneNational] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('');
     // ── Billing state ────────────────────────────────────────────
     const [billing, setBilling] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])({
         plan: 'free',
@@ -331,6 +346,7 @@ function SettingsShell() {
                     company: data.profile?.company || '',
                     avatar: data.profile?.avatar || ''
                 });
+                applyStoredPhone(data.profile?.phone || '', data.profile?.country || '');
                 setProfileLoadedOnce(true);
             } else if (res.status === 401) {
                 // Access token expired — try one refresh, then re-fetch so the form
@@ -355,6 +371,7 @@ function SettingsShell() {
                             company: data.profile?.company || '',
                             avatar: data.profile?.avatar || ''
                         });
+                        applyStoredPhone(data.profile?.phone || '', data.profile?.country || '');
                         setProfileLoadedOnce(true);
                         return;
                     }
@@ -605,6 +622,17 @@ function SettingsShell() {
             if (passwordOtpCooldownRef.current) clearInterval(passwordOtpCooldownRef.current);
         };
     }, []);
+    // ── Phone helpers ─────────────────────────────────────────
+    // Prefill the country-code selector + local number from the stored value.
+    // Legacy values are preserved as-is; if the saved local part exceeds the
+    // 10-digit limit it is surfaced (not silently truncated) so the user can
+    // correct it.
+    const applyStoredPhone = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])((storedPhone, storedCountry)=>{
+        const parsed = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["parseStoredPhone"])(storedPhone, storedCountry);
+        const isoForDial = parsed.dial ? __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["COUNTRY_CALLING_CODES"].find((c)=>c.dial === parsed.dial)?.iso ?? __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DEFAULT_PHONE_ISO"] : (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["dialForCountryName"])(storedCountry) ? __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["COUNTRY_CALLING_CODES"].find((c)=>c.dial === (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["dialForCountryName"])(storedCountry))?.iso ?? __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DEFAULT_PHONE_ISO"] : __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DEFAULT_PHONE_ISO"];
+        setPhoneDialIso(isoForDial);
+        setPhoneNational(parsed.national);
+    }, []);
     // ── Save profile ─────────────────────────────────────────────
     const handleSaveProfile = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
         // Never write to the DB from a form that never hydrated — the fields
@@ -612,6 +640,23 @@ function SettingsShell() {
         if (!profileLoadedOnce) {
             __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].error('Profile has not loaded yet. Please wait or reload the page before saving.');
             return;
+        }
+        // Compose the phone from the selected country code + local number.
+        // The calling code does NOT count toward the 10-digit local limit.
+        const trimmedNational = phoneNational.trim();
+        const selectedDial = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["countryByIso"])(phoneDialIso)?.dial ?? (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["dialForCountryName"])(profile.country) ?? '';
+        const phoneToSave = trimmedNational ? selectedDial ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["composePhone"])(selectedDial, trimmedNational) : trimmedNational : '';
+        // Mirror the server's round-trip rule: a value that is byte-identical or
+        // digit-identical to the STORED value is an untouched legacy round-trip
+        // and must not be blocked (preserves existing records).
+        const loadedDigits = (profile.phone || '').replace(/\D/g, '');
+        const isPhoneRoundTrip = phoneToSave === (profile.phone || '') || phoneToSave.replace(/\D/g, '') === loadedDigits;
+        if (!isPhoneRoundTrip) {
+            const phoneCheck = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["validateSubmittedPhone"])(phoneToSave);
+            if (!phoneCheck.valid) {
+                __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].error(phoneCheck.error || 'Invalid phone number');
+                return;
+            }
         }
         setProfileSaving(true);
         try {
@@ -623,7 +668,7 @@ function SettingsShell() {
                 credentials: 'include',
                 body: JSON.stringify({
                     name: profile.name,
-                    phone: profile.phone,
+                    phone: phoneToSave,
                     country: profile.country,
                     company: profile.company,
                     avatar: profile.avatar
@@ -632,6 +677,10 @@ function SettingsShell() {
             if (res.ok) {
                 // Refresh auth user data so navbar updates
                 await fetchUser();
+                setProfile((p)=>({
+                        ...p,
+                        phone: phoneToSave
+                    }));
                 __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].success('Profile updated successfully');
             } else {
                 const data = await res.json();
@@ -644,6 +693,8 @@ function SettingsShell() {
         }
     }, [
         profile,
+        phoneDialIso,
+        phoneNational,
         fetchUser
     ]);
     // ── Request OTP for in-app password change ──────────────────
@@ -1100,7 +1151,7 @@ function SettingsShell() {
                             children: "Settings"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 971,
+                            lineNumber: 1031,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1117,20 +1168,20 @@ function SettingsShell() {
                                                 className: "h-4 w-4 shrink-0"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 985,
+                                                lineNumber: 1045,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                 children: item.label
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 986,
+                                                lineNumber: 1046,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, item.id, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 977,
+                                        lineNumber: 1037,
                                         columnNumber: 17
                                     }, this);
                                 }),
@@ -1142,37 +1193,37 @@ function SettingsShell() {
                                             className: "h-4 w-4 shrink-0"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 996,
+                                            lineNumber: 1056,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                             children: "Help & Support"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 997,
+                                            lineNumber: 1057,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 992,
+                                    lineNumber: 1052,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 972,
+                            lineNumber: 1032,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                    lineNumber: 970,
+                    lineNumber: 1030,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                lineNumber: 969,
+                lineNumber: 1029,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollArea"], {
@@ -1190,7 +1241,7 @@ function SettingsShell() {
                                             children: "Profile"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1011,
+                                            lineNumber: 1071,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1198,13 +1249,13 @@ function SettingsShell() {
                                             children: "Manage your account information"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1012,
+                                            lineNumber: 1072,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1010,
+                                    lineNumber: 1070,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1223,7 +1274,7 @@ function SettingsShell() {
                                                         "aria-label": "Upload profile photo"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1019,
+                                                        lineNumber: 1079,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1242,12 +1293,12 @@ function SettingsShell() {
                                                                         className: "h-6 w-6 animate-spin text-muted-foreground"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1040,
+                                                                        lineNumber: 1100,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1039,
+                                                                    lineNumber: 1099,
                                                                     columnNumber: 27
                                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                                                                     children: [
@@ -1256,7 +1307,7 @@ function SettingsShell() {
                                                                             alt: profile.name
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1044,
+                                                                            lineNumber: 1104,
                                                                             columnNumber: 29
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AvatarFallback"], {
@@ -1264,14 +1315,14 @@ function SettingsShell() {
                                                                             children: userInitials
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1045,
+                                                                            lineNumber: 1105,
                                                                             columnNumber: 29
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1037,
+                                                                lineNumber: 1097,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1281,18 +1332,18 @@ function SettingsShell() {
                                                                     className: "h-5 w-5"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1059,
+                                                                    lineNumber: 1119,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1052,
+                                                                lineNumber: 1112,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1027,
+                                                        lineNumber: 1087,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1302,7 +1353,7 @@ function SettingsShell() {
                                                                 children: profile.name || 'Your Name'
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1063,
+                                                                lineNumber: 1123,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1310,7 +1361,7 @@ function SettingsShell() {
                                                                 children: profile.email
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1064,
+                                                                lineNumber: 1124,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1322,7 +1373,7 @@ function SettingsShell() {
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1065,
+                                                                lineNumber: 1125,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1330,24 +1381,24 @@ function SettingsShell() {
                                                                 children: "Click the photo to upload a new avatar (JPEG, PNG, GIF, WebP · max 5MB)"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1066,
+                                                                lineNumber: 1126,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1062,
+                                                        lineNumber: 1122,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1017,
+                                                lineNumber: 1077,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1071,
+                                                lineNumber: 1131,
                                                 columnNumber: 19
                                             }, this),
                                             profileLoading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1356,12 +1407,12 @@ function SettingsShell() {
                                                     className: "h-6 w-6 animate-spin text-muted-foreground"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1075,
+                                                    lineNumber: 1135,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1074,
+                                                lineNumber: 1134,
                                                 columnNumber: 21
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                                                 children: [
@@ -1373,7 +1424,7 @@ function SettingsShell() {
                                                                 children: "Your profile could not be loaded. Saving is disabled to protect your data."
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1081,
+                                                                lineNumber: 1141,
                                                                 columnNumber: 27
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -1384,13 +1435,13 @@ function SettingsShell() {
                                                                 children: "Retry"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1084,
+                                                                lineNumber: 1144,
                                                                 columnNumber: 27
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1080,
+                                                        lineNumber: 1140,
                                                         columnNumber: 25
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1401,7 +1452,7 @@ function SettingsShell() {
                                                                 children: "Full Name"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1090,
+                                                                lineNumber: 1150,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1414,13 +1465,13 @@ function SettingsShell() {
                                                                 className: "h-9"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1091,
+                                                                lineNumber: 1151,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1089,
+                                                        lineNumber: 1149,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1431,7 +1482,7 @@ function SettingsShell() {
                                                                 children: "Email"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1099,
+                                                                lineNumber: 1159,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1441,7 +1492,7 @@ function SettingsShell() {
                                                                 className: "h-9 bg-muted"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1100,
+                                                                lineNumber: 1160,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1449,13 +1500,13 @@ function SettingsShell() {
                                                                 children: "Email cannot be changed. Contact support if needed."
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1106,
+                                                                lineNumber: 1166,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1098,
+                                                        lineNumber: 1158,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1466,26 +1517,111 @@ function SettingsShell() {
                                                                 children: "Phone"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1109,
+                                                                lineNumber: 1169,
                                                                 columnNumber: 25
                                                             }, this),
-                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
-                                                                value: profile.phone,
-                                                                onChange: (e)=>setProfile((p)=>({
-                                                                            ...p,
-                                                                            phone: e.target.value
-                                                                        })),
-                                                                placeholder: "+1 (555) 000-0000",
-                                                                className: "h-9"
-                                                            }, void 0, false, {
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                className: "flex gap-2",
+                                                                children: [
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
+                                                                        value: phoneDialIso,
+                                                                        onValueChange: (v)=>setPhoneDialIso(v),
+                                                                        children: [
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectTrigger"], {
+                                                                                className: "h-9 w-[150px] shrink-0",
+                                                                                "aria-label": "Country calling code",
+                                                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {
+                                                                                    children: (()=>{
+                                                                                        const c = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["countryByIso"])(phoneDialIso);
+                                                                                        return c ? `+${c.dial}` : 'Code';
+                                                                                    })()
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                                    lineNumber: 1173,
+                                                                                    columnNumber: 31
+                                                                                }, this)
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                                lineNumber: 1172,
+                                                                                columnNumber: 29
+                                                                            }, this),
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
+                                                                                className: "max-h-[280px] overflow-y-auto",
+                                                                                children: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["COUNTRY_CALLING_CODES"].map((c)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
+                                                                                        value: c.iso,
+                                                                                        children: [
+                                                                                            c.name,
+                                                                                            " (+",
+                                                                                            c.dial,
+                                                                                            ")"
+                                                                                        ]
+                                                                                    }, c.iso, true, {
+                                                                                        fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                                        lineNumber: 1182,
+                                                                                        columnNumber: 33
+                                                                                    }, this))
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                                lineNumber: 1180,
+                                                                                columnNumber: 29
+                                                                            }, this)
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                        lineNumber: 1171,
+                                                                        columnNumber: 27
+                                                                    }, this),
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
+                                                                        value: phoneNational,
+                                                                        onChange: (e)=>setPhoneNational((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["filterNationalInput"])(e.target.value)),
+                                                                        placeholder: "Local number",
+                                                                        inputMode: "numeric",
+                                                                        autoComplete: "tel-national",
+                                                                        maxLength: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAX_LOCAL_PHONE_DIGITS"],
+                                                                        className: "h-9 flex-1"
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                        lineNumber: 1188,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1110,
+                                                                lineNumber: 1170,
                                                                 columnNumber: 25
+                                                            }, this),
+                                                            phoneNational.length > __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAX_LOCAL_PHONE_DIGITS"] && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                className: "text-xs text-destructive",
+                                                                children: [
+                                                                    "This saved number has ",
+                                                                    phoneNational.length,
+                                                                    " digits. Local numbers are limited to ",
+                                                                    __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAX_LOCAL_PHONE_DIGITS"],
+                                                                    " digits (the country code is not counted). Please update or clear it before saving."
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                lineNumber: 1199,
+                                                                columnNumber: 27
+                                                            }, this),
+                                                            phoneNational.length > 0 && phoneNational.length <= __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAX_LOCAL_PHONE_DIGITS"] && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                className: "text-xs text-muted-foreground",
+                                                                children: [
+                                                                    "Country code +",
+                                                                    (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["countryByIso"])(phoneDialIso)?.dial ?? '…',
+                                                                    " is selected separately and does not count toward the ",
+                                                                    __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$phone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MAX_LOCAL_PHONE_DIGITS"],
+                                                                    "-digit limit."
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                                                lineNumber: 1204,
+                                                                columnNumber: 27
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1108,
+                                                        lineNumber: 1168,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1496,7 +1632,7 @@ function SettingsShell() {
                                                                 children: "Country"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1118,
+                                                                lineNumber: 1210,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1509,13 +1645,13 @@ function SettingsShell() {
                                                                 className: "h-9"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1119,
+                                                                lineNumber: 1211,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1117,
+                                                        lineNumber: 1209,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1526,7 +1662,7 @@ function SettingsShell() {
                                                                 children: "Company"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1127,
+                                                                lineNumber: 1219,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1539,13 +1675,13 @@ function SettingsShell() {
                                                                 className: "h-9"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1128,
+                                                                lineNumber: 1220,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1126,
+                                                        lineNumber: 1218,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1559,25 +1695,25 @@ function SettingsShell() {
                                                                     className: "mr-2 h-3 w-3 animate-spin"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1137,
+                                                                    lineNumber: 1229,
                                                                     columnNumber: 44
                                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$save$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Save$3e$__["Save"], {
                                                                     className: "mr-2 h-3 w-3"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1137,
+                                                                    lineNumber: 1229,
                                                                     columnNumber: 96
                                                                 }, this),
                                                                 "Save Changes"
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1136,
+                                                            lineNumber: 1228,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1135,
+                                                        lineNumber: 1227,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
@@ -1585,56 +1721,18 @@ function SettingsShell() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1015,
+                                        lineNumber: 1075,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1014,
+                                    lineNumber: 1074,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1009,
-                            columnNumber: 13
-                        }, this),
-                        activeSection === 'business-profiles' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            className: "space-y-6",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                    children: [
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
-                                            className: "text-lg font-semibold",
-                                            children: "Business Profiles"
-                                        }, void 0, false, {
-                                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1152,
-                                            columnNumber: 17
-                                        }, this),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                            className: "text-sm text-muted-foreground",
-                                            children: "Multiple businesses, one account. Pick the profile the AI should use as your identity for lead discovery, website research and outreach."
-                                        }, void 0, false, {
-                                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1153,
-                                            columnNumber: 17
-                                        }, this)
-                                    ]
-                                }, void 0, true, {
-                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1151,
-                                    columnNumber: 15
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$business$2d$profiles$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
-                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1158,
-                                    columnNumber: 15
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1150,
+                            lineNumber: 1069,
                             columnNumber: 13
                         }, this),
                         activeSection === 'offer' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1647,7 +1745,7 @@ function SettingsShell() {
                                             children: "My Offer"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1166,
+                                            lineNumber: 1244,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1655,24 +1753,100 @@ function SettingsShell() {
                                             children: "What you sell to prospects. The AI prospect pipeline matches detected company gaps to these offers."
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1167,
+                                            lineNumber: 1245,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1165,
+                                    lineNumber: 1243,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$offer$2d$profile$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1171,
+                                    lineNumber: 1249,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1164,
+                            lineNumber: 1242,
+                            columnNumber: 13
+                        }, this),
+                        activeSection === 'context' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "space-y-6",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
+                                            className: "text-lg font-semibold",
+                                            children: "My Context"
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                            lineNumber: 1259,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "text-sm text-muted-foreground",
+                                            children: "About you — what you do, goals, audience and communication style. The AI uses this to personalize workflows, outreach and analysis."
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                            lineNumber: 1260,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                    lineNumber: 1258,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$personal$2d$context$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                    lineNumber: 1264,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                            lineNumber: 1257,
+                            columnNumber: 13
+                        }, this),
+                        activeSection === 'profiles' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "space-y-6",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
+                                            className: "text-lg font-semibold",
+                                            children: "Business Profiles"
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                            lineNumber: 1274,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "text-sm text-muted-foreground",
+                                            children: "One profile per business/niche — offers, target market, tone and instructions. Select one on the Discover page or attach it to workflows."
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                            lineNumber: 1275,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                    lineNumber: 1273,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$business$2d$profile$2d$settings$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                    fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                                    lineNumber: 1279,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/components/dashboard/settings-shell.tsx",
+                            lineNumber: 1272,
                             columnNumber: 13
                         }, this),
                         activeSection === 'notifications' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1685,7 +1859,7 @@ function SettingsShell() {
                                             children: "Notifications"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1179,
+                                            lineNumber: 1287,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1693,13 +1867,13 @@ function SettingsShell() {
                                             children: "Choose what you want to be notified about"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1180,
+                                            lineNumber: 1288,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1178,
+                                    lineNumber: 1286,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1742,7 +1916,7 @@ function SettingsShell() {
                                                                     children: item.label
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1193,
+                                                                    lineNumber: 1301,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1750,13 +1924,13 @@ function SettingsShell() {
                                                                     children: item.description
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1194,
+                                                                    lineNumber: 1302,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1192,
+                                                            lineNumber: 1300,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$switch$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Switch"], {
@@ -1767,13 +1941,13 @@ function SettingsShell() {
                                                                     }))
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1196,
+                                                            lineNumber: 1304,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, item.key, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1191,
+                                                    lineNumber: 1299,
                                                     columnNumber: 21
                                                 }, this)),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1787,42 +1961,42 @@ function SettingsShell() {
                                                             className: "mr-2 h-3 w-3 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1204,
+                                                            lineNumber: 1312,
                                                             columnNumber: 38
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$save$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Save$3e$__["Save"], {
                                                             className: "mr-2 h-3 w-3"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1204,
+                                                            lineNumber: 1312,
                                                             columnNumber: 90
                                                         }, this),
                                                         "Save Preferences"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1203,
+                                                    lineNumber: 1311,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1202,
+                                                lineNumber: 1310,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1183,
+                                        lineNumber: 1291,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1182,
+                                    lineNumber: 1290,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1177,
+                            lineNumber: 1285,
                             columnNumber: 13
                         }, this),
                         activeSection === 'billing' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1835,7 +2009,7 @@ function SettingsShell() {
                                             children: "Billing"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1217,
+                                            lineNumber: 1325,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1843,13 +2017,13 @@ function SettingsShell() {
                                             children: "Manage your subscription and billing details"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1218,
+                                            lineNumber: 1326,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1216,
+                                    lineNumber: 1324,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1866,7 +2040,7 @@ function SettingsShell() {
                                                                     children: "Current Plan"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1224,
+                                                                    lineNumber: 1332,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -1877,20 +2051,20 @@ function SettingsShell() {
                                                                             children: planName
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1226,
+                                                                            lineNumber: 1334,
                                                                             columnNumber: 40
                                                                         }, this),
                                                                         " plan"
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1225,
+                                                                    lineNumber: 1333,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1223,
+                                                            lineNumber: 1331,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1902,7 +2076,7 @@ function SettingsShell() {
                                                                     children: billing.status === 'trialing' ? 'Trial' : billing.status.replace('_', ' ')
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1230,
+                                                                    lineNumber: 1338,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1911,19 +2085,19 @@ function SettingsShell() {
                                                                     children: billing.billingCycle === 'yearly' ? 'Yearly' : 'Monthly'
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1239,
+                                                                    lineNumber: 1347,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1229,
+                                                            lineNumber: 1337,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1222,
+                                                    lineNumber: 1330,
                                                     columnNumber: 19
                                                 }, this),
                                                 billing.cancelAtPeriodEnd && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1932,13 +2106,13 @@ function SettingsShell() {
                                                     children: "Cancelling at period end"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1245,
+                                                    lineNumber: 1353,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1221,
+                                            lineNumber: 1329,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1948,12 +2122,12 @@ function SettingsShell() {
                                                     className: "h-5 w-5 animate-spin text-muted-foreground"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1251,
+                                                    lineNumber: 1359,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1250,
+                                                lineNumber: 1358,
                                                 columnNumber: 21
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "space-y-4",
@@ -1976,13 +2150,13 @@ function SettingsShell() {
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1259,
+                                                                            lineNumber: 1367,
                                                                             columnNumber: 29
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1257,
+                                                                    lineNumber: 1365,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -1994,13 +2168,13 @@ function SettingsShell() {
                                                                     children: "Upgrade Plan"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1261,
+                                                                    lineNumber: 1369,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1256,
+                                                            lineNumber: 1364,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2012,12 +2186,12 @@ function SettingsShell() {
                                                                 }
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1272,
+                                                                lineNumber: 1380,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1271,
+                                                            lineNumber: 1379,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2031,7 +2205,7 @@ function SettingsShell() {
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1287,
+                                                                    lineNumber: 1395,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 billing.creditsResetAt && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2046,35 +2220,35 @@ function SettingsShell() {
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1291,
+                                                                    lineNumber: 1399,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1286,
+                                                            lineNumber: 1394,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1255,
+                                                    lineNumber: 1363,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1254,
+                                                lineNumber: 1362,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1248,
+                                            lineNumber: 1356,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1220,
+                                    lineNumber: 1328,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -2085,12 +2259,12 @@ function SettingsShell() {
                                                 children: "Payment History"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1303,
+                                                lineNumber: 1411,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1302,
+                                            lineNumber: 1410,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2100,19 +2274,19 @@ function SettingsShell() {
                                                     className: "h-5 w-5 animate-spin text-muted-foreground"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1308,
+                                                    lineNumber: 1416,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1307,
+                                                lineNumber: 1415,
                                                 columnNumber: 21
                                             }, this) : paymentHistory.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-sm text-muted-foreground text-center py-8",
                                                 children: "No payment history yet"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1311,
+                                                lineNumber: 1419,
                                                 columnNumber: 21
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "space-y-2 max-h-96 overflow-y-auto",
@@ -2129,7 +2303,7 @@ function SettingsShell() {
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1317,
+                                                                        lineNumber: 1425,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2141,13 +2315,13 @@ function SettingsShell() {
                                                                         })
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1318,
+                                                                        lineNumber: 1426,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1316,
+                                                                lineNumber: 1424,
                                                                 columnNumber: 27
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2162,7 +2336,7 @@ function SettingsShell() {
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1321,
+                                                                        lineNumber: 1429,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -2171,41 +2345,41 @@ function SettingsShell() {
                                                                         children: payment.status
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1322,
+                                                                        lineNumber: 1430,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1320,
+                                                                lineNumber: 1428,
                                                                 columnNumber: 27
                                                             }, this)
                                                         ]
                                                     }, payment.id, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1315,
+                                                        lineNumber: 1423,
                                                         columnNumber: 25
                                                     }, this))
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1313,
+                                                lineNumber: 1421,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1305,
+                                            lineNumber: 1413,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1301,
+                                    lineNumber: 1409,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1215,
+                            lineNumber: 1323,
                             columnNumber: 13
                         }, this),
                         activeSection === 'security' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2218,7 +2392,7 @@ function SettingsShell() {
                                             children: "Security"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1339,
+                                            lineNumber: 1447,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2226,13 +2400,13 @@ function SettingsShell() {
                                             children: "Manage your account security settings"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1340,
+                                            lineNumber: 1448,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1338,
+                                    lineNumber: 1446,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -2247,7 +2421,7 @@ function SettingsShell() {
                                                         children: "Current Password"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1345,
+                                                        lineNumber: 1453,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2259,13 +2433,13 @@ function SettingsShell() {
                                                         autoComplete: "current-password"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1346,
+                                                        lineNumber: 1454,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1344,
+                                                lineNumber: 1452,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2276,7 +2450,7 @@ function SettingsShell() {
                                                         children: "New Password"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1356,
+                                                        lineNumber: 1464,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2288,13 +2462,13 @@ function SettingsShell() {
                                                         autoComplete: "new-password"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1357,
+                                                        lineNumber: 1465,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1355,
+                                                lineNumber: 1463,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2305,7 +2479,7 @@ function SettingsShell() {
                                                         children: "Confirm Password"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1367,
+                                                        lineNumber: 1475,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2317,13 +2491,13 @@ function SettingsShell() {
                                                         autoComplete: "new-password"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1368,
+                                                        lineNumber: 1476,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1366,
+                                                lineNumber: 1474,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2339,14 +2513,14 @@ function SettingsShell() {
                                                                         className: "h-3.5 w-3.5 text-primary"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1381,
+                                                                        lineNumber: 1489,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     "Email Verification Code"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1380,
+                                                                lineNumber: 1488,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2362,7 +2536,7 @@ function SettingsShell() {
                                                                             className: "mr-1.5 h-3 w-3 animate-spin"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1394,
+                                                                            lineNumber: 1502,
                                                                             columnNumber: 29
                                                                         }, this),
                                                                         "Sending…"
@@ -2370,13 +2544,13 @@ function SettingsShell() {
                                                                 }, void 0, true) : passwordOtpCooldown > 0 ? `Resend in ${passwordOtpCooldown}s` : passwordOtpSentTo ? 'Resend code' : 'Send code'
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1384,
+                                                                lineNumber: 1492,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1379,
+                                                        lineNumber: 1487,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2395,7 +2569,7 @@ function SettingsShell() {
                                                         autoComplete: "one-time-code"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1406,
+                                                        lineNumber: 1514,
                                                         columnNumber: 21
                                                     }, this),
                                                     passwordOtpSentTo && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2407,14 +2581,14 @@ function SettingsShell() {
                                                                 children: passwordOtpSentTo
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1423,
+                                                                lineNumber: 1531,
                                                                 columnNumber: 38
                                                             }, this),
                                                             ". Check your inbox (and spam folder)."
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1422,
+                                                        lineNumber: 1530,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2422,13 +2596,13 @@ function SettingsShell() {
                                                         children: "For your security, password changes require a verification code sent to your email."
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1426,
+                                                        lineNumber: 1534,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1378,
+                                                lineNumber: 1486,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2442,36 +2616,36 @@ function SettingsShell() {
                                                             className: "mr-2 h-3 w-3 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1436,
+                                                            lineNumber: 1544,
                                                             columnNumber: 41
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$save$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Save$3e$__["Save"], {
                                                             className: "mr-2 h-3 w-3"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1436,
+                                                            lineNumber: 1544,
                                                             columnNumber: 93
                                                         }, this),
                                                         "Update Password"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1431,
+                                                    lineNumber: 1539,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1430,
+                                                lineNumber: 1538,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1343,
+                                        lineNumber: 1451,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1342,
+                                    lineNumber: 1450,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -2491,13 +2665,13 @@ function SettingsShell() {
                                                                         className: "h-4 w-4 text-emerald-600 dark:text-emerald-400"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1448,
+                                                                        lineNumber: 1556,
                                                                         columnNumber: 27
                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$smartphone$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Smartphone$3e$__["Smartphone"], {
                                                                         className: "h-4 w-4 text-muted-foreground"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1450,
+                                                                        lineNumber: 1558,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2505,14 +2679,14 @@ function SettingsShell() {
                                                                         children: "Two-Factor Authentication"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1452,
+                                                                        lineNumber: 1560,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     twoFactorStatusLoading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__["Loader2"], {
                                                                         className: "h-3 w-3 animate-spin text-muted-foreground"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1454,
+                                                                        lineNumber: 1562,
                                                                         columnNumber: 27
                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
                                                                         variant: "outline",
@@ -2520,13 +2694,13 @@ function SettingsShell() {
                                                                         children: twoFactorEnabled ? 'Enabled' : 'Disabled'
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1456,
+                                                                        lineNumber: 1564,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1446,
+                                                                lineNumber: 1554,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2534,13 +2708,13 @@ function SettingsShell() {
                                                                 children: twoFactorEnabled ? 'Your account is protected with a TOTP authenticator app.' : 'Add an extra layer of security using an authenticator app (Google Authenticator, Authy, 1Password, etc.).'
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1469,
+                                                                lineNumber: 1577,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1445,
+                                                        lineNumber: 1553,
                                                         columnNumber: 21
                                                     }, this),
                                                     !twoFactorEnabled && !twoFactorPending && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2553,20 +2727,20 @@ function SettingsShell() {
                                                                 className: "mr-2 h-3 w-3 animate-spin"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1485,
+                                                                lineNumber: 1593,
                                                                 columnNumber: 27
                                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$smartphone$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Smartphone$3e$__["Smartphone"], {
                                                                 className: "mr-2 h-3 w-3"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1487,
+                                                                lineNumber: 1595,
                                                                 columnNumber: 27
                                                             }, this),
                                                             "Enable 2FA"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1478,
+                                                        lineNumber: 1586,
                                                         columnNumber: 23
                                                     }, this),
                                                     twoFactorEnabled && !showDisable2fa && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2576,13 +2750,13 @@ function SettingsShell() {
                                                         children: "Disable 2FA"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1493,
+                                                        lineNumber: 1601,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1444,
+                                                lineNumber: 1552,
                                                 columnNumber: 19
                                             }, this),
                                             twoFactorPending && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2595,7 +2769,7 @@ function SettingsShell() {
                                                                 className: "h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1507,
+                                                                lineNumber: 1615,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2606,7 +2780,7 @@ function SettingsShell() {
                                                                         children: "Scan or paste to set up your authenticator"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1509,
+                                                                        lineNumber: 1617,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2614,19 +2788,19 @@ function SettingsShell() {
                                                                         children: "Open your authenticator app and scan a QR code generated from this URI, or click the link below to open it, or enter the secret manually."
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1510,
+                                                                        lineNumber: 1618,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1508,
+                                                                lineNumber: 1616,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1506,
+                                                        lineNumber: 1614,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2642,19 +2816,19 @@ function SettingsShell() {
                                                                     "aria-label": "2FA QR code"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1521,
+                                                                    lineNumber: 1629,
                                                                     columnNumber: 29
                                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                     className: "h-[148px] w-[148px] flex items-center justify-center text-xs text-muted-foreground",
                                                                     children: "No URI"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1523,
+                                                                    lineNumber: 1631,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1519,
+                                                                lineNumber: 1627,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2665,7 +2839,7 @@ function SettingsShell() {
                                                                         children: "Authenticator URI"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1527,
+                                                                        lineNumber: 1635,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
@@ -2677,7 +2851,7 @@ function SettingsShell() {
                                                                         children: twoFactorQrUrl
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1528,
+                                                                        lineNumber: 1636,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2685,19 +2859,19 @@ function SettingsShell() {
                                                                         children: "Scan with Google Authenticator, Authy, 1Password, etc."
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1537,
+                                                                        lineNumber: 1645,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1526,
+                                                                lineNumber: 1634,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1518,
+                                                        lineNumber: 1626,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2708,7 +2882,7 @@ function SettingsShell() {
                                                                 children: "Manual Secret (Base32)"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1545,
+                                                                lineNumber: 1653,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2719,7 +2893,7 @@ function SettingsShell() {
                                                                         children: twoFactorSecret
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1547,
+                                                                        lineNumber: 1655,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2732,24 +2906,24 @@ function SettingsShell() {
                                                                             className: "h-3 w-3"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1557,
+                                                                            lineNumber: 1665,
                                                                             columnNumber: 29
                                                                         }, this)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1550,
+                                                                        lineNumber: 1658,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1546,
+                                                                lineNumber: 1654,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1544,
+                                                        lineNumber: 1652,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2760,7 +2934,7 @@ function SettingsShell() {
                                                                 children: "Enter the 6-digit code from your app"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1564,
+                                                                lineNumber: 1672,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2781,7 +2955,7 @@ function SettingsShell() {
                                                                         }
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1566,
+                                                                        lineNumber: 1674,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2793,20 +2967,20 @@ function SettingsShell() {
                                                                                 className: "mr-2 h-3 w-3 animate-spin"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1586,
+                                                                                lineNumber: 1694,
                                                                                 columnNumber: 31
                                                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$check$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Check$3e$__["Check"], {
                                                                                 className: "mr-2 h-3 w-3"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1588,
+                                                                                lineNumber: 1696,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             "Verify"
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1580,
+                                                                        lineNumber: 1688,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2819,32 +2993,32 @@ function SettingsShell() {
                                                                                 className: "mr-2 h-3 w-3"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1598,
+                                                                                lineNumber: 1706,
                                                                                 columnNumber: 29
                                                                             }, this),
                                                                             "Cancel"
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1592,
+                                                                        lineNumber: 1700,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1565,
+                                                                lineNumber: 1673,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1563,
+                                                        lineNumber: 1671,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1505,
+                                                lineNumber: 1613,
                                                 columnNumber: 21
                                             }, this),
                                             twoFactorEnabled && twoFactorBackupCodes.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2856,7 +3030,7 @@ function SettingsShell() {
                                                             className: "h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1610,
+                                                            lineNumber: 1718,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2867,7 +3041,7 @@ function SettingsShell() {
                                                                     children: "Save your backup codes"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1612,
+                                                                    lineNumber: 1720,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2875,7 +3049,7 @@ function SettingsShell() {
                                                                     children: "These one-time codes let you sign in if you lose access to your authenticator. Store them safely — they will not be shown again."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1613,
+                                                                    lineNumber: 1721,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2887,7 +3061,7 @@ function SettingsShell() {
                                                                                     children: code
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 1623,
+                                                                                    lineNumber: 1731,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2899,29 +3073,29 @@ function SettingsShell() {
                                                                                         className: "h-3 w-3 text-emerald-600"
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                        lineNumber: 1631,
+                                                                                        lineNumber: 1739,
                                                                                         columnNumber: 37
                                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$copy$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Copy$3e$__["Copy"], {
                                                                                         className: "h-3 w-3"
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                        lineNumber: 1633,
+                                                                                        lineNumber: 1741,
                                                                                         columnNumber: 37
                                                                                     }, this)
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 1624,
+                                                                                    lineNumber: 1732,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, idx, true, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1619,
+                                                                            lineNumber: 1727,
                                                                             columnNumber: 31
                                                                         }, this))
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1617,
+                                                                    lineNumber: 1725,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2933,29 +3107,29 @@ function SettingsShell() {
                                                                         children: "I've saved them — dismiss"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1640,
+                                                                        lineNumber: 1748,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1639,
+                                                                    lineNumber: 1747,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1611,
+                                                            lineNumber: 1719,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1609,
+                                                    lineNumber: 1717,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1608,
+                                                lineNumber: 1716,
                                                 columnNumber: 21
                                             }, this),
                                             twoFactorEnabled && showDisable2fa && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2968,7 +3142,7 @@ function SettingsShell() {
                                                                 className: "h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1653,
+                                                                lineNumber: 1761,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2979,7 +3153,7 @@ function SettingsShell() {
                                                                         children: "Disable two-factor authentication"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1655,
+                                                                        lineNumber: 1763,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2987,19 +3161,19 @@ function SettingsShell() {
                                                                         children: "For your security, please confirm your password and enter a current 6-digit code from your authenticator (or a backup code)."
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1656,
+                                                                        lineNumber: 1764,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1654,
+                                                                lineNumber: 1762,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1652,
+                                                        lineNumber: 1760,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3010,7 +3184,7 @@ function SettingsShell() {
                                                                 children: "Current Password"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1663,
+                                                                lineNumber: 1771,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -3021,13 +3195,13 @@ function SettingsShell() {
                                                                 onChange: (e)=>setDisablePassword(e.target.value)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1664,
+                                                                lineNumber: 1772,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1662,
+                                                        lineNumber: 1770,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3038,7 +3212,7 @@ function SettingsShell() {
                                                                 children: "TOTP / Backup Code"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1673,
+                                                                lineNumber: 1781,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -3049,13 +3223,13 @@ function SettingsShell() {
                                                                 onChange: (e)=>setDisableCode(e.target.value)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1674,
+                                                                lineNumber: 1782,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1672,
+                                                        lineNumber: 1780,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3073,7 +3247,7 @@ function SettingsShell() {
                                                                 children: "Cancel"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1683,
+                                                                lineNumber: 1791,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3086,43 +3260,43 @@ function SettingsShell() {
                                                                         className: "mr-2 h-3 w-3 animate-spin"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1702,
+                                                                        lineNumber: 1810,
                                                                         columnNumber: 29
                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$lock$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Lock$3e$__["Lock"], {
                                                                         className: "mr-2 h-3 w-3"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1704,
+                                                                        lineNumber: 1812,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     "Disable 2FA"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1695,
+                                                                lineNumber: 1803,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1682,
+                                                        lineNumber: 1790,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1651,
+                                                lineNumber: 1759,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1443,
+                                        lineNumber: 1551,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1442,
+                                    lineNumber: 1550,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3138,7 +3312,7 @@ function SettingsShell() {
                                                             children: "Sign Out All Devices"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1717,
+                                                            lineNumber: 1825,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3146,13 +3320,13 @@ function SettingsShell() {
                                                             children: "Revoke all active sessions except this one"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1718,
+                                                            lineNumber: 1826,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1716,
+                                                    lineNumber: 1824,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3165,42 +3339,42 @@ function SettingsShell() {
                                                             className: "mr-2 h-3 w-3 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1727,
+                                                            lineNumber: 1835,
                                                             columnNumber: 25
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$x$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__X$3e$__["X"], {
                                                             className: "mr-2 h-3 w-3"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1729,
+                                                            lineNumber: 1837,
                                                             columnNumber: 25
                                                         }, this),
                                                         "Revoke All Sessions"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1720,
+                                                    lineNumber: 1828,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1715,
+                                            lineNumber: 1823,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1714,
+                                        lineNumber: 1822,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1713,
+                                    lineNumber: 1821,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1337,
+                            lineNumber: 1445,
                             columnNumber: 13
                         }, this),
                         activeSection === 'appearance' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3213,7 +3387,7 @@ function SettingsShell() {
                                             children: "Appearance"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1743,
+                                            lineNumber: 1851,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3221,13 +3395,13 @@ function SettingsShell() {
                                             children: "Customize how AcquisitionOS looks"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1744,
+                                            lineNumber: 1852,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1742,
+                                    lineNumber: 1850,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3244,7 +3418,7 @@ function SettingsShell() {
                                                                 children: "Dark Mode"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1750,
+                                                                lineNumber: 1858,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3252,13 +3426,13 @@ function SettingsShell() {
                                                                 children: "Toggle between light and dark theme"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1751,
+                                                                lineNumber: 1859,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1749,
+                                                        lineNumber: 1857,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$switch$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Switch"], {
@@ -3266,18 +3440,18 @@ function SettingsShell() {
                                                         onCheckedChange: (checked)=>setTheme(checked ? 'dark' : 'light')
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1753,
+                                                        lineNumber: 1861,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1748,
+                                                lineNumber: 1856,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1758,
+                                                lineNumber: 1866,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3290,7 +3464,7 @@ function SettingsShell() {
                                                                 children: "Compact View"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1761,
+                                                                lineNumber: 1869,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3298,13 +3472,13 @@ function SettingsShell() {
                                                                 children: "Reduce spacing for more content"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1762,
+                                                                lineNumber: 1870,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1760,
+                                                        lineNumber: 1868,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$switch$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Switch"], {
@@ -3323,24 +3497,24 @@ function SettingsShell() {
                                                         }
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1764,
+                                                        lineNumber: 1872,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1759,
+                                                lineNumber: 1867,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1747,
+                                        lineNumber: 1855,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1746,
+                                    lineNumber: 1854,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3352,20 +3526,20 @@ function SettingsShell() {
                                                     children: "Defaults"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1782,
+                                                    lineNumber: 1890,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
                                                     children: "Set default values for common fields"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1783,
+                                                    lineNumber: 1891,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1781,
+                                            lineNumber: 1889,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -3379,7 +3553,7 @@ function SettingsShell() {
                                                             children: "Default Country"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1787,
+                                                            lineNumber: 1895,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -3398,12 +3572,12 @@ function SettingsShell() {
                                                                         placeholder: "Select country"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1797,
+                                                                        lineNumber: 1905,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1796,
+                                                                    lineNumber: 1904,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -3427,24 +3601,24 @@ function SettingsShell() {
                                                                             children: country
                                                                         }, country, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1805,
+                                                                            lineNumber: 1913,
                                                                             columnNumber: 27
                                                                         }, this))
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1799,
+                                                                    lineNumber: 1907,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1788,
+                                                            lineNumber: 1896,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1786,
+                                                    lineNumber: 1894,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3455,7 +3629,7 @@ function SettingsShell() {
                                                             children: "Default Niche"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1811,
+                                                            lineNumber: 1919,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -3474,12 +3648,12 @@ function SettingsShell() {
                                                                         placeholder: "Select niche"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1821,
+                                                                        lineNumber: 1929,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1820,
+                                                                    lineNumber: 1928,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -3504,42 +3678,42 @@ function SettingsShell() {
                                                                             children: niche
                                                                         }, niche, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1830,
+                                                                            lineNumber: 1938,
                                                                             columnNumber: 27
                                                                         }, this))
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1823,
+                                                                    lineNumber: 1931,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1812,
+                                                            lineNumber: 1920,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1810,
+                                                    lineNumber: 1918,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1785,
+                                            lineNumber: 1893,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1780,
+                                    lineNumber: 1888,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1741,
+                            lineNumber: 1849,
                             columnNumber: 13
                         }, this),
                         activeSection === 'integrations' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3552,7 +3726,7 @@ function SettingsShell() {
                                             children: "Integrations"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1844,
+                                            lineNumber: 1952,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3560,13 +3734,13 @@ function SettingsShell() {
                                             children: "Connect your tools and services"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1845,
+                                            lineNumber: 1953,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1843,
+                                    lineNumber: 1951,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3588,17 +3762,17 @@ function SettingsShell() {
                                                                     d: "M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1854,
+                                                                    lineNumber: 1962,
                                                                     columnNumber: 121
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1854,
+                                                                lineNumber: 1962,
                                                                 columnNumber: 25
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1853,
+                                                            lineNumber: 1961,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3611,7 +3785,7 @@ function SettingsShell() {
                                                                             children: "Gmail"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1858,
+                                                                            lineNumber: 1966,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         gmailConnected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -3620,13 +3794,13 @@ function SettingsShell() {
                                                                             children: "Connected"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1859,
+                                                                            lineNumber: 1967,
                                                                             columnNumber: 46
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1857,
+                                                                    lineNumber: 1965,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3634,19 +3808,19 @@ function SettingsShell() {
                                                                     children: gmailConnected ? gmailEmail : 'Send and track outreach emails'
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1861,
+                                                                    lineNumber: 1969,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 1856,
+                                                            lineNumber: 1964,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1852,
+                                                    lineNumber: 1960,
                                                     columnNumber: 21
                                                 }, this),
                                                 gmailConnected ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3670,7 +3844,7 @@ function SettingsShell() {
                                                     children: "Revoke"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1865,
+                                                    lineNumber: 1973,
                                                     columnNumber: 23
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                     size: "sm",
@@ -3678,23 +3852,23 @@ function SettingsShell() {
                                                     children: "Connect"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 1873,
+                                                    lineNumber: 1981,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 1851,
+                                            lineNumber: 1959,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1850,
+                                        lineNumber: 1958,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1849,
+                                    lineNumber: 1957,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3717,17 +3891,17 @@ function SettingsShell() {
                                                                         d: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1885,
+                                                                        lineNumber: 1993,
                                                                         columnNumber: 121
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1885,
+                                                                    lineNumber: 1993,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1884,
+                                                                lineNumber: 1992,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3740,7 +3914,7 @@ function SettingsShell() {
                                                                                 children: "Telegram"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1889,
+                                                                                lineNumber: 1997,
                                                                                 columnNumber: 27
                                                                             }, this),
                                                                             telegramConnected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -3749,13 +3923,13 @@ function SettingsShell() {
                                                                                 children: "Connected"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1890,
+                                                                                lineNumber: 1998,
                                                                                 columnNumber: 49
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1888,
+                                                                        lineNumber: 1996,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3763,19 +3937,19 @@ function SettingsShell() {
                                                                         children: telegramConnected ? `@${telegramUsername}` : 'Receive notifications via Telegram'
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1892,
+                                                                        lineNumber: 2000,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1887,
+                                                                lineNumber: 1995,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1883,
+                                                        lineNumber: 1991,
                                                         columnNumber: 21
                                                     }, this),
                                                     telegramConnected ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3799,7 +3973,7 @@ function SettingsShell() {
                                                         children: "Disconnect"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1896,
+                                                        lineNumber: 2004,
                                                         columnNumber: 23
                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                         size: "sm",
@@ -3828,13 +4002,13 @@ function SettingsShell() {
                                                         children: "Connect"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1904,
+                                                        lineNumber: 2012,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1882,
+                                                lineNumber: 1990,
                                                 columnNumber: 19
                                             }, this),
                                             telegramPolling && !telegramConnected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3845,7 +4019,7 @@ function SettingsShell() {
                                                         children: "Connect Telegram"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1915,
+                                                        lineNumber: 2023,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ol", {
@@ -3855,7 +4029,7 @@ function SettingsShell() {
                                                                 children: "Open Telegram on your phone"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1917,
+                                                                lineNumber: 2025,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -3866,26 +4040,26 @@ function SettingsShell() {
                                                                         children: "@AcquisitionOSBot"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1918,
+                                                                        lineNumber: 2026,
                                                                         columnNumber: 40
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1918,
+                                                                lineNumber: 2026,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
                                                                 children: "Send this message to the bot:"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1919,
+                                                                lineNumber: 2027,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1916,
+                                                        lineNumber: 2024,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3899,7 +4073,7 @@ function SettingsShell() {
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1922,
+                                                                lineNumber: 2030,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3912,13 +4086,13 @@ function SettingsShell() {
                                                                 children: "Copy"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1923,
+                                                                lineNumber: 2031,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1921,
+                                                        lineNumber: 2029,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3928,14 +4102,14 @@ function SettingsShell() {
                                                                 className: "h-3 w-3 animate-spin"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1926,
+                                                                lineNumber: 2034,
                                                                 columnNumber: 25
                                                             }, this),
                                                             "Waiting for confirmation..."
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1925,
+                                                        lineNumber: 2033,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3946,24 +4120,24 @@ function SettingsShell() {
                                                         children: "Cancel"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1929,
+                                                        lineNumber: 2037,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1914,
+                                                lineNumber: 2022,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1881,
+                                        lineNumber: 1989,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1880,
+                                    lineNumber: 1988,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3987,25 +4161,25 @@ function SettingsShell() {
                                                                             d: "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1941,
+                                                                            lineNumber: 2049,
                                                                             columnNumber: 129
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                                                             d: "M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.66 0-3.2-.505-4.486-1.37l-.314-.186-2.872.852.852-2.872-.186-.314A7.96 7.96 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 1941,
+                                                                            lineNumber: 2049,
                                                                             columnNumber: 789
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1941,
+                                                                    lineNumber: 2049,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1940,
+                                                                lineNumber: 2048,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4018,7 +4192,7 @@ function SettingsShell() {
                                                                                 children: "WhatsApp"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1945,
+                                                                                lineNumber: 2053,
                                                                                 columnNumber: 27
                                                                             }, this),
                                                                             whatsappConnected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -4027,13 +4201,13 @@ function SettingsShell() {
                                                                                 children: "Connected"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 1946,
+                                                                                lineNumber: 2054,
                                                                                 columnNumber: 49
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1944,
+                                                                        lineNumber: 2052,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4041,19 +4215,19 @@ function SettingsShell() {
                                                                         children: whatsappConnected ? whatsappPhone : 'Send messages via WhatsApp Business'
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 1948,
+                                                                        lineNumber: 2056,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1943,
+                                                                lineNumber: 2051,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1939,
+                                                        lineNumber: 2047,
                                                         columnNumber: 21
                                                     }, this),
                                                     whatsappConnected ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -4066,7 +4240,7 @@ function SettingsShell() {
                                                         children: "Disconnect"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1952,
+                                                        lineNumber: 2060,
                                                         columnNumber: 23
                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                         size: "sm",
@@ -4074,13 +4248,13 @@ function SettingsShell() {
                                                         children: "Connect"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1954,
+                                                        lineNumber: 2062,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1938,
+                                                lineNumber: 2046,
                                                 columnNumber: 19
                                             }, this),
                                             !whatsappConnected && whatsappStep === 'phone' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4091,7 +4265,7 @@ function SettingsShell() {
                                                         children: "Connect WhatsApp"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1959,
+                                                        lineNumber: 2067,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4099,7 +4273,7 @@ function SettingsShell() {
                                                         children: "Enter your WhatsApp phone number to receive a verification code."
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1960,
+                                                        lineNumber: 2068,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4112,7 +4286,7 @@ function SettingsShell() {
                                                                 className: "h-9 flex-1"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1962,
+                                                                lineNumber: 2070,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -4149,24 +4323,24 @@ function SettingsShell() {
                                                                     className: "h-3 w-3 animate-spin"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1972,
+                                                                    lineNumber: 2080,
                                                                     columnNumber: 46
                                                                 }, this) : 'Send OTP'
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1963,
+                                                                lineNumber: 2071,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1961,
+                                                        lineNumber: 2069,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1958,
+                                                lineNumber: 2066,
                                                 columnNumber: 21
                                             }, this),
                                             !whatsappConnected && whatsappStep === 'otp' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4177,7 +4351,7 @@ function SettingsShell() {
                                                         children: "Verify WhatsApp"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1979,
+                                                        lineNumber: 2087,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4188,7 +4362,7 @@ function SettingsShell() {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1980,
+                                                        lineNumber: 2088,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4202,7 +4376,7 @@ function SettingsShell() {
                                                                 maxLength: 6
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1982,
+                                                                lineNumber: 2090,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -4238,18 +4412,18 @@ function SettingsShell() {
                                                                     className: "h-3 w-3 animate-spin"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 1992,
+                                                                    lineNumber: 2100,
                                                                     columnNumber: 46
                                                                 }, this) : 'Verify'
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 1983,
+                                                                lineNumber: 2091,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1981,
+                                                        lineNumber: 2089,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -4263,24 +4437,24 @@ function SettingsShell() {
                                                         children: "Back"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 1995,
+                                                        lineNumber: 2103,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 1978,
+                                                lineNumber: 2086,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 1937,
+                                        lineNumber: 2045,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 1936,
+                                    lineNumber: 2044,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -4298,12 +4472,12 @@ function SettingsShell() {
                                                                 className: "h-5 w-5 text-teal-600 dark:text-teal-400"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2007,
+                                                                lineNumber: 2115,
                                                                 columnNumber: 25
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2006,
+                                                            lineNumber: 2114,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4316,7 +4490,7 @@ function SettingsShell() {
                                                                             children: "Google Calendar"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2011,
+                                                                            lineNumber: 2119,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         googleCalConnected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -4325,13 +4499,13 @@ function SettingsShell() {
                                                                             children: "Connected"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2013,
+                                                                            lineNumber: 2121,
                                                                             columnNumber: 29
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2010,
+                                                                    lineNumber: 2118,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4339,19 +4513,19 @@ function SettingsShell() {
                                                                     children: googleCalConnected ? `${googleCalEmail}${googleCalLastSync ? ` · Last sync: ${new Date(googleCalLastSync).toLocaleDateString()}` : ''}` : 'Sync meetings and calendar availability'
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2016,
+                                                                    lineNumber: 2124,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2009,
+                                                            lineNumber: 2117,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2005,
+                                                    lineNumber: 2113,
                                                     columnNumber: 21
                                                 }, this),
                                                 googleCalConnected ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -4376,7 +4550,7 @@ function SettingsShell() {
                                                     children: "Disconnect"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2024,
+                                                    lineNumber: 2132,
                                                     columnNumber: 23
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                     size: "sm",
@@ -4385,23 +4559,23 @@ function SettingsShell() {
                                                     children: "Connect"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2032,
+                                                    lineNumber: 2140,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2004,
+                                            lineNumber: 2112,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 2003,
+                                        lineNumber: 2111,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2002,
+                                    lineNumber: 2110,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -4415,27 +4589,27 @@ function SettingsShell() {
                                                             className: "h-4 w-4 text-teal-500"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2044,
+                                                            lineNumber: 2152,
                                                             columnNumber: 21
                                                         }, this),
                                                         "Meeting Preferences"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2043,
+                                                    lineNumber: 2151,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
                                                     children: "Configure your default meeting settings"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2047,
+                                                    lineNumber: 2155,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2042,
+                                            lineNumber: 2150,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -4449,7 +4623,7 @@ function SettingsShell() {
                                                             children: "Preferred Meeting Platform"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2051,
+                                                            lineNumber: 2159,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -4463,12 +4637,12 @@ function SettingsShell() {
                                                                     className: "w-full h-9",
                                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2057,
+                                                                        lineNumber: 2165,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2056,
+                                                                    lineNumber: 2164,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -4478,7 +4652,7 @@ function SettingsShell() {
                                                                             children: "Google Meet"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2060,
+                                                                            lineNumber: 2168,
                                                                             columnNumber: 25
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4486,7 +4660,7 @@ function SettingsShell() {
                                                                             children: "Zoom"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2061,
+                                                                            lineNumber: 2169,
                                                                             columnNumber: 25
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4494,7 +4668,7 @@ function SettingsShell() {
                                                                             children: "Microsoft Teams"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2062,
+                                                                            lineNumber: 2170,
                                                                             columnNumber: 25
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4502,25 +4676,25 @@ function SettingsShell() {
                                                                             children: "Custom Link"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2063,
+                                                                            lineNumber: 2171,
                                                                             columnNumber: 25
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2059,
+                                                                    lineNumber: 2167,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2052,
+                                                            lineNumber: 2160,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2050,
+                                                    lineNumber: 2158,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4534,7 +4708,7 @@ function SettingsShell() {
                                                                     children: "Default Duration"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2070,
+                                                                    lineNumber: 2178,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -4548,12 +4722,12 @@ function SettingsShell() {
                                                                             className: "w-full h-9",
                                                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 2076,
+                                                                                lineNumber: 2184,
                                                                                 columnNumber: 27
                                                                             }, this)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2075,
+                                                                            lineNumber: 2183,
                                                                             columnNumber: 25
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -4563,7 +4737,7 @@ function SettingsShell() {
                                                                                     children: "15 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2079,
+                                                                                    lineNumber: 2187,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4571,7 +4745,7 @@ function SettingsShell() {
                                                                                     children: "30 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2080,
+                                                                                    lineNumber: 2188,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4579,7 +4753,7 @@ function SettingsShell() {
                                                                                     children: "45 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2081,
+                                                                                    lineNumber: 2189,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4587,7 +4761,7 @@ function SettingsShell() {
                                                                                     children: "60 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2082,
+                                                                                    lineNumber: 2190,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4595,25 +4769,25 @@ function SettingsShell() {
                                                                                     children: "90 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2083,
+                                                                                    lineNumber: 2191,
                                                                                     columnNumber: 27
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2078,
+                                                                            lineNumber: 2186,
                                                                             columnNumber: 25
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2071,
+                                                                    lineNumber: 2179,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2069,
+                                                            lineNumber: 2177,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4624,7 +4798,7 @@ function SettingsShell() {
                                                                     children: "Buffer Time"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2088,
+                                                                    lineNumber: 2196,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -4638,12 +4812,12 @@ function SettingsShell() {
                                                                             className: "w-full h-9",
                                                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                lineNumber: 2094,
+                                                                                lineNumber: 2202,
                                                                                 columnNumber: 27
                                                                             }, this)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2093,
+                                                                            lineNumber: 2201,
                                                                             columnNumber: 25
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -4653,7 +4827,7 @@ function SettingsShell() {
                                                                                     children: "No buffer"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2097,
+                                                                                    lineNumber: 2205,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4661,7 +4835,7 @@ function SettingsShell() {
                                                                                     children: "5 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2098,
+                                                                                    lineNumber: 2206,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4669,7 +4843,7 @@ function SettingsShell() {
                                                                                     children: "10 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2099,
+                                                                                    lineNumber: 2207,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4677,7 +4851,7 @@ function SettingsShell() {
                                                                                     children: "15 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2100,
+                                                                                    lineNumber: 2208,
                                                                                     columnNumber: 27
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -4685,31 +4859,31 @@ function SettingsShell() {
                                                                                     children: "30 minutes"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                                    lineNumber: 2101,
+                                                                                    lineNumber: 2209,
                                                                                     columnNumber: 27
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2096,
+                                                                            lineNumber: 2204,
                                                                             columnNumber: 25
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2089,
+                                                                    lineNumber: 2197,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2087,
+                                                            lineNumber: 2195,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2068,
+                                                    lineNumber: 2176,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4723,7 +4897,7 @@ function SettingsShell() {
                                                                     children: "Working Hours Start"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2109,
+                                                                    lineNumber: 2217,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -4736,13 +4910,13 @@ function SettingsShell() {
                                                                     className: "h-9"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2110,
+                                                                    lineNumber: 2218,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2108,
+                                                            lineNumber: 2216,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4753,7 +4927,7 @@ function SettingsShell() {
                                                                     children: "Working Hours End"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2118,
+                                                                    lineNumber: 2226,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -4766,19 +4940,19 @@ function SettingsShell() {
                                                                     className: "h-9"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2119,
+                                                                    lineNumber: 2227,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2117,
+                                                            lineNumber: 2225,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2107,
+                                                    lineNumber: 2215,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4789,7 +4963,7 @@ function SettingsShell() {
                                                             children: "Working Days"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2129,
+                                                            lineNumber: 2237,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4839,7 +5013,7 @@ function SettingsShell() {
                                                                             }
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2141,
+                                                                            lineNumber: 2249,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4847,24 +5021,24 @@ function SettingsShell() {
                                                                             children: d.label
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2152,
+                                                                            lineNumber: 2260,
                                                                             columnNumber: 27
                                                                         }, this)
                                                                     ]
                                                                 }, d.id, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2140,
+                                                                    lineNumber: 2248,
                                                                     columnNumber: 25
                                                                 }, this))
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2130,
+                                                            lineNumber: 2238,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2128,
+                                                    lineNumber: 2236,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4875,7 +5049,7 @@ function SettingsShell() {
                                                             children: "Timezone"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2159,
+                                                            lineNumber: 2267,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -4889,12 +5063,12 @@ function SettingsShell() {
                                                                     className: "w-full h-9",
                                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2165,
+                                                                        lineNumber: 2273,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2164,
+                                                                    lineNumber: 2272,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -4919,24 +5093,24 @@ function SettingsShell() {
                                                                             children: tz.replace(/_/g, ' ')
                                                                         }, tz, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2174,
+                                                                            lineNumber: 2282,
                                                                             columnNumber: 27
                                                                         }, this))
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2167,
+                                                                    lineNumber: 2275,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2160,
+                                                            lineNumber: 2268,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2158,
+                                                    lineNumber: 2266,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4949,7 +5123,7 @@ function SettingsShell() {
                                                                     children: "Auto-Schedule"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2182,
+                                                                    lineNumber: 2290,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4957,13 +5131,13 @@ function SettingsShell() {
                                                                     children: "Allow AI to automatically schedule meetings"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2183,
+                                                                    lineNumber: 2291,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2181,
+                                                            lineNumber: 2289,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$switch$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Switch"], {
@@ -4974,13 +5148,13 @@ function SettingsShell() {
                                                                     }))
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2185,
+                                                            lineNumber: 2293,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2180,
+                                                    lineNumber: 2288,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4994,37 +5168,37 @@ function SettingsShell() {
                                                                 className: "mr-2 h-3 w-3 animate-spin"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2193,
+                                                                lineNumber: 2301,
                                                                 columnNumber: 48
                                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$save$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Save$3e$__["Save"], {
                                                                 className: "mr-2 h-3 w-3"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2193,
+                                                                lineNumber: 2301,
                                                                 columnNumber: 100
                                                             }, this),
                                                             "Save Settings"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2192,
+                                                        lineNumber: 2300,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2191,
+                                                    lineNumber: 2299,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2049,
+                                            lineNumber: 2157,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2041,
+                                    lineNumber: 2149,
                                     columnNumber: 15
                                 }, this),
                                 gmailConsentOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5041,7 +5215,7 @@ function SettingsShell() {
                                                         children: "Connect Gmail to AcquisitionOS"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2205,
+                                                        lineNumber: 2313,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5049,13 +5223,13 @@ function SettingsShell() {
                                                         children: "Review the permissions before connecting"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2206,
+                                                        lineNumber: 2314,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2204,
+                                                lineNumber: 2312,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5066,7 +5240,7 @@ function SettingsShell() {
                                                         children: "This connection will allow AcquisitionOS to:"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2209,
+                                                        lineNumber: 2317,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -5080,14 +5254,14 @@ function SettingsShell() {
                                                                         children: "✓"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2211,
+                                                                        lineNumber: 2319,
                                                                         columnNumber: 64
                                                                     }, this),
                                                                     "Read emails from contacts in your lead database only"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2211,
+                                                                lineNumber: 2319,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -5098,14 +5272,14 @@ function SettingsShell() {
                                                                         children: "✓"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2212,
+                                                                        lineNumber: 2320,
                                                                         columnNumber: 64
                                                                     }, this),
                                                                     "Send emails on your behalf (only when you approve)"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2212,
+                                                                lineNumber: 2320,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -5116,27 +5290,27 @@ function SettingsShell() {
                                                                         children: "✓"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2213,
+                                                                        lineNumber: 2321,
                                                                         columnNumber: 64
                                                                     }, this),
                                                                     'Create and manage an "AcquisitionOS" label'
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2213,
+                                                                lineNumber: 2321,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2210,
+                                                        lineNumber: 2318,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {
                                                         className: "my-3"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2215,
+                                                        lineNumber: 2323,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5144,7 +5318,7 @@ function SettingsShell() {
                                                         children: "AcquisitionOS will NOT:"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2216,
+                                                        lineNumber: 2324,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -5158,14 +5332,14 @@ function SettingsShell() {
                                                                         children: "✗"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2218,
+                                                                        lineNumber: 2326,
                                                                         columnNumber: 64
                                                                     }, this),
                                                                     "Read personal or unrelated emails"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2218,
+                                                                lineNumber: 2326,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -5176,14 +5350,14 @@ function SettingsShell() {
                                                                         children: "✗"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2219,
+                                                                        lineNumber: 2327,
                                                                         columnNumber: 64
                                                                     }, this),
                                                                     "Store email content beyond 24 hours"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2219,
+                                                                lineNumber: 2327,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -5194,26 +5368,26 @@ function SettingsShell() {
                                                                         children: "✗"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2220,
+                                                                        lineNumber: 2328,
                                                                         columnNumber: 64
                                                                     }, this),
                                                                     "Share your email data with third parties"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2220,
+                                                                lineNumber: 2328,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2217,
+                                                        lineNumber: 2325,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2208,
+                                                lineNumber: 2316,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5229,7 +5403,7 @@ function SettingsShell() {
                                                         }
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2224,
+                                                        lineNumber: 2332,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -5238,13 +5412,13 @@ function SettingsShell() {
                                                         children: "I have read and authorize the above access"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2228,
+                                                        lineNumber: 2336,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2223,
+                                                lineNumber: 2331,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5257,7 +5431,7 @@ function SettingsShell() {
                                                         children: "Cancel"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2231,
+                                                        lineNumber: 2339,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -5292,35 +5466,35 @@ function SettingsShell() {
                                                         children: "Authorize Gmail Access →"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2232,
+                                                        lineNumber: 2340,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2230,
+                                                lineNumber: 2338,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 2203,
+                                        lineNumber: 2311,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2202,
+                                    lineNumber: 2310,
                                     columnNumber: 17
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 1842,
+                            lineNumber: 1950,
                             columnNumber: 13
                         }, this),
                         activeSection === 'api' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$api$2d$keys$2d$panel$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 2260,
+                            lineNumber: 2368,
                             columnNumber: 13
                         }, this),
                         activeSection === 'data' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5333,7 +5507,7 @@ function SettingsShell() {
                                             children: "Data & Privacy"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2267,
+                                            lineNumber: 2375,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5341,13 +5515,13 @@ function SettingsShell() {
                                             children: "Manage your data and privacy settings"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2268,
+                                            lineNumber: 2376,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2266,
+                                    lineNumber: 2374,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -5378,19 +5552,19 @@ function SettingsShell() {
                                                         className: "mr-2 h-3.5 w-3.5"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2292,
+                                                        lineNumber: 2400,
                                                         columnNumber: 21
                                                     }, this),
                                                     "Export My Data"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2272,
+                                                lineNumber: 2380,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2295,
+                                                lineNumber: 2403,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5402,14 +5576,14 @@ function SettingsShell() {
                                                                 className: "h-4 w-4"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2298,
+                                                                lineNumber: 2406,
                                                                 columnNumber: 23
                                                             }, this),
                                                             "Danger Zone"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2297,
+                                                        lineNumber: 2405,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5417,7 +5591,7 @@ function SettingsShell() {
                                                         children: "Permanently delete your account and all associated data. This action cannot be undone."
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2301,
+                                                        lineNumber: 2409,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5430,7 +5604,7 @@ function SettingsShell() {
                                                                 className: "h-9 max-w-sm"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2305,
+                                                                lineNumber: 2413,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -5443,54 +5617,54 @@ function SettingsShell() {
                                                                         className: "mr-2 h-3 w-3 animate-spin"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2317,
+                                                                        lineNumber: 2425,
                                                                         columnNumber: 42
                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trash$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Trash2$3e$__["Trash2"], {
                                                                         className: "mr-2 h-3 w-3"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2317,
+                                                                        lineNumber: 2425,
                                                                         columnNumber: 94
                                                                     }, this),
                                                                     "Delete Account"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2311,
+                                                                lineNumber: 2419,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2304,
+                                                        lineNumber: 2412,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2296,
+                                                lineNumber: 2404,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 2271,
+                                        lineNumber: 2379,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2270,
+                                    lineNumber: 2378,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 2265,
+                            lineNumber: 2373,
                             columnNumber: 13
                         }, this),
                         activeSection === 'monitoring' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$observability$2d$dashboard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 2329,
+                            lineNumber: 2437,
                             columnNumber: 13
                         }, this),
                         activeSection === 'legal' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5503,7 +5677,7 @@ function SettingsShell() {
                                             children: "Legal Documents"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2336,
+                                            lineNumber: 2444,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5511,13 +5685,13 @@ function SettingsShell() {
                                             children: "Review our legal policies and agreements"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2337,
+                                            lineNumber: 2445,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2335,
+                                    lineNumber: 2443,
                                     columnNumber: 15
                                 }, this),
                                 [
@@ -5568,12 +5742,12 @@ function SettingsShell() {
                                                                     className: "h-5 w-5 text-primary"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2377,
+                                                                    lineNumber: 2485,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2376,
+                                                                lineNumber: 2484,
                                                                 columnNumber: 27
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5583,7 +5757,7 @@ function SettingsShell() {
                                                                         children: doc.title
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2380,
+                                                                        lineNumber: 2488,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5591,7 +5765,7 @@ function SettingsShell() {
                                                                         children: doc.description
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2381,
+                                                                        lineNumber: 2489,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5602,19 +5776,19 @@ function SettingsShell() {
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                        lineNumber: 2382,
+                                                                        lineNumber: 2490,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                lineNumber: 2379,
+                                                                lineNumber: 2487,
                                                                 columnNumber: 27
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2375,
+                                                        lineNumber: 2483,
                                                         columnNumber: 25
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -5623,23 +5797,23 @@ function SettingsShell() {
                                                         children: "View"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2385,
+                                                        lineNumber: 2493,
                                                         columnNumber: 25
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                lineNumber: 2374,
+                                                lineNumber: 2482,
                                                 columnNumber: 23
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2373,
+                                            lineNumber: 2481,
                                             columnNumber: 21
                                         }, this)
                                     }, doc.id, false, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 2372,
+                                        lineNumber: 2480,
                                         columnNumber: 19
                                     }, this);
                                 }),
@@ -5656,12 +5830,12 @@ function SettingsShell() {
                                                         className: "h-5 w-5 text-primary"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                        lineNumber: 2396,
+                                                        lineNumber: 2504,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2395,
+                                                    lineNumber: 2503,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5671,7 +5845,7 @@ function SettingsShell() {
                                                             children: "GDPR Compliance"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2399,
+                                                            lineNumber: 2507,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5679,7 +5853,7 @@ function SettingsShell() {
                                                             children: "AcquisitionOS is committed to GDPR compliance. You have the right to access, rectify, erase, and export your personal data."
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2400,
+                                                            lineNumber: 2508,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5722,14 +5896,14 @@ function SettingsShell() {
                                                                             className: "mr-1.5 h-3 w-3"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2431,
+                                                                            lineNumber: 2539,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         "Request Data Export"
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2404,
+                                                                    lineNumber: 2512,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -5744,65 +5918,65 @@ function SettingsShell() {
                                                                             className: "mr-1.5 h-3 w-3"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                            lineNumber: 2442,
+                                                                            lineNumber: 2550,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         "Request Account Deletion"
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                                    lineNumber: 2434,
+                                                                    lineNumber: 2542,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                            lineNumber: 2403,
+                                                            lineNumber: 2511,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                                    lineNumber: 2398,
+                                                    lineNumber: 2506,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                            lineNumber: 2394,
+                                            lineNumber: 2502,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                        lineNumber: 2393,
+                                        lineNumber: 2501,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                                    lineNumber: 2392,
+                                    lineNumber: 2500,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                            lineNumber: 2334,
+                            lineNumber: 2442,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                    lineNumber: 1005,
+                    lineNumber: 1065,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-                lineNumber: 1004,
+                lineNumber: 1064,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/settings-shell.tsx",
-        lineNumber: 967,
+        lineNumber: 1027,
         columnNumber: 5
     }, this);
 }

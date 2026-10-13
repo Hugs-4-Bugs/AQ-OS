@@ -322,7 +322,6 @@
     --color-cyan-800: #005f78;
     --color-cyan-950: #053345;
     --color-sky-100: #dff2fe;
-    --color-sky-200: #b8e6fe;
     --color-sky-300: #77d4ff;
     --color-sky-400: #00bcfe;
     --color-sky-500: #00a5ef;
@@ -574,7 +573,6 @@
       --color-cyan-800: lab(36.5114% -17.1989 -21.6292);
       --color-cyan-950: lab(19.1528% -9.68757 -15.5267);
       --color-sky-100: lab(94.3709% -4.56053 -8.23453);
-      --color-sky-200: lab(88.6983% -11.3978 -16.8488);
       --color-sky-300: lab(80.3307% -20.2945 -31.385);
       --color-sky-400: lab(70.687% -23.6078 -45.9483);
       --color-sky-500: lab(63.3038% -18.433 -51.0407);
@@ -1383,6 +1381,10 @@
 
   .z-50 {
     z-index: 50;
+  }
+
+  .z-\[\.\.\.\] {
+    z-index: . . . ;
   }
 
   .z-\[1\] {
@@ -3784,6 +3786,12 @@
     margin-block-end: calc(calc(var(--spacing) * 3) * calc(1 - var(--tw-space-y-reverse)));
   }
 
+  :where(.space-y-3\.5 > :not(:last-child)) {
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(calc(var(--spacing) * 3.5) * var(--tw-space-y-reverse));
+    margin-block-end: calc(calc(var(--spacing) * 3.5) * calc(1 - var(--tw-space-y-reverse)));
+  }
+
   :where(.space-y-4 > :not(:last-child)) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(calc(var(--spacing) * 4) * var(--tw-space-y-reverse));
@@ -5263,10 +5271,6 @@
     border-color: var(--sidebar-border);
   }
 
-  .border-sky-200 {
-    border-color: var(--color-sky-200);
-  }
-
   .border-sky-500\/15 {
     border-color: #00a5ef26;
   }
@@ -5889,16 +5893,6 @@
   @supports (color: color-mix(in lab, red, red)) {
     .bg-amber-500\/40 {
       background-color: color-mix(in oklab, var(--color-amber-500) 40%, transparent);
-    }
-  }
-
-  .bg-amber-500\/90 {
-    background-color: #f99c00e6;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .bg-amber-500\/90 {
-      background-color: color-mix(in oklab, var(--color-amber-500) 90%, transparent);
     }
   }
 
@@ -16825,12 +16819,6 @@
   @media (min-width: 40rem) {
     .sm\:col-span-3 {
       grid-column: span 3 / span 3;
-    }
-  }
-
-  @media (min-width: 40rem) {
-    .sm\:col-span-4 {
-      grid-column: span 4 / span 4;
     }
   }
 

@@ -184,7 +184,7 @@ function logStartupAuthStatus() {
     const googleSecret = process.env.GOOGLE_CLIENT_SECRET;
     const googleConfigured = !!googleId && !!googleSecret && !googleId.startsWith('your-') && !googleSecret.startsWith('your-') && googleId.includes('.apps.googleusercontent.com');
     console.warn(`  Google OAuth : ${googleConfigured ? 'AVAILABLE' : 'UNAVAILABLE'}`);
-    console.warn(`  App URL      : ${process.env.APP_PUBLIC_URL || ("TURBOPACK compile-time value", "http://localhost:3000") || process.env.APP_URL || 'NOT SET'}`);
+    console.warn(`  App URL      : ${process.env.APP_PUBLIC_URL || ("TURBOPACK compile-time value", "https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai") || process.env.APP_URL || 'NOT SET'}`);
     console.warn(`  Database     : ${process.env.DATABASE_URL ? 'CONFIGURED' : 'MISSING'}`);
     console.warn('═══════════════════════════════════════════════════════');
     console.warn('');

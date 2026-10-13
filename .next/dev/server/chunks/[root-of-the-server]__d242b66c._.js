@@ -66,7 +66,7 @@ async function GET() {
         const etherealMod = await __turbopack_context__.A("[project]/src/lib/email-ethereal.ts [app-route] (ecmascript, async loader)");
         const clientId = etherealMod.getGoogleClientId?.();
         const clientSecret = etherealMod.getGoogleClientSecret?.();
-        console.warn(`[AUTH-CONFIG] GOOGLE_CLIENT_ID set: ${!!clientId}, GOOGLE_CLIENT_SECRET set: ${!!clientSecret}, ` + `emailConfigured: ${emailConfigured}, ` + `SMTP_HOST: ${process.env.SMTP_HOST || 'MISSING'}, SMTP_USER: ${process.env.SMTP_USER || 'MISSING'}, ` + `SMTP_PASSWORD: ${process.env.SMTP_PASSWORD || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD ? 'SET' : 'MISSING'}, ` + `APP_URL: ${process.env.APP_URL || ("TURBOPACK compile-time value", "http://localhost:3000") || 'MISSING'}`);
+        console.warn(`[AUTH-CONFIG] GOOGLE_CLIENT_ID set: ${!!clientId}, GOOGLE_CLIENT_SECRET set: ${!!clientSecret}, ` + `emailConfigured: ${emailConfigured}, ` + `SMTP_HOST: ${process.env.SMTP_HOST || 'MISSING'}, SMTP_USER: ${process.env.SMTP_USER || 'MISSING'}, ` + `SMTP_PASSWORD: ${process.env.SMTP_PASSWORD || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD ? 'SET' : 'MISSING'}, ` + `APP_URL: ${process.env.APP_URL || ("TURBOPACK compile-time value", "https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai") || 'MISSING'}`);
     } catch (err) {
         // Logging failed — non-fatal. The response is still correct.
         console.warn('[Auth Config] Failed to log credential status (non-fatal):', err instanceof Error ? err.message : err);

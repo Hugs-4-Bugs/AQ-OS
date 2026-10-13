@@ -331,7 +331,7 @@ function getDynamicOrigin(request) {
     }
     // 6. Env-var fallback — only reached by server-to-server requests
     //    with no usable headers.
-    const envUrl = process.env.APP_URL || ("TURBOPACK compile-time value", "http://localhost:3000") || process.env.NEXTAUTH_URL || process.env.APP_PUBLIC_URL || '';
+    const envUrl = process.env.APP_URL || ("TURBOPACK compile-time value", "https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai") || process.env.NEXTAUTH_URL || process.env.APP_PUBLIC_URL || '';
     if ("TURBOPACK compile-time truthy", 1) {
         try {
             const u = new URL(envUrl);
@@ -711,11 +711,6 @@ function classifyTokenExchangeFailure(status, errorBody) {
             }
         } else {
             console.log(`[Google Callback ${requestId}] No existing user — creating new account`);
-            // SIGNUP REWARD: explicit 50-credit starting balance (the TOTAL signup
-            // grant) + audit ledger row. Non-fatal ledger failure — the balance is
-            // already exactly 50 via the explicit field.
-            const creditMod = await __turbopack_context__.A("[project]/src/lib/credit-service.ts [app-route] (ecmascript, async loader)");
-            const GRANT = creditMod.SIGNUP_GRANT_CREDITS;
             user = await db.user.create({
                 data: {
                     email: normalizedEmail,
@@ -728,8 +723,6 @@ function classifyTokenExchangeFailure(status, errorBody) {
                     plan: 'free',
                     isTrial: true,
                     trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                    credits: GRANT,
-                    creditsMonthly: GRANT,
                     settings: {
                         create: {}
                     },
@@ -749,11 +742,6 @@ function classifyTokenExchangeFailure(status, errorBody) {
                 }
             });
             console.log(`[Google Callback ${requestId}] ✓ New user created: id=${user.id}`);
-            try {
-                await db.$transaction((tx)=>creditMod.writeSignupGrantLedger(tx, user.id));
-            } catch (grantErr) {
-                console.warn(`[Google Callback ${requestId}] Signup grant ledger row failed (non-fatal, balance remains ${GRANT}):`, grantErr);
-            }
             try {
                 await logAuthEvent({
                     userId: user.id,

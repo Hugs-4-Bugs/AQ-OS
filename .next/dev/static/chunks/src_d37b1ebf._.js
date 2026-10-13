@@ -852,14 +852,7 @@ function Providers({ children }) {
                         retry: 2
                     },
                     mutations: {
-                        // FINANCIAL-STYLE INTEGRITY: chargeable POSTs (lead discovery,
-                        // website research, outreach, workflow runs, AI analyses) must
-                        // NEVER be auto-replayed — a network blip after the server already
-                        // processed the request would otherwise duplicate the billing
-                        // event. Retries are deliberate (user clicks again); the server
-                        // additionally dedupes by requestId where an operation identity
-                        // exists.
-                        retry: 0
+                        retry: 1
                     }
                 }
             })
@@ -885,7 +878,7 @@ function Providers({ children }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$error$2d$boundary$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ErrorBoundary"], {
         fallback: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(GlobalErrorFallback, {}, void 0, false, {
             fileName: "[project]/src/components/providers.tsx",
-            lineNumber: 61,
+            lineNumber: 54,
             columnNumber: 30
         }, void 0),
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$tanstack$2f$react$2d$query$2f$build$2f$modern$2f$QueryClientProvider$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["QueryClientProvider"], {
@@ -903,21 +896,21 @@ function Providers({ children }) {
                 children: children
             }, void 0, false, {
                 fileName: "[project]/src/components/providers.tsx",
-                lineNumber: 63,
+                lineNumber: 56,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/components/providers.tsx",
-            lineNumber: 62,
+            lineNumber: 55,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/providers.tsx",
-        lineNumber: 61,
+        lineNumber: 54,
         columnNumber: 5
     }, this);
 }
-_s(Providers, "zNlWtyEBDUoozyFxnrgGlyZVid4=");
+_s(Providers, "z1mcqkOWc35aW15iqUfrYrOkZxc=");
 _c1 = Providers;
 var _c, _c1;
 __turbopack_context__.k.register(_c, "GlobalErrorFallback");

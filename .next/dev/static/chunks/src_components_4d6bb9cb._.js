@@ -581,18 +581,6 @@ function getStatusBadge(status) {
                 className: 'bg-red-900/10 text-red-800 border-red-300',
                 label: 'Dead Lettered'
             };
-        case 'queued':
-            return {
-                variant: 'secondary',
-                className: 'bg-sky-500/10 text-sky-600 border-sky-200',
-                label: 'Queued'
-            };
-        case 'dead_letter':
-            return {
-                variant: 'destructive',
-                className: 'bg-red-900/10 text-red-800 border-red-300',
-                label: 'Dead Lettered'
-            };
         default:
             return {
                 variant: 'outline',
@@ -735,7 +723,7 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                             children: "Run against a lead"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 455,
+                            lineNumber: 445,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
@@ -746,13 +734,13 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 456,
+                            lineNumber: 446,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 454,
+                    lineNumber: 444,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -762,7 +750,7 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                             className: "absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 462,
+                            lineNumber: 452,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -772,13 +760,13 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                             className: "pl-9"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 463,
+                            lineNumber: 453,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 461,
+                    lineNumber: 451,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ScrollArea"], {
@@ -790,21 +778,21 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                                 className: "h-4 w-4 animate-spin mr-2"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 473,
+                                lineNumber: 463,
                                 columnNumber: 15
                             }, this),
                             " Loading leads..."
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 472,
+                        lineNumber: 462,
                         columnNumber: 13
                     }, this) : filtered.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "py-10 text-center text-sm text-muted-foreground",
                         children: "No leads found. Discover or create a lead first."
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 476,
+                        lineNumber: 466,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "space-y-1",
@@ -818,7 +806,7 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                                         children: lead.businessName
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 488,
+                                        lineNumber: 478,
                                         columnNumber: 19
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -829,34 +817,34 @@ function LeadPickerDialog({ workflowName, onClose, onSelect }) {
                                         ].filter(Boolean).join(' · ') || lead.id
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 489,
+                                        lineNumber: 479,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, lead.id, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 482,
+                                lineNumber: 472,
                                 columnNumber: 17
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 480,
+                        lineNumber: 470,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 470,
+                    lineNumber: 460,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-            lineNumber: 453,
+            lineNumber: 443,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 452,
+        lineNumber: 442,
         columnNumber: 5
     }, this);
 }
@@ -881,33 +869,33 @@ function WorkflowCardSkeleton() {
                                 className: "h-5 w-40"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 509,
+                                lineNumber: 499,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                                 className: "h-5 w-16 rounded-full"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 510,
+                                lineNumber: 500,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 508,
+                        lineNumber: 498,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                         className: "h-4 w-64 mt-1"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 512,
+                        lineNumber: 502,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 507,
+                lineNumber: 497,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -918,38 +906,38 @@ function WorkflowCardSkeleton() {
                             className: "h-4 w-20"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 516,
+                            lineNumber: 506,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                             className: "h-4 w-24"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 517,
+                            lineNumber: 507,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                             className: "h-4 w-16"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 518,
+                            lineNumber: 508,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 515,
+                    lineNumber: 505,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 514,
+                lineNumber: 504,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 506,
+        lineNumber: 496,
         columnNumber: 5
     }, this);
 }
@@ -962,41 +950,41 @@ function ExecutionRowSkeleton() {
                 className: "h-4 w-36"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 528,
+                lineNumber: 518,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                 className: "h-5 w-16 rounded-full"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 529,
+                lineNumber: 519,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                 className: "h-4 w-20"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 530,
+                lineNumber: 520,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                 className: "h-4 w-28"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 531,
+                lineNumber: 521,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                 className: "h-4 w-16"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 532,
+                lineNumber: 522,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 527,
+        lineNumber: 517,
         columnNumber: 5
     }, this);
 }
@@ -1015,40 +1003,40 @@ function TemplateCardSkeleton() {
                                 className: "h-5 w-32"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 542,
+                                lineNumber: 532,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                                 className: "h-5 w-16 rounded-full"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 543,
+                                lineNumber: 533,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 541,
+                        lineNumber: 531,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                         className: "h-4 w-full mt-1"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 545,
+                        lineNumber: 535,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                         className: "h-4 w-3/4"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 546,
+                        lineNumber: 536,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 540,
+                lineNumber: 530,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1056,110 +1044,24 @@ function TemplateCardSkeleton() {
                     className: "h-8 w-24"
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 549,
+                    lineNumber: 539,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 548,
+                lineNumber: 538,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 539,
+        lineNumber: 529,
         columnNumber: 5
     }, this);
 }
 _c3 = TemplateCardSkeleton;
-// ===== WORKFLOW BUILDER =====
-/** Per-click operation identity for workflow Run/Rerun — the execution
- *  route forwards it and the engine dedupes on it, so a double-click or
- *  a retried request can never start two chargeable executions. */ function newOperationId() {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    return `wfexec-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-/** What the engine ACTUALLY charges today: a flat 1 credit per executed
- *  action/AI step (deductExecutionCredits keys on the NODE type) and 0
- *  for waits/conditions. Shown so the UI never overstates — the server
- *  remains the source of truth. */ function describeStepCredits(nodeType) {
-    if (nodeType === 'action' || nodeType === 'ai_action') return '1 credit when executed';
-    return 'no credits';
-}
-/** Plain-language description of what a step does, from the engine's real
- *  implementations (src/lib/workflow-actions.ts) — never fabricated. */ function describeStep(node) {
-    const cfg = node.config || {};
-    const actionType = String(cfg.actionType || node.type);
-    switch(actionType){
-        case 'send_email':
-            return `Sends the email "${String(cfg.subject || '(no subject)')}" to ${String(cfg.to || '{{lead.email}}')} via the connected mail service.`;
-        case 'create_gmail_draft':
-            return 'Creates a Gmail DRAFT in your connected mailbox — nothing is sent until you review and send it yourself.';
-        case 'send_telegram':
-            return 'Sends a Telegram message to the lead (requires a connected Telegram integration).';
-        case 'send_whatsapp':
-            return 'Sends a WhatsApp message to the lead (requires a connected WhatsApp integration).';
-        case 'ai_analysis':
-            return 'AI reads the lead and runs a structured analysis (the analysis engine charges its own deep-analysis credits).';
-        case 'ai_outreach':
-            return `AI writes a personalized ${String(cfg.channel || 'email')} outreach message and stores it as a DRAFT for your review — this step never auto-sends.`;
-        case 'move_lead_stage':
-            return `Moves the lead to the "${String(cfg.targetStage || cfg.stage || 'contacted')}" pipeline stage.`;
-        case 'update_tags':
-            return `Adds the tags ${(Array.isArray(cfg.tags) ? cfg.tags.join(', ') : String(cfg.tags || '')) || '(none set)'} to the lead.`;
-        case 'create_notification':
-            return `Creates an in-app notification "${String(cfg.title || '(untitled)')}".`;
-        case 'wait_delay':
-            return `Waits ${String(cfg.duration || 1)} ${String(cfg.unit || 'hours')} before the next step.`;
-        case 'conditional_branch':
-            return `Checks whether ${String(cfg.field || 'the field')} ${String(cfg.operator || '>')} ${String(cfg.value || '')} — skips the NEXT step when the condition is false.`;
-        case 'webhook_call':
-            return `Calls your webhook URL (${String(cfg.method || 'POST')}).`;
-        case 'export_data':
-            return 'Exports the current lead data.';
-        case 'score_lead':
-            return "AI scores the lead's conversion potential and stores the score on the lead.";
-        case 'add_note':
-            return "Adds a note to the lead's timeline.";
-        case 'notify_low_credits':
-            return `Notifies you when the credit balance falls below ${String(cfg.threshold ?? 10)}.`;
-        case 'notify_trial_ending':
-            return 'Notifies you when a trial is about to end.';
-        default:
-            return node.title;
-    }
-}
-/** What the trigger actually starts, from the real event wiring. */ function describeTrigger(triggerType) {
-    switch(triggerType){
-        case 'manual':
-            return 'You click Run — the workflow executes once for the lead you pick.';
-        case 'lead_discovered':
-            return 'Fires when a new lead is discovered by Lead Discovery (event wiring required).';
-        case 'lead_moved':
-            return 'Fires when a lead moves pipeline stage (event wiring required).';
-        case 'lead_reply':
-            return 'Fires when a lead replies (Gmail reply processing / reply intelligence detects it).';
-        case 'ai_completed':
-            return 'Fires when an AI action completes elsewhere in the product (autonomous outreach).';
-        case 'webhook':
-            return "Fires when an external system calls the workflow's webhook URL.";
-        case 'scheduled':
-            return 'Time-based trigger — requires the scheduled-trigger processor to run (currently not wired to a scheduler, so it will not fire on its own).';
-        case 'gmail_connected':
-        case 'email_received':
-        case 'telegram_received':
-        case 'whatsapp_received':
-        case 'payment_success':
-        case 'trial_ending':
-        case 'credits_low':
-            return 'Event trigger — fires when the corresponding event reaches the workflow engine.';
-        default:
-            return 'Runs when the engine receives its trigger event.';
-    }
-}
 function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
     _s1();
-    const { toast } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useToast"])();
     const [name, setName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(workflow?.name || '');
     const [description, setDescription] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(workflow?.description || '');
     const [triggerType, setTriggerType] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(workflow?.triggerType || 'lead_discovered');
@@ -1225,75 +1127,11 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
     };
     const handleSave = ()=>{
         if (!name.trim()) return;
-        // SAVE-TIME VALIDATION — fail fast here instead of at execution time
-        // (the engine fails a run when required config is missing/empty).
-        for (const n of nodes){
-            const actionType = String(n.config.actionType || '');
-            if (n.type === 'condition' || actionType === 'conditional_branch') {
-                if (!String(n.config.field || '').trim() || !String(n.config.value || '').trim()) {
-                    toast({
-                        title: 'Condition incomplete',
-                        description: `"${n.title}" needs both a field and a value. Clear the condition node if it is not needed.`,
-                        variant: 'destructive'
-                    });
-                    setSelectedNodeId(n.id);
-                    return;
-                }
-            }
-            if (actionType === 'send_email' || actionType === 'create_gmail_draft') {
-                if (!String(n.config.to || '').trim() || !String(n.config.subject || '').trim() || !String(n.config.body || '').trim()) {
-                    toast({
-                        title: 'Email step incomplete',
-                        description: `"${n.title}" needs a recipient (use {{lead.email}}), a subject, and a body.`,
-                        variant: 'destructive'
-                    });
-                    setSelectedNodeId(n.id);
-                    return;
-                }
-            }
-            if (actionType === 'update_tags') {
-                const tags = Array.isArray(n.config.tags) ? n.config.tags : String(n.config.tags || '').split(',').map((s)=>s.trim()).filter(Boolean);
-                if (tags.length === 0) {
-                    toast({
-                        title: 'Tags step incomplete',
-                        description: `"${n.title}" needs at least one tag, or remove the step.`,
-                        variant: 'destructive'
-                    });
-                    setSelectedNodeId(n.id);
-                    return;
-                }
-            }
-        }
-        // Normalize step configs to the engine's contracts:
-        // • update_tags: the editor collects a comma-separated string; the
-        //   engine requires an ARRAY.
-        // • optional overrides chosen as "inherit" are dropped (undefined)
-        //   instead of sent as empty strings.
-        const steps = nodes.map((n, i)=>{
-            let config = {
-                ...n.config
-            };
-            if (config.actionType === 'update_tags' && typeof config.tags === 'string') {
-                config = {
-                    ...config,
-                    tags: config.tags.split(',').map((s)=>s.trim()).filter(Boolean)
-                };
-            }
-            for (const key of Object.keys(config)){
-                if (config[key] === undefined || typeof config[key] === 'string' && config[key].trim() === '' && key !== 'message' && key !== 'body') {
-                    delete config[key];
-                }
-            }
-            return {
+        const steps = nodes.map((n, i)=>({
                 type: n.type,
                 name: n.title,
-                config,
+                config: n.config,
                 order: i
-            };
-        });
-        const normalizedNodes = nodes.map((n, i)=>({
-                ...n,
-                config: steps[i].config
             }));
         const edges = nodes.map((n, i)=>({
                 id: `e_${i}`,
@@ -1312,7 +1150,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                     title: getTriggerLabel(triggerType),
                     config: triggerConfig
                 },
-                ...normalizedNodes
+                ...nodes
             ],
             edges,
             steps,
@@ -1335,12 +1173,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                             className: "font-semibold text-lg border-0 px-0 h-auto focus-visible:ring-0 shadow-none"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 789,
+                            lineNumber: 657,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 788,
+                        lineNumber: 656,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1354,7 +1192,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                 children: "Cancel"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 797,
+                                lineNumber: 665,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1366,26 +1204,26 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                         className: "h-4 w-4 mr-1 animate-spin"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 801,
+                                        lineNumber: 669,
                                         columnNumber: 23
                                     }, this) : null,
                                     workflow ? 'Update' : 'Create'
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 800,
+                                lineNumber: 668,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 796,
+                        lineNumber: 664,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 787,
+                lineNumber: 655,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1404,12 +1242,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                     rows: 2
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 812,
+                                    lineNumber: 680,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 811,
+                                lineNumber: 679,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1420,7 +1258,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                         children: "Trigger Configuration"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 823,
+                                        lineNumber: 691,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1434,12 +1272,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                         className: "w-48",
                                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 829,
+                                                            lineNumber: 697,
                                                             columnNumber: 19
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 828,
+                                                        lineNumber: 696,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -1448,18 +1286,18 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                 children: t.label
                                                             }, t.value, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 833,
+                                                                lineNumber: 701,
                                                                 columnNumber: 21
                                                             }, this))
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 831,
+                                                        lineNumber: 699,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 827,
+                                                lineNumber: 695,
                                                 columnNumber: 15
                                             }, this),
                                             triggerType === 'scheduled' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -1472,19 +1310,19 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                 className: "flex-1"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 838,
+                                                lineNumber: 706,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 826,
+                                        lineNumber: 694,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 822,
+                                lineNumber: 690,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1499,7 +1337,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4 text-purple-500')
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 859,
+                                                    lineNumber: 727,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1507,18 +1345,18 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     children: getTriggerLabel(triggerType)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 860,
+                                                    lineNumber: 728,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 858,
+                                            lineNumber: 726,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 851,
+                                        lineNumber: 719,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1528,7 +1366,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                 className: "w-px h-4 bg-border"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 868,
+                                                lineNumber: 736,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1539,12 +1377,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     className: "h-3 w-3 text-muted-foreground"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 874,
+                                                    lineNumber: 742,
                                                     columnNumber: 17
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 869,
+                                                lineNumber: 737,
                                                 columnNumber: 15
                                             }, this),
                                             addNodeMenuOpen === 'after-trigger' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AddNodeMenu, {
@@ -1552,13 +1390,13 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                 onClose: ()=>setAddNodeMenuOpen(null)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 877,
+                                                lineNumber: 745,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 867,
+                                        lineNumber: 735,
                                         columnNumber: 13
                                     }, this),
                                     nodes.map((node, idx)=>{
@@ -1579,13 +1417,13 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                         className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4 shrink-0', colors.text)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 904,
+                                                                        lineNumber: 772,
                                                                         columnNumber: 27
                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$clock$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Clock$3e$__["Clock"], {
                                                                         className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4 shrink-0', colors.text)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 906,
+                                                                        lineNumber: 774,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1593,7 +1431,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                         children: node.title
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 908,
+                                                                        lineNumber: 776,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     node.type === 'action' && Boolean(node.config.actionType) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1602,13 +1440,13 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                         children: getActionLabel(String(node.config.actionType))
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 912,
+                                                                        lineNumber: 780,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 900,
+                                                                lineNumber: 768,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1624,28 +1462,28 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                         className: "h-3 w-3 text-destructive"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 926,
+                                                                        lineNumber: 794,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 918,
+                                                                    lineNumber: 786,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 917,
+                                                                lineNumber: 785,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 899,
+                                                        lineNumber: 767,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 890,
+                                                    lineNumber: 758,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1655,7 +1493,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                             className: "w-px h-4 bg-border"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 934,
+                                                            lineNumber: 802,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1666,12 +1504,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                 className: "h-3 w-3 text-muted-foreground"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 940,
+                                                                lineNumber: 808,
                                                                 columnNumber: 23
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 935,
+                                                            lineNumber: 803,
                                                             columnNumber: 21
                                                         }, this),
                                                         addNodeMenuOpen === node.id && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AddNodeMenu, {
@@ -1679,19 +1517,19 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                             onClose: ()=>setAddNodeMenuOpen(null)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 943,
+                                                            lineNumber: 811,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 933,
+                                                    lineNumber: 801,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, node.id, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 889,
+                                            lineNumber: 757,
                                             columnNumber: 17
                                         }, this);
                                     }),
@@ -1702,12 +1540,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                             children: "Click the + button above to add steps"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 956,
+                                            lineNumber: 824,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 955,
+                                        lineNumber: 823,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1717,24 +1555,24 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                             children: "End"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 962,
+                                            lineNumber: 830,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 961,
+                                        lineNumber: 829,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 849,
+                                lineNumber: 717,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 809,
+                        lineNumber: 677,
                         columnNumber: 9
                     }, this),
                     selectedNode && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1750,7 +1588,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                             children: "Configure Node"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 972,
+                                            lineNumber: 840,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1762,18 +1600,18 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                 className: "h-4 w-4"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 979,
+                                                lineNumber: 847,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 973,
+                                            lineNumber: 841,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 971,
+                                    lineNumber: 839,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1786,7 +1624,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     children: "Name"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 985,
+                                                    lineNumber: 853,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -1797,13 +1635,13 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     className: "mt-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 986,
+                                                    lineNumber: 854,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 984,
+                                            lineNumber: 852,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1813,7 +1651,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     children: "Type"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 994,
+                                                    lineNumber: 862,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -1826,12 +1664,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                             className: "mt-1",
                                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 1000,
+                                                                lineNumber: 868,
                                                                 columnNumber: 23
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 999,
+                                                            lineNumber: 867,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -1840,24 +1678,24 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                     children: t.label
                                                                 }, t.value, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 1004,
+                                                                    lineNumber: 872,
                                                                     columnNumber: 25
                                                                 }, this))
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1002,
+                                                            lineNumber: 870,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 995,
+                                                    lineNumber: 863,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 993,
+                                            lineNumber: 861,
                                             columnNumber: 17
                                         }, this),
                                         (selectedNode.type === 'action' || selectedNode.type === 'ai_action') && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1867,7 +1705,7 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                     children: "Action Type"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1013,
+                                                    lineNumber: 881,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -1880,12 +1718,12 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                             className: "mt-1",
                                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 1019,
+                                                                lineNumber: 887,
                                                                 columnNumber: 25
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1018,
+                                                            lineNumber: 886,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -1894,24 +1732,24 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                                                     children: a.label
                                                                 }, a.value, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 1023,
+                                                                    lineNumber: 891,
                                                                     columnNumber: 27
                                                                 }, this))
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1021,
+                                                            lineNumber: 889,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1014,
+                                                    lineNumber: 882,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1012,
+                                            lineNumber: 880,
                                             columnNumber: 19
                                         }, this),
                                         selectedNode.type === 'action' && renderActionConfig(selectedNode, selectedNodeId, updateNodeConfig),
@@ -1921,38 +1759,34 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }) {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 983,
+                                    lineNumber: 851,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 970,
+                            lineNumber: 838,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 969,
+                        lineNumber: 837,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 807,
+                lineNumber: 675,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 785,
+        lineNumber: 653,
         columnNumber: 5
     }, this);
 }
-_s1(WorkflowBuilder, "Oq6kwzA8VF9JaX/sNghKbv0XW5M=", false, function() {
-    return [
-        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useToast"]
-    ];
-});
+_s1(WorkflowBuilder, "ieDamLMgs2xfM66spqoZKOX/oBY=");
 _c4 = WorkflowBuilder;
 function renderActionConfig(node, nodeId, updateConfig) {
     const actionType = String(node.config.actionType || '');
@@ -1964,57 +1798,10 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
                                 className: "text-xs",
-                                children: "Recipient (To)"
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1055,
-                                columnNumber: 13
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
-                                value: String(node.config.to || ''),
-                                onChange: (e)=>updateConfig(nodeId, {
-                                        to: e.target.value
-                                    }),
-                                placeholder: "{{lead.email}}",
-                                className: "mt-1"
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1056,
-                                columnNumber: 13
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-[10px] text-muted-foreground mt-1",
-                                children: [
-                                    "Use ",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                        className: "bg-muted px-1 rounded",
-                                        children: '{{lead.email}}'
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1063,
-                                        columnNumber: 19
-                                    }, this),
-                                    " to email the lead in context, or a fixed address."
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1062,
-                                columnNumber: 13
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1054,
-                        columnNumber: 11
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
-                                className: "text-xs",
                                 children: "Subject"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1067,
+                                lineNumber: 923,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -2026,13 +1813,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1068,
+                                lineNumber: 924,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1066,
+                        lineNumber: 922,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2042,7 +1829,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 children: "Body"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1076,
+                                lineNumber: 932,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Textarea"], {
@@ -2055,13 +1842,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 rows: 4
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1077,
+                                lineNumber: 933,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1075,
+                        lineNumber: 931,
                         columnNumber: 11
                     }, this)
                 ]
@@ -2073,7 +1860,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         children: "Message"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1089,
+                        lineNumber: 945,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Textarea"], {
@@ -2086,13 +1873,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         rows: 4
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1090,
+                        lineNumber: 946,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1088,
+                lineNumber: 944,
                 columnNumber: 9
             }, this),
             actionType === 'move_lead_stage' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2102,7 +1889,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         children: "Target Stage"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1101,
+                        lineNumber: 957,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2115,12 +1902,12 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1107,
+                                    lineNumber: 963,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1106,
+                                lineNumber: 962,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2130,7 +1917,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Analyzed"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1110,
+                                        lineNumber: 966,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2138,7 +1925,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Contacted"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1111,
+                                        lineNumber: 967,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2146,7 +1933,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Replied"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1112,
+                                        lineNumber: 968,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2154,7 +1941,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Discussion"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1113,
+                                        lineNumber: 969,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2162,7 +1949,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Proposal"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1114,
+                                        lineNumber: 970,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2170,7 +1957,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Negotiation"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1115,
+                                        lineNumber: 971,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2178,25 +1965,25 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         children: "Won"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1116,
+                                        lineNumber: 972,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1109,
+                                lineNumber: 965,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1102,
+                        lineNumber: 958,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1100,
+                lineNumber: 956,
                 columnNumber: 9
             }, this),
             actionType === 'update_tags' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2206,11 +1993,11 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         children: "Tags (comma-separated)"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1123,
+                        lineNumber: 979,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
-                        value: Array.isArray(node.config.tags) ? node.config.tags.join(', ') : String(node.config.tags || ''),
+                        value: String(node.config.tags || ''),
                         onChange: (e)=>updateConfig(nodeId, {
                                 tags: e.target.value
                             }),
@@ -2218,21 +2005,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         className: "mt-1"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1124,
-                        columnNumber: 11
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-[10px] text-muted-foreground mt-1",
-                        children: "Stored as a list; leave empty means no tags (the step is skipped at save)."
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1130,
+                        lineNumber: 980,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1122,
+                lineNumber: 978,
                 columnNumber: 9
             }, this),
             actionType === 'create_notification' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -2244,7 +2023,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 children: "Title"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1136,
+                                lineNumber: 991,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -2256,13 +2035,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1137,
+                                lineNumber: 992,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1135,
+                        lineNumber: 990,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2272,7 +2051,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 children: "Message"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1145,
+                                lineNumber: 1000,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -2284,13 +2063,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1146,
+                                lineNumber: 1001,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1144,
+                        lineNumber: 999,
                         columnNumber: 11
                     }, this)
                 ]
@@ -2302,7 +2081,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         children: "Note Content"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1157,
+                        lineNumber: 1012,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Textarea"], {
@@ -2315,13 +2094,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         rows: 4
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1158,
+                        lineNumber: 1013,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1156,
+                lineNumber: 1011,
                 columnNumber: 9
             }, this),
             actionType === 'webhook_call' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -2333,7 +2112,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 children: "URL"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1170,
+                                lineNumber: 1025,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -2345,13 +2124,13 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1171,
+                                lineNumber: 1026,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1169,
+                        lineNumber: 1024,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2361,7 +2140,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                 children: "Method"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1179,
+                                lineNumber: 1034,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2374,12 +2153,12 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                         className: "mt-1",
                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1185,
+                                            lineNumber: 1040,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1184,
+                                        lineNumber: 1039,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2389,7 +2168,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                                 children: "POST"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1188,
+                                                lineNumber: 1043,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2397,7 +2176,7 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                                 children: "GET"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1189,
+                                                lineNumber: 1044,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2405,25 +2184,25 @@ function renderActionConfig(node, nodeId, updateConfig) {
                                                 children: "PUT"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1190,
+                                                lineNumber: 1045,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1187,
+                                        lineNumber: 1042,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1180,
+                                lineNumber: 1035,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1178,
+                        lineNumber: 1033,
                         columnNumber: 11
                     }, this)
                 ]
@@ -2435,36 +2214,25 @@ function renderActionConfig(node, nodeId, updateConfig) {
                         children: "Threshold"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1198,
+                        lineNumber: 1053,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
                         type: "number",
-                        // Explicit None semantics: empty = "use the default (10)"; a
-                        // typed 0 must stay 0 (the old `|| 10` coerced 0 into 10).
-                        value: node.config.threshold === undefined || node.config.threshold === null ? '' : String(node.config.threshold),
+                        value: String(node.config.threshold || 10),
                         onChange: (e)=>updateConfig(nodeId, {
-                                threshold: e.target.value === '' ? undefined : Number(e.target.value)
+                                threshold: Number(e.target.value)
                             }),
-                        placeholder: "Default: 10",
                         className: "mt-1"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1199,
-                        columnNumber: 11
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-[10px] text-muted-foreground mt-1",
-                        children: "Leave empty to use the default (10). 0 is allowed."
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1208,
+                        lineNumber: 1054,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1197,
+                lineNumber: 1052,
                 columnNumber: 9
             }, this)
         ]
@@ -2481,7 +2249,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                         children: "Analysis Prompt"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1225,
+                        lineNumber: 1076,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Textarea"], {
@@ -2494,13 +2262,13 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                         rows: 4
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1226,
+                        lineNumber: 1077,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1224,
+                lineNumber: 1075,
                 columnNumber: 9
             }, this),
             actionType === 'ai_outreach' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -2512,7 +2280,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                 children: "Channel"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1238,
+                                lineNumber: 1089,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2525,12 +2293,12 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                         className: "mt-1",
                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1244,
+                                            lineNumber: 1095,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1243,
+                                        lineNumber: 1094,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2540,7 +2308,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                                 children: "Email"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1247,
+                                                lineNumber: 1098,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2548,7 +2316,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                                 children: "WhatsApp"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1248,
+                                                lineNumber: 1099,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2556,25 +2324,25 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                                 children: "Telegram"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1249,
+                                                lineNumber: 1100,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1246,
+                                        lineNumber: 1097,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1239,
+                                lineNumber: 1090,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1237,
+                        lineNumber: 1088,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2584,14 +2352,12 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                 children: "Style"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1254,
+                                lineNumber: 1105,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
-                                value: String(node.config.style || '__inherit'),
-                                onValueChange: (v)=>updateConfig(nodeId, v === '__inherit' ? {
-                                        style: undefined
-                                    } : {
+                                value: String(node.config.style || 'professional'),
+                                onValueChange: (v)=>updateConfig(nodeId, {
                                         style: v
                                     }),
                                 children: [
@@ -2599,30 +2365,22 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                         className: "mt-1",
                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1260,
+                                            lineNumber: 1111,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1259,
+                                        lineNumber: 1110,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
                                         children: [
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
-                                                value: "__inherit",
-                                                children: "None (inherit profile tone)"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1263,
-                                                columnNumber: 17
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
                                                 value: "professional",
                                                 children: "Professional"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1264,
+                                                lineNumber: 1114,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2630,7 +2388,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                                 children: "Friendly"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1265,
+                                                lineNumber: 1115,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2638,7 +2396,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                                 children: "Casual"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1266,
+                                                lineNumber: 1116,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2646,33 +2404,25 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                                 children: "Follow-up"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1267,
+                                                lineNumber: 1117,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1262,
+                                        lineNumber: 1113,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1255,
-                                columnNumber: 13
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-[10px] text-muted-foreground mt-1",
-                                children: "Choosing None uses your saved business profile tone instead of an override."
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1270,
+                                lineNumber: 1106,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1253,
+                        lineNumber: 1104,
                         columnNumber: 11
                     }, this)
                 ]
@@ -2682,7 +2432,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                 children: "AI will score the lead based on conversion potential, urgency, and revenue opportunity."
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1275,
+                lineNumber: 1124,
                 columnNumber: 9
             }, this),
             ![
@@ -2696,7 +2446,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                         children: "Action Type"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1281,
+                        lineNumber: 1130,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2709,12 +2459,12 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1287,
+                                    lineNumber: 1136,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1286,
+                                lineNumber: 1135,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2724,7 +2474,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                         children: "AI Analysis"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1290,
+                                        lineNumber: 1139,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2732,7 +2482,7 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                         children: "AI Outreach"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1291,
+                                        lineNumber: 1140,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2740,25 +2490,25 @@ function renderAIActionConfig(node, nodeId, updateConfig) {
                                         children: "Score Lead"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1292,
+                                        lineNumber: 1141,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1289,
+                                lineNumber: 1138,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1282,
+                        lineNumber: 1131,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1280,
+                lineNumber: 1129,
                 columnNumber: 9
             }, this)
         ]
@@ -2776,7 +2526,7 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                         children: "Duration"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1309,
+                        lineNumber: 1158,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -2789,13 +2539,13 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                         min: 1
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1310,
+                        lineNumber: 1159,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1308,
+                lineNumber: 1157,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2806,7 +2556,7 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                         children: "Unit"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1319,
+                        lineNumber: 1168,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2819,12 +2569,12 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                                 className: "mt-1",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1325,
+                                    lineNumber: 1174,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1324,
+                                lineNumber: 1173,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2834,7 +2584,7 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                                         children: "Minutes"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1328,
+                                        lineNumber: 1177,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2842,7 +2592,7 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                                         children: "Hours"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1329,
+                                        lineNumber: 1178,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2850,31 +2600,31 @@ function renderDelayConfig(node, nodeId, updateConfig) {
                                         children: "Days"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1330,
+                                        lineNumber: 1179,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1327,
+                                lineNumber: 1176,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1320,
+                        lineNumber: 1169,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1318,
+                lineNumber: 1167,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 1307,
+        lineNumber: 1156,
         columnNumber: 5
     }, this);
 }
@@ -2888,7 +2638,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                         children: "Field"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1346,
+                        lineNumber: 1195,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -2896,44 +2646,17 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                         onChange: (e)=>updateConfig(nodeId, {
                                 field: e.target.value
                             }),
-                        placeholder: "leadStage or leadScore",
+                        placeholder: "e.g. leadScore",
                         className: "mt-1"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1347,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-[10px] text-muted-foreground mt-1",
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                className: "bg-muted px-1 rounded",
-                                children: "leadStage"
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1354,
-                                columnNumber: 11
-                            }, this),
-                            " = pipeline stage, ",
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                className: "bg-muted px-1 rounded",
-                                children: "leadScore"
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1354,
-                                columnNumber: 86
-                            }, this),
-                            " = AI conversion score, or a previous step's output key."
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1353,
+                        lineNumber: 1196,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1345,
+                lineNumber: 1194,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2943,7 +2666,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                         children: "Operator"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1358,
+                        lineNumber: 1204,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2956,12 +2679,12 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                 className: "mt-1",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1364,
+                                    lineNumber: 1210,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1363,
+                                lineNumber: 1209,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2971,7 +2694,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                         children: "Greater than"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1367,
+                                        lineNumber: 1213,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2979,7 +2702,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                         children: "Less than"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1368,
+                                        lineNumber: 1214,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2987,7 +2710,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                         children: "Equals"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1369,
+                                        lineNumber: 1215,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -2995,7 +2718,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                         children: "Not equals"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1370,
+                                        lineNumber: 1216,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3003,7 +2726,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                         children: "Greater or equal"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1371,
+                                        lineNumber: 1217,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3011,25 +2734,25 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                                         children: "Less or equal"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1372,
+                                        lineNumber: 1218,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1366,
+                                lineNumber: 1212,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1359,
+                        lineNumber: 1205,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1357,
+                lineNumber: 1203,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3039,7 +2762,7 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                         children: "Value"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1377,
+                        lineNumber: 1223,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -3051,13 +2774,13 @@ function renderConditionConfig(node, nodeId, updateConfig) {
                         className: "mt-1"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1378,
+                        lineNumber: 1224,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1376,
+                lineNumber: 1222,
                 columnNumber: 7
             }, this)
         ]
@@ -3070,7 +2793,7 @@ function renderActionIcon(actionType, className) {
         className: className
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 1393,
+        lineNumber: 1239,
         columnNumber: 22
     }, this);
     const Icon = found.icon;
@@ -3078,7 +2801,7 @@ function renderActionIcon(actionType, className) {
         className: className
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 1395,
+        lineNumber: 1241,
         columnNumber: 10
     }, this);
 }
@@ -3095,12 +2818,12 @@ function AddNodeMenu({ onSelect, onClose }) {
                 children: t.label
             }, t.value, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1404,
+                lineNumber: 1250,
                 columnNumber: 9
             }, this))
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 1402,
+        lineNumber: 1248,
         columnNumber: 5
     }, this);
 }
@@ -3210,17 +2933,12 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
         try {
             // Lead-scoped runs carry the trusted execution context (leadId) picked
             // by the user; the server re-verifies ownership before every step.
-            // idempotencyKey: one click = one execution — a retried/double-fired
-            // request returns the SAME execution instead of charging twice.
-            const body = {
-                idempotencyKey: newOperationId(),
-                ...lead ? {
-                    triggerData: {
-                        leadId: lead.id,
-                        leadName: lead.businessName
-                    }
-                } : {}
-            };
+            const body = lead ? {
+                triggerData: {
+                    leadId: lead.id,
+                    leadName: lead.businessName
+                }
+            } : {};
             const result = await apiFetch(`/api/workflows/${wf.id}/execute`, {
                 method: 'POST',
                 body: JSON.stringify(body)
@@ -3265,7 +2983,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1558,
+                lineNumber: 1399,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3278,7 +2996,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                 className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1571,
+                                lineNumber: 1412,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
@@ -3288,13 +3006,13 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                 className: "pl-9"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1572,
+                                lineNumber: 1413,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1570,
+                        lineNumber: 1411,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -3308,18 +3026,18 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                         className: "h-4 w-4 mr-2"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1581,
+                                        lineNumber: 1422,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1582,
+                                        lineNumber: 1423,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1580,
+                                lineNumber: 1421,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -3329,7 +3047,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                         children: "All Statuses"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1585,
+                                        lineNumber: 1426,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3337,7 +3055,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                         children: "Active"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1586,
+                                        lineNumber: 1427,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3345,7 +3063,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                         children: "Paused"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1587,
+                                        lineNumber: 1428,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3353,25 +3071,25 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                         children: "Draft"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1588,
+                                        lineNumber: 1429,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1584,
+                                lineNumber: 1425,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1579,
+                        lineNumber: 1420,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1569,
+                lineNumber: 1410,
                 columnNumber: 7
             }, this),
             loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3379,23 +3097,23 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(WorkflowCardSkeleton, {}, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1596,
+                        lineNumber: 1437,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(WorkflowCardSkeleton, {}, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1597,
+                        lineNumber: 1438,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(WorkflowCardSkeleton, {}, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1598,
+                        lineNumber: 1439,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1595,
+                lineNumber: 1436,
                 columnNumber: 9
             }, this),
             !loading && workflows.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3405,7 +3123,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                         className: "h-12 w-12 text-muted-foreground/30 mx-auto mb-3"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1605,
+                        lineNumber: 1446,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
@@ -3413,7 +3131,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                         children: "No workflows yet"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1606,
+                        lineNumber: 1447,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3421,13 +3139,13 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                         children: "Create your first workflow to automate your client acquisition."
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1607,
+                        lineNumber: 1448,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1604,
+                lineNumber: 1445,
                 columnNumber: 9
             }, this),
             !loading && workflows.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3455,7 +3173,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                             children: wf.name
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1625,
+                                                            lineNumber: 1466,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -3464,7 +3182,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                             children: statusBadge.label
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1631,
+                                                            lineNumber: 1472,
                                                             columnNumber: 25
                                                         }, this),
                                                         wf.disabledBySubscription && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -3475,20 +3193,20 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                                     className: "h-3 w-3 mr-1"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 1639,
+                                                                    lineNumber: 1480,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 "Subscription Paused"
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1635,
+                                                            lineNumber: 1476,
                                                             columnNumber: 27
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1624,
+                                                    lineNumber: 1465,
                                                     columnNumber: 23
                                                 }, this),
                                                 wf.description && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -3496,7 +3214,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     children: wf.description
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1645,
+                                                    lineNumber: 1486,
                                                     columnNumber: 25
                                                 }, this),
                                                 wf.disabledBySubscription && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3504,13 +3222,13 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     children: "Renew your subscription to resume this workflow."
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1650,
+                                                    lineNumber: 1491,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1623,
+                                            lineNumber: 1464,
                                             columnNumber: 21
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenu"], {
@@ -3525,17 +3243,17 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                             className: "h-4 w-4"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1658,
+                                                            lineNumber: 1499,
                                                             columnNumber: 27
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 1657,
+                                                        lineNumber: 1498,
                                                         columnNumber: 25
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1656,
+                                                    lineNumber: 1497,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuContent"], {
@@ -3548,14 +3266,14 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                                     className: "h-4 w-4 mr-2"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 1663,
+                                                                    lineNumber: 1504,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 " Edit"
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1662,
+                                                            lineNumber: 1503,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -3566,19 +3284,19 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                                     className: "h-4 w-4 mr-2"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 1666,
+                                                                    lineNumber: 1507,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 " Execute Now"
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1665,
+                                                            lineNumber: 1506,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1668,
+                                                            lineNumber: 1509,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -3589,37 +3307,37 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                                     className: "h-4 w-4 mr-2"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 1673,
+                                                                    lineNumber: 1514,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 " Delete"
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1669,
+                                                            lineNumber: 1510,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1661,
+                                                    lineNumber: 1502,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1655,
+                                            lineNumber: 1496,
                                             columnNumber: 21
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1622,
+                                    lineNumber: 1463,
                                     columnNumber: 19
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1621,
+                                lineNumber: 1462,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -3633,20 +3351,20 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1682,
+                                                    lineNumber: 1523,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                     children: getTriggerLabel(wf.triggerType)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1683,
+                                                    lineNumber: 1524,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1681,
+                                            lineNumber: 1522,
                                             columnNumber: 21
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3656,7 +3374,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1686,
+                                                    lineNumber: 1527,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -3667,13 +3385,13 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1687,
+                                                    lineNumber: 1528,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1685,
+                                            lineNumber: 1526,
                                             columnNumber: 21
                                         }, this),
                                         wf._count?.executions !== undefined && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3683,7 +3401,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1691,
+                                                    lineNumber: 1532,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -3694,13 +3412,13 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1692,
+                                                    lineNumber: 1533,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1690,
+                                            lineNumber: 1531,
                                             columnNumber: 23
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3710,20 +3428,20 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1696,
+                                                    lineNumber: 1537,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                     children: timeAgo(wf.updatedAt)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1697,
+                                                    lineNumber: 1538,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1695,
+                                            lineNumber: 1536,
                                             columnNumber: 21
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3736,7 +3454,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                     "aria-label": `Toggle ${wf.name} status`
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1700,
+                                                    lineNumber: 1541,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -3750,49 +3468,49 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                                             className: "h-3 w-3 mr-1 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1714,
+                                                            lineNumber: 1555,
                                                             columnNumber: 27
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$play$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Play$3e$__["Play"], {
                                                             className: "h-3 w-3 mr-1"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1716,
+                                                            lineNumber: 1557,
                                                             columnNumber: 27
                                                         }, this),
                                                         executingId === wf.id ? 'Starting…' : 'Run'
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1706,
+                                                    lineNumber: 1547,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1699,
+                                            lineNumber: 1540,
                                             columnNumber: 21
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1680,
+                                    lineNumber: 1521,
                                     columnNumber: 19
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 1679,
+                                lineNumber: 1520,
                                 columnNumber: 17
                             }, this)
                         ]
                     }, wf.id, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 1620,
+                        lineNumber: 1461,
                         columnNumber: 15
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1615,
+                lineNumber: 1456,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -3806,20 +3524,20 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                     children: "Delete Workflow"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1733,
+                                    lineNumber: 1574,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
                                     children: "This will archive the workflow. This action cannot be easily undone."
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1734,
+                                    lineNumber: 1575,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1732,
+                            lineNumber: 1573,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -3829,7 +3547,7 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                     children: "Cancel"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1739,
+                                    lineNumber: 1580,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -3841,37 +3559,37 @@ function WorkflowList({ onSelectWorkflow, onEditWorkflow }) {
                                             className: "h-4 w-4 mr-1 animate-spin"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1741,
+                                            lineNumber: 1582,
                                             columnNumber: 27
                                         }, this) : null,
                                         "Delete"
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1740,
+                                    lineNumber: 1581,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1738,
+                            lineNumber: 1579,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 1731,
+                    lineNumber: 1572,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 1730,
+                lineNumber: 1571,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 1556,
+        lineNumber: 1397,
         columnNumber: 5
     }, this);
 }
@@ -3969,27 +3687,27 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                     className: "h-4 w-4 text-primary"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1871,
+                                    lineNumber: 1712,
                                     columnNumber: 13
                                 }, this),
                                 "Create Workflow with AI"
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1870,
+                            lineNumber: 1711,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
-                            children: "Describe your automation in plain English and AI will build it. Elite feature — costs 5 credits per generation."
+                            children: "Describe your automation in plain English and AI will build it. Pro & Elite feature — costs 5 credits per generation."
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1874,
+                            lineNumber: 1715,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 1869,
+                    lineNumber: 1710,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4003,7 +3721,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                     children: "Workflow description"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1881,
+                                    lineNumber: 1722,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Textarea"], {
@@ -4016,13 +3734,13 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                     disabled: generating || !!savingStatus
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1882,
+                                    lineNumber: 1723,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1880,
+                            lineNumber: 1721,
                             columnNumber: 11
                         }, this),
                         !generated ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -4035,7 +3753,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                         className: "h-4 w-4 animate-spin"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1901,
+                                        lineNumber: 1742,
                                         columnNumber: 19
                                     }, this),
                                     "Generating..."
@@ -4046,7 +3764,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                         className: "h-4 w-4"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 1906,
+                                        lineNumber: 1747,
                                         columnNumber: 19
                                     }, this),
                                     "Generate Workflow"
@@ -4054,7 +3772,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                             }, void 0, true)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1894,
+                            lineNumber: 1735,
                             columnNumber: 13
                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "space-y-3",
@@ -4069,14 +3787,14 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                     className: "h-3.5 w-3.5 text-primary"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1916,
+                                                    lineNumber: 1757,
                                                     columnNumber: 19
                                                 }, this),
                                                 "Generated Workflow Preview"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1915,
+                                            lineNumber: 1756,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4089,7 +3807,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                         className: "h-3 w-3 mr-1"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 1921,
+                                                        lineNumber: 1762,
                                                         columnNumber: 21
                                                     }, this),
                                                     "Trigger: ",
@@ -4097,12 +3815,12 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 1920,
+                                                lineNumber: 1761,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1919,
+                                            lineNumber: 1760,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4114,13 +3832,13 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1930,
+                                                    lineNumber: 1771,
                                                     columnNumber: 25
                                                 }, this) : step.nodeType === 'condition' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$git$2d$branch$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__GitBranch$3e$__["GitBranch"], {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1932,
+                                                    lineNumber: 1773,
                                                     columnNumber: 27
                                                 }, this) : renderActionIcon(step.actionType, 'h-3.5 w-3.5');
                                                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4134,7 +3852,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1936,
+                                                            lineNumber: 1777,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4142,7 +3860,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                             children: stepIcon
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1937,
+                                                            lineNumber: 1778,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4150,7 +3868,7 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                             children: step.title
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1938,
+                                                            lineNumber: 1779,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -4159,19 +3877,19 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                             children: getActionLabel(step.actionType)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 1939,
+                                                            lineNumber: 1780,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, i, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1935,
+                                                    lineNumber: 1776,
                                                     columnNumber: 23
                                                 }, this);
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1925,
+                                            lineNumber: 1766,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4184,13 +3902,13 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1946,
+                                            lineNumber: 1787,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1914,
+                                    lineNumber: 1755,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4212,14 +3930,14 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                     className: "h-3.5 w-3.5 mr-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1965,
+                                                    lineNumber: 1806,
                                                     columnNumber: 19
                                                 }, this),
                                                 " Edit"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1953,
+                                            lineNumber: 1794,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -4233,14 +3951,14 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                     className: "h-3.5 w-3.5 mr-1 animate-spin"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1974,
+                                                    lineNumber: 1815,
                                                     columnNumber: 47
                                                 }, this) : null,
                                                 "Save as Draft"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1967,
+                                            lineNumber: 1808,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -4253,49 +3971,49 @@ function AiGenerateWorkflowModal({ open, onOpenChange, onEdit, onSaved }) {
                                                     className: "h-3.5 w-3.5 mr-1 animate-spin"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1983,
+                                                    lineNumber: 1824,
                                                     columnNumber: 48
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$check$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CheckCircle2$3e$__["CheckCircle2"], {
                                                     className: "h-3.5 w-3.5 mr-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 1983,
+                                                    lineNumber: 1824,
                                                     columnNumber: 104
                                                 }, this),
                                                 "Save & Activate"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 1977,
+                                            lineNumber: 1818,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 1952,
+                                    lineNumber: 1793,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 1912,
+                            lineNumber: 1753,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 1879,
+                    lineNumber: 1720,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-            lineNumber: 1868,
+            lineNumber: 1709,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 1861,
+        lineNumber: 1702,
         columnNumber: 5
     }, this);
 }
@@ -4317,17 +4035,13 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
         setExecuting(true);
         try {
             // Lead-scoped runs carry the trusted execution context (leadId);
-            // the server re-verifies ownership before every step. One click =
-            // one execution (operation identity, deduped server-side).
-            const body = {
-                idempotencyKey: newOperationId(),
-                ...lead ? {
-                    triggerData: {
-                        leadId: lead.id,
-                        leadName: lead.businessName
-                    }
-                } : {}
-            };
+            // the server re-verifies ownership before every step.
+            const body = lead ? {
+                triggerData: {
+                    leadId: lead.id,
+                    leadName: lead.businessName
+                }
+            } : {};
             const result = await apiFetch(`/api/workflows/${workflow.id}/execute`, {
                 method: 'POST',
                 body: JSON.stringify(body)
@@ -4366,7 +4080,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2054,
+                lineNumber: 1891,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4380,19 +4094,19 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                             className: "h-4 w-4 rotate-180 mr-1"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2065,
+                            lineNumber: 1902,
                             columnNumber: 11
                         }, this),
                         " Back"
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 2064,
+                    lineNumber: 1901,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2063,
+                lineNumber: 1900,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -4410,7 +4124,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                     children: workflow.name
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2074,
+                                                    lineNumber: 1911,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -4419,7 +4133,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                     children: statusBadge.label
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2075,
+                                                    lineNumber: 1912,
                                                     columnNumber: 17
                                                 }, this),
                                                 workflow.disabledBySubscription && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -4430,20 +4144,20 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                             className: "h-3 w-3 mr-1"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2083,
+                                                            lineNumber: 1920,
                                                             columnNumber: 21
                                                         }, this),
                                                         "Subscription Paused"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2079,
+                                                    lineNumber: 1916,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2073,
+                                            lineNumber: 1910,
                                             columnNumber: 15
                                         }, this),
                                         workflow.description && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -4451,7 +4165,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                             children: workflow.description
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2089,
+                                            lineNumber: 1926,
                                             columnNumber: 17
                                         }, this),
                                         workflow.disabledBySubscription && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4461,20 +4175,20 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2093,
+                                                    lineNumber: 1930,
                                                     columnNumber: 19
                                                 }, this),
                                                 "Renew your subscription to resume this workflow."
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2092,
+                                            lineNumber: 1929,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2072,
+                                    lineNumber: 1909,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4490,20 +4204,20 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                     className: "h-4 w-4 mr-1 animate-spin"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2105,
+                                                    lineNumber: 1942,
                                                     columnNumber: 30
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$play$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Play$3e$__["Play"], {
                                                     className: "h-4 w-4 mr-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2105,
+                                                    lineNumber: 1942,
                                                     columnNumber: 82
                                                 }, this),
                                                 "Execute"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2099,
+                                            lineNumber: 1936,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -4515,31 +4229,31 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                     className: "h-4 w-4 mr-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2109,
+                                                    lineNumber: 1946,
                                                     columnNumber: 17
                                                 }, this),
                                                 " Edit"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2108,
+                                            lineNumber: 1945,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2098,
+                                    lineNumber: 1935,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2071,
+                            lineNumber: 1908,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2070,
+                        lineNumber: 1907,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -4554,7 +4268,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                 className: "h-3.5 w-3.5"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2117,
+                                                lineNumber: 1954,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4564,13 +4278,13 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2118,
+                                                lineNumber: 1955,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2116,
+                                        lineNumber: 1953,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4580,7 +4294,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                 className: "h-3.5 w-3.5"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2121,
+                                                lineNumber: 1958,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4591,19 +4305,19 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2122,
+                                                lineNumber: 1959,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2120,
+                                        lineNumber: 1957,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2115,
+                                lineNumber: 1952,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4620,7 +4334,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                         className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4', colors.text)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2133,
+                                                        lineNumber: 1970,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4628,18 +4342,18 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                         children: node.title
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2134,
+                                                        lineNumber: 1971,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2132,
+                                                lineNumber: 1969,
                                                 columnNumber: 19
                                             }, this)
                                         }, node.id, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2131,
+                                            lineNumber: 1968,
                                             columnNumber: 17
                                         }, this);
                                     }),
@@ -4653,12 +4367,12 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                         className: "w-px h-3 bg-border"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2144,
+                                                        lineNumber: 1981,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2143,
+                                                    lineNumber: 1980,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4670,13 +4384,13 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                                 className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4', colors.text)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2149,
+                                                                lineNumber: 1986,
                                                                 columnNumber: 25
                                                             }, this) : node.type === 'condition' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$git$2d$branch$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__GitBranch$3e$__["GitBranch"], {
                                                                 className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4', colors.text)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2151,
+                                                                lineNumber: 1988,
                                                                 columnNumber: 25
                                                             }, this) : renderActionIcon(String(node.config?.actionType || ''), (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-4 w-4', colors.text)),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4684,7 +4398,7 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                                 children: node.title
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2155,
+                                                                lineNumber: 1992,
                                                                 columnNumber: 23
                                                             }, this),
                                                             Boolean(node.config?.actionType) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -4693,189 +4407,49 @@ function WorkflowDetail({ workflow, onBack, onEdit }) {
                                                                 children: getActionLabel(String(node.config.actionType))
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2157,
+                                                                lineNumber: 1994,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2147,
+                                                        lineNumber: 1984,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2146,
+                                                    lineNumber: 1983,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, node.id, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2142,
+                                            lineNumber: 1979,
                                             columnNumber: 17
                                         }, this);
                                     })
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2127,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "mt-6 rounded-lg border bg-muted/20 p-4",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h4", {
-                                        className: "text-sm font-semibold flex items-center gap-1.5",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$zap$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Zap$3e$__["Zap"], {
-                                                className: "h-4 w-4 text-purple-500"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2172,
-                                                columnNumber: 15
-                                            }, this),
-                                            "How this workflow automates client acquisition"
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2171,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ol", {
-                                        className: "mt-3 space-y-2.5",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                className: "text-sm flex gap-2",
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                        className: "shrink-0 h-5 w-5 rounded-full bg-purple-500/15 text-purple-600 text-[10px] font-bold flex items-center justify-center",
-                                                        children: "1"
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2177,
-                                                        columnNumber: 17
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                        children: [
-                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                                className: "font-medium text-sm",
-                                                                children: "Trigger"
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2179,
-                                                                columnNumber: 19
-                                                            }, this),
-                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                                className: "text-xs text-muted-foreground",
-                                                                children: describeTrigger(workflow.triggerType)
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2180,
-                                                                columnNumber: 19
-                                                            }, this)
-                                                        ]
-                                                    }, void 0, true, {
-                                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2178,
-                                                        columnNumber: 17
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2176,
-                                                columnNumber: 15
-                                            }, this),
-                                            (workflow.nodes || []).filter((n)=>n.type !== 'trigger').map((node, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                    className: "text-sm flex gap-2",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center",
-                                                            children: i + 2
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2187,
-                                                            columnNumber: 21
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            className: "min-w-0",
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                                    className: "font-medium text-sm flex items-center gap-2 flex-wrap",
-                                                                    children: [
-                                                                        node.title,
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
-                                                                            variant: "outline",
-                                                                            className: "text-[9px] h-4 px-1.5 font-normal",
-                                                                            children: [
-                                                                                "runs automatically · ",
-                                                                                describeStepCredits(node.type)
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                            lineNumber: 2193,
-                                                                            columnNumber: 25
-                                                                        }, this)
-                                                                    ]
-                                                                }, void 0, true, {
-                                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 2191,
-                                                                    columnNumber: 23
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                                    className: "text-xs text-muted-foreground",
-                                                                    children: describeStep(node)
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 2197,
-                                                                    columnNumber: 23
-                                                                }, this)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2190,
-                                                            columnNumber: 21
-                                                        }, this)
-                                                    ]
-                                                }, node.id, true, {
-                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2186,
-                                                    columnNumber: 19
-                                                }, this))
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2175,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                        className: "mt-3 text-[11px] text-muted-foreground border-t pt-2",
-                                        children: "Every step above executes server-side on the workflow engine. Steps that produce drafts or notifications (Gmail draft, AI outreach) are your human-approval points — nothing goes out without the engine being configured to send it, and outreach drafts always wait for your review. You can watch each run unfold in the Executions tab."
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2202,
-                                        columnNumber: 13
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2170,
+                                lineNumber: 1964,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2114,
+                        lineNumber: 1951,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2069,
+                lineNumber: 1906,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 2052,
+        lineNumber: 1889,
         columnNumber: 5
     }, this);
 }
@@ -4896,8 +4470,6 @@ function ExecutionsTab() {
     const [executionDetail, setExecutionDetail] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [detailLoading, setDetailLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [rerunPick, setRerunPick] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [retryingId, setRetryingId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [rerunningId, setRerunningId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const fetchExecutions = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
         "ExecutionsTab.useCallback[fetchExecutions]": async ()=>{
             try {
@@ -4956,19 +4528,13 @@ function ExecutionsTab() {
         }
     };
     const handleRetry = async (execId)=>{
-        if (retryingId) return;
-        setRetryingId(execId);
         try {
-            // The dedicated retry route (workflow-executor.retryExecution)
-            // accepts failed/cancelled executions. The previous call targeted
-            // the engine's RESUME endpoint, which only accepts paused
-            // executions — so Retry on a failed run always 400'd.
-            await apiFetch(`/api/workflows/executions/${execId}/retry`, {
+            await apiFetch(`/api/workflows/${execId}/resume`, {
                 method: 'POST'
             });
             toast({
                 title: 'Execution retried',
-                description: 'The execution is being retried from the failed step.'
+                description: 'The execution has been retried.'
             });
             fetchExecutions();
         } catch (err) {
@@ -4977,8 +4543,6 @@ function ExecutionsTab() {
                 description: err instanceof Error ? err.message : 'Failed to retry',
                 variant: 'destructive'
             });
-        } finally{
-            setRetryingId(null);
         }
     };
     const handleCancel = async (execId)=>{
@@ -4999,8 +4563,6 @@ function ExecutionsTab() {
         }
     };
     const handleRerun = async (workflowId)=>{
-        if (rerunningId) return;
-        setRerunningId(workflowId);
         try {
             // Re-run must respect lead context the same way as a fresh Run:
             // fetch the definition and ask for a lead when its steps need one.
@@ -5014,9 +4576,7 @@ function ExecutionsTab() {
             }
             await apiFetch(`/api/workflows/${workflowId}/execute`, {
                 method: 'POST',
-                body: JSON.stringify({
-                    idempotencyKey: newOperationId()
-                })
+                body: JSON.stringify({})
             });
             toast({
                 title: 'Workflow re-executed',
@@ -5029,21 +4589,16 @@ function ExecutionsTab() {
                 description: err instanceof Error ? err.message : 'Failed to rerun',
                 variant: 'destructive'
             });
-        } finally{
-            setRerunningId(null);
         }
     };
     const rerunWithLead = async (lead)=>{
         if (!rerunPick) return;
         const { workflowId } = rerunPick;
         setRerunPick(null);
-        if (rerunningId) return;
-        setRerunningId(workflowId);
         try {
             await apiFetch(`/api/workflows/${workflowId}/execute`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    idempotencyKey: newOperationId(),
                     triggerData: {
                         leadId: lead.id,
                         leadName: lead.businessName
@@ -5061,8 +4616,6 @@ function ExecutionsTab() {
                 description: err instanceof Error ? err.message : 'Failed to rerun',
                 variant: 'destructive'
             });
-        } finally{
-            setRerunningId(null);
         }
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5074,7 +4627,7 @@ function ExecutionsTab() {
                 onSelect: (lead)=>void rerunWithLead(lead)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2374,
+                lineNumber: 2145,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5090,18 +4643,18 @@ function ExecutionsTab() {
                                     className: "h-4 w-4 mr-2"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2384,
+                                    lineNumber: 2155,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2385,
+                                    lineNumber: 2156,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2383,
+                            lineNumber: 2154,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -5111,7 +4664,7 @@ function ExecutionsTab() {
                                     children: "All Statuses"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2388,
+                                    lineNumber: 2159,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -5119,7 +4672,7 @@ function ExecutionsTab() {
                                     children: "Running"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2389,
+                                    lineNumber: 2160,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -5127,7 +4680,7 @@ function ExecutionsTab() {
                                     children: "Completed"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2390,
+                                    lineNumber: 2161,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -5135,7 +4688,7 @@ function ExecutionsTab() {
                                     children: "Failed"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2391,
+                                    lineNumber: 2162,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -5143,48 +4696,24 @@ function ExecutionsTab() {
                                     children: "Cancelled"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2392,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
-                                    value: "paused",
-                                    children: "Paused"
-                                }, void 0, false, {
-                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2393,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
-                                    value: "queued",
-                                    children: "Queued"
-                                }, void 0, false, {
-                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2394,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
-                                    value: "dead_letter",
-                                    children: "Dead Lettered"
-                                }, void 0, false, {
-                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2395,
+                                    lineNumber: 2163,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2387,
+                            lineNumber: 2158,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 2382,
+                    lineNumber: 2153,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2381,
+                lineNumber: 2152,
                 columnNumber: 7
             }, this),
             loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5193,12 +4722,12 @@ function ExecutionsTab() {
                     length: 5
                 }).map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ExecutionRowSkeleton, {}, i, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2403,
+                        lineNumber: 2171,
                         columnNumber: 52
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2402,
+                lineNumber: 2170,
                 columnNumber: 9
             }, this),
             !loading && executions.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5208,7 +4737,7 @@ function ExecutionsTab() {
                         className: "h-12 w-12 text-muted-foreground/30 mx-auto mb-3"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2410,
+                        lineNumber: 2178,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
@@ -5216,7 +4745,7 @@ function ExecutionsTab() {
                         children: "No executions yet"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2411,
+                        lineNumber: 2179,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5224,13 +4753,13 @@ function ExecutionsTab() {
                         children: "Execute a workflow to see its history here."
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2412,
+                        lineNumber: 2180,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2409,
+                lineNumber: 2177,
                 columnNumber: 9
             }, this),
             !loading && executions.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5256,13 +4785,13 @@ function ExecutionsTab() {
                                                         className: "h-4 w-4 shrink-0"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2437,
+                                                        lineNumber: 2205,
                                                         columnNumber: 25
                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chevron$2d$right$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__ChevronRight$3e$__["ChevronRight"], {
                                                         className: "h-4 w-4 shrink-0"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2439,
+                                                        lineNumber: 2207,
                                                         columnNumber: 25
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -5270,13 +4799,13 @@ function ExecutionsTab() {
                                                         children: exec.workflowName || 'Unknown Workflow'
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2441,
+                                                        lineNumber: 2209,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2435,
+                                                lineNumber: 2203,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -5285,17 +4814,8 @@ function ExecutionsTab() {
                                                 children: statusBadge.label
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2445,
+                                                lineNumber: 2213,
                                                 columnNumber: 21
-                                            }, this),
-                                            exec.deadLettered && exec.status !== 'dead_letter' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
-                                                variant: "destructive",
-                                                className: "bg-red-900/10 text-red-800 border-red-300",
-                                                children: "Dead Lettered"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2449,
-                                                columnNumber: 23
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex items-center gap-1.5 text-xs text-muted-foreground",
@@ -5308,12 +4828,12 @@ function ExecutionsTab() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2454,
+                                                    lineNumber: 2217,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2453,
+                                                lineNumber: 2216,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5323,20 +4843,20 @@ function ExecutionsTab() {
                                                         className: "h-3 w-3"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2457,
+                                                        lineNumber: 2220,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         children: executionDuration(exec)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2458,
+                                                        lineNumber: 2221,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2456,
+                                                lineNumber: 2219,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -5344,13 +4864,13 @@ function ExecutionsTab() {
                                                 children: formatDate(exec.startedAt)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2460,
+                                                lineNumber: 2223,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2434,
+                                        lineNumber: 2202,
                                         columnNumber: 19
                                     }, this),
                                     exec.totalSteps > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5360,12 +4880,12 @@ function ExecutionsTab() {
                                             className: "h-1.5"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2466,
+                                            lineNumber: 2229,
                                             columnNumber: 23
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2465,
+                                        lineNumber: 2228,
                                         columnNumber: 21
                                     }, this),
                                     exec.error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5375,7 +4895,7 @@ function ExecutionsTab() {
                                                 className: "h-3 w-3"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2471,
+                                                lineNumber: 2234,
                                                 columnNumber: 23
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -5383,19 +4903,19 @@ function ExecutionsTab() {
                                                 children: exec.error
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2472,
+                                                lineNumber: 2235,
                                                 columnNumber: 23
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2470,
+                                        lineNumber: 2233,
                                         columnNumber: 21
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2430,
+                                lineNumber: 2198,
                                 columnNumber: 17
                             }, this),
                             isExpanded && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5406,12 +4926,12 @@ function ExecutionsTab() {
                                         className: "h-5 w-5 animate-spin text-muted-foreground"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2482,
+                                        lineNumber: 2245,
                                         columnNumber: 25
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2481,
+                                    lineNumber: 2244,
                                     columnNumber: 23
                                 }, this) : executionDetail ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "mt-3 space-y-3",
@@ -5423,42 +4943,38 @@ function ExecutionsTab() {
                                                     variant: "outline",
                                                     size: "sm",
                                                     onClick: ()=>handleRetry(exec.id),
-                                                    disabled: retryingId === exec.id,
                                                     children: [
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$rotate$2d$ccw$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__RotateCcw$3e$__["RotateCcw"], {
                                                             className: "h-3.5 w-3.5 mr-1"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2490,
+                                                            lineNumber: 2253,
                                                             columnNumber: 31
                                                         }, this),
-                                                        " ",
-                                                        retryingId === exec.id ? 'Retrying…' : 'Retry'
+                                                        " Retry"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2489,
+                                                    lineNumber: 2252,
                                                     columnNumber: 29
                                                 }, this),
                                                 exec.status === 'completed' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                                                     variant: "outline",
                                                     size: "sm",
                                                     onClick: ()=>handleRerun(exec.workflowId),
-                                                    disabled: rerunningId === exec.workflowId,
                                                     children: [
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$play$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Play$3e$__["Play"], {
                                                             className: "h-3.5 w-3.5 mr-1"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2495,
+                                                            lineNumber: 2258,
                                                             columnNumber: 31
                                                         }, this),
-                                                        " ",
-                                                        rerunningId === exec.workflowId ? 'Starting…' : 'Rerun'
+                                                        " Rerun"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2494,
+                                                    lineNumber: 2257,
                                                     columnNumber: 29
                                                 }, this),
                                                 exec.status === 'running' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -5471,14 +4987,14 @@ function ExecutionsTab() {
                                                                 className: "h-3.5 w-3.5 mr-1"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2501,
+                                                                lineNumber: 2264,
                                                                 columnNumber: 33
                                                             }, this),
                                                             " Cancel"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2500,
+                                                        lineNumber: 2263,
                                                         columnNumber: 31
                                                     }, this)
                                                 }, void 0, false),
@@ -5491,20 +5007,20 @@ function ExecutionsTab() {
                                                             className: "h-3.5 w-3.5 mr-1"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2507,
+                                                            lineNumber: 2270,
                                                             columnNumber: 31
                                                         }, this),
                                                         " Resume"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2506,
+                                                    lineNumber: 2269,
                                                     columnNumber: 29
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2487,
+                                            lineNumber: 2250,
                                             columnNumber: 25
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5515,7 +5031,7 @@ function ExecutionsTab() {
                                                     children: "Step Logs"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2514,
+                                                    lineNumber: 2277,
                                                     columnNumber: 27
                                                 }, this),
                                                 executionDetail.stepLogs.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5523,7 +5039,7 @@ function ExecutionsTab() {
                                                     children: "No step logs available."
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2518,
+                                                    lineNumber: 2281,
                                                     columnNumber: 29
                                                 }, this) : executionDetail.stepLogs.map((log, idx)=>{
                                                     const logStatusBadge = getStatusBadge(log.status);
@@ -5546,7 +5062,7 @@ function ExecutionsTab() {
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                                lineNumber: 2534,
+                                                                                lineNumber: 2297,
                                                                                 columnNumber: 39
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -5555,13 +5071,13 @@ function ExecutionsTab() {
                                                                                 children: logStatusBadge.label
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                                lineNumber: 2537,
+                                                                                lineNumber: 2300,
                                                                                 columnNumber: 39
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2533,
+                                                                        lineNumber: 2296,
                                                                         columnNumber: 37
                                                                     }, this),
                                                                     log.durationMs !== undefined && log.durationMs !== null && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -5569,13 +5085,13 @@ function ExecutionsTab() {
                                                                         children: formatDuration(log.durationMs)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2542,
+                                                                        lineNumber: 2305,
                                                                         columnNumber: 39
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2532,
+                                                                lineNumber: 2295,
                                                                 columnNumber: 35
                                                             }, this),
                                                             log.error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5585,77 +5101,20 @@ function ExecutionsTab() {
                                                                         className: "h-3 w-3"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2549,
+                                                                        lineNumber: 2312,
                                                                         columnNumber: 39
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                         children: log.error
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2550,
+                                                                        lineNumber: 2313,
                                                                         columnNumber: 39
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2548,
-                                                                columnNumber: 37
-                                                            }, this),
-                                                            typeof log.retryAttempt === 'number' && log.retryAttempt > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                                className: "mt-1.5",
-                                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
-                                                                    variant: "outline",
-                                                                    className: "text-[10px] h-4 px-1.5",
-                                                                    children: [
-                                                                        "Retry attempt #",
-                                                                        log.retryAttempt
-                                                                    ]
-                                                                }, void 0, true, {
-                                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                    lineNumber: 2555,
-                                                                    columnNumber: 39
-                                                                }, this)
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2554,
-                                                                columnNumber: 37
-                                                            }, this),
-                                                            log.input && Object.keys(log.input).length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                                className: "mt-1.5",
-                                                                children: [
-                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                                                        className: "text-xs text-muted-foreground hover:text-foreground flex items-center gap-1",
-                                                                        onClick: (e)=>{
-                                                                            const target = e.currentTarget.nextElementSibling;
-                                                                            if (target) target.classList.toggle('hidden');
-                                                                        },
-                                                                        children: [
-                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$eye$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Eye$3e$__["Eye"], {
-                                                                                className: "h-3 w-3"
-                                                                            }, void 0, false, {
-                                                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                                lineNumber: 2569,
-                                                                                columnNumber: 41
-                                                                            }, this),
-                                                                            " View Input"
-                                                                        ]
-                                                                    }, void 0, true, {
-                                                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2562,
-                                                                        columnNumber: 39
-                                                                    }, this),
-                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
-                                                                        className: "hidden mt-1 text-[10px] bg-muted/50 rounded p-2 overflow-auto max-h-32",
-                                                                        children: JSON.stringify(log.input, null, 2)
-                                                                    }, void 0, false, {
-                                                                        fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2571,
-                                                                        columnNumber: 39
-                                                                    }, this)
-                                                                ]
-                                                            }, void 0, true, {
-                                                                fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2561,
+                                                                lineNumber: 2311,
                                                                 columnNumber: 37
                                                             }, this),
                                                             log.output && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5672,14 +5131,14 @@ function ExecutionsTab() {
                                                                                 className: "h-3 w-3"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                                lineNumber: 2585,
+                                                                                lineNumber: 2325,
                                                                                 columnNumber: 41
                                                                             }, this),
                                                                             " View Output"
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2578,
+                                                                        lineNumber: 2318,
                                                                         columnNumber: 39
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
@@ -5687,31 +5146,31 @@ function ExecutionsTab() {
                                                                         children: JSON.stringify(log.output, null, 2)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                        lineNumber: 2587,
+                                                                        lineNumber: 2327,
                                                                         columnNumber: 39
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                                lineNumber: 2577,
+                                                                lineNumber: 2317,
                                                                 columnNumber: 37
                                                             }, this)
                                                         ]
                                                     }, log.id, true, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2524,
+                                                        lineNumber: 2287,
                                                         columnNumber: 33
                                                     }, this);
                                                 })
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2513,
+                                            lineNumber: 2276,
                                             columnNumber: 25
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2599,
+                                            lineNumber: 2339,
                                             columnNumber: 25
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5724,7 +5183,7 @@ function ExecutionsTab() {
                                                             children: "Retries:"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2602,
+                                                            lineNumber: 2342,
                                                             columnNumber: 29
                                                         }, this),
                                                         " ",
@@ -5734,7 +5193,7 @@ function ExecutionsTab() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2601,
+                                                    lineNumber: 2341,
                                                     columnNumber: 27
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5744,7 +5203,7 @@ function ExecutionsTab() {
                                                             children: "Started:"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2605,
+                                                            lineNumber: 2345,
                                                             columnNumber: 29
                                                         }, this),
                                                         " ",
@@ -5752,7 +5211,7 @@ function ExecutionsTab() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2604,
+                                                    lineNumber: 2344,
                                                     columnNumber: 27
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5762,7 +5221,7 @@ function ExecutionsTab() {
                                                             children: "Completed:"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2608,
+                                                            lineNumber: 2348,
                                                             columnNumber: 29
                                                         }, this),
                                                         " ",
@@ -5770,7 +5229,7 @@ function ExecutionsTab() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2607,
+                                                    lineNumber: 2347,
                                                     columnNumber: 27
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5780,7 +5239,7 @@ function ExecutionsTab() {
                                                             children: "Trigger:"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2611,
+                                                            lineNumber: 2351,
                                                             columnNumber: 29
                                                         }, this),
                                                         " ",
@@ -5788,126 +5247,53 @@ function ExecutionsTab() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2610,
+                                                    lineNumber: 2350,
                                                     columnNumber: 27
-                                                }, this),
-                                                executionDetail.triggerEvent && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "font-medium",
-                                                            children: "Event:"
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2615,
-                                                            columnNumber: 31
-                                                        }, this),
-                                                        " ",
-                                                        executionDetail.triggerEvent
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2614,
-                                                    columnNumber: 29
-                                                }, this),
-                                                executionDetail.pausedAt && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "font-medium",
-                                                            children: "Paused:"
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2620,
-                                                            columnNumber: 31
-                                                        }, this),
-                                                        " ",
-                                                        formatDate(executionDetail.pausedAt)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2619,
-                                                    columnNumber: 29
-                                                }, this),
-                                                executionDetail.resumedAt && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "font-medium",
-                                                            children: "Resumed:"
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2625,
-                                                            columnNumber: 31
-                                                        }, this),
-                                                        " ",
-                                                        formatDate(executionDetail.resumedAt)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2624,
-                                                    columnNumber: 29
-                                                }, this),
-                                                executionDetail.deadLettered && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "col-span-2 sm:col-span-4 text-destructive",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "font-medium",
-                                                            children: "Dead letter:"
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                            lineNumber: 2630,
-                                                            columnNumber: 31
-                                                        }, this),
-                                                        " ",
-                                                        executionDetail.deadLetterReason || 'Execution exceeded its retry budget and was parked.'
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2629,
-                                                    columnNumber: 29
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2600,
+                                            lineNumber: 2340,
                                             columnNumber: 25
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2485,
+                                    lineNumber: 2248,
                                     columnNumber: 23
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-sm text-muted-foreground py-4",
                                     children: "Failed to load execution detail."
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2636,
+                                    lineNumber: 2356,
                                     columnNumber: 23
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2479,
+                                lineNumber: 2242,
                                 columnNumber: 19
                             }, this)
                         ]
                     }, exec.id, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2429,
+                        lineNumber: 2197,
                         columnNumber: 15
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2420,
+                lineNumber: 2188,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 2372,
+        lineNumber: 2143,
         columnNumber: 5
     }, this);
 }
-_s5(ExecutionsTab, "6jA2OtjYuKgawk5jZAndhQYXL0w=", false, function() {
+_s5(ExecutionsTab, "ChL1yXDNijL1vqSEjL+aZ2Xnzrc=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useToast"]
     ];
@@ -5999,12 +5385,12 @@ function TemplatesTab({ onTemplateUsed }) {
                         children: cat.label
                     }, cat.value, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2722,
+                        lineNumber: 2442,
                         columnNumber: 11
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2720,
+                lineNumber: 2440,
                 columnNumber: 7
             }, this),
             loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6013,12 +5399,12 @@ function TemplatesTab({ onTemplateUsed }) {
                     length: 6
                 }).map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(TemplateCardSkeleton, {}, i, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2737,
+                        lineNumber: 2457,
                         columnNumber: 52
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2736,
+                lineNumber: 2456,
                 columnNumber: 9
             }, this),
             !loading && templates.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6028,7 +5414,7 @@ function TemplatesTab({ onTemplateUsed }) {
                         className: "h-12 w-12 text-muted-foreground/30 mx-auto mb-3"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2744,
+                        lineNumber: 2464,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
@@ -6036,7 +5422,7 @@ function TemplatesTab({ onTemplateUsed }) {
                         children: "No templates in this category"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2745,
+                        lineNumber: 2465,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6044,13 +5430,13 @@ function TemplatesTab({ onTemplateUsed }) {
                         children: "Try a different category or check back later."
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2746,
+                        lineNumber: 2466,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2743,
+                lineNumber: 2463,
                 columnNumber: 9
             }, this),
             !loading && templates.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6071,7 +5457,7 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 children: template.name
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2761,
+                                                lineNumber: 2481,
                                                 columnNumber: 21
                                             }, this),
                                             template.isPremium && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -6079,13 +5465,13 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 children: "Premium"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2763,
+                                                lineNumber: 2483,
                                                 columnNumber: 23
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2760,
+                                        lineNumber: 2480,
                                         columnNumber: 19
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -6093,13 +5479,13 @@ function TemplatesTab({ onTemplateUsed }) {
                                         children: template.description
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2768,
+                                        lineNumber: 2488,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2759,
+                                lineNumber: 2479,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -6114,7 +5500,7 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 children: getCategoryLabel(template.category)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2774,
+                                                lineNumber: 2494,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6124,7 +5510,7 @@ function TemplatesTab({ onTemplateUsed }) {
                                                         className: "h-3 w-3"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2778,
+                                                        lineNumber: 2498,
                                                         columnNumber: 23
                                                     }, this),
                                                     " ",
@@ -6133,7 +5519,7 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2777,
+                                                lineNumber: 2497,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6143,7 +5529,7 @@ function TemplatesTab({ onTemplateUsed }) {
                                                         className: "h-3 w-3"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2781,
+                                                        lineNumber: 2501,
                                                         columnNumber: 23
                                                     }, this),
                                                     " ",
@@ -6151,13 +5537,13 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2780,
+                                                lineNumber: 2500,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2773,
+                                        lineNumber: 2493,
                                         columnNumber: 19
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6173,20 +5559,20 @@ function TemplatesTab({ onTemplateUsed }) {
                                                         className: "h-3.5 w-3.5 mr-1 animate-spin"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2792,
+                                                        lineNumber: 2512,
                                                         columnNumber: 25
                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$copy$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Copy$3e$__["Copy"], {
                                                         className: "h-3.5 w-3.5 mr-1"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                        lineNumber: 2794,
+                                                        lineNumber: 2514,
                                                         columnNumber: 25
                                                     }, this),
                                                     "Use Template"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2785,
+                                                lineNumber: 2505,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -6198,36 +5584,36 @@ function TemplatesTab({ onTemplateUsed }) {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 2804,
+                                                    lineNumber: 2524,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2798,
+                                                lineNumber: 2518,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2784,
+                                        lineNumber: 2504,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 2772,
+                                lineNumber: 2492,
                                 columnNumber: 17
                             }, this)
                         ]
                     }, template.id, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 2758,
+                        lineNumber: 2478,
                         columnNumber: 15
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2754,
+                lineNumber: 2474,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -6242,20 +5628,20 @@ function TemplatesTab({ onTemplateUsed }) {
                                     children: previewTemplate?.name
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2818,
+                                    lineNumber: 2538,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
                                     children: previewTemplate?.description
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2819,
+                                    lineNumber: 2539,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2817,
+                            lineNumber: 2537,
                             columnNumber: 11
                         }, this),
                         previewTemplate && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6271,19 +5657,19 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-3.5 w-3.5', colors.text)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2829,
+                                                lineNumber: 2549,
                                                 columnNumber: 25
                                             }, this) : node.type === 'delay' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$clock$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Clock$3e$__["Clock"], {
                                                 className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-3.5 w-3.5', colors.text)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2831,
+                                                lineNumber: 2551,
                                                 columnNumber: 25
                                             }, this) : node.type === 'condition' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$git$2d$branch$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__GitBranch$3e$__["GitBranch"], {
                                                 className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-3.5 w-3.5', colors.text)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2833,
+                                                lineNumber: 2553,
                                                 columnNumber: 25
                                             }, this) : renderActionIcon(String(node.config?.actionType || ''), (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-3.5 w-3.5', colors.text)),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6291,24 +5677,24 @@ function TemplatesTab({ onTemplateUsed }) {
                                                 children: node.title
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                lineNumber: 2837,
+                                                lineNumber: 2557,
                                                 columnNumber: 23
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                        lineNumber: 2827,
+                                        lineNumber: 2547,
                                         columnNumber: 21
                                     }, this)
                                 }, node.id || idx, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2826,
+                                    lineNumber: 2546,
                                     columnNumber: 19
                                 }, this);
                             })
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2822,
+                            lineNumber: 2542,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogFooter"], {
@@ -6319,7 +5705,7 @@ function TemplatesTab({ onTemplateUsed }) {
                                     children: "Close"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2845,
+                                    lineNumber: 2565,
                                     columnNumber: 13
                                 }, this),
                                 previewTemplate && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -6332,37 +5718,37 @@ function TemplatesTab({ onTemplateUsed }) {
                                             className: "h-4 w-4 mr-1"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 2850,
+                                            lineNumber: 2570,
                                             columnNumber: 17
                                         }, this),
                                         " Use Template"
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 2849,
+                                    lineNumber: 2569,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 2844,
+                            lineNumber: 2564,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                    lineNumber: 2816,
+                    lineNumber: 2536,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2815,
+                lineNumber: 2535,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 2718,
+        lineNumber: 2438,
         columnNumber: 5
     }, this);
 }
@@ -6375,13 +5761,16 @@ _c10 = TemplatesTab;
 function WorkflowsTab() {
     _s7();
     const { toast } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useToast"])();
-    const currentPlan = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$subscription$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useSubscriptionStore"])({
-        "WorkflowsTab.useSubscriptionStore[currentPlan]": (s)=>s.currentPlan
-    }["WorkflowsTab.useSubscriptionStore[currentPlan]"]);
     // P3: only trust the plan when an authoritative sync verified it
     const syncState = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$subscription$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useSubscriptionStore"])({
         "WorkflowsTab.useSubscriptionStore[syncState]": (s)=>s.syncState
     }["WorkflowsTab.useSubscriptionStore[syncState]"]);
+    // Entitlement check reuses the authoritative store map (synced from
+    // /api/subscriptions/entitlements) — same 'workflow_access' key that the
+    // backend gate enforces. No duplicate plan logic here.
+    const hasWorkflowAccess = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$subscription$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useSubscriptionStore"])({
+        "WorkflowsTab.useSubscriptionStore[hasWorkflowAccess]": (s)=>s.hasFeatureAccess('workflow_access')
+    }["WorkflowsTab.useSubscriptionStore[hasWorkflowAccess]"]);
     const [subTab, setSubTab] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])('workflows');
     const [builderMode, setBuilderMode] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [editingWorkflow, setEditingWorkflow] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
@@ -6396,9 +5785,11 @@ function WorkflowsTab() {
         setBuilderMode(true);
     };
     const handleCreateWithAi = ()=>{
-        // Visible to all — functional for Elite only.
+        // Visible to all — functional for plans whose entitlements include
+        // workflow_access (Pro and Elite).
         // P3: while the subscription state is not verified (loading/failed
-        // lookup) do NOT deny with an upgrade prompt — the plan may be Elite.
+        // lookup) do NOT deny with an upgrade prompt — the plan may be
+        // Pro/Elite. The backend entitlement gate remains the source of truth.
         if (syncState !== 'verified') {
             toast({
                 title: 'Subscription status is being verified',
@@ -6406,10 +5797,10 @@ function WorkflowsTab() {
             });
             return;
         }
-        if (currentPlan !== 'elite') {
+        if (!hasWorkflowAccess) {
             toast({
-                title: 'Upgrade to Elite to use AI workflow creation',
-                description: 'AI workflow generation is available on the Elite plan.',
+                title: 'Upgrade to Pro to use AI workflow creation',
+                description: 'AI workflow generation is available on the Pro and Elite plans.',
                 variant: 'destructive'
             });
             return;
@@ -6489,12 +5880,12 @@ function WorkflowsTab() {
                 saving: saving
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2984,
+                lineNumber: 2709,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-            lineNumber: 2983,
+            lineNumber: 2708,
             columnNumber: 7
         }, this);
     }
@@ -6511,12 +5902,12 @@ function WorkflowsTab() {
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 2998,
+                lineNumber: 2723,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-            lineNumber: 2997,
+            lineNumber: 2722,
             columnNumber: 7
         }, this);
     }
@@ -6540,7 +5931,7 @@ function WorkflowsTab() {
                                             children: "Workflows"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 3016,
+                                            lineNumber: 2741,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -6548,7 +5939,7 @@ function WorkflowsTab() {
                                             children: "Executions"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 3017,
+                                            lineNumber: 2742,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -6556,13 +5947,13 @@ function WorkflowsTab() {
                                             children: "Templates"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 3018,
+                                            lineNumber: 2743,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 3015,
+                                    lineNumber: 2740,
                                     columnNumber: 13
                                 }, this),
                                 subTab === 'workflows' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6577,14 +5968,14 @@ function WorkflowsTab() {
                                                     className: "h-4 w-4 mr-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 3029,
+                                                    lineNumber: 2754,
                                                     columnNumber: 19
                                                 }, this),
                                                 " Documentation"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 3022,
+                                            lineNumber: 2747,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -6597,14 +5988,14 @@ function WorkflowsTab() {
                                                     className: "h-4 w-4 mr-1 text-primary"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 3037,
+                                                    lineNumber: 2762,
                                                     columnNumber: 19
                                                 }, this),
                                                 " Create with AI"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 3031,
+                                            lineNumber: 2756,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -6615,31 +6006,31 @@ function WorkflowsTab() {
                                                     className: "h-4 w-4 mr-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                                    lineNumber: 3040,
+                                                    lineNumber: 2765,
                                                     columnNumber: 19
                                                 }, this),
                                                 " New Workflow"
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                            lineNumber: 3039,
+                                            lineNumber: 2764,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 3021,
+                                    lineNumber: 2746,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                            lineNumber: 3014,
+                            lineNumber: 2739,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 3013,
+                        lineNumber: 2738,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6653,12 +6044,12 @@ function WorkflowsTab() {
                                     onEditWorkflow: handleEdit
                                 }, listRefreshKey, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 3049,
+                                    lineNumber: 2774,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 3048,
+                                lineNumber: 2773,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -6666,12 +6057,12 @@ function WorkflowsTab() {
                                 className: "p-4 mt-0",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ExecutionsTab, {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 3057,
+                                    lineNumber: 2782,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 3056,
+                                lineNumber: 2781,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -6681,24 +6072,24 @@ function WorkflowsTab() {
                                     onTemplateUsed: ()=>setSubTab('workflows')
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                    lineNumber: 3061,
+                                    lineNumber: 2786,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                                lineNumber: 3060,
+                                lineNumber: 2785,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                        lineNumber: 3047,
+                        lineNumber: 2772,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 3012,
+                lineNumber: 2737,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AiGenerateWorkflowModal, {
@@ -6708,17 +6099,17 @@ function WorkflowsTab() {
                 onSaved: ()=>setListRefreshKey((k)=>k + 1)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-                lineNumber: 3067,
+                lineNumber: 2792,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/workflows-tab.tsx",
-        lineNumber: 3011,
+        lineNumber: 2736,
         columnNumber: 5
     }, this);
 }
-_s7(WorkflowsTab, "IzdU76Qe82phxG2JYy2DnwYmhIE=", false, function() {
+_s7(WorkflowsTab, "h4ahFNWol8EdoWEXkq+tNZaw2cg=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useToast"],
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$subscription$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useSubscriptionStore"],

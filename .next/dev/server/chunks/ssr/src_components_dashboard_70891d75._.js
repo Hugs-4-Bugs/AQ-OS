@@ -6100,6 +6100,7 @@ __turbopack_context__.s([
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$tanstack$2f$react$2d$query$2f$build$2f$modern$2f$useMutation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@tanstack/react-query/build/modern/useMutation.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$square$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageSquare$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/message-square.js [app-ssr] (ecmascript) <export default as MessageSquare>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$x$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__X$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/x.js [app-ssr] (ecmascript) <export default as X>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$send$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Send$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/send.js [app-ssr] (ecmascript) <export default as Send>");
@@ -6119,7 +6120,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$b
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/scroll-area.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/textarea.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/badge.tsx [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$assistant$2d$chat$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/assistant-chat-store.ts [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$api$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/api.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/store.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/sonner/dist/index.mjs [app-ssr] (ecmascript)");
@@ -6128,6 +6129,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$mo
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$shared$2f$lib$2f$app$2d$dynamic$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/shared/lib/app-dynamic.js [app-ssr] (ecmascript)");
 ;
 'use client';
+;
 ;
 ;
 ;
@@ -6218,7 +6220,7 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                         className: "h-3 w-3 text-teal-500 shrink-0"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                        lineNumber: 102,
+                        lineNumber: 103,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6226,7 +6228,7 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                         children: "Meeting Intent Detected"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                        lineNumber: 103,
+                        lineNumber: 104,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -6235,13 +6237,13 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                         children: getIntentLabel(meetingIntent.intent)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                        lineNumber: 106,
+                        lineNumber: 107,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                lineNumber: 101,
+                lineNumber: 102,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6252,7 +6254,7 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                         children: meetingIntent.suggestedAction
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                        lineNumber: 119,
+                        lineNumber: 120,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6265,7 +6267,7 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                                         className: "h-2.5 w-2.5"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                        lineNumber: 124,
+                                        lineNumber: 125,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6276,13 +6278,13 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                        lineNumber: 125,
+                                        lineNumber: 126,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                lineNumber: 123,
+                                lineNumber: 124,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6294,24 +6296,24 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                    lineNumber: 128,
+                                    lineNumber: 129,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                lineNumber: 127,
+                                lineNumber: 128,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                        lineNumber: 122,
+                        lineNumber: 123,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                lineNumber: 118,
+                lineNumber: 119,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6325,7 +6327,7 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                             className: "h-3 w-3"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 146,
+                            lineNumber: 147,
                             columnNumber: 11
                         }, this),
                         "Schedule Meeting",
@@ -6333,40 +6335,30 @@ function MeetingIntentCard({ meetingIntent, onSchedule }) {
                             className: "h-2.5 w-2.5"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 148,
+                            lineNumber: 149,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                    lineNumber: 138,
+                    lineNumber: 139,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                lineNumber: 137,
+                lineNumber: 138,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-        lineNumber: 94,
+        lineNumber: 95,
         columnNumber: 5
     }, this);
 }
 function AIChatBubble() {
     const [isOpen, setIsOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
-    // SHARED session conversation (assistant-chat-store) — the same
-    // transcript the Assistant tab renders. The bubble itself is a shell-
-    // level widget (it never unmounts on tab switches), so its generation
-    // continues deterministically while hidden and lands ONCE in the shared
-    // store. No per-surface copies ⇒ nothing can "reappear" from a
-    // different, stale state.
-    const messages = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$assistant$2d$chat$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAssistantChatStore"])((s)=>s.messages);
-    const isGenerating = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$assistant$2d$chat$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAssistantChatStore"])((s)=>s.isGenerating);
-    const sendMessage = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$assistant$2d$chat$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAssistantChatStore"])((s)=>s.sendMessage);
-    const clearConversation = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$assistant$2d$chat$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAssistantChatStore"])((s)=>s.clear);
-    const appendMessage = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$assistant$2d$chat$2d$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAssistantChatStore"])((s)=>s.appendMessage);
+    const [messages, setMessages] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
     const [input, setInput] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('');
     const [copiedId, setCopiedId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const [unreadCount, setUnreadCount] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
@@ -6376,19 +6368,6 @@ function AIChatBubble() {
     const inputRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const activeTab = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAppStore"])((s)=>s.activeTab);
     const selectedLeadId = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$store$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAppStore"])((s)=>s.selectedLeadId);
-    // Unread badge: a NEW assistant message that arrived while the panel
-    // was closed (generation completing in the background of the shell).
-    // Render-time state adjustment (React's documented "derive state from
-    // previous render" pattern) — no effect, no cascading render.
-    const [prevMessageCount, setPrevMessageCount] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(messages.length);
-    if (messages.length !== prevMessageCount) {
-        const grew = messages.length > prevMessageCount;
-        setPrevMessageCount(messages.length);
-        if (grew && !isOpen) {
-            const last = messages[messages.length - 1];
-            if (last?.role === 'assistant') setUnreadCount((c)=>c + 1);
-        }
-    }
     // Reset unread when panel opens
     const handleOpenChange = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])((open)=>{
         setIsOpen(open);
@@ -6411,21 +6390,36 @@ function AIChatBubble() {
     }, [
         isOpen
     ]);
+    const assistantMutation = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$tanstack$2f$react$2d$query$2f$build$2f$modern$2f$useMutation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMutation"])({
+        mutationFn: ()=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$api$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["askSalesAssistant"])(selectedLeadId || null, input),
+        onSuccess: (response)=>{
+            setMessages((prev)=>[
+                    ...prev,
+                    response
+                ].slice(-200));
+            setInput('');
+            if (!isOpen) {
+                setUnreadCount((c)=>c + 1);
+            }
+        }
+    });
     const handleSend = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
-        if (!input.trim() || isGenerating) return;
-        const content = input;
-        setInput('');
-        void sendMessage({
-            content,
-            leadId: selectedLeadId || null,
-            currentPage: activeTab
-        }, 'bubble');
+        if (!input.trim() || assistantMutation.isPending) return;
+        const userMsg = {
+            id: `user-${Date.now()}`,
+            role: 'user',
+            content: input,
+            createdAt: new Date().toISOString()
+        };
+        setMessages((prev)=>[
+                ...prev,
+                userMsg
+            ].slice(-200));
+        assistantMutation.mutate();
     }, [
         input,
         selectedLeadId,
-        activeTab,
-        isGenerating,
-        sendMessage
+        assistantMutation
     ]);
     const handleKeyDown = (e)=>{
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -6441,7 +6435,7 @@ function AIChatBubble() {
         });
     };
     const handleClear = ()=>{
-        clearConversation();
+        setMessages([]);
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].success('Chat cleared');
     };
     const handleScheduleMeeting = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])((leadId)=>{
@@ -6457,7 +6451,7 @@ function AIChatBubble() {
         }
     }, [
         messages,
-        isGenerating
+        assistantMutation.isPending
     ]);
     // FIX (2026-09-09): Hidden on the Assistant tab — that page is
     // already the AI chat surface and this bubble overlaps its
@@ -6500,14 +6494,14 @@ function AIChatBubble() {
                             className: "absolute inset-0 rounded-full animate-ping opacity-20 bg-primary"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 280,
+                            lineNumber: 271,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$square$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageSquare$3e$__["MessageSquare"], {
                             className: "h-6 w-6 relative z-10 group-hover:scale-110 transition-transform"
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 282,
+                            lineNumber: 273,
                             columnNumber: 13
                         }, this),
                         unreadCount > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6515,18 +6509,18 @@ function AIChatBubble() {
                             children: unreadCount > 9 ? '9+' : unreadCount
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 286,
+                            lineNumber: 277,
                             columnNumber: 15
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                    lineNumber: 269,
+                    lineNumber: 260,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                lineNumber: 267,
+                lineNumber: 258,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$components$2f$AnimatePresence$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AnimatePresence"], {
@@ -6546,7 +6540,7 @@ function AIChatBubble() {
                             onClick: ()=>handleOpenChange(false)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 299,
+                            lineNumber: 290,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -6588,12 +6582,12 @@ function AIChatBubble() {
                                                         className: "h-4 w-4 text-primary-foreground"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 331,
+                                                        lineNumber: 322,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 330,
+                                                    lineNumber: 321,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6603,7 +6597,7 @@ function AIChatBubble() {
                                                             children: "Quick Assistant"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 334,
+                                                            lineNumber: 325,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6611,19 +6605,19 @@ function AIChatBubble() {
                                                             children: "AI-powered sales help"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 335,
+                                                            lineNumber: 326,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 333,
+                                                    lineNumber: 324,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                            lineNumber: 329,
+                                            lineNumber: 320,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6639,12 +6633,12 @@ function AIChatBubble() {
                                                         className: "h-3.5 w-3.5"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 347,
+                                                        lineNumber: 338,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 340,
+                                                    lineNumber: 331,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -6657,24 +6651,24 @@ function AIChatBubble() {
                                                         className: "h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 357,
+                                                        lineNumber: 348,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 350,
+                                                    lineNumber: 341,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                            lineNumber: 338,
+                                            lineNumber: 329,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                    lineNumber: 328,
+                                    lineNumber: 319,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollArea"], {
@@ -6692,12 +6686,12 @@ function AIChatBubble() {
                                                             className: "h-6 w-6 text-primary"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 368,
+                                                            lineNumber: 359,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 367,
+                                                        lineNumber: 358,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6705,7 +6699,7 @@ function AIChatBubble() {
                                                         children: "Quick AI Assistant"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 370,
+                                                        lineNumber: 361,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6713,7 +6707,7 @@ function AIChatBubble() {
                                                         children: "Ask anything about your sales pipeline, leads, or get conversation coaching."
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 371,
+                                                        lineNumber: 362,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6730,25 +6724,25 @@ function AIChatBubble() {
                                                                         className: "h-3 w-3 text-primary inline mr-1.5"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                        lineNumber: 386,
+                                                                        lineNumber: 377,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     prompt
                                                                 ]
                                                             }, prompt, true, {
                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                lineNumber: 381,
+                                                                lineNumber: 372,
                                                                 columnNumber: 27
                                                             }, this))
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 375,
+                                                        lineNumber: 366,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                lineNumber: 366,
+                                                lineNumber: 357,
                                                 columnNumber: 21
                                             }, this),
                                             messages.map((msg)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6760,12 +6754,12 @@ function AIChatBubble() {
                                                                 className: "h-3 w-3 text-primary"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                lineNumber: 404,
+                                                                lineNumber: 395,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 403,
+                                                            lineNumber: 394,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6781,7 +6775,7 @@ function AIChatBubble() {
                                                                                 children: msg.content
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                lineNumber: 418,
+                                                                                lineNumber: 409,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             msg.buyingSignals && msg.buyingSignals.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6792,7 +6786,7 @@ function AIChatBubble() {
                                                                                         children: "Buying Signals"
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                        lineNumber: 421,
+                                                                                        lineNumber: 412,
                                                                                         columnNumber: 35
                                                                                     }, this),
                                                                                     msg.buyingSignals.map((s, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6803,13 +6797,13 @@ function AIChatBubble() {
                                                                                             ]
                                                                                         }, i, true, {
                                                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                            lineNumber: 423,
+                                                                                            lineNumber: 414,
                                                                                             columnNumber: 37
                                                                                         }, this))
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                lineNumber: 420,
+                                                                                lineNumber: 411,
                                                                                 columnNumber: 33
                                                                             }, this),
                                                                             msg.hesitationFactors && msg.hesitationFactors.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6820,7 +6814,7 @@ function AIChatBubble() {
                                                                                         children: "Hesitation"
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                        lineNumber: 429,
+                                                                                        lineNumber: 420,
                                                                                         columnNumber: 35
                                                                                     }, this),
                                                                                     msg.hesitationFactors.map((s, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6831,13 +6825,13 @@ function AIChatBubble() {
                                                                                             ]
                                                                                         }, i, true, {
                                                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                            lineNumber: 431,
+                                                                                            lineNumber: 422,
                                                                                             columnNumber: 37
                                                                                         }, this))
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                lineNumber: 428,
+                                                                                lineNumber: 419,
                                                                                 columnNumber: 33
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6848,7 +6842,7 @@ function AIChatBubble() {
                                                                                         children: formatRelativeTime(msg.createdAt)
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                        lineNumber: 436,
+                                                                                        lineNumber: 427,
                                                                                         columnNumber: 33
                                                                                     }, this),
                                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -6860,7 +6854,7 @@ function AIChatBubble() {
                                                                                                     className: "h-2.5 w-2.5"
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                                    lineNumber: 444,
+                                                                                                    lineNumber: 435,
                                                                                                     columnNumber: 39
                                                                                                 }, this),
                                                                                                 " Copied"
@@ -6871,7 +6865,7 @@ function AIChatBubble() {
                                                                                                     className: "h-2.5 w-2.5"
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                                    lineNumber: 446,
+                                                                                                    lineNumber: 437,
                                                                                                     columnNumber: 39
                                                                                                 }, this),
                                                                                                 " Copy"
@@ -6879,19 +6873,19 @@ function AIChatBubble() {
                                                                                         }, void 0, true)
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                        lineNumber: 439,
+                                                                                        lineNumber: 430,
                                                                                         columnNumber: 33
                                                                                     }, this)
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                lineNumber: 435,
+                                                                                lineNumber: 426,
                                                                                 columnNumber: 31
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                        lineNumber: 417,
+                                                                        lineNumber: 408,
                                                                         columnNumber: 29
                                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                         children: [
@@ -6900,7 +6894,7 @@ function AIChatBubble() {
                                                                                 children: msg.content
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                lineNumber: 453,
+                                                                                lineNumber: 444,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6908,18 +6902,18 @@ function AIChatBubble() {
                                                                                 children: formatRelativeTime(msg.createdAt)
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                                lineNumber: 454,
+                                                                                lineNumber: 445,
                                                                                 columnNumber: 31
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                        lineNumber: 452,
+                                                                        lineNumber: 443,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                    lineNumber: 408,
+                                                                    lineNumber: 399,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 msg.role === 'assistant' && msg.meetingIntent && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(MeetingIntentCard, {
@@ -6927,13 +6921,13 @@ function AIChatBubble() {
                                                                     onSchedule: ()=>handleScheduleMeeting(msg.meetingIntent?.leadId)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                    lineNumber: 463,
+                                                                    lineNumber: 454,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 407,
+                                                            lineNumber: 398,
                                                             columnNumber: 23
                                                         }, this),
                                                         msg.role === 'user' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6942,21 +6936,21 @@ function AIChatBubble() {
                                                                 className: "h-3 w-3"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                lineNumber: 471,
+                                                                lineNumber: 462,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 470,
+                                                            lineNumber: 461,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, msg.id, true, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 395,
+                                                    lineNumber: 386,
                                                     columnNumber: 21
                                                 }, this)),
-                                            isGenerating && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            assistantMutation.isPending && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex gap-2",
                                                 children: [
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6965,12 +6959,12 @@ function AIChatBubble() {
                                                             className: "h-3 w-3 text-primary"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 481,
+                                                            lineNumber: 472,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 480,
+                                                        lineNumber: 471,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6983,7 +6977,7 @@ function AIChatBubble() {
                                                                     children: "Analyzing"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                    lineNumber: 485,
+                                                                    lineNumber: 476,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6991,51 +6985,51 @@ function AIChatBubble() {
                                                                     children: [
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {}, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                            lineNumber: 487,
+                                                                            lineNumber: 478,
                                                                             columnNumber: 29
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {}, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                            lineNumber: 487,
+                                                                            lineNumber: 478,
                                                                             columnNumber: 37
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {}, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                            lineNumber: 487,
+                                                                            lineNumber: 478,
                                                                             columnNumber: 45
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                                    lineNumber: 486,
+                                                                    lineNumber: 477,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                            lineNumber: 484,
+                                                            lineNumber: 475,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                        lineNumber: 483,
+                                                        lineNumber: 474,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                lineNumber: 479,
+                                                lineNumber: 470,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                        lineNumber: 364,
+                                        lineNumber: 355,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                    lineNumber: 363,
+                                    lineNumber: 354,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -7056,54 +7050,54 @@ function AIChatBubble() {
                                                 className: "resize-none min-h-[36px] max-h-[80px] text-xs border-primary/20 gradient-border-focus"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                lineNumber: 499,
+                                                lineNumber: 490,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                 onClick: handleSend,
-                                                disabled: !input.trim() || isGenerating,
+                                                disabled: !input.trim() || assistantMutation.isPending,
                                                 size: "icon",
                                                 className: "shrink-0 h-9 w-9 bg-primary hover:bg-primary/90 transition-all duration-200 hover:shadow-lg hover:shadow-primary/20",
-                                                children: isGenerating ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$refresh$2d$cw$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__RefreshCw$3e$__["RefreshCw"], {
+                                                children: assistantMutation.isPending ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$refresh$2d$cw$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__RefreshCw$3e$__["RefreshCw"], {
                                                     className: "h-3.5 w-3.5 animate-spin"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 515,
+                                                    lineNumber: 506,
                                                     columnNumber: 23
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$send$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Send$3e$__["Send"], {
                                                     className: "h-3.5 w-3.5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                    lineNumber: 517,
+                                                    lineNumber: 508,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                                lineNumber: 508,
+                                                lineNumber: 499,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                        lineNumber: 498,
+                                        lineNumber: 489,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                                    lineNumber: 497,
+                                    lineNumber: 488,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                            lineNumber: 308,
+                            lineNumber: 299,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                lineNumber: 295,
+                lineNumber: 286,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(ScheduleMeetingModal, {
@@ -7117,16 +7111,19 @@ function AIChatBubble() {
                     const meetingData = meeting;
                     const meetingTitle = meetingData.title || 'Meeting';
                     const meetingTime = meetingData.startDateTime ? new Date(meetingData.startDateTime).toLocaleString() : 'TBD';
-                    appendMessage({
-                        id: `system-meeting-${Date.now()}`,
-                        role: 'assistant',
-                        content: `✅ Meeting scheduled: **${meetingTitle}** on ${meetingTime}`,
-                        createdAt: new Date().toISOString()
-                    });
+                    setMessages((prev)=>[
+                            ...prev,
+                            {
+                                id: `system-meeting-${Date.now()}`,
+                                role: 'assistant',
+                                content: `✅ Meeting scheduled: **${meetingTitle}** on ${meetingTime}`,
+                                createdAt: new Date().toISOString()
+                            }
+                        ]);
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/ai-chat-bubble.tsx",
-                lineNumber: 528,
+                lineNumber: 519,
                 columnNumber: 7
             }, this)
         ]
