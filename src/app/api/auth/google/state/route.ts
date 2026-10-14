@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       //    NEVER fall back to APP_URL here: APP_URL points at the
       //    canonical production domain, and if that deployment is down
       //    the user's Google callback would land on a dead origin.
-      return 'https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai';
+      return 'https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai';
     };
 
     // Both redirect_uri and origin come from the SAME resolved public

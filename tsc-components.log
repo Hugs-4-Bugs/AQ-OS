@@ -1,0 +1,167 @@
+src/components/dashboard/advanced-import-dialog.tsx(65,3): error TS2411: Property '_duplicate' of type 'boolean | undefined' is not assignable to 'string' index type 'string | number | null'.
+src/components/dashboard/advanced-import-dialog.tsx(66,3): error TS2411: Property '_error' of type 'string | undefined' is not assignable to 'string' index type 'string | number | null'.
+src/components/dashboard/advanced-import-dialog.tsx(158,22): error TS2345: Argument of type '{ _duplicate: false; }[]' is not assignable to parameter of type 'SetStateAction<PreviewRow[]>'.
+  Type '{ _duplicate: false; }[]' is not assignable to type 'PreviewRow[]'.
+    Type '{ _duplicate: false; }' is not assignable to type 'PreviewRow'.
+      Property '_duplicate' is incompatible with index signature.
+        Type 'false' is not assignable to type 'string | number | null'.
+src/components/dashboard/advanced-import-dialog.tsx(184,36): error TS2367: This comparison appears to be unintentional because the types '"none" | "medium"' and '"high"' have no overlap.
+src/components/dashboard/ai-analysis-card.tsx(168,24): error TS2322: Type 'boolean' is not assignable to type 'void'.
+src/components/dashboard/ai-analysis-card.tsx(201,28): error TS2345: Argument of type 'boolean' is not assignable to parameter of type 'void'.
+src/components/dashboard/ai-score-card.tsx(114,24): error TS2322: Type 'boolean' is not assignable to type 'void'.
+src/components/dashboard/ai-score-card.tsx(164,51): error TS2345: Argument of type 'boolean' is not assignable to parameter of type 'void'.
+src/components/dashboard/ai-score-card.tsx(243,49): error TS2345: Argument of type 'boolean' is not assignable to parameter of type 'void'.
+src/components/dashboard/auth-gate.tsx(871,25): error TS2345: Argument of type '{ id: string; email: string; name: string | null; role: string; plan: string; orgId: string | null; emailVerified: boolean; mfaEnabled: boolean; avatarUrl: string | null; }' is not assignable to parameter of type 'AuthUser'.
+  Types of property 'name' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/components/dashboard/billing-page.tsx(135,59): error TS2339: Property 'cancelAtPeriodEnd' does not exist on type 'SubscriptionState'.
+src/components/dashboard/custom-alerts-panel.tsx(118,117): error TS2339: Property 'border' does not exist on type '{ id: string; label: string; triggered: number; enabled: boolean; icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>; color: string; bg: string; }'.
+src/components/dashboard/dashboard-analytics-panel.tsx(282,34): error TS2554: Expected 0-1 arguments, but got 2.
+src/components/dashboard/dashboard-analytics-panel.tsx(289,29): error TS2551: Property 'avgScore' does not exist on type 'DashboardStats'. Did you mean 'avgScores'?
+src/components/dashboard/dashboard-analytics-panel.tsx(321,23): error TS2339: Property 'avgResponseTime' does not exist on type 'DashboardStats'.
+src/components/dashboard/deal-pipeline-analytics.tsx(347,25): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(348,19): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(369,30): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(381,18): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(418,44): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(433,21): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(446,40): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(459,35): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(487,42): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(498,18): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deal-pipeline-analytics.tsx(499,37): error TS18047: 'analytics' is possibly 'null'.
+src/components/dashboard/deals-pipeline-board.tsx(144,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type '(leadId?: string | undefined) => Promise<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[]>' is not assignable to type 'QueryFunction<unknown, string[]>'.
+      Types of parameters 'leadId' and 'context' are incompatible.
+        Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[], Error, (Deal & { ...; })[], string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '(leadId?: string | undefined) => Promise<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[]>' is not assignable to type 'unique symbol | QueryFunction<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[], string[], never> | undefined'.
+      Type '(leadId?: string | undefined) => Promise<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[]>' is not assignable to type 'QueryFunction<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[], string[], never>'.
+        Types of parameters 'leadId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+  Overload 3 of 3, '(options: UseQueryOptions<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[], Error, (Deal & { ...; })[], string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '(leadId?: string | undefined) => Promise<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[]>' is not assignable to type 'unique symbol | QueryFunction<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[], string[], never> | undefined'.
+      Type '(leadId?: string | undefined) => Promise<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[]>' is not assignable to type 'QueryFunction<(Deal & { lead?: { id: string; businessName: string; niche?: string | undefined; country?: string | undefined; city?: string | undefined; ownerName?: string | undefined; } | undefined; })[], string[], never>'.
+        Types of parameters 'leadId' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' is not assignable to type 'string'.
+src/components/dashboard/deals-pipeline-board.tsx(149,49): error TS2339: Property 'map' does not exist on type '{}'.
+src/components/dashboard/document-collaboration-hub.tsx(135,99): error TS2339: Property 'border' does not exist on type '{ icon: ElementType<any, keyof IntrinsicElements>; color: string; bg: string; label: string; }'.
+src/components/dashboard/email-outreach-performance.tsx(105,32): error TS2339: Property 'payload' does not exist on type '{ dataKey: string; value: number; color: string; }'.
+src/components/dashboard/gmail-account-switcher.tsx(159,41): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/dashboard/gmail-sync-status.tsx(39,32): error TS2339: Property 'errorMessage' does not exist on type 'GmailSyncStatus'.
+src/components/dashboard/gmail-sync-status.tsx(56,38): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/dashboard/gmail-sync-status.tsx(86,45): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/dashboard/inbox-tab.tsx(589,41): error TS2339: Property 'totalPages' does not exist on type '{ total: number; page: number; limit: number; hasMore: boolean; }'.
+src/components/dashboard/inbox-tab.tsx(592,59): error TS2339: Property 'totalPages' does not exist on type '{ total: number; page: number; limit: number; hasMore: boolean; }'.
+src/components/dashboard/inbox-tab.tsx(612,63): error TS2339: Property 'totalPages' does not exist on type '{ total: number; page: number; limit: number; hasMore: boolean; }'.
+src/components/dashboard/integration-marketplace.tsx(84,23): error TS2322: Type '"marketing"' is not assignable to type 'IntegrationCategory'.
+src/components/dashboard/invoice-history.tsx(131,20): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(131,50): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(137,47): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(164,66): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/dashboard/invoice-history.tsx(167,104): error TS18048: 'invoice.taxRate' is possibly 'undefined'.
+src/components/dashboard/invoice-history.tsx(168,66): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/dashboard/invoice-history.tsx(174,30): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(177,78): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(254,45): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(257,67): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(265,47): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(281,39): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/dashboard/invoice-history.tsx(285,39): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/dashboard/invoice-history.tsx(287,24): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(289,42): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(290,50): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(353,12): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/invoice-history.tsx(354,12): error TS2339: Property 'paymentOrder' does not exist on type 'InvoiceEntry'.
+src/components/dashboard/lead-merge-dialog.tsx(317,17): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/lead-merge-dialog.tsx(330,17): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/lead-scoring-panel.tsx(159,42): error TS2339: Property 'map' does not exist on type '{}'.
+src/components/dashboard/payment-failed-modal.tsx(110,36): error TS2554: Expected 0 arguments, but got 1.
+src/components/dashboard/payment-failed-modal.tsx(111,35): error TS2554: Expected 0 arguments, but got 1.
+src/components/dashboard/payment-failed-modal.tsx(112,40): error TS2554: Expected 0 arguments, but got 1.
+src/components/dashboard/payment-failed-modal.tsx(114,44): error TS2345: Argument of type '{ isProcessing: boolean; checkoutData: CheckoutData | null; paymentStatus: PaymentStatus; couponValidation: CouponValidation | null; ... 9 more ...; setPaymentStatus: Dispatch<...>; }' is not assignable to parameter of type 'PaymentStatus'.
+src/components/dashboard/payment-failed-modal.tsx(115,21): error TS2367: This comparison appears to be unintentional because the types '{ isProcessing: boolean; checkoutData: CheckoutData | null; paymentStatus: PaymentStatus; couponValidation: CouponValidation | null; ... 9 more ...; setPaymentStatus: Dispatch<...>; }' and 'string' have no overlap.
+src/components/dashboard/payment-failed-modal.tsx(121,7): error TS2349: This expression is not callable.
+  Type '{ isProcessing: boolean; checkoutData: CheckoutData | null; paymentStatus: PaymentStatus; couponValidation: CouponValidation | null; ... 9 more ...; setPaymentStatus: Dispatch<...>; }' has no call signatures.
+src/components/dashboard/payment-failed-modal.tsx(127,5): error TS2349: This expression is not callable.
+  Type '{ isProcessing: boolean; checkoutData: CheckoutData | null; paymentStatus: PaymentStatus; couponValidation: CouponValidation | null; ... 9 more ...; setPaymentStatus: Dispatch<...>; }' has no call signatures.
+src/components/dashboard/payment-success-modal.tsx(112,44): error TS2554: Expected 0 arguments, but got 1.
+src/components/dashboard/payment-success-modal.tsx(117,7): error TS2349: This expression is not callable.
+  Type '{ isProcessing: boolean; checkoutData: CheckoutData | null; paymentStatus: PaymentStatus; couponValidation: CouponValidation | null; ... 9 more ...; setPaymentStatus: Dispatch<...>; }' has no call signatures.
+src/components/dashboard/pricing-page.tsx(529,32): error TS2345: Argument of type '(response: { error: { description: string; }; }) => void' is not assignable to parameter of type '(...args: unknown[]) => void'.
+  Types of parameters 'response' and 'args' are incompatible.
+    Type 'unknown' is not assignable to type '{ error: { description: string; }; }'.
+src/components/dashboard/revenue-forecast-chart.tsx(322,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: Props): ReferenceLine', gave the following error.
+    Type '{ stroke: string; strokeDasharray: string; strokeWidth: number; strokeOpacity: number; dataKey: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<ReferenceLine> & Pick<Readonly<Props>, "string" | ... 489 more ... | "clipPathId"> & InexactPartial<...> & InexactPartial<...>'.
+      Property 'dataKey' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<ReferenceLine> & Pick<Readonly<Props>, "string" | ... 489 more ... | "clipPathId"> & InexactPartial<...> & InexactPartial<...>'.
+  Overload 2 of 2, '(props: Props, context: any): ReferenceLine', gave the following error.
+    Type '{ stroke: string; strokeDasharray: string; strokeWidth: number; strokeOpacity: number; dataKey: string; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<ReferenceLine> & Pick<Readonly<Props>, "string" | ... 489 more ... | "clipPathId"> & InexactPartial<...> & InexactPartial<...>'.
+      Property 'dataKey' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<ReferenceLine> & Pick<Readonly<Props>, "string" | ... 489 more ... | "clipPathId"> & InexactPartial<...> & InexactPartial<...>'.
+src/components/dashboard/revenue-waterfall.tsx(116,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TooltipProps<number, string>): Tooltip<number, string>', gave the following error.
+    Type '(value: number, _name: string, props: { payload: { base: number; value: number; }; }) => [string, any]' is not assignable to type 'Formatter<number, string>'.
+      Types of parameters 'props' and 'item' are incompatible.
+        Type 'Payload<number, string>' is not assignable to type '{ payload: { base: number; value: number; }; }'.
+          Property 'payload' is optional in type 'Payload<number, string>' but required in type '{ payload: { base: number; value: number; }; }'.
+  Overload 2 of 2, '(props: TooltipProps<number, string>, context: any): Tooltip<number, string>', gave the following error.
+    Type '(value: number, _name: string, props: { payload: { base: number; value: number; }; }) => [string, any]' is not assignable to type 'Formatter<number, string>'.
+      Types of parameters 'props' and 'item' are incompatible.
+        Type 'Payload<number, string>' is not assignable to type '{ payload: { base: number; value: number; }; }'.
+          Property 'payload' is optional in type 'Payload<number, string>' but required in type '{ payload: { base: number; value: number; }; }'.
+src/components/dashboard/revenue-waterfall.tsx(118,27): error TS2339: Property 'name' does not exist on type '{ base: number; value: number; }'.
+src/components/dashboard/revenue-waterfall.tsx(118,62): error TS2339: Property 'name' does not exist on type '{ base: number; value: number; }'.
+src/components/dashboard/revenue-waterfall.tsx(119,78): error TS2339: Property 'name' does not exist on type '{ base: number; value: number; }'.
+src/components/dashboard/revenue-waterfall.tsx(124,39): error TS2339: Property 'name' does not exist on type '{ base: number; value: number; }'.
+src/components/dashboard/schedule-meeting-dialog.tsx(432,13): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/schedule-meeting-dialog.tsx(472,15): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/telegram-connect-card.tsx(163,28): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/dashboard/telegram-health-view.tsx(25,15): error TS2614: Module '"./telegram-connect-card"' has no exported member 'TelegramStatus'. Did you mean to use 'import TelegramStatus from "./telegram-connect-card"' instead?
+src/components/dashboard/telegram-status-card.tsx(28,15): error TS2614: Module '"./telegram-connect-card"' has no exported member 'TelegramStatus'. Did you mean to use 'import TelegramStatus from "./telegram-connect-card"' instead?
+src/components/dashboard/whatsapp-integration-tab.tsx(478,37): error TS2367: This comparison appears to be unintentional because the types '"connected"' and '"connecting"' have no overlap.
+src/components/dashboard/whatsapp-integration-tab.tsx(482,28): error TS2367: This comparison appears to be unintentional because the types '"connected"' and '"connecting"' have no overlap.
+src/components/dashboard/workflow-dead-letter.tsx(612,48): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/workflow-dead-letter.tsx(628,58): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'string | number'.
+src/components/dashboard/workflow-dead-letter.tsx(632,58): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+src/components/dashboard/workflow-execution-history.tsx(373,37): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/workflow-execution-history.tsx(424,11): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/workflow-execution-history.tsx(432,11): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/dashboard/workflow-templates.tsx(143,22): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/dashboard/workflow-templates.tsx(166,24): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/dashboard/workflow-templates.tsx(416,32): error TS18048: 'template.nodes.length' is possibly 'undefined'.
+src/components/dashboard/workflow-templates.tsx(418,36): error TS18048: 'template.nodes' is possibly 'undefined'.
+src/components/dashboard/workflow-templates.tsx(419,47): error TS18046: 'node' is of type 'unknown'.
+src/components/dashboard/workflow-templates.tsx(423,70): error TS18046: 'node' is of type 'unknown'.
+src/components/dashboard/workflow-templates.tsx(424,99): error TS18046: 'node' is of type 'unknown'.
+src/components/support/support-request-dialog.tsx(76,21): error TS2339: Property 'onSubmitted' does not exist on type '{ category?: string | undefined; subcategory?: string | null | undefined; subject?: string | undefined; currentPlan?: string | null | undefined; requestedPlan?: string | null | undefined; billingCycle?: string | ... 1 more ... | undefined; priority?: string | undefined; source?: string | undefined; metadata?: Record...'.
+src/hooks/use-token-refresh.ts(38,21): error TS2345: Argument of type '{ id: string; email: string; name: string | null; role: string; plan: string; orgId: string | null; emailVerified: boolean; mfaEnabled: boolean; avatarUrl: string | null; }' is not assignable to parameter of type 'AuthUser'.
+  Types of property 'name' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/lib/email.ts(139,54): error TS2352: Conversion of type 'Record<string, unknown>' to type 'CreateEmailOptions' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, unknown>' is not comparable to type 'EmailTemplateOptions & CreateEmailBaseOptionsWithTemplate & { react?: undefined; html?: undefined; text?: undefined; }'.
+    Property 'template' is missing in type 'Record<string, unknown>' but required in type 'EmailTemplateOptions'.
+src/lib/email.ts(788,17): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.

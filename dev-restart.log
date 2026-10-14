@@ -1,0 +1,186 @@
+$ node scripts/boot-recovery.mjs && node node_modules/next/dist/bin/next dev -p 3000 2>&1 | tee dev.log
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://21.0.8.109:3000
+- Environments: .env
+- Experiments (use with caution):
+  · optimizePackageImports
+
+✓ Starting...
+[instrumentation] No new env vars loaded from .env files (all already set in process.env)
+─────────────────────────────────────────────────
+[env-safeguard] Environment Variable Health Report
+  Status: DEGRADED
+  DEGRADED — Missing/degraded: SMTP Pass (alias), Gmail User (alias), Gmail App Password (alias), Gmail Password (alias), SMTP From, Resend API Key
+  Auth Summary:
+    Dev Mode: DISABLED ✓
+    Email (SMTP): CONFIGURED ✓
+    Google OAuth: CONFIGURED ✓
+─────────────────────────────────────────────────
+[env-safeguard] .env.backup created/updated
+
+═══════════════════════════════════════════════════════
+  AcquisitionOS — Auth Provider Startup Check
+═══════════════════════════════════════════════════════
+  STARTUP OK: GOOGLE_CLIENT_ID is configured
+  STARTUP OK: GOOGLE_CLIENT_SECRET is configured
+  STARTUP OK: AUTH_SECRET is configured
+  STARTUP OK: NEXTAUTH_SECRET is configured
+  STARTUP OK: DATABASE_URL is configured
+  STARTUP OK: JWT_SECRET is configured
+  SMTP OK: SMTP_HOST is configured
+  SMTP OK: SMTP_PORT is configured
+  SMTP OK: SMTP_USER is configured
+  SMTP OK: SMTP_PASSWORD is configured
+  Google OAuth : AVAILABLE
+  App URL      : http://localhost:3000
+  Database     : CONFIGURED
+═══════════════════════════════════════════════════════
+
+[SMTP-Env-Diag] user    : SMTP_USER=SET, SMTP_USERNAME=MISSING, GMAIL_USER=MISSING, EMAIL_USER=MISSING, EMAIL_USERNAME=MISSING, MAIL_USER=MISSING, MAIL_USERNAME=MISSING
+[SMTP-Env-Diag] pass    : SMTP_PASSWORD=SET, SMTP_PASS=MISSING, SMTP_AUTH_PASSWORD=MISSING, GMAIL_APP_PASSWORD=MISSING, GMAIL_PASSWORD=MISSING, EMAIL_PASSWORD=MISSING, EMAIL_PASS=MISSING, MAIL_PASSWORD=MISSING, MAIL_PASS=MISSING
+[SMTP-Env-Diag] host    : SMTP_HOST=SET, MAIL_HOST=MISSING, EMAIL_HOST=MISSING
+[SMTP-Env-Diag] port    : SMTP_PORT=SET, MAIL_PORT=MISSING, EMAIL_PORT=MISSING
+[SMTP-Env-Diag] from    : SMTP_FROM=MISSING, EMAIL_FROM=SET, MAIL_FROM=MISSING, MAIL_FROM_ADDRESS=MISSING
+[SMTP-Env-Diag] resend  : RESEND_API_KEY=MISSING
+[SMTP-Env-Diag] resolved: user=SET, pass=SET, configured=YES
+[Sentry] No NEXT_PUBLIC_SENTRY_DSN configured — Sentry is in no-op mode
+[2m2026-10-14T06:36:48.956Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v24.21.0","environment":"development"}[0m
+✓ Ready in 1291ms
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+ GET /api/health 200 in 378ms (compile: 199ms, proxy.ts: 132ms, render: 48ms)
+[AUTH-CONFIG] GOOGLE_CLIENT_ID set: true, GOOGLE_CLIENT_SECRET set: true, emailConfigured: true, SMTP_HOST: smtp.gmail.com, SMTP_USER: mailtoprabhat72@gmail.com, SMTP_PASSWORD: SET, APP_URL: http://localhost:3000
+ GET /api/auth/config 200 in 146ms (compile: 132ms, proxy.ts: 4ms, render: 9ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[Google Auth] Redirecting to Google. redirectUri=https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai/api/auth/callback/google, appUrl=https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai, host=localhost:3000, origin-header=NONE
+ GET /api/auth/google 307 in 119ms (compile: 110ms, proxy.ts: 4ms, render: 5ms)
+⚠ ./src/instrumentation.ts:100:15
+Ecmascript file had an error
+[0m [90m  98 |[39m [90m */[39m
+ [90m  99 |[39m [36mfunction[39m loadEnvFiles()[33m:[39m [36mvoid[39m {
+[31m[1m>[22m[39m[90m 100 |[39m   [36mconst[39m cwd [33m=[39m process[33m.[39mcwd()[33m;[39m
+ [90m     |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 101 |[39m   [36mconst[39m candidates [33m=[39m [
+ [90m 102 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.local'[39m)[33m,[39m
+ [90m 103 |[39m     path[33m.[39mjoin(cwd[33m,[39m [32m'.env.production'[39m)[33m,[39m[0m
+
+A Node.js API is used (process.cwd at line: 100) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+
+⚠ ./src/instrumentation.ts:29:1
+Ecmascript file had an error
+[0m [90m 27 |[39m [90m */[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m[0m
+
+A Node.js module is loaded ('fs' at line 29) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+⚠ ./src/instrumentation.ts:30:1
+Ecmascript file had an error
+[0m [90m 28 |[39m
+ [90m 29 |[39m [36mimport[39m [33m*[39m [36mas[39m fs [36mfrom[39m [32m'fs'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mimport[39m [33m*[39m [36mas[39m path [36mfrom[39m [32m'path'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m
+ [90m 32 |[39m [90m// ---------------------------------------------------------------------------[39m
+ [90m 33 |[39m [90m// .env file parser[39m[0m
+
+A Node.js module is loaded ('path' at line 30) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+
+
+[Google Auth] Redirecting to Google. redirectUri=https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai/api/auth/callback/google, appUrl=https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai, host=localhost:3000, origin-header=https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai
+ GET /api/auth/google 307 in 12ms (compile: 5ms, proxy.ts: 3ms, render: 4ms)
+○ Compiling / ...
+ GET / 200 in 10.8s (compile: 10.5s, proxy.ts: 3ms, render: 306ms)
+ POST /api/auth/signin 200 in 432ms (compile: 100ms, proxy.ts: 5ms, render: 327ms)
+ GET /api/auth/me 200 in 86ms (compile: 57ms, proxy.ts: 7ms, render: 21ms)

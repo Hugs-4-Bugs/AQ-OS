@@ -1,0 +1,156 @@
+src/app/api/auth/callback/google/route.ts(416,35): error TS2345: Argument of type '{ code: string; client_id: string | undefined; client_secret: string | undefined; redirect_uri: string; grant_type: string; }' is not assignable to parameter of type 'string | Record<string, string> | URLSearchParams | string[][] | undefined'.
+  Type '{ code: string; client_id: string | undefined; client_secret: string | undefined; redirect_uri: string; grant_type: string; }' is not assignable to type 'undefined'.
+src/app/api/auth/callback/google/route.ts(433,75): error TS18048: 'tokenData' is possibly 'undefined'.
+src/app/api/auth/callback/google/route.ts(947,13): error TS2339: Property 'accessToken' does not exist on type '{ accessToken: string; refreshToken: string; user: any; stateOrigin?: string | undefined; rememberMe?: boolean | undefined; } | { failureCode: GoogleFailureCode; }'.
+src/app/api/auth/callback/google/route.ts(947,26): error TS2339: Property 'refreshToken' does not exist on type '{ accessToken: string; refreshToken: string; user: any; stateOrigin?: string | undefined; rememberMe?: boolean | undefined; } | { failureCode: GoogleFailureCode; }'.
+src/app/api/auth/callback/google/route.ts(947,40): error TS2339: Property 'user' does not exist on type '{ accessToken: string; refreshToken: string; user: any; stateOrigin?: string | undefined; rememberMe?: boolean | undefined; } | { failureCode: GoogleFailureCode; }'.
+src/app/api/auth/callback/google/route.ts(969,25): error TS2339: Property 'rememberMe' does not exist on type '{ accessToken: string; refreshToken: string; user: any; stateOrigin?: string | undefined; rememberMe?: boolean | undefined; } | { failureCode: GoogleFailureCode; }'.
+  Property 'rememberMe' does not exist on type '{ failureCode: GoogleFailureCode; }'.
+src/app/api/auth/refresh/route.ts(192,26): error TS2339: Property 'mfaConfig' does not exist on type '{ name: string | null; id: string; email: string; avatar: string | null; passwordHash: string | null; googleId: string | null; emailVerified: boolean; phone: string | null; country: string | null; ... 29 more ...; lastPaymentFailureAt: Date | null; }'.
+src/app/api/competitors/analyze/route.ts(79,11): error TS2322: Type 'string | null | undefined' is not assignable to type 'number | null | undefined'.
+  Type 'string' is not assignable to type 'number'.
+src/app/api/outreach/autonomy-status/route.ts(54,32): error TS2345: Argument of type 'string' is not assignable to parameter of type 'OutreachAutonomyMode'.
+src/app/api/payments/create-checkout-session/route.ts(123,13): error TS2367: This comparison appears to be unintentional because the types '1000 | 500 | 100 | undefined' and '250' have no overlap.
+src/app/api/payments/create-checkout-session/route.ts(123,86): error TS2367: This comparison appears to be unintentional because the types '100 | undefined' and '2500' have no overlap.
+src/app/api/support/kb/articles/route.ts(119,7): error TS2322: Type '{ id: string; slug: string; title: string; category: string; subcategory: string | null; summary: string; tags: string[]; helpfulCount: number; notHelpfulCount: number; updatedAt: Date; }[]' is not assignable to type 'ScoredArticle[]'.
+  Property 'score' is missing in type '{ id: string; slug: string; title: string; category: string; subcategory: string | null; summary: string; tags: string[]; helpfulCount: number; notHelpfulCount: number; updatedAt: Date; }' but required in type 'ScoredArticle'.
+src/app/api/support/tickets/[id]/route.ts(58,9): error TS2322: Type '{ name: string | null; id: string; email: string; } | null' is not assignable to type '{ id: string; name: string; email: string; } | null'.
+  Type '{ name: string | null; id: string; email: string; }' is not assignable to type '{ id: string; name: string; email: string; }'.
+    Types of property 'name' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.
+src/app/api/whatsapp/meta/webhook/route.ts(75,21): error TS2339: Property 'metaVerifyToken' does not exist on type '{ id: string; userId: string; }'.
+src/app/api/workflows/validate/route.ts(111,11): error TS2322: Type '{ error: string | null; userId: string | null; durationMs: number | null; status: string; id: string; createdAt: Date; idempotencyKey: string | null; maxRetries: number; startedAt: Date; ... 14 more ...; isDeadLetter: boolean; }' is not assignable to type 'null'.
+src/app/api/workflows/validate/route.ts(137,31): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/api/workflows/validate/route.ts(138,35): error TS2339: Property 'status' does not exist on type 'never'.
+src/app/api/workspace/download-source/route.ts(41,35): error TS2345: Argument of type '() => Promise<Response>' is not assignable to parameter of type '(user: AuthUser) => Promise<NextResponse<unknown>>'.
+  Type 'Promise<Response>' is not assignable to type 'Promise<NextResponse<unknown>>'.
+    Type 'Response' is missing the following properties from type 'NextResponse<unknown>': cookies, [INTERNALS]
+src/app/api/ws/route.ts(21,30): error TS2345: Argument of type 'Request' is not assignable to parameter of type 'NextRequest'.
+  Type 'Request' is missing the following properties from type 'NextRequest': cookies, nextUrl, page, ua
+src/app/payment/success/page.tsx(128,73): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | number | boolean'.
+  Type 'null' is not assignable to type 'string | number | boolean'.
+src/components/dashboard/auth-gate.tsx(871,25): error TS2345: Argument of type '{ id: string; email: string; name: string | null; role: string; plan: string; orgId: string | null; emailVerified: boolean; mfaEnabled: boolean; avatarUrl: string | null; }' is not assignable to parameter of type 'AuthUser'.
+  Types of property 'name' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/components/support/support-request-dialog.tsx(76,21): error TS2339: Property 'onSubmitted' does not exist on type '{ category?: string | undefined; subcategory?: string | null | undefined; subject?: string | undefined; currentPlan?: string | null | undefined; requestedPlan?: string | null | undefined; billingCycle?: string | ... 1 more ... | undefined; priority?: string | undefined; source?: string | undefined; metadata?: Record...'.
+src/hooks/use-token-refresh.ts(38,21): error TS2345: Argument of type '{ id: string; email: string; name: string | null; role: string; plan: string; orgId: string | null; emailVerified: boolean; mfaEnabled: boolean; avatarUrl: string | null; }' is not assignable to parameter of type 'AuthUser'.
+  Types of property 'name' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/lib/advanced-reports-service.ts(487,5): error TS2322: Type '{ userId: string | undefined; action: string; details: string; resource: string; resourceId: string; }' is not assignable to type '(Without<AuditLogCreateInput, AuditLogUncheckedCreateInput> & AuditLogUncheckedCreateInput) | (Without<...> & AuditLogCreateInput)'.
+  Type '{ userId: string | undefined; action: string; details: string; resource: string; resourceId: string; }' is not assignable to type 'Without<AuditLogUncheckedCreateInput, AuditLogCreateInput> & AuditLogCreateInput'.
+    Type '{ userId: string | undefined; action: string; details: string; resource: string; resourceId: string; }' is not assignable to type 'Without<AuditLogUncheckedCreateInput, AuditLogCreateInput>'.
+      Types of property 'userId' are incompatible.
+        Type 'string | undefined' is not assignable to type 'undefined'.
+          Type 'string' is not assignable to type 'undefined'.
+src/lib/ai/sender-signature.ts(110,7): error TS2862: Type 'T' is generic and can only be indexed for reading.
+src/lib/autonomous-outreach-engine.ts(618,47): error TS2339: Property 'slice' does not exist on type 'never'.
+src/lib/autonomous-outreach-service.ts(375,3): error TS1016: A required parameter cannot follow an optional parameter.
+src/lib/autonomous-outreach-service.ts(398,3): error TS1016: A required parameter cannot follow an optional parameter.
+src/lib/autonomous-outreach-service.ts(485,3): error TS1016: A required parameter cannot follow an optional parameter.
+src/lib/benchmarking-engine.ts(593,9): error TS2353: Object literal may only specify known properties, and 'percentile' does not exist in type 'BenchmarkInput'.
+src/lib/benchmarking-engine.ts(1036,3): error TS2322: Type '{ userId: string | null; id: string; orgId: string | null; createdAt: Date; metadata: string | null; periodStart: Date | null; periodEnd: Date | null; category: string | null; ... 6 more ...; dataPoints: number | null; }[]' is not assignable to type '{ id: string; orgId: string | null; category: string; benchmarkType: string; metricName: string; yourValue: number; benchmarkValue: number; percentile: number | null; comparisonGroup: string | null; ... 4 more ...; createdAt: Date; }[]'.
+  Type '{ userId: string | null; id: string; orgId: string | null; createdAt: Date; metadata: string | null; periodStart: Date | null; periodEnd: Date | null; category: string | null; ... 6 more ...; dataPoints: number | null; }' is not assignable to type '{ id: string; orgId: string | null; category: string; benchmarkType: string; metricName: string; yourValue: number; benchmarkValue: number; percentile: number | null; comparisonGroup: string | null; ... 4 more ...; createdAt: Date; }'.
+    Types of property 'category' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.
+src/lib/bounce-intelligence.ts(516,7): error TS2322: Type '{ userId: string; email: string; reason: string; }' is not assignable to type '(Without<EmailUnsubscribeCreateInput, EmailUnsubscribeUncheckedCreateInput> & EmailUnsubscribeUncheckedCreateInput) | (Without<...> & EmailUnsubscribeCreateInput)'.
+  Type '{ userId: string; email: string; reason: string; }' is not assignable to type 'Without<EmailUnsubscribeCreateInput, EmailUnsubscribeUncheckedCreateInput> & EmailUnsubscribeUncheckedCreateInput'.
+    Property 'token' is missing in type '{ userId: string; email: string; reason: string; }' but required in type 'EmailUnsubscribeUncheckedCreateInput'.
+src/lib/competitive-gap-analysis-service.ts(631,45): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GapSeverity'.
+src/lib/competitive-gap-analysis-service.ts(632,47): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GapEffort'.
+src/lib/competitive-gap-analysis-service.ts(633,49): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GapEffort'.
+src/lib/credit-addon-fulfillment.ts(130,7): error TS2353: Object literal may only specify known properties, and 'addonId' does not exist in type '{ amount: number; currency: string; provider: string; plan: string; paymentOrderId?: string | undefined; reason?: string | undefined; }'.
+src/lib/credit-addon-fulfillment.ts(138,7): error TS2353: Object literal may only specify known properties, and 'addonId' does not exist in type '{ amount: number; balance?: number | undefined; source?: string | undefined; action_type?: string | undefined; referenceId?: string | undefined; }'.
+src/lib/email.ts(139,54): error TS2352: Conversion of type 'Record<string, unknown>' to type 'CreateEmailOptions' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, unknown>' is not comparable to type 'EmailTemplateOptions & CreateEmailBaseOptionsWithTemplate & { react?: undefined; html?: undefined; text?: undefined; }'.
+    Property 'template' is missing in type 'Record<string, unknown>' but required in type 'EmailTemplateOptions'.
+src/lib/email.ts(788,17): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/lib/feedback/ai-triage.ts(183,9): error TS2322: Type 'Record<string, unknown>' is not assignable to type 'InputJsonValue | NullableJsonNullValueInput | undefined'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'readonly (InputJsonValue | null)[]': length, concat, join, slice, and 26 more.
+src/lib/gmail-delivery-service.ts(608,5): error TS2353: Object literal may only specify known properties, and 'params' does not exist in type '{ method?: string | undefined; body?: string | undefined; maxRetries?: number | undefined; }'.
+src/lib/gmail-delivery-service.ts(641,7): error TS2353: Object literal may only specify known properties, and 'params' does not exist in type '{ method?: string | undefined; body?: string | undefined; maxRetries?: number | undefined; }'.
+src/lib/gmail-pubsub-service.ts(460,22): error TS2345: Argument of type '{ emailAccountId: string; email: string; configured: boolean; status: string; }' is not assignable to parameter of type 'never'.
+src/lib/gmail-pubsub-service.ts(468,22): error TS2345: Argument of type '{ emailAccountId: string; email: string; configured: boolean; status: string; }' is not assignable to parameter of type 'never'.
+src/lib/gmail-pubsub-service.ts(477,20): error TS2345: Argument of type '{ emailAccountId: string; email: string; configured: boolean; status: string; }' is not assignable to parameter of type 'never'.
+src/lib/gmail-reply-processor.ts(368,9): error TS2322: Type 'BuyingSignals' is not assignable to type 'Record<string, boolean>'.
+  Index signature for type 'string' is missing in type 'BuyingSignals'.
+src/lib/gmail-reply-processor.ts(524,44): error TS2345: Argument of type 'BuyingSignals' is not assignable to parameter of type '{ [key: string]: boolean; }'.
+  Index signature for type 'string' is missing in type 'BuyingSignals'.
+src/lib/hot-lead-service.ts(804,41): error TS2345: Argument of type '{ updatedAt: Date; businessName: string; replyScore: number; conversionScore: number; urgencyScore: number; stage: string; communications: { buyingSignals: string | null; }[]; }' is not assignable to parameter of type 'LeadEvaluationData'.
+  Property 'id' is missing in type '{ updatedAt: Date; businessName: string; replyScore: number; conversionScore: number; urgencyScore: number; stage: string; communications: { buyingSignals: string | null; }[]; }' but required in type 'LeadEvaluationData'.
+src/lib/lead-discovery/company-researcher.ts(191,5): error TS2322: Type '"fallback"' is not assignable to type 'ProviderType'.
+src/lib/lead-discovery/company-researcher.ts(201,7): error TS2322: Type '"fallback"' is not assignable to type 'ProviderType'.
+src/lib/lead-discovery/reply-handler.ts(213,9): error TS2353: Object literal may only specify known properties, and 'leadId' does not exist in type 'ReplyAnalysis'.
+src/lib/lead-discovery/reply-handler.ts(217,108): error TS2339: Property 'meetingUrl' does not exist on type 'OrchestrationResult'.
+src/lib/lead-discovery/reply-handler.ts(228,46): error TS2339: Property 'calendarEventId' does not exist on type 'OrchestrationResult'.
+src/lib/lead-discovery/reply-handler.ts(229,41): error TS2339: Property 'meetingUrl' does not exist on type 'OrchestrationResult'.
+src/lib/meeting-orchestration-service.ts(1508,11): error TS2353: Object literal may only specify known properties, and 'stage' does not exist in type 'DealSelect<DefaultArgs>'.
+src/lib/meeting-orchestration-service.ts(1547,19): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1548,19): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1549,21): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1549,50): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1550,22): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1551,24): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1552,22): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1553,22): error TS2339: Property 'lead' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1555,19): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1556,19): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1557,22): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1558,22): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1558,49): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1559,23): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting-orchestration-service.ts(1560,22): error TS2339: Property 'deal' does not exist on type '{ userId: string; status: string; id: string; orgId: string | null; createdAt: Date; updatedAt: Date; description: string | null; leadId: string | null; title: string; metadata: string | null; ... 21 more ...; rescheduledFrom: string | null; }'.
+src/lib/meeting/meeting-reminders.ts(138,24): error TS18048: 'minutes' is possibly 'undefined'.
+src/lib/meetings/meeting-assistant.ts(694,50): error TS2345: Argument of type '(item: Record<string, unknown>) => { description: string; assignee: "user" | "lead" | "both"; dueDate: string | undefined; priority: "high" | "low" | "medium"; category: "client" | "proposal" | "internal" | "research" | "follow_up"; }' is not assignable to parameter of type '(value: ActionItem, index: number, array: ActionItem[]) => { description: string; assignee: "user" | "lead" | "both"; dueDate: string | undefined; priority: "high" | ... 1 more ... | "medium"; category: "client" | ... 3 more ... | "follow_up"; }'.
+  Types of parameters 'item' and 'value' are incompatible.
+    Type 'ActionItem' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'ActionItem'.
+src/lib/meetings/meeting-assistant.ts(712,17): error TS2322: Type 'ActionItem[]' is not assignable to type 'InputJsonValue | NullableJsonNullValueInput | undefined'.
+  Type 'ActionItem[]' is not assignable to type 'InputJsonObject'.
+    Index signature for type 'string' is missing in type 'ActionItem[]'.
+src/lib/meetings/meeting-orchestration-service.ts(721,5): error TS2353: Object literal may only specify known properties, and 'sourceType' does not exist in type 'ReplyAnalysis'.
+src/lib/meetings/meeting-orchestration-service.ts(760,7): error TS2353: Object literal may only specify known properties, and 'originalText' does not exist in type 'ReplyAnalysis'.
+src/lib/payment-recovery-service.ts(297,15): error TS2339: Property 'isEmailServiceConfigured' does not exist on type 'typeof import("/home/z/my-project/src/lib/feature-flags")'.
+src/lib/payment-recovery-service.ts(302,27): error TS2345: Argument of type '{ to: string; subject: string; html: string; }' is not assignable to parameter of type 'EmailPayload'.
+  Property 'text' is missing in type '{ to: string; subject: string; html: string; }' but required in type 'EmailPayload'.
+src/lib/payment-service.ts(349,34): error TS2322: Type '"2024-06-20"' is not assignable to type '"2026-04-22.dahlia"'.
+src/lib/payment-service.ts(1141,7): error TS2353: Object literal may only specify known properties, and 'addonId' does not exist in type '{ amount: number; currency: string; provider: string; plan: string; paymentOrderId?: string | undefined; reason?: string | undefined; }'.
+src/lib/payment-service.ts(1838,7): error TS2322: Type '"upgrade" | "downgrade" | "same"' is not assignable to type '"upgrade" | "downgrade"'.
+  Type '"same"' is not assignable to type '"upgrade" | "downgrade"'.
+src/lib/payments/razorpay-provider.ts(149,42): error TS2345: Argument of type '{ userId: string; kind: PurchaseKind; plan?: "pro" | "elite" | "starter" | undefined; billingCycle?: BillingCycle | undefined; creditAmount?: 1000 | 500 | 100 | undefined; couponCode?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined; }' is not assignable to parameter of type '{ userId: string; creditAmount?: 1000 | 500 | 2500 | 250 | undefined; couponCode?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined; }'.
+  Types of property 'creditAmount' are incompatible.
+    Type '1000 | 500 | 100 | undefined' is not assignable to type '1000 | 500 | 2500 | 250 | undefined'.
+      Type '100' is not assignable to type '1000 | 500 | 2500 | 250 | undefined'.
+src/lib/payments/stripe-provider.ts(79,9): error TS2322: Type '1000 | 500 | 100' is not assignable to type '1000 | 500 | 2500 | 250'.
+  Type '100' is not assignable to type '1000 | 500 | 2500 | 250'.
+src/lib/queue-observability-service.ts(263,7): error TS2322: Type '"critical"' is not assignable to type '"high" | "low" | "medium"'.
+src/lib/queue-observability-service.ts(296,9): error TS2322: Type '"critical"' is not assignable to type '"high" | "low" | "medium"'.
+src/lib/redis-pubsub-service.ts(39,5): error TS2578: Unused '@ts-expect-error' directive.
+src/lib/refund-service.ts(70,9): error TS2367: This comparison appears to be unintentional because the types '"completed"' and '"refunded"' have no overlap.
+src/lib/refund-service.ts(299,35): error TS2367: This comparison appears to be unintentional because the types '"failed" | "pending" | "cancelled"' and '"processed"' have no overlap.
+src/lib/reply-intelligence-service.ts(680,24): error TS2538: Type 'null' cannot be used as an index type.
+src/lib/reply-intelligence-service.ts(680,58): error TS2538: Type 'null' cannot be used as an index type.
+src/lib/sequence-processor.ts(43,9): error TS2353: Object literal may only specify known properties, and 'where' does not exist in type 'LeadDefaultArgs<DefaultArgs>'.
+src/lib/sequence-processor.ts(51,21): error TS2339: Property 'lead' does not exist on type '{ status: string; id: string; createdAt: Date; updatedAt: Date; leadId: string; currentStep: number; sequenceId: string; nextSendAt: Date | null; }'.
+src/lib/sequence-processor.ts(52,20): error TS2551: Property 'sequence' does not exist on type '{ status: string; id: string; createdAt: Date; updatedAt: Date; leadId: string; currentStep: number; sequenceId: string; nextSendAt: Date | null; }'. Did you mean 'sequenceId'?
+src/lib/sequence-processor.ts(55,35): error TS2345: Argument of type '{ status: string; id: string; createdAt: Date; updatedAt: Date; leadId: string; currentStep: number; sequenceId: string; nextSendAt: Date | null; }' is not assignable to parameter of type '{ id: string; currentStep: number; sequenceId: string; leadId: string; sequence: { userId: string; channel: string; sequenceSteps: { id: string; order: number; channel: string; subject?: string | null | undefined; template: string; delayDays: number; delayHours: number; }[]; }; lead: { ...; }; }'.
+  Type '{ status: string; id: string; createdAt: Date; updatedAt: Date; leadId: string; currentStep: number; sequenceId: string; nextSendAt: Date | null; }' is missing the following properties from type '{ id: string; currentStep: number; sequenceId: string; leadId: string; sequence: { userId: string; channel: string; sequenceSteps: { id: string; order: number; channel: string; subject?: string | null | undefined; template: string; delayDays: number; delayHours: number; }[]; }; lead: { ...; }; }': sequence, lead
+src/lib/stripe-portal-service.ts(86,11): error TS2353: Object literal may only specify known properties, and 'default_allowed' does not exist in type 'SubscriptionUpdate'.
+src/lib/stripe-portal-service.ts(209,67): error TS2339: Property 'retrieve' does not exist on type 'SessionResource'.
+src/lib/stripe-portal-service.ts(254,45): error TS2339: Property 'current_period_start' does not exist on type 'Response<Subscription>'.
+src/lib/stripe-portal-service.ts(255,38): error TS2339: Property 'current_period_start' does not exist on type 'Response<Subscription>'.
+src/lib/stripe-portal-service.ts(257,43): error TS2339: Property 'current_period_end' does not exist on type 'Response<Subscription>'.
+src/lib/stripe-portal-service.ts(258,38): error TS2339: Property 'current_period_end' does not exist on type 'Response<Subscription>'.
+src/lib/telegram-service.ts(519,5): error TS2322: Type '{ userId: string; botToken: string; username: string; botId: string; isConnected: true; isPaused: false; mode: string; healthStatus: string; lastHealthCheckAt: Date; reconnectAttempts: number; }' is not assignable to type '(Without<TelegramConfigCreateInput, TelegramConfigUncheckedCreateInput> & TelegramConfigUncheckedCreateInput) | (Without<...> & TelegramConfigCreateInput)'.
+  Type '{ userId: string; botToken: string; username: string; botId: string; isConnected: true; isPaused: false; mode: string; healthStatus: string; lastHealthCheckAt: Date; reconnectAttempts: number; }' is not assignable to type 'Without<TelegramConfigCreateInput, TelegramConfigUncheckedCreateInput> & TelegramConfigUncheckedCreateInput'.
+    Property 'chatId' is missing in type '{ userId: string; botToken: string; username: string; botId: string; isConnected: true; isPaused: false; mode: string; healthStatus: string; lastHealthCheckAt: Date; reconnectAttempts: number; }' but required in type 'TelegramConfigUncheckedCreateInput'.
+src/lib/webhook-replay-service.ts(418,44): error TS2339: Property 'payment' does not exist on type '{}'.
+src/lib/workflow-actions.ts(698,5): error TS2322: Type '{ userId: string; type: string; status: string; }' is not assignable to type '(Without<DataExportCreateInput, DataExportUncheckedCreateInput> & DataExportUncheckedCreateInput) | (Without<...> & DataExportCreateInput)'.
+  Type '{ userId: string; type: string; status: string; }' is not assignable to type 'Without<DataExportCreateInput, DataExportUncheckedCreateInput> & DataExportUncheckedCreateInput'.
+    Property 'exportType' is missing in type '{ userId: string; type: string; status: string; }' but required in type 'DataExportUncheckedCreateInput'.
+src/lib/workflow-engine.ts(404,7): error TS2322: Type '{ success: boolean; creditsUsed: number; error?: string | undefined; }' is not assignable to type '{ success: boolean; creditsUsed: number; error: string | undefined; }'.
+  Property 'error' is optional in type '{ success: boolean; creditsUsed: number; error?: string | undefined; }' but required in type '{ success: boolean; creditsUsed: number; error: string | undefined; }'.

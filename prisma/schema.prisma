@@ -3123,3 +3123,88 @@ model ResearchJob {
 
   @@index([userId, status])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Autopilot — automated niche-based client acquisition (additive).
+// Reuses the existing discovery pipeline and workflow execution engine.
+// The AutopilotLead ledger is the concurrency-safe "one lead processed
+// at most once per autopilot" guard (DB-level unique index) — the runner
+// never relies on check-then-insert alone.
+// ═══════════════════════════════════════════════════════════════════
+
+model AutopilotWorkflow {
+  id         String    @id @default(cuid())
+  userId     String
+  orgId      String?
+  name       String
+  // State machine: DRAFT | ACTIVE | PAUSED | RUNNING | COMPLETED | FAILED | DISABLED
+  status     String    @default("DRAFT")
+  // JSON array of selected niches (multi-select; discovery niche vocabulary)
+  niches     String    @default("[]")
+  // JSON { country, city } — same shape as existing discovery geography config
+  geography  String    @default("{}")
+  // Linked user-configured WorkflowDefinition (must be active at run time)
+  workflowId String
+  // hourly | every_6_hours | every_12_hours | daily | weekly
+  schedule   String    @default("daily")
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  lastError  String?
+  runCount   Int       @default(0)
+  // Honest cumulative counters
+  totalDiscovered Int  @default(0)
+  totalSaved      Int  @default(0)
+  totalProcessed  Int  @default(0)
+  totalExecutions Int  @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextRunAt])
+  @@index([workflowId])
+}
+
+model AutopilotRun {
+  id                String    @id @default(cuid())
+  autopilotId       String
+  userId            String
+  // QUEUED | RUNNING | COMPLETED | FAILED
+  status            String    @default("QUEUED")
+  // manual | scheduler
+  trigger           String    @default("manual")
+  // JSON snapshot of { niches, geography } at run time
+  config            String    @default("{}")
+  discovered        Int       @default(0)
+  saved             Int       @default(0)
+  skippedDupes      Int       @default(0)
+  processed         Int       @default(0)
+  executionsCreated Int       @default(0)
+  error             String?
+  createdAt         DateTime  @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  @@index([autopilotId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AutopilotLead {
+  id          String    @id @default(cuid())
+  autopilotId String
+  runId       String
+  leadId      String
+  userId      String
+  // DISCOVERED | EXEC_QUEUED | EXEC_FAILED
+  status      String    @default("DISCOVERED")
+  executionId String?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  // DB-level idempotency: one lead can only ever be processed once per autopilot.
+  @@unique([autopilotId, leadId])
+  @@index([runId])
+  @@index([userId])
+}

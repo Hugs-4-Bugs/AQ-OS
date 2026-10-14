@@ -340,6 +340,7 @@ export type TabId =
   | "discover"
   | "outreach"
   | "workflows"
+  | "autopilot"
   | "messaging"
   | "assistant"
   | "insights"

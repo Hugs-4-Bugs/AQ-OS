@@ -254,5 +254,48 @@ export async function register() {
     } catch {
       // Logger is optional
     }
+
+    // ── Step 6: Autopilot scheduler heartbeat ──────────────────────
+    // The cron route (POST /api/cron/autopilot-scheduler, CRON_SECRET) is the
+    // primary trigger in deployments that have an external scheduler. In
+    // environments without one (sandbox / preview / single-instance FC), this
+    // in-process heartbeat drives the SAME shared tick so scheduled Autopilots
+    // actually run — mirroring the documented workflow-scheduler pattern.
+    //
+    // Double-execution safety does NOT depend on this timer: every tick
+    // recovers stuck runs and claims work atomically (ACTIVE→RUNNING
+    // updateMany winner, QUEUED→RUNNING run claim, AutopilotLead ledger
+    // unique constraint), so overlapping ticks can never execute the same
+    // autopilot or lead twice. AUTOPILOT_SCHEDULER_DISABLED=1 opts out.
+    if (process.env.AUTOPILOT_SCHEDULER_DISABLED !== '1') {
+      const intervalMs = Number(process.env.AUTOPILOT_SCHEDULER_INTERVAL_MS || 300000); // 5 min
+      let ticking = false; // per-process re-entrancy guard (claims are the real guard)
+      const heartbeatTick = async (): Promise<void> => {
+        if (ticking) return;
+        ticking = true;
+        try {
+          const { runAutopilotSchedulerTick } = await import('@/lib/autopilot/scheduler-runner');
+          const result = await runAutopilotSchedulerTick();
+          if (result.dueCount > 0 || result.recoveredRuns > 0 || result.recoveredAutopilots > 0) {
+            console.warn(
+              `[autopilot-heartbeat] tick: due=${result.dueCount} started=${result.started} ` +
+              `recoveredRuns=${result.recoveredRuns} recoveredAutopilots=${result.recoveredAutopilots}`
+            );
+          }
+        } catch (err) {
+          console.error(
+            '[autopilot-heartbeat] tick failed (non-fatal):',
+            err instanceof Error ? err.message : err
+          );
+        } finally {
+          ticking = false;
+        }
+      };
+      // First tick shortly after boot (lets Prisma/DB settle), then fixed interval.
+      const firstTimer = setTimeout(heartbeatTick, 20000);
+      firstTimer.unref?.();
+      const timer = setInterval(heartbeatTick, intervalMs);
+      timer.unref?.(); // never keep the process alive just for the heartbeat
+    }
   }
 }

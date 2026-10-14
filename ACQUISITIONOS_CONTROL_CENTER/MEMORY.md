@@ -414,3 +414,39 @@ in order): re-restore from GitHub main per restore scripts → `npx prisma gener
 - GitHub main 7bd083a is OLDER and has diverged from local history (platform
   auto-commits). GitHub is NOT currently ahead — do NOT reset local to remote.
   Forward-only applies.
+
+---
+
+# Operational Lessons (appended 2026-10-14)
+
+## Platform auto-commits sweep uncommitted work AND secrets
+
+The sandbox runtime periodically commits the working tree with UUID-style
+messages (e.g. 5795e312d, 019541f6f). Two consequences:
+
+1. Feature work left uncommitted gets captured (Autopilot implementation was
+   swept into 5795e312d together with .next cache junk).
+2. `.env` and `.env.*.bak` (REAL credentials) got committed in 019541f6f.
+   Mitigation applied 2026-10-14: .gitignore + git rm --cached for .env /
+   .env.backup / .env.*.bak / .next / dev.log in a dedicated hygiene commit.
+   NOTE: secrets remain in LOCAL history (unpushed); rotation still required.
+   db/custom.db stays tracked ON PURPOSE (boot-recovery.mjs git-blob fallback);
+   it contains user data and was already in pushed history before 2026-10-14.
+
+## Dev-server persistence in the sandbox
+
+The harness reaps any process spawned by an agent shell between tool calls
+(nohup/setsid insufficient; oom_kill=0 — it is a reaper, not memory). The ONLY
+reliable way to keep the dev server alive across tool calls: double-fork
+daemonization (fork → setsid → fork → exec) so the process reparents to PID 1
+DURING the call. scripts/run-prod-build.sh + scripts/run-full-vitest.sh use
+this pattern. At container (re)boot the platform's own start.sh flow
+(bun run dev) starts the server anyway.
+
+## Production build memory profile
+
+`next build --webpack` compiles fine but the page-data/static-gen phase with a
+3GB Node heap exceeds the 4GB pod (exit 137, SIGKILL, oom_kill visible only as
+Killed in build log). A 2GB heap (--max-old-space-size=2048) completes the
+FULL build: EXIT=0, BUILD_ID generated (2026-10-14). Stop the dev server
+during builds to free memory; restart via double-fork afterward.

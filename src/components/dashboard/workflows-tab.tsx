@@ -87,6 +87,15 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 
+// Autopilot surface — the SAME component as the dedicated sidebar tab, embedded
+// here so the Workflows area shows the full two-system split in one place:
+// [ Normal Workflows ] [ Autopilot ] [ Executions ] [ Templates ].
+// Lazy-loaded so the workflows bundle stays unchanged until the tab opens.
+// Access note: this component is already inside the dashboard-level
+// PlanGate(requiredPlan="pro") for the Workflows tab, so the embedded Autopilot
+// panel is only reachable for Pro/Elite — same entitlement as the sidebar route.
+const AutopilotTab = React.lazy(() => import('./autopilot-tab'));
+
 // ===== TYPES =====
 
 interface WorkflowNode {
@@ -2587,7 +2596,7 @@ export default function WorkflowsTab() {
   // /api/subscriptions/entitlements) — same 'workflow_access' key that the
   // backend gate enforces. No duplicate plan logic here.
   const hasWorkflowAccess = useSubscriptionStore((s) => s.hasFeatureAccess('workflow_access'));
-  const [subTab, setSubTab] = useState<'workflows' | 'executions' | 'templates'>('workflows');
+  const [subTab, setSubTab] = useState<'workflows' | 'autopilot' | 'executions' | 'templates'>('workflows');
   const [builderMode, setBuilderMode] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
@@ -2739,6 +2748,7 @@ export default function WorkflowsTab() {
           <div className="flex items-center justify-between mb-2">
             <TabsList>
               <TabsTrigger value="workflows">Workflows</TabsTrigger>
+              <TabsTrigger value="autopilot">Autopilot</TabsTrigger>
               <TabsTrigger value="executions">Executions</TabsTrigger>
               <TabsTrigger value="templates">Templates</TabsTrigger>
             </TabsList>
@@ -2776,6 +2786,19 @@ export default function WorkflowsTab() {
               onSelectWorkflow={(wf) => setSelectedWorkflow(wf)}
               onEditWorkflow={handleEdit}
             />
+          </TabsContent>
+
+          <TabsContent value="autopilot" className="p-4 mt-0">
+            <React.Suspense
+              fallback={
+                <div className="space-y-3">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-48 w-full" />
+                </div>
+              }
+            >
+              <AutopilotTab />
+            </React.Suspense>
           </TabsContent>
 
           <TabsContent value="executions" className="p-4 mt-0">

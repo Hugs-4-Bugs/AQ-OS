@@ -167,7 +167,7 @@ function getDynamicOrigin(request: NextRequest): string {
 
   // 7. Last resort: the active preview workspace deployment (never
   //    localhost, never accounts.google.com).
-  return 'https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai';
+  return 'https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai';
 }
 
 /** Build a redirect URL using dynamic origin */
@@ -176,7 +176,7 @@ function dynamicRedirect(path: string, request: NextRequest): URL {
   try {
     return new URL(path, origin);
   } catch {
-    return new URL(path, 'https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai');
+    return new URL(path, 'https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai');
   }
 }
 

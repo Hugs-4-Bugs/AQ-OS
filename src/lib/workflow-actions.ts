@@ -51,6 +51,7 @@ export async function executeAction(
       case 'send_email':
         return await executeSendEmail(config, context);
       case 'create_gmail_draft':
+      case 'send_gmail_draft':
         return await executeCreateGmailDraft(config, context);
       case 'send_telegram':
         return await executeSendTelegram(config, context);
@@ -61,8 +62,10 @@ export async function executeAction(
       case 'ai_outreach':
         return await executeAiOutreach(config, context);
       case 'move_lead_stage':
+      case 'move_to_stage':
         return await executeMoveLeadStage(config, context);
       case 'update_tags':
+      case 'add_tag':
         return await executeUpdateTags(config, context);
       case 'create_notification':
         return await executeCreateNotification(config, context);
@@ -458,13 +461,21 @@ async function executeUpdateTags(
   config: Record<string, unknown>,
   context: ActionContext
 ): Promise<ActionResult> {
-  const { tags, action } = config;
+  // Accept both config shapes that legitimately exist in the system:
+  // the builder/AI generator may store `tags` (array), `tag` (single string)
+  // or a comma-separated string — the saved definition is the truth.
+  const rawTags = config.tags ?? config.tag;
+  const tags: string[] = Array.isArray(rawTags)
+    ? rawTags.map(String).map((t) => t.trim()).filter(Boolean)
+    : typeof rawTags === 'string' && rawTags.trim()
+      ? rawTags.split(',').map((t) => t.trim()).filter(Boolean)
+      : [];
 
   if (!context.leadId) {
     return { success: false, error: 'Update tags requires a lead context' };
   }
 
-  if (!tags || !Array.isArray(tags)) {
+  if (tags.length === 0) {
     return { success: false, error: 'Tags array is required' };
   }
 

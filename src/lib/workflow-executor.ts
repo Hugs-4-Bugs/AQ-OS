@@ -6,6 +6,7 @@
 
 import { db } from '@/lib/db';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
+import { executeAction } from '@/lib/workflow-actions';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
 import { createNotificationOnce } from '@/lib/notification-service';
 import {
@@ -142,7 +143,7 @@ export async function processExecution(executionId: string): Promise<void> {
   // Get trigger data for context
   const triggerData = execution.triggerData ? JSON.parse(execution.triggerData) : {};
   const stepResults: Record<string, unknown> = {};
-  const context: Record<string, unknown> = { triggerData, stepResults };
+  const context: Record<string, unknown> = { triggerData, stepResults, executionId: execution.id, workflowId: execution.workflowId };
 
   // Find starting node (first non-trigger node connected from trigger)
   let currentNode: WorkflowNode | null = null;
@@ -472,7 +473,11 @@ async function executeStepAction(
       return { messageId: message.id, channel: 'gmail', leadId, status: 'reply', replyToId: lastEmail?.id };
     }
 
-    case 'move_to_stage': {
+    case 'move_to_stage':
+    case 'move_lead_stage': {
+      // 'move_lead_stage' is the workflow-builder vocabulary for the same
+      // action — the saved definition must execute identically on either
+      // engine (executor vs workflow-actions), so both spellings are honored.
       if (!leadId) throw new Error('No lead ID for move_to_stage step');
       const targetStage = (config.targetStage as string) || (config.stage as string);
       if (!targetStage) throw new Error('No target stage specified');
@@ -515,9 +520,18 @@ async function executeStepAction(
       return { noteId: note.id, leadId };
     }
 
-    case 'add_tag': {
+    case 'add_tag':
+    case 'update_tags': {
       if (!leadId) throw new Error('No lead ID for add_tag step');
-      const tagsToAdd = (config.tags as string[]) || [];
+      // Builder stores `tag` (single) in some saved definitions and `tags`
+      // (array) in others — both are legitimate saved shapes; comma-separated
+      // strings are also accepted. Empty result stays an honest failure.
+      const rawTags = config.tags ?? config.tag;
+      const tagsToAdd = Array.isArray(rawTags)
+        ? rawTags.map(String).map((t) => t.trim()).filter(Boolean)
+        : typeof rawTags === 'string' && rawTags.trim()
+          ? rawTags.split(',').map((t) => t.trim()).filter(Boolean)
+          : [];
       if (tagsToAdd.length === 0) throw new Error('No tags specified');
 
       const lead = await requireOwnedLead(userId, leadId);
@@ -759,8 +773,33 @@ async function executeStepAction(
       return { credits: user.credits, threshold, sufficient };
     }
 
-    default:
-      return { note: `Unknown step type: ${effectiveType}`, config };
+    default: {
+      // TRUTHFUL FAILURE (fix): an action the execution engine cannot
+      // perform is a FAILED step, not a successful no-op. Returning a
+      // fake success here marked executions "completed" while silently
+      // skipping the user's configured actions — exactly the dishonest
+      // behavior this engine must never exhibit.
+      //
+      // Builder-vocabulary coverage: action types this executor does not
+      // natively implement (ai_analysis, ai_outreach, create_notification,
+      // export_data, score_lead, notify_low_credits, …) are delegated to
+      // the canonical executor in workflow-actions.ts, which implements the
+      // full builder ACTION_TYPES set. The saved definition — not the
+      // engine's subset — remains the source of execution truth. If BOTH
+      // engines reject the type, the step still fails honestly.
+      const canonical = await executeAction(effectiveType, config, {
+        workflowId: (context.workflowId as string) || (step as { workflowId?: string }).workflowId || '',
+        executionId: (context.executionId as string) || '',
+        userId: userId || '',
+        leadId: leadId || undefined,
+        triggerData,
+      });
+      if (canonical.success || !/Unknown action type/i.test(canonical.error || '')) {
+        if (!canonical.success) throw new Error(canonical.error || 'Action failed');
+        return canonical.output ?? { success: true };
+      }
+      throw new Error(`Unknown step type: ${effectiveType}`);
+    }
   }
 }
 

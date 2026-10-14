@@ -23,6 +23,7 @@ export type FeatureKey =
   | 'whatsapp_integration'
   | 'telegram_access'
   | 'workflow_access'
+  | 'autopilot_access'
   | 'api_access'
   | 'chatbot_access'
   | 'team_members'
@@ -64,6 +65,11 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     // profile CRUD routes. Downgrade never deletes profiles; archived and
     // over-limit profiles are preserved read-only.
     business_profiles:    { limit: 1,   enabled: true },
+    // Autopilot (niche-based automated client acquisition): Pro/Elite only.
+    // limit = max ACTIVE+RUNNING autopilot workflows (3 for Pro, 7 for Elite).
+    // Enforced server-side in /api/autopilot routes — UI hiding is NOT
+    // enforcement. Downgrade (DISABLED) never deletes autopilot history.
+    autopilot_access:     { limit: 0,   enabled: false },
   },
   // Starter — basic features only (final pricing/plan update, Sep 2026).
   // Same feature set as Free except the monthly lead limit is 25.
@@ -86,6 +92,7 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     white_label:          { limit: 0,   enabled: false },
     custom_integrations:  { limit: 0,   enabled: false },
     business_profiles:    { limit: 1,   enabled: true },
+    autopilot_access:     { limit: 0,   enabled: false },
   },
   pro: {
     lead_discovery:       { limit: null, enabled: true },
@@ -106,6 +113,7 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     white_label:          { limit: 0,   enabled: false },
     custom_integrations:  { limit: 0,   enabled: false },
     business_profiles:    { limit: 3,   enabled: true },
+    autopilot_access:     { limit: 3,   enabled: true },
   },
   elite: {
     lead_discovery:       { limit: null, enabled: true },
@@ -126,6 +134,7 @@ export const ENTITLEMENTS: Record<PlanType, EntitlementsMap> = {
     white_label:          { limit: null, enabled: true },
     custom_integrations:  { limit: null, enabled: true },
     business_profiles:    { limit: 7,   enabled: true },
+    autopilot_access:     { limit: 7,   enabled: true },
   },
 };
 

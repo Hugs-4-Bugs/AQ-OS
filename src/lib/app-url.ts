@@ -42,7 +42,7 @@ import type { NextRequest } from 'next/server';
  */
 const PRODUCTION_URL = 'https://acquisition.space-z.ai';
 
-const FALLBACK_URL = 'https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai';
+const FALLBACK_URL = 'https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai';
 
 /**
  * Internal hostnames used by cloud providers (Aliyun FC, AWS, GCP, etc.)

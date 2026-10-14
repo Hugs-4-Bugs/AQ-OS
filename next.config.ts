@@ -86,6 +86,8 @@ const nextConfig: NextConfig = {
     'http://localhost:3000',
     'http://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai',
     'https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai',
+    'http://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai',
+    'https://preview-chat-9531f1e0-3d55-4ec1-ac52-7d94f71953ed.space-z.ai',
     // Wildcard for all space-z.ai preview domains
     '.space-z.ai',
   ],
