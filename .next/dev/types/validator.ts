@@ -1109,6 +1109,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../src/app/api/autopilot/[id]/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/autopilot/[id]">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/autopilot/[id]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/autopilot/[id]/run/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/autopilot/[id]/run">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/autopilot/[id]/run/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/autopilot/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/autopilot">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/autopilot/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../src/app/api/billing/analytics/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/billing/analytics">> = Specific
@@ -1455,6 +1482,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/cron/autonomous-outreach">> = Specific
   const handler = {} as typeof import("../../../src/app/api/cron/autonomous-outreach/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/cron/autopilot-scheduler/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/cron/autopilot-scheduler">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/cron/autopilot-scheduler/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

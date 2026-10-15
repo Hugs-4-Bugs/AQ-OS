@@ -121,8 +121,10 @@ const SettingsShell = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5
 _c10 = SettingsShell;
 const WorkflowsTab = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].lazy(()=>__turbopack_context__.A("[project]/src/components/dashboard/workflows-tab.tsx [app-client] (ecmascript, async loader)"));
 _c11 = WorkflowsTab;
+const AutopilotTab = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].lazy(()=>__turbopack_context__.A("[project]/src/components/dashboard/autopilot-tab.tsx [app-client] (ecmascript, async loader)"));
+_c12 = AutopilotTab;
 const NotificationsTab = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].lazy(()=>__turbopack_context__.A("[project]/src/components/dashboard/notifications-tab.tsx [app-client] (ecmascript, async loader)"));
-_c12 = NotificationsTab;
+_c13 = NotificationsTab;
 ;
 ;
 ;
@@ -170,6 +172,12 @@ const NAV_ITEMS = [
         label: 'Workflows',
         icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$git$2d$branch$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__GitBranch$3e$__["GitBranch"],
         shortLabel: 'Flows'
+    },
+    {
+        id: 'autopilot',
+        label: 'Autopilot',
+        icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$rocket$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Rocket$3e$__["Rocket"],
+        shortLabel: 'Auto'
     },
     {
         id: 'messaging',
@@ -231,7 +239,7 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                         className: "shrink-0 h-4 w-4"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 161,
+                        lineNumber: 163,
                         columnNumber: 13
                     }, this),
                     (!collapsed || orientation === 'horizontal') && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -239,7 +247,7 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                         children: item.label
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 163,
+                        lineNumber: 165,
                         columnNumber: 15
                     }, this),
                     isActive && orientation === 'vertical' && !collapsed && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -252,7 +260,7 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                         }
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 166,
+                        lineNumber: 168,
                         columnNumber: 15
                     }, this),
                     isActive && orientation === 'vertical' && collapsed && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -265,7 +273,7 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                         }
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 173,
+                        lineNumber: 175,
                         columnNumber: 15
                     }, this),
                     isActive && orientation === 'horizontal' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -278,13 +286,13 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                         }
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 180,
+                        lineNumber: 182,
                         columnNumber: 15
                     }, this)
                 ]
             }, item.id, true, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 146,
+                lineNumber: 148,
                 columnNumber: 11
             }, this);
             // Collapsed desktop rail: labels are hidden, so expose the destination
@@ -298,7 +306,7 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                             children: button
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 195,
+                            lineNumber: 197,
                             columnNumber: 15
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tooltip$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TooltipContent"], {
@@ -307,13 +315,13 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
                             children: item.label
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 198,
+                            lineNumber: 200,
                             columnNumber: 15
                         }, this)
                     ]
                 }, item.id, true, {
                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                    lineNumber: 194,
+                    lineNumber: 196,
                     columnNumber: 13
                 }, this);
             }
@@ -321,11 +329,11 @@ function SidebarNav({ activeTab, onTabChange, className, orientation = 'vertical
         })
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-        lineNumber: 141,
+        lineNumber: 143,
         columnNumber: 5
     }, this);
 }
-_c13 = SidebarNav;
+_c14 = SidebarNav;
 /* ===== Live Clock Component ===== */ function LiveClock() {
     _s();
     const [time, setTime] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])('');
@@ -356,7 +364,7 @@ _c13 = SidebarNav;
                 className: "h-3 w-3"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 234,
+                lineNumber: 236,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -364,18 +372,18 @@ _c13 = SidebarNav;
                 children: time || '--:--:--'
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 235,
+                lineNumber: 237,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-        lineNumber: 233,
+        lineNumber: 235,
         columnNumber: 5
     }, this);
 }
 _s(LiveClock, "PsMgnLgzzQiamQWS0F3M3yb0/nk=");
-_c14 = LiveClock;
+_c15 = LiveClock;
 /* ===== Mobile Bottom Nav Item ===== */ function MobileNavItem({ item, isActive, onClick }) {
     const Icon = item.icon;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -388,12 +396,12 @@ _c14 = LiveClock;
                     className: "h-4 w-4 xs:h-[18px] xs:w-[18px]"
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                    lineNumber: 263,
+                    lineNumber: 265,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 259,
+                lineNumber: 261,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -401,7 +409,7 @@ _c14 = LiveClock;
                 children: item.shortLabel || item.label
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 265,
+                lineNumber: 267,
                 columnNumber: 7
             }, this),
             isActive && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -414,17 +422,17 @@ _c14 = LiveClock;
                 }
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 270,
+                lineNumber: 272,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-        lineNumber: 252,
+        lineNumber: 254,
         columnNumber: 5
     }, this);
 }
-_c15 = MobileNavItem;
+_c16 = MobileNavItem;
 function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChange }) {
     _s1();
     const { activeTab, setActiveTab, sidebarOpen, setSidebarOpen, sidebarCollapsed, setSidebarCollapsed } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAppStore"])();
@@ -664,7 +672,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
         const content = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Suspense"], {
             fallback: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$skeleton$2d$page$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SkeletonPage"], {}, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 470,
+                lineNumber: 472,
                 columnNumber: 27
             }, void 0),
             children: (()=>{
@@ -672,19 +680,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                     case 'overview':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(OverviewTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 473,
+                            lineNumber: 475,
                             columnNumber: 37
                         }, this);
                     case 'leads':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LeadsTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 474,
+                            lineNumber: 476,
                             columnNumber: 34
                         }, this);
                     case 'pipeline':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(PipelineTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 475,
+                            lineNumber: 477,
                             columnNumber: 37
                         }, this);
                     case 'discover':
@@ -693,12 +701,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                             onUpgrade: ()=>setUpgradeModalOpen(true),
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(DiscoverTab, {}, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 476,
+                                lineNumber: 478,
                                 columnNumber: 117
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 476,
+                            lineNumber: 478,
                             columnNumber: 37
                         }, this);
                     case 'outreach':
@@ -707,12 +715,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                             onUpgrade: ()=>setUpgradeModalOpen(true),
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(OutreachTab, {}, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 477,
+                                lineNumber: 479,
                                 columnNumber: 119
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 477,
+                            lineNumber: 479,
                             columnNumber: 37
                         }, this);
                     case 'workflows':
@@ -722,18 +730,33 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                             onUpgrade: ()=>setUpgradeModalOpen(true),
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(WorkflowsTab, {}, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 478,
+                                lineNumber: 480,
                                 columnNumber: 135
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 478,
+                            lineNumber: 480,
+                            columnNumber: 38
+                        }, this);
+                    case 'autopilot':
+                        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$plan$2d$gate$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                            requiredPlan: "pro",
+                            featureName: "Autopilot",
+                            onUpgrade: ()=>setUpgradeModalOpen(true),
+                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AutopilotTab, {}, void 0, false, {
+                                fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
+                                lineNumber: 481,
+                                columnNumber: 135
+                            }, this)
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
+                            lineNumber: 481,
                             columnNumber: 38
                         }, this);
                     case 'messaging':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(MessagingTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 479,
+                            lineNumber: 482,
                             columnNumber: 38
                         }, this);
                     case 'assistant':
@@ -742,24 +765,24 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                             onUpgrade: ()=>setUpgradeModalOpen(true),
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AssistantTab, {}, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 480,
+                                lineNumber: 483,
                                 columnNumber: 118
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 480,
+                            lineNumber: 483,
                             columnNumber: 38
                         }, this);
                     case 'insights':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(InsightsTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 481,
+                            lineNumber: 484,
                             columnNumber: 37
                         }, this);
                     case 'deals':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(DealsTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 482,
+                            lineNumber: 485,
                             columnNumber: 34
                         }, this);
                     case 'competitors':
@@ -769,37 +792,37 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                             onUpgrade: ()=>setUpgradeModalOpen(true),
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(CompetitorTab, {}, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 483,
+                                lineNumber: 486,
                                 columnNumber: 147
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 483,
+                            lineNumber: 486,
                             columnNumber: 40
                         }, this);
                     case 'notifications':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(NotificationsTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 484,
+                            lineNumber: 487,
                             columnNumber: 42
                         }, this);
                     case 'settings':
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(SettingsShell, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 485,
+                            lineNumber: 488,
                             columnNumber: 37
                         }, this);
                     default:
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(OverviewTab, {}, void 0, false, {
                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                            lineNumber: 486,
+                            lineNumber: 489,
                             columnNumber: 29
                         }, this);
                 }
             })()
         }, void 0, false, {
             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-            lineNumber: 470,
+            lineNumber: 472,
             columnNumber: 7
         }, this);
         return content;
@@ -821,7 +844,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                 children: "Skip to content"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 505,
+                lineNumber: 508,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
@@ -843,7 +866,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                             className: "h-5 w-5"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 516,
+                                            lineNumber: 519,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -851,18 +874,18 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                             children: "Toggle navigation menu"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 517,
+                                            lineNumber: 520,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 515,
+                                    lineNumber: 518,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 514,
+                                lineNumber: 517,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SheetContent"], {
@@ -874,7 +897,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: "Navigation Menu"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 521,
+                                        lineNumber: 524,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SheetDescription"], {
@@ -882,7 +905,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: "Navigation sidebar"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 522,
+                                        lineNumber: 525,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -892,7 +915,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                 className: "h-6 w-6 text-primary mr-2"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 524,
+                                                lineNumber: 527,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -900,13 +923,13 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                 children: "AcquisitionOS"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 525,
+                                                lineNumber: 528,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 523,
+                                        lineNumber: 526,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ScrollArea"], {
@@ -921,29 +944,29 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                 }
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 529,
+                                                lineNumber: 532,
                                                 columnNumber: 17
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 528,
+                                            lineNumber: 531,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 527,
+                                        lineNumber: 530,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 520,
+                                lineNumber: 523,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 513,
+                        lineNumber: 516,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -953,7 +976,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 className: "h-4 w-4 sm:h-5 sm:w-5 text-primary"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 541,
+                                lineNumber: 544,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -961,13 +984,13 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "AcquisitionOS"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 542,
+                                lineNumber: 545,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 540,
+                        lineNumber: 543,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -980,12 +1003,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 addonCredits: addonCredits
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 545,
+                                lineNumber: 548,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$notification$2d$center$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 546,
+                                lineNumber: 549,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -998,19 +1021,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                     className: "h-4 w-4"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 554,
+                                    lineNumber: 557,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 547,
+                                lineNumber: 550,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$theme$2d$toggle$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ThemeToggle"], {
                                 size: "sm"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 556,
+                                lineNumber: 559,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenu"], {
@@ -1028,7 +1051,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         alt: userDisplayName
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 561,
+                                                        lineNumber: 564,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AvatarFallback"], {
@@ -1036,23 +1059,23 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         children: userInitials
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 562,
+                                                        lineNumber: 565,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 560,
+                                                lineNumber: 563,
                                                 columnNumber: 17
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 559,
+                                            lineNumber: 562,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 558,
+                                        lineNumber: 561,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuContent"], {
@@ -1069,7 +1092,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                             children: userDisplayName
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 569,
+                                                            lineNumber: 572,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1077,7 +1100,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                             children: userEmail
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 570,
+                                                            lineNumber: 573,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1089,23 +1112,23 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 571,
+                                                            lineNumber: 574,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                    lineNumber: 568,
+                                                    lineNumber: 571,
                                                     columnNumber: 17
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 567,
+                                                lineNumber: 570,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 574,
+                                                lineNumber: 577,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1116,14 +1139,14 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         className: "mr-2 h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 576,
+                                                        lineNumber: 579,
                                                         columnNumber: 17
                                                     }, this),
                                                     " Profile"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 575,
+                                                lineNumber: 578,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1134,14 +1157,14 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         className: "mr-2 h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 579,
+                                                        lineNumber: 582,
                                                         columnNumber: 17
                                                     }, this),
                                                     " Settings"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 578,
+                                                lineNumber: 581,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1152,14 +1175,14 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         className: "mr-2 h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 582,
+                                                        lineNumber: 585,
                                                         columnNumber: 17
                                                     }, this),
                                                     " Billing"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 581,
+                                                lineNumber: 584,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1170,19 +1193,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         className: "mr-2 h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 588,
+                                                        lineNumber: 591,
                                                         columnNumber: 17
                                                     }, this),
                                                     " Support"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 584,
+                                                lineNumber: 587,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 590,
+                                                lineNumber: 593,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1195,26 +1218,26 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                         className: "mr-2 h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 592,
+                                                        lineNumber: 595,
                                                         columnNumber: 17
                                                     }, this),
                                                     " Log out"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 591,
+                                                lineNumber: 594,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 566,
+                                        lineNumber: 569,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 557,
+                                lineNumber: 560,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1222,19 +1245,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: tabTitle(activeTab)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 596,
+                                lineNumber: 599,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 544,
+                        lineNumber: 547,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 512,
+                lineNumber: 515,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1255,18 +1278,18 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                     className: "h-3 w-3"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 632,
+                                    lineNumber: 635,
                                     columnNumber: 33
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$panel$2d$left$2d$close$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__PanelLeftClose$3e$__["PanelLeftClose"], {
                                     className: "h-3 w-3"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 632,
+                                    lineNumber: 635,
                                     columnNumber: 73
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 624,
+                                lineNumber: 627,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1276,7 +1299,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         className: "h-6 w-6 text-primary shrink-0"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 637,
+                                        lineNumber: 640,
                                         columnNumber: 13
                                     }, this),
                                     !sidebarCollapsed && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1284,13 +1307,13 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: "AcquisitionOS"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 638,
+                                        lineNumber: 641,
                                         columnNumber: 35
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 636,
+                                lineNumber: 639,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ScrollArea"], {
@@ -1304,40 +1327,40 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                             collapsed: sidebarCollapsed
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 649,
+                                            lineNumber: 652,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 648,
+                                        lineNumber: 651,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 647,
+                                    lineNumber: 650,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 646,
+                                lineNumber: 649,
                                 columnNumber: 11
                             }, this),
                             !sidebarCollapsed && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "border-t shrink-0",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$follow$2d$up$2d$reminders$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 663,
+                                    lineNumber: 666,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 662,
+                                lineNumber: 665,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 610,
+                        lineNumber: 613,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1352,7 +1375,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: tabTitle(activeTab)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 675,
+                                        lineNumber: 678,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1368,12 +1391,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                     className: "h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                    lineNumber: 678,
+                                                    lineNumber: 681,
                                                     columnNumber: 17
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 677,
+                                                lineNumber: 680,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$credit$2d$display$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1382,19 +1405,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                 addonCredits: addonCredits
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 680,
+                                                lineNumber: 683,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$notification$2d$center$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 681,
+                                                lineNumber: 684,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$theme$2d$toggle$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ThemeToggle"], {
                                                 size: "sm"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 682,
+                                                lineNumber: 685,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1407,12 +1430,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                     className: "h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                    lineNumber: 684,
+                                                    lineNumber: 687,
                                                     columnNumber: 17
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 683,
+                                                lineNumber: 686,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenu"], {
@@ -1431,7 +1454,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                             alt: userDisplayName
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                            lineNumber: 694,
+                                                                            lineNumber: 697,
                                                                             columnNumber: 23
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AvatarFallback"], {
@@ -1439,31 +1462,31 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                             children: userInitials
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                            lineNumber: 695,
+                                                                            lineNumber: 698,
                                                                             columnNumber: 23
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 693,
+                                                                    lineNumber: 696,
                                                                     columnNumber: 21
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chevron$2d$down$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__ChevronDown$3e$__["ChevronDown"], {
                                                                     className: "h-3 w-3 text-muted-foreground"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 697,
+                                                                    lineNumber: 700,
                                                                     columnNumber: 21
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 689,
+                                                            lineNumber: 692,
                                                             columnNumber: 19
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 688,
+                                                        lineNumber: 691,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuContent"], {
@@ -1480,7 +1503,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                             children: userDisplayName
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                            lineNumber: 703,
+                                                                            lineNumber: 706,
                                                                             columnNumber: 23
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1488,7 +1511,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                             children: userEmail
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                            lineNumber: 704,
+                                                                            lineNumber: 707,
                                                                             columnNumber: 23
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1500,23 +1523,23 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                            lineNumber: 705,
+                                                                            lineNumber: 708,
                                                                             columnNumber: 23
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 702,
+                                                                    lineNumber: 705,
                                                                     columnNumber: 21
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 701,
+                                                                lineNumber: 704,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 708,
+                                                                lineNumber: 711,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1527,7 +1550,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         className: "mr-2 h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 710,
+                                                                        lineNumber: 713,
                                                                         columnNumber: 21
                                                                     }, this),
                                                                     "Profile",
@@ -1535,13 +1558,13 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         children: "⇧⌘P"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 712,
+                                                                        lineNumber: 715,
                                                                         columnNumber: 21
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 709,
+                                                                lineNumber: 712,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1552,7 +1575,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         className: "mr-2 h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 715,
+                                                                        lineNumber: 718,
                                                                         columnNumber: 21
                                                                     }, this),
                                                                     "Settings",
@@ -1560,13 +1583,13 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         children: "⌘,"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 717,
+                                                                        lineNumber: 720,
                                                                         columnNumber: 21
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 714,
+                                                                lineNumber: 717,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1577,14 +1600,14 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         className: "mr-2 h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 720,
+                                                                        lineNumber: 723,
                                                                         columnNumber: 21
                                                                     }, this),
                                                                     "Billing"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 719,
+                                                                lineNumber: 722,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1595,19 +1618,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         className: "mr-2 h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 727,
+                                                                        lineNumber: 730,
                                                                         columnNumber: 21
                                                                     }, this),
                                                                     "Support"
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 723,
+                                                                lineNumber: 726,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 730,
+                                                                lineNumber: 733,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1620,7 +1643,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         className: "mr-2 h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 735,
+                                                                        lineNumber: 738,
                                                                         columnNumber: 21
                                                                     }, this),
                                                                     "Log out",
@@ -1628,37 +1651,37 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                         children: "⇧⌘Q"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                        lineNumber: 737,
+                                                                        lineNumber: 740,
                                                                         columnNumber: 21
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                lineNumber: 731,
+                                                                lineNumber: 734,
                                                                 columnNumber: 19
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                        lineNumber: 700,
+                                                        lineNumber: 703,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 687,
+                                                lineNumber: 690,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 676,
+                                        lineNumber: 679,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 674,
+                                lineNumber: 677,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1693,39 +1716,39 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                 children: renderTab()
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                lineNumber: 760,
+                                                lineNumber: 763,
                                                 columnNumber: 19
                                             }, this)
                                         }, activeTab, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 752,
+                                            lineNumber: 755,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 751,
+                                        lineNumber: 754,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 750,
+                                    lineNumber: 753,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 749,
+                                lineNumber: 752,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 672,
+                        lineNumber: 675,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 603,
+                lineNumber: 606,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1742,7 +1765,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                     onClick: ()=>setActiveTab(item.id)
                                 }, item.id, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 772,
+                                    lineNumber: 775,
                                     columnNumber: 13
                                 }, this)),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1755,12 +1778,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                             className: "h-4 w-4 xs:h-[18px] xs:w-[18px]"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 791,
+                                            lineNumber: 794,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 787,
+                                        lineNumber: 790,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1768,7 +1791,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: "More"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 793,
+                                        lineNumber: 796,
                                         columnNumber: 13
                                     }, this),
                                     isMoreActive && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -1781,13 +1804,13 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         }
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 798,
+                                        lineNumber: 801,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 780,
+                                lineNumber: 783,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Sheet"], {
@@ -1802,7 +1825,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                             children: "More Navigation"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 807,
+                                            lineNumber: 810,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SheetDescription"], {
@@ -1810,7 +1833,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                             children: "Additional navigation tabs"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 808,
+                                            lineNumber: 811,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1824,7 +1847,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                             children: "More Tabs"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 811,
+                                                            lineNumber: 814,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1837,7 +1860,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                     className: "h-4 w-4"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 813,
+                                                                    lineNumber: 816,
                                                                     columnNumber: 21
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1845,19 +1868,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                     children: "Close"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 814,
+                                                                    lineNumber: 817,
                                                                     columnNumber: 21
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 812,
+                                                            lineNumber: 815,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                    lineNumber: 810,
+                                                    lineNumber: 813,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1876,7 +1899,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                     className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('h-6 w-6', isActive ? 'text-primary' : 'text-muted-foreground')
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 834,
+                                                                    lineNumber: 837,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1884,42 +1907,42 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                                                     children: item.label
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                                    lineNumber: 835,
+                                                                    lineNumber: 838,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, item.id, true, {
                                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                            lineNumber: 822,
+                                                            lineNumber: 825,
                                                             columnNumber: 23
                                                         }, this);
                                                     })
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                                    lineNumber: 817,
+                                                    lineNumber: 820,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                            lineNumber: 809,
+                                            lineNumber: 812,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 806,
+                                    lineNumber: 809,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 805,
+                                lineNumber: 808,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 770,
+                        lineNumber: 773,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1931,7 +1954,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "v3.0.0"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 846,
+                                lineNumber: 849,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1939,7 +1962,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "AcquisitionOS — Client Acquisition"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 847,
+                                lineNumber: 850,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1947,19 +1970,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: " "
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 849,
+                                lineNumber: 852,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 845,
+                        lineNumber: 848,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 769,
+                lineNumber: 772,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("footer", {
@@ -1970,7 +1993,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                         className: "absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 855,
+                        lineNumber: 858,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1979,7 +2002,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                         children: "v3.0.0"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 856,
+                        lineNumber: 859,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1987,7 +2010,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                         children: "AcquisitionOS — AI-Powered Client Acquisition System"
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 857,
+                        lineNumber: 860,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2000,7 +2023,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "Privacy"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 861,
+                                lineNumber: 864,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2008,7 +2031,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "·"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 868,
+                                lineNumber: 871,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2018,7 +2041,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "Terms"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 869,
+                                lineNumber: 872,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2026,19 +2049,19 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                 children: "·"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 878,
+                                lineNumber: 881,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                 className: "hidden xl:block shrink-0",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LiveClock, {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                    lineNumber: 880,
+                                    lineNumber: 883,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 879,
+                                lineNumber: 882,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2050,7 +2073,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: "❤️"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 883,
+                                        lineNumber: 886,
                                         columnNumber: 26
                                     }, this),
                                     " by",
@@ -2063,25 +2086,25 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                                         children: "QuantumFusion Solutions"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                        lineNumber: 884,
+                                        lineNumber: 887,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                                lineNumber: 882,
+                                lineNumber: 885,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                        lineNumber: 860,
+                        lineNumber: 863,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 854,
+                lineNumber: 857,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$command$2d$palette$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -2089,7 +2112,7 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                 onOpenChange: setCommandPaletteOpen
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 897,
+                lineNumber: 900,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$shortcuts$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -2097,12 +2120,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                 onOpenChange: setShortcutsOpen
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 900,
+                lineNumber: 903,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$quick$2d$actions$2d$fab$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 903,
+                lineNumber: 906,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$onboarding$2d$flow$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -2110,12 +2133,12 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                 onComplete: ()=>setOnboardingOpen(false)
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 906,
+                lineNumber: 909,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$cookie$2d$consent$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 912,
+                lineNumber: 915,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$upgrade$2d$modal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -2123,18 +2146,18 @@ function DashboardLayout({ externalUpgradeModalOpen, onExternalUpgradeModalChang
                 onOpenChange: setUpgradeModalOpen
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 915,
+                lineNumber: 918,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$ai$2d$chat$2d$bubble$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                 fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-                lineNumber: 918,
+                lineNumber: 921,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/dashboard-layout.tsx",
-        lineNumber: 504,
+        lineNumber: 507,
         columnNumber: 5
     }, this);
 }
@@ -2154,8 +2177,8 @@ _s1(DashboardLayout, "eZdEINWYElBroG4x1b1Ynorzv5o=", false, function() {
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$payment$2d$redirect$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["usePaymentRedirect"]
     ];
 });
-_c16 = DashboardLayout;
-var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c10, _c11, _c12, _c13, _c14, _c15, _c16;
+_c17 = DashboardLayout;
+var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c10, _c11, _c12, _c13, _c14, _c15, _c16, _c17;
 __turbopack_context__.k.register(_c, "OverviewTab");
 __turbopack_context__.k.register(_c1, "LeadsTab");
 __turbopack_context__.k.register(_c2, "PipelineTab");
@@ -2168,11 +2191,12 @@ __turbopack_context__.k.register(_c8, "DealsTab");
 __turbopack_context__.k.register(_c9, "CompetitorTab");
 __turbopack_context__.k.register(_c10, "SettingsShell");
 __turbopack_context__.k.register(_c11, "WorkflowsTab");
-__turbopack_context__.k.register(_c12, "NotificationsTab");
-__turbopack_context__.k.register(_c13, "SidebarNav");
-__turbopack_context__.k.register(_c14, "LiveClock");
-__turbopack_context__.k.register(_c15, "MobileNavItem");
-__turbopack_context__.k.register(_c16, "DashboardLayout");
+__turbopack_context__.k.register(_c12, "AutopilotTab");
+__turbopack_context__.k.register(_c13, "NotificationsTab");
+__turbopack_context__.k.register(_c14, "SidebarNav");
+__turbopack_context__.k.register(_c15, "LiveClock");
+__turbopack_context__.k.register(_c16, "MobileNavItem");
+__turbopack_context__.k.register(_c17, "DashboardLayout");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }

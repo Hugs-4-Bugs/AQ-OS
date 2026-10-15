@@ -1,0 +1,97 @@
+[Redis] Connected and subscribed to realtime:*
+[WS] AcquisitionOS Realtime Service running on port 3003
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+[ioredis] Unhandled error event: undefined
+343 | // ═══════════════════════════════════════════════════════════════════
+344 | 
+345 | httpServer.on('request', (req, res) => {
+346 |   if (req.url === '/health') {
+347 |     res.writeHead(200, { 'Content-Type': 'application/json' });
+348 |     res.end(JSON.stringify({
+              ^
+error: write after end
+ code: "ERR_STREAM_WRITE_AFTER_END"
+
+      at hasServerResponseFinished (node:http:726:33)
+      at end (node:http:1242:34)
+      at <anonymous> (/Users/prabhatkumar/Downloads/AQ-OS/mini-services/realtime-service/index.ts:348:9)
+      at emit (node:events:92:22)
+      at onNodeHTTPRequest (node:http:642:24)

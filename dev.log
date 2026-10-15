@@ -1,6 +1,6 @@
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
-- Network:       http://21.0.8.109:3000
+- Network:       http://10.119.244.96:3000
 - Environments: .env
 - Experiments (use with caution):
   · optimizePackageImports
@@ -32,7 +32,7 @@
   SMTP OK: SMTP_USER is configured
   SMTP OK: SMTP_PASSWORD is configured
   Google OAuth : AVAILABLE
-  App URL      : http://localhost:3000
+  App URL      : https://preview-chat-ab88c1b0-d6fd-4199-b9d5-ec3a018502fc.space-z.ai
   Database     : CONFIGURED
 ═══════════════════════════════════════════════════════
 
@@ -44,5 +44,26 @@
 [SMTP-Env-Diag] resend  : RESEND_API_KEY=MISSING
 [SMTP-Env-Diag] resolved: user=SET, pass=SET, configured=YES
 [Sentry] No NEXT_PUBLIC_SENTRY_DSN configured — Sentry is in no-op mode
-[2m2026-10-14T09:00:29.029Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v24.21.0","environment":"development"}[0m
-✓ Ready in 8.9s
+[2m2026-10-14T14:50:40.563Z[0m [32m[1mINFO [0m [2m[startup][0m AcquisitionOS server starting [2m{"version":"2.0.0","nodeVersion":"v26.7.0","environment":"development"}[0m
+✓ Ready in 2.8s
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+(node:6516) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+○ Compiling / ...
+(node:93573) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 6.7s (compile: 6.0s, proxy.ts: 138ms, render: 490ms)
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+eprecation ...` to show where the warning was created)
+○ Compiling / ...
+(node:93573) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 6.7s (compile: 6.0s, proxy.ts: 138ms, render: 490ms)
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')
+[autopilot-heartbeat] tick failed (non-fatal): Cannot read properties of undefined (reading 'findMany')

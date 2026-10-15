@@ -395,6 +395,8 @@
     --color-gray-700: #364153;
     --color-gray-800: #1e2939;
     --color-gray-900: #101828;
+    --color-zinc-400: #9f9fa9;
+    --color-zinc-500: #71717b;
     --color-neutral-400: #a1a1a1;
     --color-neutral-800: #262626;
     --color-neutral-900: #171717;
@@ -646,6 +648,8 @@
       --color-gray-700: lab(27.1134% -.956401 -12.3224);
       --color-gray-800: lab(16.1051% -1.18239 -11.7533);
       --color-gray-900: lab(8.11897% .811279 -12.254);
+      --color-zinc-400: lab(65.6464% 1.53497 -5.42429);
+      --color-zinc-500: lab(47.8878% 1.65477 -5.77283);
       --color-neutral-400: lab(66.128% -.0000298023 .0000119209);
       --color-neutral-800: lab(15.204% 0 -.00000596046);
       --color-neutral-900: lab(7.78201% -.0000149012 0);
@@ -5583,6 +5587,16 @@
     }
   }
 
+  .border-zinc-500\/30 {
+    border-color: #71717b4d;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .border-zinc-500\/30 {
+      border-color: color-mix(in oklab, var(--color-zinc-500) 30%, transparent);
+    }
+  }
+
   .border-x-border {
     border-inline-color: var(--border);
   }
@@ -7805,6 +7819,16 @@
   @supports (color: color-mix(in lab, red, red)) {
     .bg-yellow-500\/15 {
       background-color: color-mix(in oklab, var(--color-yellow-500) 15%, transparent);
+    }
+  }
+
+  .bg-zinc-500\/15 {
+    background-color: #71717b26;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-zinc-500\/15 {
+      background-color: color-mix(in oklab, var(--color-zinc-500) 15%, transparent);
     }
   }
 
@@ -11734,6 +11758,10 @@
 
   .text-yellow-800 {
     color: var(--color-yellow-800);
+  }
+
+  .text-zinc-400 {
+    color: var(--color-zinc-400);
   }
 
   .capitalize {
@@ -17919,8 +17947,32 @@
   }
 
   @media (min-width: 48rem) {
+    .md\:items-center {
+      align-items: center;
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .md\:items-start {
+      align-items: flex-start;
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .md\:justify-between {
+      justify-content: space-between;
+    }
+  }
+
+  @media (min-width: 48rem) {
     .md\:gap-1\.5 {
       gap: calc(var(--spacing) * 1.5);
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .md\:gap-4 {
+      gap: calc(var(--spacing) * 4);
     }
   }
 
