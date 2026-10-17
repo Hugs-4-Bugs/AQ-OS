@@ -54,3 +54,7 @@ INFO:     127.0.0.1:55355 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:55356 - "GET /api/v1 HTTP/1.1" 200 OK
 2026-10-14 23:21:55 | INFO     | acquisitionos | GET /health | 200 | 28ms | req=1f9b9043-3f2b-41d9-a950-597a53b06399
 INFO:     127.0.0.1:56942 - "GET /health HTTP/1.1" 200 OK
+2026-10-15 19:53:04 | INFO     | acquisitionos | GET /health | 200 | 20ms | req=74b285ca-05f2-431c-ac52-b6e36f7c26dc
+INFO:     127.0.0.1:59060 - "GET /health HTTP/1.1" 200 OK
+2026-10-15 19:53:28 | INFO     | acquisitionos | GET /health | 200 | 1ms | req=2bbd5316-dd27-470b-b9ba-849dd86aeda7
+INFO:     127.0.0.1:59067 - "GET /health HTTP/1.1" 200 OK

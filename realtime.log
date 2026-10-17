@@ -95,3 +95,5 @@ error: write after end
       at <anonymous> (/Users/prabhatkumar/Downloads/AQ-OS/mini-services/realtime-service/index.ts:348:9)
       at emit (node:events:92:22)
       at onNodeHTTPRequest (node:http:642:24)
+[WS] Shutting down...
+[WS] Server closed
