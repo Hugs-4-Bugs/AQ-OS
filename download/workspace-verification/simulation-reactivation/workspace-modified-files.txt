@@ -1,0 +1,3 @@
+# GitHub-tracked files whose disk content/type/mode does not match git HEAD
+total: 1
+worklog.md (MODIFIED(hash-mismatch,size-mismatch))

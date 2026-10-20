@@ -104,8 +104,36 @@ async function executeSendEmail(
 ): Promise<ActionResult> {
   const { to, subject, body } = config;
 
-  if (!to || !subject || !body) {
-    return { success: false, error: 'Email requires to, subject, and body' };
+  if (!subject || !body) {
+    return { success: false, error: 'Email requires subject and body' };
+  }
+
+  // ── Recipient resolution ──────────────────────────────────────────
+  // The workflow builder, the code templates, and the AI workflow
+  // generator all create lead-scoped send_email steps WITHOUT an
+  // explicit "to" (the builder exposes no recipient field) — the
+  // intended recipient is the lead being processed. Resolve `to`
+  // through templates first; when it is absent or still contains an
+  // unresolved {{...}} placeholder, fall back to the lead's email.
+  let recipient = to ? resolveTemplate(String(to), context).trim() : '';
+  if (!recipient || recipient.includes('{{')) {
+    if (context.leadId) {
+      const recipientResolution = await resolveLeadForExecution(
+        context.userId,
+        context.leadId,
+        { select: { email: true } }
+      );
+      if (recipientResolution.ok && recipientResolution.lead.email) {
+        recipient = recipientResolution.lead.email;
+      }
+    }
+  }
+  if (!recipient || recipient.includes('{{')) {
+    return {
+      success: false,
+      error:
+        'Email requires a recipient ("to") — the step has none and no lead email could be resolved',
+    };
   }
 
   // Resolve template variables in subject/body
@@ -136,7 +164,7 @@ async function executeSendEmail(
         userId: context.userId,
         type: 'workflow',
         title: 'Approval required: outreach draft ready',
-        message: `A workflow prepared an email${to ? ` to ${to}` : ''} and is waiting for your approval. Review and send it from the Outreach tab.`,
+        message: `A workflow prepared an email to ${recipient} and is waiting for your approval. Review and send it from the Outreach tab.`,
         actionUrl: '/business-ai/outreach',
         deliveredVia: 'in_app',
       },
@@ -146,13 +174,13 @@ async function executeSendEmail(
 
     return {
       success: true,
-      output: { approvalRequired: true, draftId: draft.id, to: String(to) },
+      output: { approvalRequired: true, draftId: draft.id, to: recipient },
       creditsUsed: 0,
     };
   }
 
   const result = await sendEmail({
-    to: String(to),
+    to: recipient,
     subject: resolvedSubject,
     html: resolvedBody,
     text: resolvedBody,
@@ -172,8 +200,31 @@ async function executeCreateGmailDraft(
 ): Promise<ActionResult> {
   const { to, subject, body } = config;
 
-  if (!to || !subject || !body) {
-    return { success: false, error: 'Gmail draft requires to, subject, and body' };
+  if (!subject || !body) {
+    return { success: false, error: 'Gmail draft requires subject and body' };
+  }
+
+  // Same recipient resolution as send_email: builder/template/AI steps
+  // carry no "to" — the lead being processed is the intended recipient.
+  let recipient = to ? resolveTemplate(String(to), context).trim() : '';
+  if (!recipient || recipient.includes('{{')) {
+    if (context.leadId) {
+      const recipientResolution = await resolveLeadForExecution(
+        context.userId,
+        context.leadId,
+        { select: { email: true } }
+      );
+      if (recipientResolution.ok && recipientResolution.lead.email) {
+        recipient = recipientResolution.lead.email;
+      }
+    }
+  }
+  if (!recipient || recipient.includes('{{')) {
+    return {
+      success: false,
+      error:
+        'Gmail draft requires a recipient ("to") — the step has none and no lead email could be resolved',
+    };
   }
 
   // Check if user has a connected Gmail account
@@ -202,7 +253,7 @@ async function executeCreateGmailDraft(
 
   return {
     success: true,
-    output: { draftId: message.id, to: String(to) },
+    output: { draftId: message.id, to: recipient },
     creditsUsed: 2,
   };
 }
@@ -495,7 +546,11 @@ async function executeUpdateTags(
     currentTags = [];
   }
 
-  const tagAction = action || 'add';
+  // 'action' (add | remove | set) is optional config — the builder and
+  // templates never set it, so 'add' is the default. (This previously
+  // referenced an undefined bare identifier `action`, which threw
+  // ReferenceError and failed every add_tag/update_tags step.)
+  const tagAction = String(config.action || 'add');
   let newTags: string[];
 
   if (tagAction === 'add') {

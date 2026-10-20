@@ -204,6 +204,36 @@ const RESULTS_PER_JOB = parseInt(process.env.DISCOVERY_RESULTS_PER_JOB || '200',
 const CREDIT_COST_PER_LEAD = CREDIT_COSTS.lead_discovery;
 
 /**
+ * QUERY FAN-OUT BUDGET (the only pagination the web_search provider has).
+ *
+ * Empirically verified against the live provider (2026-10-19):
+ *   - web_search returns ~7-10 results per query regardless of `num`
+ *     (num=20/30/50/100 all returned 7-10);
+ *   - `start`/`page` offset parameters are IGNORED (same first page);
+ *   - the only way to obtain more results is MORE DIVERSE QUERIES.
+ *
+ * Volume therefore scales with the number of distinct queries, and the
+ * query budget must scale with the requested target instead of a flat 10:
+ *   - target <= 30  → 10 queries (previous behaviour, unchanged);
+ *   - each 3 leads above 30 add one query;
+ *   - hard cap MAX_SEARCH_QUERIES keeps jobs rate-limit-respecting
+ *     (every query costs one paced search + one paced LLM extraction).
+ * When the provider has fewer real results than the target, the loop
+ * simply exhausts the queries honestly — nothing is invented.
+ */
+const MIN_SEARCH_QUERIES = 10;
+const MAX_SEARCH_QUERIES = 28;
+
+export function searchQueryBudget(maxResults: number | undefined): number {
+  const target =
+    Number.isFinite(maxResults) && (maxResults as number) > 0
+      ? (maxResults as number)
+      : RESULTS_PER_JOB;
+  const extra = Math.max(0, target - 30);
+  return Math.min(MIN_SEARCH_QUERIES + Math.ceil(extra / 3), MAX_SEARCH_QUERIES);
+}
+
+/**
  * Error thrown by discoverFromSource carrying the provider's structured
  * error kind — so the job processor can distinguish a genuine zero-result
  * search (kind: 'no_results') from a provider failure / rate limit and
@@ -433,11 +463,15 @@ export async function processDiscoveryJob(
     let skippedSourceNotes: string[] = [];
 
     if (params.source === 'all') {
-      // Distribute the per-source quota across the configured sources
-      const perSourceLimit = Math.min(
-        Math.max(5, Math.ceil(maxResults / ALL_DISCOVERY_SOURCES.length)),
-        RESULTS_PER_JOB
-      );
+      // Per-source quota. Previously maxResults/7 — which starved each
+      // source: a 70-lead "all" job gave ai_search a 10-result target,
+      // capping the whole run at ~20 unique leads when the other sources
+      // are unconfigured (only ai_search works without provider API keys).
+      // Each source now searches the FULL target — the merged, deduplicated
+      // set is bounded to exactly maxResults below, so there is no
+      // over-delivery and no overcharging regardless of how many sources
+      // are configured.
+      const perSourceLimit = Math.min(Math.max(maxResults, 10), RESULTS_PER_JOB);
 
       console.log(`[DiscoveryService] "all" mode: fanning out to ${ALL_DISCOVERY_SOURCES.length} sources in parallel (per-source limit ${perSourceLimit})`);
 
@@ -464,8 +498,10 @@ export async function processDiscoveryJob(
 
       const beforeDedupe = discoveredLeads.length;
       discoveredLeads = dedupeDiscoveredLeads(discoveredLeads);
-      // Keep the merged set bounded so credit usage stays predictable
-      discoveredLeads = discoveredLeads.slice(0, Math.max(maxResults, perSourceLimit * 2));
+      // Keep the merged set bounded to EXACTLY the requested target so
+      // credit usage stays predictable (single-source runs already bound
+      // at maxResults via sanitizeDiscoveredLeads — this matches them).
+      discoveredLeads = discoveredLeads.slice(0, Math.max(maxResults, 1));
 
       console.log(`[DiscoveryService] "all" mode: merged ${beforeDedupe} results → ${discoveredLeads.length} unique leads`);
     } else {
@@ -1350,6 +1386,64 @@ ${evidenceText}`,
 }
 
 /**
+ * Generate well-known sub-areas (neighborhoods/districts) of a location via
+ * ONE paced LLM call. Used ONLY to construct additional search phrasings for
+ * locality fan-out — never to fabricate lead data. Returns [] on any failure
+ * (malformed payload, non-string entries, provider error): no locality
+ * expansion is strictly better than wrong expansion.
+ */
+async function generateSubLocalities(
+  zai: ZAI,
+  location: string,
+  maxAreas: number
+): Promise<string[]> {
+  if (maxAreas <= 0 || !location) return [];
+  const capped = Math.min(maxAreas, 8);
+  try {
+    const response = await pacedZaiCall(() =>
+      zai.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a geography assistant. Return only a valid JSON array of strings. No markdown, no explanations.',
+          },
+          {
+            role: 'user',
+            content:
+              `List ${capped} well-known neighborhoods, districts, or suburban areas of ${location}. ` +
+              'Only real, widely recognized area names that local residents would use. ' +
+              'Return a JSON array of strings, e.g. ["Area One", "Area Two"].',
+          },
+        ],
+        model: 'auto',
+        temperature: 0,
+      })
+    );
+
+    const content = response.choices?.[0]?.message?.content || '[]';
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+    const parsed: unknown = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((a): a is string => typeof a === 'string' && a.trim().length >= 2 && a.trim().length <= 60)
+      .map((a) => a.trim())
+      .filter((a, i, arr) => arr.indexOf(a) === i) // dedupe areas
+      .slice(0, capped);
+  } catch (err) {
+    console.warn(
+      '[DiscoveryService] locality fan-out skipped (area generation failed, continuing with deterministic queries):',
+      err instanceof Error ? err.message : err
+    );
+    return [];
+  }
+}
+
+/**
  * Run web-search + LLM extraction for ONE source. Used directly for single-source
  * jobs and per-source inside the "all" parallel fan-out.
  */
@@ -1359,33 +1453,93 @@ async function searchSourceLeads(
   maxResults: number
 ): Promise<DiscoveredLead[]> {
   const discoveredLeads: DiscoveredLead[] = [];
+  // Deterministic query plan (base + synonyms + directory + extra phrasings),
+  // budget-scaled to the requested target by buildSearchQueries itself.
   const searchQueries = buildSearchQueries(params);
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+  // LOCALITY FAN-OUT — the highest-yield expansion when the budget has
+  // headroom (2026-10-19 probe: each sub-area query added +7..+9 NEW unique
+  // URLs vs +1..+5 for phrasing variants). One paced LLM call lists
+  // well-known sub-areas of the location — these are PUBLIC GEOGRAPHIC
+  // FACTS used only as search phrasings; leads themselves still come
+  // exclusively from real web_search results, so a hallucinated area name
+  // can only yield fewer results, never fabricated ones. Failure of the
+  // call is non-fatal: the deterministic queries already ran cover the
+  // base recall, and the loop below stops at maxResults either way.
+  const budget = searchQueryBudget(params.maxResults);
+  if (searchQueries.length < budget && (params.city || params.country)) {
+    const location = [params.city, params.country].filter(Boolean).join(', ');
+    const areas = await generateSubLocalities(zai, location, budget - searchQueries.length);
+    for (const area of areas) {
+      searchQueries.push(`${params.niche} in ${area}, ${location}`.replace(/\s+/g, ' '));
+    }
+    if (areas.length > 0) {
+      console.log(
+        `[DiscoveryService] locality fan-out: +${areas.length} sub-area queries (${areas.slice(0, 3).join(', ')}${areas.length > 3 ? ', …' : ''}) within budget ${budget}`
+      );
+    }
+  }
+
   // The web_search provider rate-limits bursts (429). Searches run with a
   // stagger and retry-with-backoff so a full job completes reliably.
-  async function searchOnce(query: string, num: number): Promise<Array<{ url: string; name: string; snippet: string }>> {
-    return pacedZaiCall(() => zai.functions.invoke('web_search', { query, num }));
+  // NOTE: `num` always requests the full ~20-result provider page. The
+  // provider TRUNCATES to small num values (verified: num=3 → exactly 3
+  // results), so shrinking the request to the remaining budget starved
+  // last-mile queries of raw material. Output volume is bounded instead by
+  // the per-query extraction cap (maxLeads) and the loop's unique-count
+  // stop condition below — over-requesting a page costs nothing.
+  async function searchOnce(query: string): Promise<Array<{ url: string; name: string; snippet: string }>> {
+    return pacedZaiCall(() => zai.functions.invoke('web_search', { query, num: 20 }));
   }
+
+  // UNIQUE-IDENTITY TRACKING. The loop's stop condition must count UNIQUE
+  // business identities, not raw extractions: cross-query overlap is real
+  // (~25% observed live — the same businesses resurface under synonym and
+  // locality phrasings). Stopping at raw maxResults landed jobs 20-30%
+  // UNDER the requested target even when the provider had more distinct
+  // businesses and unexplored queries remained. Keys mirror the sanitize/
+  // import dedup identities (website / email / normalized name); leads that
+  // share ANY key with an already-collected lead are withheld here — they
+  // would be discarded by sanitizeDiscoveredLeads anyway, and skipping them
+  // early keeps discoveredLeads.length == unique-so-far, which makes the
+  // loop budget, the extraction cap, and the final target all agree.
+  const seenIdentityKeys = new Set<string>();
+  const identityKeysOf = (lead: DiscoveredLead): string[] => {
+    const keys: string[] = [];
+    if (lead.website) {
+      keys.push('site:' + lead.website.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*/, ''));
+    }
+    if (lead.email) keys.push('email:' + lead.email.toLowerCase());
+    if (lead.businessName) {
+      keys.push('name:' + lead.businessName.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    }
+    return keys;
+  };
 
   for (let qi = 0; qi < searchQueries.length; qi++) {
     const query = searchQueries[qi];
+    // Stop on UNIQUE candidates (discoveredLeads holds only unique-so-far).
     if (discoveredLeads.length >= maxResults) break;
 
     try {
       // Web search
-      const searchResults = await searchOnce(query, Math.min(20, maxResults - discoveredLeads.length));
+      const searchResults = await searchOnce(query);
 
       console.log(`[DiscoveryService] "${query}" → ${searchResults.length} search results`);
 
       if (searchResults.length === 0) continue;
 
-      // Extract structured lead data from search results using LLM
+      // Extract structured lead data from search results using LLM.
+      // Cap = remaining UNIQUE budget (slightly generous for the extraction
+      // pass: it can legitimately yield several businesses per directory
+      // URL, and the identity filter below trims any overlap).
+      const remainingBudget = maxResults - discoveredLeads.length;
       let leadsFromResults = await extractLeadsFromSearchResults(
         zai,
         searchResults,
         params,
-        maxResults - discoveredLeads.length
+        Math.min(remainingBudget + 10, maxResults)
       );
 
       // The extraction LLM is stochastic: for list/directory-style results it
@@ -1398,7 +1552,7 @@ async function searchSourceLeads(
           zai,
           searchResults,
           params,
-          maxResults - discoveredLeads.length,
+          Math.min(remainingBudget + 10, maxResults),
           true
         );
       }
@@ -1406,8 +1560,24 @@ async function searchSourceLeads(
       // Record which search variation produced each lead (spec §3.3 provenance).
       // Leads extracted from this query keep the query text; never overwrite
       // a provenance tag set by a more specific inner step.
+      // Cross-query duplicates (same website / email / normalized name as an
+      // already-collected lead) are withheld here — sanitizeDiscoveredLeads
+      // would discard them anyway, and withholding keeps the loop's stop
+      // condition counting UNIQUE candidates against the requested target.
+      const freshLeads = leadsFromResults.filter((l) => {
+        const keys = identityKeysOf(l);
+        if (keys.length === 0) return true; // no identity fields — let sanitize judge
+        const isDuplicate = keys.some((k) => seenIdentityKeys.has(k));
+        for (const k of keys) seenIdentityKeys.add(k);
+        return !isDuplicate;
+      });
+      if (freshLeads.length < leadsFromResults.length) {
+        console.log(
+          `[DiscoveryService] cross-query dedup: ${leadsFromResults.length - freshLeads.length} duplicate candidate(s) withheld (${freshLeads.length} new unique, total ${discoveredLeads.length + freshLeads.length}/${maxResults})`
+        );
+      }
       discoveredLeads.push(
-        ...leadsFromResults.map((l) => ({ ...l, discoveredVia: l.discoveredVia ?? query }))
+        ...freshLeads.map((l) => ({ ...l, discoveredVia: l.discoveredVia ?? query }))
       );
     } catch (searchErr) {
       console.error(`[DiscoveryService] Search query failed: "${query}"`, searchErr);
@@ -1552,6 +1722,16 @@ export function buildSearchQueries(params: DiscoveryParams): string[] {
       // Directory/list phrasing surfaces company-list pages that single-
       // result pages miss — still strictly on-niche and on-location.
       queries.push(`${niche} companies directory list ${location}`.replace(/\s+/g, ' '));
+      // Additional intent-preserving phrasings (2026-10-19 fan-out probe:
+      // each of these surfaces result pages the base phrasings miss —
+      // +3..+8 NEW unique URLs per phrasing on a "dentists Mumbai" test).
+      // They only RUN when the query budget (scaled to maxResults) exceeds
+      // the base set, so small targets keep the exact previous query plan.
+      // (Location-conditional so worldwide runs never dangle a preposition.)
+      queries.push(`top 10 ${niche}${location ? ` in ${location}` : ''}`.replace(/\s+/g, ' '));
+      queries.push(`${niche} specialists${location ? ` in ${location}` : ''}`.replace(/\s+/g, ' '));
+      queries.push(`leading ${niche} companies${location ? ` in ${location}` : ''}`.replace(/\s+/g, ' '));
+      queries.push(`affordable ${niche}${location ? ` in ${location}` : ''}`.replace(/\s+/g, ' '));
       break;
     }
     case 'google_maps':
@@ -1641,7 +1821,11 @@ export function buildSearchQueries(params: DiscoveryParams): string[] {
   // Provider rate limits make every query cost ~4s of pacing — keep the
   // total bounded so a job cannot run unbounded, while still leaving room
   // for expansion. The most valuable (size-targeted) queries run first.
-  return queries.slice(0, 10);
+  // The budget SCALES WITH THE REQUESTED TARGET (searchQueryBudget): the
+  // web_search provider has no offset pagination, so query fan-out is the
+  // only volume lever — a flat 10-query cap silently limited jobs to
+  // ~20-30 unique real leads regardless of the requested target.
+  return queries.slice(0, searchQueryBudget(params.maxResults));
 }
 
 // ===== LLM EXTRACTION =====

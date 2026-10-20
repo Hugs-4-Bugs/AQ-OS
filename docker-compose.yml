@@ -179,9 +179,21 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: acquisitionos-frontend
     restart: unless-stopped
-    command: bun run dev
+    # NOTE: no `command:` override — Dockerfile.frontend's CMD
+    # (`bunx next dev -p 3000`) is authoritative. Overriding it with
+    # `bun run dev` crashes the container: the package.json dev script
+    # starts with `node scripts/boot-recovery.mjs`, and oven/bun images
+    # ship no Node.js binary (boot-recovery also imports `node:sqlite`).
+    # Inject host .env (auth secrets, SMTP, OAuth) at runtime; the
+    # explicit `environment:` below still takes precedence over env_file.
+    env_file:
+      - .env
     volumes:
       - ./src:/app/src
+      # Bind the canonical SQLite database into the container at the
+      # path DATABASE_URL already expects (/app/data/custom.db).
+      # Without this mount the container silently uses a BLANK database.
+      - ./db:/app/data
       - /app/node_modules
       - /app/.next
     environment:

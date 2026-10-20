@@ -132,7 +132,7 @@ export default function SettingsShell() {
   const pendingSection = useAppStore((s) => s.pendingSettingsSection);
   const clearPendingSettingsSection = useAppStore((s) => s.clearPendingSettingsSection);
   const VALID_SECTIONS: SettingsSection[] = [
-    'profile', 'context', 'offer', 'notifications', 'billing', 'security',
+    'profile', 'context', 'profiles', 'offer', 'notifications', 'billing', 'security',
     'appearance', 'integrations', 'api', 'data', 'legal', 'monitoring',
   ];
   useEffect(() => {
@@ -144,6 +144,28 @@ export default function SettingsShell() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSection]);
+
+  // ── Cookie-consent clearance ─────────────────────────────────
+  // The dashboard cookie banner is fixed at the viewport bottom (z-40)
+  // and overlays the settings scroll area. While it is visible, reserve
+  // clearance padding at the bottom of the section content so the Save
+  // action of every Profile section stays fully reachable and clickable.
+  const [cookieBannerVisible, setCookieBannerVisible] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      try {
+        setCookieBannerVisible(window.localStorage.getItem('acquisitionos_cookie_consent') === null);
+      } catch {
+        setCookieBannerVisible(false);
+      }
+    };
+    check();
+    // The dashboard banner writes the key and dispatches a same-tab
+    // 'storage' event on save; the native 'storage' event covers
+    // cross-tab updates. Either way the clearance recomputes.
+    window.addEventListener('storage', check);
+    return () => window.removeEventListener('storage', check);
+  }, []);
 
   // ── Real user data from auth store ───────────────────────────
   const authUser = useAuthStore((s) => s.user);
@@ -1062,7 +1084,13 @@ useEffect(() => {
 
       {/* Settings Content */}
       <ScrollArea className="flex-1">
-        <div className={cn("p-4 sm:p-6 lg:p-8", activeSection === 'monitoring' ? 'max-w-4xl' : 'max-w-2xl')}>
+        <div className={cn(
+          "p-4 sm:p-6 lg:p-8",
+          activeSection === 'monitoring' ? 'max-w-4xl' : 'max-w-2xl',
+          // Clearance for the fixed cookie-consent banner (bottom overlay):
+          // keeps section Save buttons clickable while consent is pending.
+          cookieBannerVisible && 'pb-56 sm:pb-44 lg:pb-44'
+        )}>
 
           {/* ═══ PROFILE ═══ */}
           {activeSection === 'profile' && (

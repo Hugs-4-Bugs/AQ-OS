@@ -13,8 +13,7 @@ x-common-logging: &common-logging
     max-size: "50m"
     max-file: "5"
 
-x-common-restart: &common-restart
-  restart: unless-stopped
+x-common-restart: &common-restart unless-stopped
 
 x-backend-env: &backend-env
   - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-acquisitionos_prod}@postgres:5432/acquisitionos

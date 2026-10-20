@@ -143,12 +143,16 @@ export async function moveLeadToStage(
     }
 
     if (lead.stage === newStage) {
+      // Idempotent no-op: the lead is already in the requested stage.
+      // Workflow execution treats "move to stage X" as "ensure stage X" —
+      // a re-run (manual retry, repeated trigger, autopilot replay) must
+      // converge instead of failing the whole execution. Nothing changed,
+      // so no activity/audit entry is written.
       return {
-        success: false,
+        success: true,
         leadId,
         fromStage: lead.stage,
         toStage: newStage,
-        error: 'Lead is already in this stage',
       };
     }
 

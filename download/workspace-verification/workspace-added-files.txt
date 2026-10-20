@@ -1,0 +1,7 @@
+# Files/dirs present in workspace but NOT tracked by GitHub HEAD (platform/tooling artifacts expected)
+total: 5
+.env
+skills/graphify/ (untracked dir)
+skills/quiz-mastery/data/ (untracked dir)
+download/workspace-verification/ (untracked dir)
+scripts/verify_workspace.py

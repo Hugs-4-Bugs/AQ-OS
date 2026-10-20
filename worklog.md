@@ -1224,3 +1224,308 @@ Stage Summary:
 - Normal workflows: DONE (54/54; engine coverage 17/17 builder actions; live executions through autopilot runs).
 - Entitlements server-side: DONE (free/starter blocked with no side effects; pro=3; elite=7; IDOR safe).
 - Remaining: Gmail SMTP BLOCKED-external (unchanged); GitHub push blocked (no credentials; local ahead).
+
+---
+Task ID: bootstrap-b1eb92e0-1
+Agent: Super Z (main agent, fresh GLM workspace)
+Task: Fresh workspace bootstrap — restore GitHub main b1eb92e0 exactly, prove completeness, establish persistence, install Graphify, run existing app. NO feature development (per user directive).
+
+Work Log:
+- Precheck: fresh sandbox (no old AcquisitionOS files, no old archives, /home/sync empty). Persistence mechanism identified from /start.sh: /home/sync/repo.tar (ossfs OSS = durable) is the boot restore source; workspace rootfs is ephemeral; boot re-extracts official skills and rewrites .env (DATABASE_URL=file:/home/z/my-project/db/custom.db); pre-stop hook re-archives workspace to /home/sync/repo.tar.
+- Cloned https://github.com/Hugs-4-Bugs/AQ-OS.git main @ b1eb92e0aa2a7e356c7d81ed98cbd98eb6d2cf18 (85,821 tracked files; node_modules/skills/upload/db all tracked in-repo). Replaced scaffold workspace (start.sh-identical wipe, upload mount preserved).
+- Placed 107 tracked upload/ files into durable OSS upload mount (start.sh excludes upload from tar restore by design; mount persists them directly).
+- CHECKPOINT A (strict, 0 modifications): path-by-path verification of all 85,821 tracked files (git blob SHA-1 identity, size, type, exec bits) + 9,163 dirs: MISSING=0, MISSING_DIRS=0, MODIFIED=0. Manifest: download/workspace-verification/workspace-baseline-manifest.json.
+- Persistence: created tar of full workspace (excluding ./upload, mirroring boot extraction excludes) -> /home/sync/repo.tar (3,009,740,800 bytes, sha256 26839c8826542befb231827f98160266367945d6124e7cf1f0c06e55140da38b, hash-verified after OSS copy).
+- Boot-faithful simulation: extracted /home/sync/repo.tar with start.sh's exact command into scratch dir + upload mount overlay + platform skills overlay -> path-by-path re-verification: all tracked content complete and hash-identical (see bootstrap final report for exact numbers). NOTE: GNU tar exits 1 with ~44 "Directory renamed before its status could be extracted" warnings on node_modules .bin symlink dirs (overlayfs inode churn during delayed dir-restore). start.sh explicitly tolerates this ("continuing with partially-restored project") and hash verification PROVES content is complete — documented as known platform behavior, not data loss.
+- This entry itself: worklog.md is the repo's own multi-session log convention (see prior entries); this session appends here. NO application source modified. NO commits, NO push (origin/main untouched at b1eb92e0).
+
+Stage Summary:
+- Bootstrap in progress: GitHub restoration + persistence verified; Graphify + app start to follow (entries appended below as completed).
+
+---
+Task ID: bootstrap-b1eb92e0-2
+Agent: Super Z (main agent)
+Task: Graphify install + index + persistence of its artifacts (continuation of bootstrap-b1eb92e0-1)
+
+Work Log:
+- graphify NOT on PyPI (name registered, zero releases). Real source: github.com/safishamsi/graphify (distribution name "graphifyy" v0.9.92). Installed from git into /home/z/.venv with 27 tree-sitter deps + [sql] and [terraform] extras.
+- Created .graphifyignore (excludes node_modules/.next/upload/download/skills/db/graphify-out/.git/locks/logs/db files — indexing scope only, nothing deleted).
+- Indexed CURRENT GitHub-derived workspace (code-only AST; no LLM key available in sandbox for semantic doc pass — internal ZAI gateway not HTTP-reachable from shell): 1,553 code files -> graphify-out/graph.json 12,306 nodes / 35,026 edges / 511 communities, GRAPH_REPORT.md (99KB) + graph.html + manifest + 838K cache. Report records "Built from commit: b1eb92e0". Verified hubs for: auth, workflows, lead discovery, payments, db, meetings, notifications, competitor intelligence, tests, docs, docker/infra refs.
+- graphify query/path/explain verified working (e.g. lead discovery query resolves src/lib/lead-discovery/discovery-engine.ts + src/app/api/discovery/leads/route.ts).
+- Persistence: graphify-out/ (16MB) inside workspace -> included in repo.tar; CLI itself ephemeral (venv) -> wheel vendored to scripts/vendor/graphifyy-0.9.92-py3-none-any.whl + deps freeze + scripts/reinstall-graphify.sh.
+- Context checkpoint created: agent-ctx/0-bootstrap-b1eb92e0-baseline.md (repo/branch/HEAD/status + workspace layout + persistence mechanics + graphify usage + env + rules).
+- Sensitive files (secrets.md, secrets.yaml — tracked in-repo) auto-skipped by graphify's sensitive-file guard; contents never printed.
+
+Stage Summary:
+- CHECKPOINT D PASSED: graphify installed from GitHub source, indexed the CURRENT workspace, artifacts persistence-safe, context checkpoint recorded. Next: run the actual application.
+
+---
+Task ID: bootstrap-b1eb92e0-3
+Agent: Super Z (main agent)
+Task: Run the ACTUAL AcquisitionOS application + final persistence checkpoint (continuation of bootstrap-b1eb92e0-1/2)
+
+Work Log:
+- Read scripts/boot-recovery.mjs (guarded idempotent gate: credential recovery from git history — masked output only; DB recovery only if missing/degraded). Read-only DB probe: 115 tables / 42 users / 187 leads = HEALTHY -> boot-recovery takes no-op fast path for DB.
+- Started app with repo's own flow: `bun run dev` (= boot-recovery.mjs + next dev -p 3000). Startup check ALL GREEN (values never printed): GOOGLE_CLIENT_ID/SECRET, AUTH_SECRET, NEXTAUTH_SECRET, JWT_SECRET, DATABASE_URL, SMTP_HOST/PORT/USER/PASSWORD all SET (recovered from git history by the app's own recover-credentials.mjs). Google OAuth: AVAILABLE. APP_URL: NOT SET (only missing name). Sentry: no-op (no DSN).
+- INITIAL 500s diagnosed as PLATFORM-BINARY mismatches (not code): tracked node_modules was committed from darwin-arm64; sandbox is debian-openssl-3.0.x linux-x64. PrismaClientInitializationError (engine for darwin only) + lightningcss linux binding missing.
+- Fixed via the repo's own boot flow `bun install` (exactly what /start.sh runs): Prisma Client v6.19.2 regenerated for linux + 21 platform packages added (@next/swc-linux-x64-gnu, lightningcss-linux-x64-gnu, @tailwindcss/oxide-linux-x64-gnu, sharp, etc.). Then cleared UNTRACKED stale turbopack cache (.next/dev/cache — untracked/generated/regenerable; tracked files untouched) and restarted.
+- RESULT: homepage 200; /api/health 200 JSON {status healthy, database healthy 3.2ms, memory healthy, errors 0}; /auth/signin 200; /auth/signup 200; /support 200; /api-docs 200; /admin 200; /dashboard 308 auth-gated redirect (correct middleware). dev.log: 0 compile/runtime errors. Browser verification (agent-browser): full "Welcome Back" auth UI renders (email/password form, Continue with Google, Magic Link, OTP, signup) — ZERO browser console errors; screenshots saved to download/workspace-verification/preview-{homepage,signup,support}.png.
+- Modified tracked files inventory (NO application source): 183 .next/* build artifacts (dev server), 7 node_modules/* (prisma client regen), dev.log (app runtime log), worklog.md (this log), db/custom.db (app runtime writes: sessions/heartbeats; counts unchanged 115 tables/42 users; git blob intact as fallback).
+- Final persistence checkpoint: quiesced app -> regenerated /home/sync/repo.tar from the complete verified workspace -> copied to /home/sync/AQ-OS-b1eb92e0-persistent.tar (+ .meta with sha256 + RESTORE-NOTES.md) -> restarted app (left running for preview).
+
+Stage Summary:
+- CHECKPOINT E PASSED: actual AcquisitionOS application starts and serves; frontend renders; API + DB healthy; no TypeScript/build failures; no application source modified.
+- BOOTSTRAP COMPLETE: GitHub b1eb92e0 restored + verified path-by-path; persistence proven via boot-faithful simulation; Graphify installed + indexed; app running. STOPPING HERE per user directive — NO feature development.
+
+---
+Task ID: phase1-docker-1
+Agent: Super Z (main agent)
+Task: Phase 1 ONLY — Docker/local runtime stabilization: read-only Docker audit, root-cause identification, minimal fix, verification, report. NO feature work.
+
+Work Log:
+- Safety precheck: HEAD babbe95a0 (= b1eb92e0 + 1 bootstrap checkpoint commit), branch main, origin = AQ-OS GitHub. Working tree: runtime churn only (.next cache, db/custom.db, dev.log).
+- Docker availability: docker/docker compose/podman/containerd NOT installed; no docker.sock; no sudo; CapEff=0; k8s sandboxed container. Rootless ruled out empirically: overlayfs-in-userns DENIED (kernel 5.10), /dev/fuse absent, newuidmap/newgidmap absent, fusermount3 absent. VERDICT: BLOCKED - Docker runtime unavailable in this environment (no app source modified to compensate).
+- Static Docker audit (read-only): Dockerfile, Dockerfile.frontend, backend/Dockerfile, realtime-service Dockerfile, docker-compose{,.local,.prod}.yml, monitoring compose, nginx.conf, nginx.prod.conf, Caddyfile, deploy/nginx-entrypoint.sh, .dockerignore, .npmrc, package.json, next.config.ts, prisma schema, src/lib/db.ts, /api/health route, DOCKER_LOCAL_RUN docs, docs/deployment/03-docker.md.
+- ROOT CAUSES: RC-1 compose frontend `command: bun run dev` invokes `node` (oven/bun image has NO node; boot-recovery.mjs:33 imports node:sqlite) -> exit 127 crash loop. RC-2 no bind mount for /app/data while DATABASE_URL=file:/app/data/custom.db -> container would silently use BLANK SQLite DB (canonical db/custom.db has 115 tables/42 users/191 leads/39 subs) - DB-safety violation. RC-3 no env_file -> auth/SMTP/OAuth secrets never reach container. RC-4 docker-compose.prod.yml anchor x-common-restart nested as map -> entire prod file fails `docker compose config` (10 services unparseable).
+- Downloaded official docker-compose v2.34.0 standalone (offline `compose config` validation, no daemon needed) to scripts/docker-tools/, used for validation, then DELETED after final validation.
+- MINIMAL FIXES (Docker config only; git diff: docker-compose.yml +13/-1, docker-compose.prod.yml +1/-2): (1) removed compose `command:` override restoring Dockerfile.frontend CMD `bunx next dev -p 3000`; (2) added `./db:/app/data` bind mount (canonical DB at path DATABASE_URL already expects); (3) added env_file .env (environment: still takes precedence); (4) prod anchor fixed to scalar `unless-stopped`.
+- Validation: docker-compose.yml config VALID (9 services); local.yml VALID (3 + backend profile); prod.yml config FAILED pre-fix, VALID post-fix (10 services); rendered frontend section verified (no command, db bind, env_file precedence). All 4 compose files valid YAML. WARNING recorded: `compose config` prints merged secret VALUES - future use must redact.
+- DB safety: pre/post counts IDENTICAL (115 tables / 42 users / 191 leads / 39 subscriptions); Docker never ran; no migrations/resets/seeds.
+- Native runtime observation (not fixed, out of scope): /api/health reports database healthy (1.29ms), errors healthy, memory unhealthy (96.5% dev heap) -> overall 503 "down"; dev-heap gauge artifact; wget --spider healthchecks may flap on it.
+- Integrity vs origin/main @ b1eb92e0: 85,821 tracked files; 0 missing outside .next/dev/cache/turbopack (285 cache files = live dev-server churn; earlier 48 "missing" was core.quotePath encoding artifact in my own check - disproven); 0 missing directories; modified tracked files = runtime churn + node_modules/.prisma regen + worklog.md + the 2 intentional compose fixes.
+- Documentation: agent-ctx/1-phase1-docker-audit.md (full audit, root causes, fixes, verification procedure for Docker-capable host).
+- Git: NO commit (Section 20 requires runtime-verified fix; Docker unavailable), NO push, no history changes. Persistence: /home/sync/repo.tar intentionally NOT updated (Section 21 requires verified runtime; archive remains bootstrap state; fixes documented for re-derivation).
+
+Stage Summary:
+- STATUS: PARTIAL/BLOCKED - static audit + root-cause + minimal fixes COMPLETE and offline-validated via official docker-compose v2.34.0; runtime verification (build/containers/health/proxy/browser) BLOCKED: no Docker in sandbox. Zero application source changes; zero data changes; canonical DB intact; repo integrity PASS (0 missing source files/dirs).
+
+---
+Task ID: phase1-checkpoint-1
+Agent: Super Z (main agent)
+Task: Formal durable checkpoint for Phase 1 Docker config fixes (per Phase 2 directive Section 4), then Phase 2 Lead Discovery work.
+
+Work Log:
+- Baseline re-verified: branch main; HEAD 902f7ef0 = babbe95a0 (bootstrap checkpoint) + platform auto-commit 902f7ef0 (UUID message cf79a7ec-...) which swept Phase 1 compose fixes into history mixed with runtime churn (.next cache, dev.log, db runtime writes, worklog). GitHub origin/main remains b1eb92e0. No rewrite/reset performed (forbidden).
+- Re-verified git diff babbe95a0..902f7ef0 for docker-compose.yml + docker-compose.prod.yml against agent-ctx/1-phase1-docker-audit.md: EXACT 1:1 match (RC-1 command removal, RC-2 ./db:/app/data mount, RC-3 env_file .env, RC-4 prod anchor scalar). Working tree clean of config changes (only live dev-server churn).
+- Created agent-ctx/1-phase1-docker-checkpoint.md: git lineage table, verified intended diff, explicit "STATIC CONFIGURATION FIXED / RUNTIME VERIFICATION BLOCKED BY SANDBOX" status, Docker-capable-host verification procedure, DB safety numbers.
+- Checkpoint commit created on top (forward, no force-push, no history changes) with message "fix: stabilize docker compose configuration" containing ONLY the checkpoint doc + worklog (no .env secrets, no runtime logs, no .next cache, no credentials). Commit body states Docker runtime verification is BLOCKED in the GLM sandbox.
+- Persistence: /home/sync/repo.tar regenerated from quiesced workspace after commit (same exclusion set as boot flow: ./upload excluded, mount persists it) so the checkpoint survives workspace reactivation.
+
+Stage Summary:
+- Phase 1 Docker fixes formally checkpointed; runtime verification remains honestly BLOCKED (sandbox has no Docker). Phase 2 Lead Discovery audit begins next.
+
+---
+Task ID: phase2-lead-discovery-1
+Agent: Super Z (main agent)
+Task: Phase 2 — Lead Discovery volume fix (20-lead hard cap → target-scaled real unique leads) + final clean-slate 70-target E2E through the actual UI/API path + checkpoint.
+
+Work Log:
+- Read-only audit (prior session) traced the full path: UI Discover form → POST /api/leads/discover → startDiscoveryJob → processDiscoveryJob → searchSourceLeads → buildSearchQueries → searchOnce (web_search) → LLM extraction → sanitize/dedupe → import/credits. Root cause of the ~20 cap: flat 10-query cap + shrinking num + raw-count stop condition + "all"-mode per-source starvation. Live provider probes proved: ~7-10 results/query regardless of num≥20, offsets ignored, more diverse queries is the only volume lever.
+- Implementation (ONE file, +199/−15 in src/lib/lead-discovery-service.ts): searchQueryBudget() target-scaled query count (floor 10, +1/3 leads above 30, cap 28); 4 additional deterministic phrasings; locality fan-out via one paced LLM sub-area call (non-fatal, worldwide-skipped, never fabricates — areas are only search phrasings); searchOnce always requests full page (num 20); cross-query unique-identity counting (website/email/normalized-name keys) with early duplicate withholding; "all" mode per-source limit = full target with merged set bounded to exactly maxResults. Credits/entitlements/provenance/dedup-vs-existing/persistence contracts untouched.
+- Tests updated: tests/unit/discovery-volume-persistence.test.ts (+201) — budget scaling, locality fan-out (4 cases), all-mode lone-source, volume regression.
+- Service-path verification runs (prior session, live provider): gyms/Pune 20→20; salons/Delhi 40→34; restaurants/Bangalore 58; dentists/Mumbai 70→70 found (54 imported, 16 dups vs existing); hotels/Jaipur 70→70 found (67 imported).
+- FINAL CLEAN-SLATE E2E (this session, fresh niche+city for QA pro user, ONE discovery action through the REAL UI API path): POST /api/leads/discover {real estate agents, Hyderabad, India, ai_search, maxResults 70} → 202 + jobId cmvepxezr0001p1fd9tvtexs2 → live logs show budget 24 queries incl. +8 locality fan-out (Banjara Hills, Jubilee Hills, …), cross-query dedup withholding, unique-count to 70/70 → status endpoint (what the UI polls): completed, totalFound 70, imported 68, duplicates 2, failed 0; resultData 70 items, 70 unique normalized names, 0 missing provenance.
+- Deep verification (read-only DB): 68 new Lead rows in job window = imported exactly; leads API total 302→370; uniqueness 0 dups across ids/URLs/domains/names/emails; provenance 68/68 discoveredVia (9 distinct queries) + source ai_search; location 68/68 Hyderabad/India; credits 78→10 = 68 imported × 1 credit EXACT, CreditsLedger 68 idempotent entries (lead_discovery_idempotent_<jobId>:lead:0..67, each −1, balance 77→10, referenceId=jobId).
+- Browser verification (agent-browser, real DOM): dashboard "370 Total Leads" + "10 credits left"; Leads table "370 leads found" rendering the new Hyderabad real-estate businesses (stage Discovered). Screenshots in download/workspace-verification/.
+- Regression tests: discovery-volume-persistence 20/20 PASS; adjacent 88/88 PASS (hard-criteria 44, discovery-context 11, lead-flow 14, metric-filters 10, patch-pipeline 7, stats 2); FULL SUITE (70 files, chunked — single-process run OOM-dies in the 4GB sandbox, pre-existing): 1361 passed / 46 failed, ALL 46 failures PROVEN pre-existing via baseline swap-proof (same 46 failures with HEAD version of the service file; no import path from any failing file to lead-discovery-service; Phase 2 file restored byte-identical, sha256-verified, tests re-passed post-restore).
+- DB safety: before 115/42/413/39/30 → after 115/43/481/40/31; deltas = +68 leads/+1 job/+68 ledger/credits 78→10 (intended QA discovery data) and +1 user/+1 sub = disposable test_*@acq-test.com row created by the repo's own vitest suite (pre-existing convention). No resets/truncations/deletes.
+- .gitignore defensively extended (.test-tmp/ session cookies, tool-results/) before checkpoint.
+- Checkpoint commit created on top of 075a639cd: "fix: expand lead discovery pagination and batching" (2 source/test files + .gitignore + 8 phase2 scripts + 2 verification screenshots + agent-ctx/2-phase2-lead-discovery.md + worklog; NO db/logs/caches/secrets).
+- Persistence: /home/sync/repo.tar regenerated from the complete workspace after commit (same exclusion set as boot flow; ./upload excluded — mount persists it); boot-faithful extraction simulation re-verified (see phase2-lead-discovery-2 entry).
+- GitHub push: BLOCKED — credentials unavailable in sandbox; no credentials invented or printed.
+
+Stage Summary:
+- Lead Discovery volume fix: DONE and verified live end-to-end (20→70 targets, real unique provider results, 0 fabricated, 0 cross-query duplicates, exact credit accounting, UI display confirmed in real browser).
+- Pre-existing full-suite failures: 46 in 8 unrelated files (auth-routes, health-credits, email, subscription-store, jwt-security, onboarding-flow, auth-api, api-key-service) — proven pre-existing, untouched.
+- GitHub main remains b1eb92e0 (all work local + durable tar); STOP after checkpoint per directive — no README/MIT/Workflow/Autopilot work.
+
+---
+Task ID: phase2-lead-discovery-2
+Agent: Super Z (main agent)
+Task: Durable persistence verification for the Phase 2 checkpoint (repo.tar regeneration + boot-faithful extraction + GitHub push attempt).
+
+Work Log:
+- (appended below after execution)
+
+Stage Summary:
+- (pending)
+
+---
+Task ID: phase3-workflow-execution-1
+Agent: Super Z (main agent)
+Task: Phase 3 ONLY — Workflow execution fix (normal + Autopilot): trace, reproduce, root-cause, minimal fix, E2E verify, DB safety, regression tests, checkpoint.
+
+Work Log:
+- Baseline: actual HEAD 41ea7a02d (Lead Discovery checkpoint); expected 935c01e02 does NOT exist as a git object in this workspace (reported, continued from actual HEAD per directive — no resets/rollbacks/checkouts). The reported "session init failed" JSON was the prior conversation's IM/sandbox session failure (chat_id matches this session), not an in-repo app error.
+- Traced both lifecycles: normal (POST /api/workflows/[id]/execute -> workflow-engine.runSteps -> workflow-actions.executeAction) and Autopilot (activate -> manual run route / 5-min in-process scheduler heartbeat (instrumentation.ts) -> runner -> startDiscoveryJob -> poll -> AutopilotLead ledger -> workflow-executor engine).
+- Forensics on DB history: Oct 14 "No tags specified" failures already fixed at HEAD (9103f62d2); Oct 19 stuck autopilot run was the prior session's dev-server restart killing in-flight async work (Hospital discovery job stuck 'running' with zero updates; 60-min recovery marked FAILED) — environmental, not a code bug at HEAD.
+- REPRODUCED the real user-facing failure live in the browser (Workflows tab -> Run -> lead picker): execution failed "Lead is already in this stage" at move_to_stage step 0/2. Two more structural root causes found by code audit: send_email hard-requires config.to which NO creation path ever sets (builder has no recipient field; templates/AI generator never emit one; create_gmail_draft same); executeUpdateTags referenced undefined bare identifier `action` (TS2304; runtime ReferenceError failing every add_tag/update_tags step in the normal engine).
+- MINIMAL FIX (2 files, +70/-11): pipeline-service.moveLeadToStage idempotent success when already in target stage (no writes for no-op; real transitions unchanged; all callers audited); workflow-actions executeSendEmail/executeCreateGmailDraft resolve recipient via templates then lead email fallback (owner-scoped resolveLeadForExecution; honest failure when neither exists; explicit to wins; approval-gated path also gets the resolved recipient); executeUpdateTags reads String(config.action || 'add').
+- E2E POST-FIX (real API + real browser): exact UI repro now COMPLETED 2/2 with "Workflow completed" notification; send_email workflow (template/AI shape, no to, approval-gated) COMPLETED 1/1 with draft + approval notification and recipient resolved from lead email; send_email without any resolvable recipient fails honestly. Autopilot E2E v1: 20/20/20, 20/20 executions completed; v2 post-fix: 20 discovered/19 saved, 19/19 executions completed via BOTH step executors (native + canonical-delegated create_notification), 0 stuck executions, autopilot back to ACTIVE with nextRunAt.
+- DB safety: users 43->43, subs 40->40, all other users' credits unchanged, 4 pre-existing workflows intact; disposable QA-only additions under testfix@test.local (+3 QA workflows, +40 leads, +1 QA autopilot, executions/logs/notifications/ledger); credit ledger exact 477->426 (-45 discovery, -6 workflow_action; approval send charged 0 by design). No resets/truncations/deletes. .env working-tree modification PRE-DATES this session (never touched). README untouched.
+- Tests: NEW workflow-execution-fixes.test.ts 12/12 PASS; workflows/workflow-schedule-timezone/autopilot/autopilot-runner/lead-patch 107/107 PASS; workflows-integration + workflow-ai-generate-entitlement + workflow-flow e2e 38/38 PASS; discovery-volume-persistence (Lead Discovery >20 NOT regressed) + credits 66/66 PASS; persistence/support 36/36; load 57/57; components 3/3. Full chunked suite: 44 failures ALL pre-existing in the 8 Phase-2-documented files (api-key-service re-verified pre-existing via stash-swap proof); zero new failures. Scoped tsc: modified files clean; TS2304 'action' error gone.
+- Git hygiene: only 2 tracked source files have content changes (pipeline-service.ts, workflow-actions.ts) + 1 new test file + phase3 QA scripts + verification screenshots + agent-ctx/3-phase3-workflow-execution.md; 81,439 mode-only (100644->100755) working-tree diffs are a pre-existing platform artifact, excluded from the checkpoint. token file (live JWT) excluded.
+
+Stage Summary:
+- NORMAL WORKFLOW: PASS (was: move_to_stage non-idempotent failure + send_email un-runnable without recipient + add_tag ReferenceError; all fixed and E2E verified through real UI/API)
+- AUTOPILOT: PASS (working at HEAD pre-fix and post-fix; historical failures were prior-session restart artifacts + already-fixed tag bug; re-verified with 2 full E2E runs incl. scheduler heartbeat)
+- NO UNRELATED REGRESSION: PASS (Lead Discovery >20 intact; all failures pre-existing; DB safety verified)
+
+---
+Task ID: profile-persistence-final-verification-1
+Agent: Super Z (main agent)
+Task: Finish the Profile sections (My Offer / Business Profile / My Context) verification and create the final Git checkpoint commit `fix(profile): persist offer business profile and context`.
+
+Work Log:
+- Phase 1 state verification: actual HEAD was 45ede5cdb (branch main) — a FRESH clone of github.com/Hugs-4-Bugs/AQ-OS (reflog starts at clone). The described "already implemented" artifacts were MISSING and unrecoverable (not in git history, reflog, stash, dangling objects, or GitHub): migration file, VALID_SECTIONS 'profiles' entry, cookie-banner clearance padding. The core Profile implementation WAS present at HEAD (offer/context/business-profile API routes, components, schema models, live DB tables).
+- Root cause: prior session's fixes were uncommitted and lost with the old workspace; this workspace was re-cloned.
+- Restoration (verification proved necessity, per task rule): recreated migration prisma/migrations/20261020000000_profile_sections_persistence/migration.sql (additive-only, parity-exact vs live DB incl. full UserSettings column set required by Prisma upsert create-branch); added 'profiles' to VALID_SECTIONS; added cookie-banner clearance padding (pb-56 sm:pb-44 lg:pb-44, reactive to localStorage consent key + storage event) in settings-shell.tsx.
+- Temp-DB migration verification (live DB NEVER touched — no _prisma_migrations table in it): fresh DB built via DATABASE_URL override to scripts/tmp/profile-parity.db; all 5 migrations applied cleanly; 6/6 Profile queries PASS (context GET/PUT upsert no-duplicate, offer GET/PUT, business-profile create+scoped list, update-in-place); UserSettings + BusinessProfile schema parity IDENTICAL vs live DB.
+- Browser E2E (agent-browser, QA user qa-user-a@acquisitionos.test created via real signup/OTP-verify/signin): My Context — banner kept visible, Save button fully clickable (88px clearance gap at max scroll, hit-test PASS), save→reload→logout→login all persist exact values. Business Profiles — create (1/1 active on free plan), save buttons banner-clear, reload + logout/login persist, edit updates IN PLACE (same id cmvg3qksm001lr8v4a7j5omcs, no duplicates). My Offer — save banner-clear, 2 services persist, reload restores exact selections (Check icons), cross-session API read confirms.
+- User isolation (API-level, users A and B): 12/12 PASS — B sees only empty own data (no leakage), B GET/PUT/DELETE on A's profile id all 404, B saves own unique data fine, A's data byte-unchanged after all B attempts.
+- Regression: Profile suites 39/39 PASS (business-profiles 14, personal-context-route 10, personal-context 15); auth suites 96/96 PASS with ONE intermittent pre-existing flake (Server Health /api/health fetch timing — failed 2 of 6 runs, zero dependency on changed files, documented not hidden). ESLint on changed component: 0 errors. Full tsc OOMs in sandbox (documented); dev-server turbopack compiled + rendered the changed component throughout E2E.
+- DB safety: all deltas additive and fully attributed (2 QA users + 7 vitest-harness test users from my Phase-5 runs; 0 leads/workflow-definitions created in my window; pre-existing BusinessProfile production row byte-identical; live DB never migrated/reset).
+- Git safety: staged ONLY the 2 Profile files (modes normalized 644), secret-scan clean, no db/.env/.next/node_modules staged, unrelated pre-existing modifications left untouched.
+- Created commit f9d75e353bd5104e8f9b88f25c3222b35f2bede7 "fix(profile): persist offer business profile and context" (2 files, +128/-2). NOT pushed.
+
+Stage Summary:
+- Profile task COMPLETE: all verification phases passed; final HEAD f9d75e353 on main; working tree retains only pre-existing unrelated modifications + untracked QA artifacts (scripts/profile-*, scripts/.qa-*, scripts/tmp/).
+- QA test data left in live DB (additive only): qa-user-a / qa-user-b with their profile records — clearly-labeled test accounts; no production data touched.
+- Known pre-existing condition documented: migration chain lacks many non-Profile schema drifts (User cols, 34 tables) — out of scope, live DB (db push) is canonical.
+
+---
+Task ID: auth-credential-diagnosis-1
+Agent: Super Z (main agent)
+Task: Diagnose and fix authentication/email delivery failures (Google OAuth, OTP, Magic Link) in the preview environment. STOP if real credentials unavailable.
+
+Work Log:
+- Phase 1 (read-only): actual HEAD bb03e394e (platform bootstrap auto-commit, 82,476 files, on top of Profile commit f9d75e353 — Profile intact), branch main. Inspected google/state route (env reads, dynamic origin resolution, redirect_uri = <origin>/api/auth/callback/google), callback/google route (token exchange at oauth2.googleapis.com/token, invalid_client -> failureCode google_invalid_client_secret), email-ethereal.ts (SMTP alias resolution), email.ts (nodemailer, host/port from env, secure=port===465), dev-auth.ts (dev delivery gate). Code paths: CORRECT — no source defect found.
+- Runtime env verified loaded: server started 03:23 UTC AFTER .env restore (02:03 UTC); startup log shows SMTP user/pass SET, configured=YES; google state log shows GOOGLE_CLIENT_ID/SECRET SET.
+- Live evidence (user session 03:50 UTC + fresh probes 04:14 UTC): Google token exchange HTTP 401 invalid_client ("The provided client secret is invalid"); Gmail SMTP 535-5.7.8 Username and Password not accepted. Probes: Google token endpoint (bogus code) -> invalid_client; SMTP AUTH raw + spaces-stripped variants -> both 535. Connection/STARTTLS to smtp.gmail.com:587 SUCCEEDS — only AUTH fails.
+- ROOT CAUSE (both failures): .env holds OLD REVOKED credentials — proven byte-EQUAL to git-history ensure-env.sh values (commit 9a178ee; older 5a02aa5 differs) that were committed, exposed, and rotated by the user. recover-credentials.mjs (prior session) restored them from git history after a sandbox reset truncated .env. Category: B (wrong/old credential values) + F/D (Google secret rejection / SMTP auth failure). NOT: missing vars, runtime not loading, host/port/TLS, redirect URI (Google issued a real auth code at consent), or code bug.
+- Real NEW credentials NOT present anywhere in this runtime: upload/ pasted texts = task specs only (one app-password pattern was a false positive on the phrase "must come from real"); persistent tars contain no newer .env values; workspace-wide scan found 56 credential candidates, all = old value or doc placeholders. Per task rule: STOP, do not substitute.
+- Email/password E2E (live API, new clearly-labeled QA user auth-cred-e2e-20261020@acquisitionos.test): signin 200 + httpOnly cookies -> /api/auth/me 200 -> signout 200 -> signin again 200 -> /me 200 (session persists) -> wrong password 401. ALL PASS. No duplicate users (user's failed Google attempt only touched existing kattyboy785@gmail.com row, created 2026-06-20).
+- OTP + Magic Link live probes: both return EMAIL_DELIVERY_FAILED with the exact user-reported messages; fresh log confirms 535 at AUTH.
+- DB safety: users 52->53 (+1 labeled QA user only); subscriptions/leads/workflows/businessProfiles untouched; no reset/reseed/deletes.
+- SECURITY FIX (forward-only): discovered .env was RE-TRACKED by the platform bootstrap auto-commit bb03e394e (fresh clone lost the hardened 89-line .gitignore; current one was 5 lines, no .env rule). Applied: .gitignore now ignores .env/.env.*/cookies/tokens; git rm --cached .env (file untouched on disk, mode 600, runtime verified unaffected — auth E2E re-passed). No history rewrite, no reset, no push, no commit created by me.
+- SECURITY INCIDENT (caused by me, disclosed): one diagnostic command (rg "^[A-Z_]+=" .env) accidentally printed .env VALUES into tool output — old revoked Google secret + old revoked app password + LIVE JWT/AUTH/NEXTAUTH/CRON secrets + GOOGLE_SEARCH_API_KEY. Rotation of ALL these values is recommended. They were never placed in reports, git diffs, commits, or files.
+- Pre-existing tracked secrets re-flagged: deploy/k8s/secrets.yaml, docs/04-secrets-and-configuration/*, db-backups/*.db, db/custom.db, backend/test.db (GitHub history).
+
+Stage Summary:
+- DIAGNOSIS COMPLETE; fix BLOCKED on missing user-side input: the REAL current Google OAuth Client Secret and Gmail App Password are NOT in this runtime. They must be placed in /home/z/my-project/.env (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SMTP_USER, SMTP_PASSWORD or GMAIL_APP_PASSWORD) followed by a dev-server restart; I will then complete Google/OTP/Magic-Link E2E. All auth code verified correct; email/password flow fully PASS; no source changes; .env untracked + gitignored (forward-only); Profile commit f9d75e353 intact; Admin Portal NOT started.
+
+---
+Task ID: auth-verification-2
+Agent: Super Z (main agent)
+Task: Verify new runtime credentials and complete authentication E2E (Google/SMTP/OTP/Magic Link), or STOP if new credentials absent. Secret-safety absolute: never print values.
+
+Work Log:
+- Phase 1: actual starting HEAD 08beaecddd69ac758ef4546696fcdd39a3bfdd1a on main (Profile commit f9d75e353 intact 3 commits back). .env exists locally (size 1224, mode 600, mtime 2026-10-20T02:03:31Z), IGNORED (.gitignore:8), NOT tracked (git ls-files empty; HEAD tree count 0).
+- Credential verification (value-safe scripts auth-env-presence.cjs / auth-proc-env-check.cjs — status + equality fingerprints only, never values): all 7 required vars PRESENT, but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/SMTP_PASSWORD/GMAIL_APP_PASSWORD are ALL byte-equal to the OLD REVOKED values committed at bb03e394e. No alternate env files exist; upload/ holds only old screenshots; no new credential file anywhere in runtime; running dev server (PIDs 9833/9845, started 04:10 UTC) started after last .env write (02:03) so it loaded the current file = OLD values.
+- Fresh network probes (04:32 UTC) with current runtime values: Google token endpoint -> HTTP 401 invalid_client (REJECTED); Gmail SMTP AUTH smtp.gmail.com:587 -> 535 Username and Password not accepted, both raw (len 19, spaced) and space-stripped variants (REJECTED). Conclusion: the user's NEW REAL credentials did NOT land in the runtime .env — file unchanged since the 02:03 old-restore. Per task STOP rules and no-substitution rule: Phases 2-5 (Google E2E, SMTP, OTP, Magic Link) STOPPED; exact missing env config reported. No credential values printed at any point.
+- Phase 6 (credential-independent): email/password regression ALL PASS via scripts/auth-password-e2e.cjs — signin 200 (httpOnly auth cookies set), /api/auth/me 200, signout 200, signin-again 200, /api/auth/me 200 (session persists), wrong-password 401 rejected. DB users 53->53 delta 0 (reused clearly-labeled QA user auth-cred-e2e-20261020@acquisitionos.test, password rotated in place).
+- Phase 7: DB safety via scripts/db-safety-final.cjs — users=53, subscriptions=49, leads=536, workflows=7, businessProfiles=3; last-hour user touches only the QA account (password reset) + kattyboy785@gmail.com (user's own pre-existing failed Google attempt at 03:52, before this session); no unintended duplicates; live DB never reset/reseeded/migrated.
+- Phase 8: staging area EMPTY (git diff --cached empty — no .env/.next/db/cookies/tokens/credentials staged); Profile files (prisma/migrations/20261020000000_profile_sections_persistence/migration.sql + src/components/dashboard/settings-shell.tsx) byte-identical to f9d75e353 (empty diffs since Profile commit); no secret values printed in any command output, script, or report this session.
+- Phase 9: the forward-only security correction (.gitignore hardened with secret-ignore rules + .env untracked) is ALREADY COMMITTED by platform auto-commit 08beaecd (created 2026-10-20T04:20:30Z; .env absent from its tree; .gitignore diff bb03e394e->08beaecd adds the secrets block). Per task instruction ("do NOT create a duplicate empty commit") NO new commit created. Working-tree noise is .next/dev build cache only (39 entries, unstaged).
+
+Stage Summary:
+- STOP condition met and honored: new real Google secret + Gmail app password are NOT in the runtime .env (old revoked values still loaded; Google=invalid_client, SMTP=535 with fresh in-session probes). Email/password auth fully PASS; DB safe; Profile untouched; security checkpoint already committed at HEAD 08beaecd; nothing pushed.
+- USER ACTION REQUIRED to unblock: place the CURRENT REAL values into /home/z/my-project/.env for GOOGLE_CLIENT_SECRET and SMTP_PASSWORD (and/or GMAIL_APP_PASSWORD; SMTP_USER must be the Gmail address), then restart the dev server (kill PIDs 9833/9845 and relaunch npm run dev) so the new values load. Never paste secrets into chat; edit the file directly in the runtime.
+
+---
+Task ID: workspace-recovery-1
+Agent: Super Z (main agent)
+Task: Recover pre-reprovision workspace state after sandbox re-provision rolled HEAD back from 08beaecd to 45ede5cdb. Auth task STOPPED per user directive; no auth work performed this session.
+
+Work Log:
+- Forensic audit (read-only): expected commits 08beaecd / bb03e394e / f9d75e353 exist NOWHERE — not as local objects, not unreachable (fsck), not on origin (origin/main = 6145c7f47, a small user-side cleanup commit deleting "env (1).txt" + env.example; never contained our work; fetched read-only to verify). Repo was re-cloned from GitHub Oct 19 00:08 + increment commits replayed to 45ede5cdb (Oct 19 21:33); platform snapshot repo.tar (Oct 19 21:36) was the re-provision restore source at Oct 20 04:58.
+- RECOVERY SOURCE DISCOVERED: /tmp/my-project — a surviving copy of the destroyed Oct 20 sandbox (files up to Oct 20 04:36): Profile-fixed settings-shell.tsx, Profile migration, hardened .gitignore (04:18), full worklog (04:35), auth session scripts, and the pre-reprovision live DB (db/custom.db, Oct 20 04:34, 6365184 bytes, users=53, businessProfiles=3).
+- URGENT PRESERVATION (additive only, before any git ops): copied all critical artifacts to scripts/tmp/recovery-20261020/ and db-backups/custom-RECOVERED-20261020043411Z.db. /tmp is volatile.
+- DB REGRESSION documented (NOT auto-restored per user rule): current db/custom.db = Oct 19 21:36 state (users=43, businessProfiles=1) — re-provision REPLACED the Oct 20 DB (53 users). Recovered copy preserved; restoration awaiting explicit user authorization.
+- CONTENT-LEVEL RECOVERY (exact SHAs unrecoverable; forward-only, no reset/clean/checkout-discard/history-rewrite):
+  1. Safety branches: recovery/restore-point-4d551187c (preserves reprovision state) + recovery/pre-reprovision-state (work branch).
+  2. Commit 5fd039b06 "fix(profile): persist offer business profile and context" — byte-exact restoration of the 2 Profile files (+128/-2, identical file set and diff shape to lost f9d75e353).
+  3. Commit 1d395bbb2 "security: protect runtime credentials from tracking" — hardened .gitignore (11 lines) + .env untracked via git rm --cached (file untouched on disk, mode 600, now ignored+untracked).
+  4. Commit (this one) "docs(worklog): restore session worklog and record reprovision recovery" — restored worklog + this record.
+  5. main fast-forwarded to recovery tip after tree verification (45ede5cdb chain preserved; 4d551187c preserved on safety branch).
+- Secret-safety: masked-context scan of recovered worklog — zero actual secret values (GOCSPX mention is a "GOCSPX-…" format reference; 4x4-lowercase hits are English prose; 50+ base64 hits are documented SHA256 checksums). No secret values printed this session. .env never re-committed; no push performed (origin untouched).
+
+Stage Summary:
+- Workspace recovered at content level: Profile persistence code + migration, hardened .gitignore, .env untracking, full worklog — restored and committed forward-only; exact lost SHAs permanently unrecoverable (documented). DB restore PENDING user authorization (recovered copy safe at db-backups/custom-RECOVERED-20261020043411Z.db). AUTHENTICATION TASK REMAINS STOPPED — new credentials NOT applied, no auth E2E run. Admin Portal NOT started; no GitHub push; no history rewrite; Profile content fully restored.
+
+---
+Task ID: forensic-final-search-08beaecd
+Agent: Super Z (main agent)
+Task: Final exhaustive READ-ONLY forensic search for exact commit 08beaecddd69ac758ef4546696fcdd39a3bfdd1a across every surviving recovery source. No mutations authorized; current recovered state preserved.
+
+Work Log:
+- Current repo ODB: cat-file target ABSENT; all 3 packs enumerated via verify-pack AND definitive cat-file --batch-all-objects (all 86k+ objects) -> no 08beaecd/f9d75e353/bb03e394e; objects/08/ = 3 loose (no match); fsck unreachable = 2 unrelated Oct 19 WIP commits (3601e89e "WIP on main: 41ea7a02d", 523bf4e6 "On main: phase2-wip-verify"); reflogs begin 2026-10-19 00:08 clone; stash empty; alternates none; tags none.
+- repo.tar (5,136,189,440 bytes, 2026-10-19 21:36:39): CONTAINS full .git (8,183 entries); refs/heads/main = 45ede5cdb; packed-refs = origin/main b1eb92e0a; 103,788-entry listing has NO beaecddd/d75e353/bb03e394 object paths (objects/08/ = 37 loose, none match); both packs SHA256-BYTE-IDENTICAL to current verified-clean packs (f9a52caa..., 0c80d440...).
+- AQ-OS-b1eb92e0-persistent.tar (4,008,980,480 bytes, created 2026-10-19T01:00:51Z per .meta): .git at GitHub baseline b1eb92e0a (45 entries); single pack SHA256-identical; 95,112-entry listing no matches; no nested archives.
+- GitHub: ls-remote (read-only) = only refs/heads/main @ 6145c7f47 (user-side "." commit, never contained our work); REST API lookup of full target SHA -> HTTP 422 "No commit found". Never pushed.
+- /tmp/my-project (pre-reprovision working-tree mirror, mtime 2026-10-20 04:36:02): NO .git dir/file, no bundles/packs/idx/tars; scripts/backup = DB backup shell scripts only; old tool-results (24 files, newest ~Oct 19 21:19) contain no target mentions.
+- Filesystem sweep: /home/z (only my-project + tool caches: checkpoint-nodejs=prisma engines, playwright/puppeteer - no .git), /home (sync/official_skills/user_skills/bun - no .git), /tmp top (node-gyp/compile-cache/logs only), /var/tmp (empty), /opt /srv /workspace /app /usr/src (no .git); /root permission-denied (only uninspectable location).
+- SHA string search (40-char + abbreviated): hits ONLY in worklog documentation copies (worklog.md, /tmp/my-project/worklog.md, scripts/tmp/recovery-20261020/worklog.md.full) and old scripts auth-env-presence.cjs / auth-proc-env-check.cjs referencing parent bb03e394e ABBREVIATED-only. Full parent SHA recorded nowhere.
+- Destruction proven: boot-timeline.log shows start.sh entered 04:57:26Z, repo.tar extraction over workspace completed 04:58:00Z; target created 04:20:30Z and existed only in that .git; newest git-bearing artifact (repo.tar) predates it by 7h24m; no snapshot/bundle/push existed in between.
+- Reconstruction analysis: impossible - requires exact 82k+-file tree (descends from bb03e394e tree embedding destroyed .env secret blob + non-deterministic build caches), full parent SHA (unrecorded, random-UUID auto-commit), exact author+committer timestamps (only committer ~04:20:30Z documented), and exact message bytes (UUID subject never recorded). Any recreation yields a different SHA (as with 5fd039b06/1d395bbb2/9724d5022).
+- Tree comparison (user item 14): 9724d5022 vs /tmp/my-project -> settings-shell.tsx IDENTICAL, profile migration.sql IDENTICAL, hardened .gitignore IDENTICAL; .env untracked (ls-files empty).
+- Safety: ZERO mutations - no ref movement, no commits, no push, no fetch, no reset/clean/checkout, no .env change, no DB access, no auth tests; origin untouched. Writes this session: untracked forensic listings (tool-results/forensic/) + this append-only worklog entry only. HEAD/branch/refs unchanged (7b8434154 / main).
+
+Stage Summary:
+- VERDICT: exact object 08beaecd... exists NOWHERE reachable from this environment (current ODB incl. every packed+loose object, both platform archives byte-verified, /tmp copies, GitHub refs + API). Proven destroyed at reprovision 04:58:00Z with the only .git that ever held it; never pushed/bundled/snapshotted. Exact SHA provably non-reconstructible (all metadata ingredients lost). Content already byte-exact recovered forward-only (5fd039b06 -> 1d395bbb2 -> 9724d5022 -> 7b8434154). STOPPED per directive; awaiting user decision on next steps (incl. separately-pending DB restore authorization).
+
+---
+Task ID: task-reconstruction-recovery-verify-1
+Agent: Super Z (main agent)
+Task: Reconstruct the last 10-12 user tasks from before the workspace loss, gap-analyze each against the CURRENT recovered codebase, implement only VERIFIED gaps, and produce the final verification report. Exact SHA recovery formally abandoned per user directive.
+
+Work Log:
+- Evidence sources used (read-only): worklog.md tail (bootstrap-b1eb92e0-1/2/3, phase1-docker-1, phase1-checkpoint-1, phase2-lead-discovery-1/2, phase3-workflow-execution-1, profile-persistence-final-verification-1, auth-credential-diagnosis-1, auth-verification-2, workspace-recovery-1, forensic-final-search-08beaecd), git history (075a639cd / 41ea7a02d / 45ede5cdb / 5fd039b06 / 1d395bbb2 / 9724d5022 + 3 platform UUID auto-commits), agent-ctx/1..3 phase docs, scripts/tmp/recovery-20261020/ artifact copies, platform auto-commits 7b8434154 + ab9e19050 (verified: .next cache + recovery artifacts + worklog only, zero source changes).
+- Task reconstruction (12 tasks identified) verified one-by-one against current tree: Phase-1 Docker fixes present (docker-compose.yml: no frontend command override + ./db:/app/data + env_file; prod anchor scalar unless-stopped); Phase-2 Lead Discovery present (searchQueryBudget + locality fan-out in lead-discovery-service.ts + discovery-volume-persistence.test.ts); Phase-3 Workflow present (idempotent moveLeadToStage pipeline-service.ts:146, resolveLeadForExecution + String(config.action) workflow-actions.ts, workflow-execution-fixes.test.ts); Profile persistence present (settings-shell.tsx VALID_SECTIONS 'profiles' line 134/135 + pb-56 sm:pb-44 lg:pb-44 line 1092 + migration 20261020000000_profile_sections_persistence) — all three sha256-BYTE-IDENTICAL to scripts/tmp/recovery-20261020/ copies; hardened .gitignore byte-identical, .env untracked+ignored.
+- Gap analysis verdict: ZERO verified implementation gaps. Every code artifact from the reconstructed tasks exists in the current tree. Deferred/blocked items are NOT code gaps: DB restore (pending explicit user authorization — not granted this session), auth credential E2E (STOPPED per directive; runtime .env credentials, code verified correct pre-loss), GitHub transfer/push (deferred by user), final .env backup (deferred by user). Nothing implemented — no code changes required.
+- Scoped regression suites (vitest, live dev server on :3000): Profile 39/39 (business-profiles 14, personal-context-route 10, personal-context 15) = matches pre-loss baseline exactly; Workflow 112/112 (workflows 38, autopilot 30, autopilot-runner 16, workflow-schedule-timezone 16, workflow-execution-fixes 12); Discovery+Auth 134/134 (discovery-volume-persistence 20, auth 30, remember-me 15, verification 12, zai-gateway 9... per-file counts from run output). Pre-existing-failure files re-checked: auth-api 17/18 (only documented /api/health flake), api-key-service 2 pre-existing failures — matches phase2/phase3 documented baseline (proven pre-existing via stash-swap then).
+- Live E2E written+run: scripts/profile-live-e2e-recovery-verify.cjs (repo QA conventions: ONE clearly-labeled user profile-e2e-recovery-20261020@acquisitionos.test, random password never printed, additive-only). 16/16 PASS: signin, personal-context PUT/GET round-trip, offer-profile 2-services round-trip, business-profile create (free-plan limit 1/1) + user-scoped list, signout + re-login, ALL THREE sections persist ACROSS sessions, DB additive-only. /api/health healthy (database 4.33ms, errors 0).
+- DB safety: baseline 43/40/536/7/1 (repo.tar state; 0 leads/users created post-reprovision — no runaway background writes) -> after verification 45/41/536/7/2. Deltas: +1 labeled QA user + its QA profile (my E2E), +1 disposable test_*@acq-test.com user + sub (repo's own vitest convention from auth-api run). Zero deletes/resets/truncations/migrations. Pre-reprovision DB copy remains safe at db-backups/custom-RECOVERED-20261020043411Z.db (restore still awaiting explicit user authorization).
+- Git safety: reflog shows forward commits + documented recovery branch checkouts only; NO reset/clean/checkout-discard/history-rewrite; stash empty; .env NOT tracked + ignored (.gitignore:8); safety branches recovery/pre-reprovision-state + recovery/restore-point-4d551187c intact; origin/main untouched (no fetch/push this session); HEAD ab9e19050 (main). Working-tree changes: .next dev-cache churn + db/custom.db runtime writes + vitest cache + 1 new untracked script — zero source-file modifications.
+
+Stage Summary:
+- All 12 reconstructed tasks verified against the current codebase: 10 DONE (incl. 3 recovered-forward-only), 0 PARTIAL, 0 MISSING; 2 intentionally deferred by user (GitHub push, .env backup) + 2 blocked/pending awaiting user input (auth credential E2E, DB restore) — none are implementation gaps. No code was changed this session (verification-only + 1 new QA script + additive QA rows). Scoped suites 285/285 PASS + live Profile E2E 16/16 PASS + pre-existing-failure baseline unchanged. STOPPED per directive: no auth work, no DB restore, no push, no .env backup, no Admin Portal.
+
+---
+Task ID: auth-credentials-live-e2e-1
+Agent: Super Z (main agent)
+Task: Apply the user-provided REAL credentials (new Google OAuth client secret + new Gmail SMTP app password for mailtoprabhat72@gmail.com) to the runtime and complete the full authentication E2E. STRICT constraint: NO codebase modifications of any kind — credentials go ONLY into the runtime .env (untracked/ignored). Credentials to be revoked by the user after testing; values NEVER printed in any output, log, or report.
+
+Work Log:
+- Contract inspection (read-only): email stack resolves SMTP_USER (aliases GMAIL_USER/EMAIL_USER/...) and SMTP_PASSWORD (aliases SMTP_PASS/GMAIL_APP_PASSWORD/...); Google OAuth uses GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET. Feature flags already enabled (ENABLE_GOOGLE_OAUTH/MAGIC_LINK/OTP=true); all AUTH_DEV_* gates false (production-like, no dev bypass); SMTP_USER already = target gmail account; app sends email DIRECTLY via nodemailer in the Next.js process (mini-services/email-service is not in the send path).
+- Credential write: updated ONLY runtime .env keys GOOGLE_CLIENT_SECRET, SMTP_PASSWORD, SMTP_PASS, GMAIL_APP_PASSWORD (+ confirmed SMTP_USER/GMAIL_USER). Values never printed (read-back printed booleans only). File mode 600 preserved; still untracked + gitignored; size unchanged.
+- Server restart (platform-faithful): killed the watchdog-owned next dev (PIDs 1111/1127); server-watchdog auto-respawned next dev (new PIDs 7366/7378) at 09:51 AFTER the .env write; verified watchdog env contains NO SMTP/GOOGLE vars (no stale inheritance — fresh .env loaded from disk); /api/health healthy (db 1.02ms, errors 0). No other service touched.
+- Google client-auth probe (new scripts/google-client-auth-probe.cjs — reads .env at runtime, prints outcomes only): token endpoint with deliberately-bogus code -> HTTP 400 invalid_grant = client credentials ACCEPTED by Google client authentication (previously HTTP 401 invalid_client with old revoked secret).
+- Gmail SMTP AUTH probe (existing scripts/smtp-auth-probe.cjs): AUTH SUCCEEDED for both raw and space-stripped stored forms against smtp.gmail.com:587 (previously 535 Username and Password not accepted).
+- OTP full login loop E2E (new scripts/otp-full-login-e2e.cjs; account = user's own registered verified user mailtoprabhat72@gmail.com): request 200 (real Gmail delivery — prior sessions got EMAIL_DELIVERY_FAILED), 6-digit code stored fresh, verify 200 + auth cookies, /api/auth/me 200 (session live), signout 200, OTP consumed by server. 4/4 PASS.
+- Magic Link full login loop E2E (new scripts/magic-link-full-login-e2e.cjs): fresh request 200 (real email sent), clicked the exact emailed verify URL -> HTTP 307 redirect to / + auth cookies, /api/auth/me 200, signout 200, token consumed. 5/5 PASS.
+- Google OAuth (everything automatable): /api/auth/google/state 200 {googleEnabled:true, devMode:false} with well-formed accounts.google.com authUrl (client_id present, redirect_uri=<origin>/api/auth/callback/google, response_type=code, scope=openid email profile, state present); direct fetch of the consent URL -> HTTP 302 redirect to accounts.google.com/v3/signin/identifier (the REAL Google sign-in page; a misregistered client_id/redirect_uri would return 400 redirect_uri_mismatch here). FULL Google login requires the user's interactive Google account sign-in — not automatable without their Google credentials; left as the single interactive step for the user.
+- Email/password regression (existing scripts/auth-password-e2e.cjs): 6/6 PASS (signin/me/signout/re-signin/me/wrong-password-401) with QA user auth-cred-e2e-20261020@acquisitionos.test (recreated in this baseline DB, clearly-labeled).
+- DB safety: users 45->46 (+1 labeled QA user only); mailtoprabhat72@gmail.com row updated at 09:54 by the OTP/magic-link test itself (transient otp/token fields, since consumed/cleared); subscriptions/leads/workflows/businessProfiles unchanged (41/536/7/2). No resets/deletes/migrations.
+- Git safety: ZERO codebase modifications (git diff on src/prisma/package.json empty). New untracked value-safe scripts only (no credential values embedded — verified by scan; they read .env/DB at runtime). .env NOT tracked, NOT in any commit tree (verified incl. the 09:12 platform auto-commit 3b63dab0a which swept only .next cache), ignored via hardened .gitignore. HEAD 3b63dab0a (main), forward-only history, no reset/clean/rewrite, no push.
+
+Stage Summary:
+- AUTHENTICATION NOW FULLY WORKING with the real credentials: Google client credentials ACCEPTED by Google (invalid_client eliminated); Gmail SMTP AUTH SUCCEEDED (535 eliminated); OTP full login loop 4/4 PASS with real email delivery; Magic Link full login loop 5/5 PASS with real email delivery; Google OAuth server+client config fully verified (state endpoint + real Google sign-in redirect) with only the interactive Google sign-in remaining for the user; email/password regression 6/6 PASS. NO code was modified (runtime .env only, per directive). Credentials will be revoked by the user after testing; values were never printed.
+
+---
+Task ID: phase0-github-checkpoint-1
+Agent: Super Z (main agent)
+Task: PHASE 0 — safe forward-only GitHub checkpoint of the current codebase BEFORE any application fixes. STOP if the checkpoint cannot be safely completed.
+
+Work Log:
+- Read-only inspection recorded: HEAD 5a65ff352 (main); origin https://github.com/Hugs-4-Bugs/AQ-OS.git; origin/main 6145c7f47; local 13 ahead / 1 behind; working tree 330 M / 24 D / 345 ?? (all .next dev-cache churn + db/custom.db — no source diffs).
+- Credential search (exhaustive, presence-only, values never printed): NO git credential helper, NO ~/.git-credentials, NO gh CLI, NO SSH keys, NO GITHUB_TOKEN/GH_TOKEN env vars, NO ghp_/github_pat_ patterns anywhere in project/uploads//home//home/sync (upload hits were just the repo URL in task text). Push attempt fails: "could not read Username for 'https://github.com'".
+- Oversized-blob analysis of push range origin/main..HEAD: FOUR blobs exceed GitHub's 100MiB hard limit — node_modules/@next/swc-linux-x64-gnu (130.3MB), node_modules/next/next-swc-fallback/.../swc-linux-x64-gnu (114.8MB), node_modules/@next/swc-linux-x64-musl (114.8MB), .next/dev/cache/turbopack/731ace46/00000125.sst (106.0MB) — ALL introduced in bootstrap platform auto-commit babbe95a08 (2026-10-19 01:05, local-only, never pushed). These paths never existed on GitHub (verified vs origin/main + b1eb92e0 trees). GitHub pre-receive hook hard-rejects any push containing them; removing files in new commits cannot help while the old local commits reference them.
+- Secret-scrub reconciliation: origin/main 6145c7f47 (user's own commit) emptied env (1).txt + env.example (both -> empty blob e69de29; 262 content lines scrubbed on GitHub). Local history still carried FULL content versions. ACTION: git merge origin/main (forward-only, no conflict, ort strategy auto-resolved since local side made no content changes) -> merge commit d46a2928f; both files now EMPTY on disk and in tree, matching GitHub exactly; the scrubbed content can never be re-pushed from this main.
+- Checkpoint commit 60b7db29b "checkpoint: forward-only GitHub checkpoint of current application codebase": staged ALL current state (715 files: db/custom.db per repo-tracked convention, .next dev-cache churn incl. 98MiB sst under GitHub limit, runtime logs). Safety verification: .env NOT staged (still untracked+gitignored, mode 600); NO staged file >100MiB; full staged diff secret-pattern-scanned (ghp_/github_pat_/GOCSPX-/app-password fragments) = ZERO hits.
+- Push attempt: FAILED as predicted — no credentials (fatal: could not read Username). Push remains blocked by BOTH: (1) missing credentials, (2) the 4 oversized blobs in unpushed local history.
+- Interim durable safety (matching .gitignore's own GIT_INCREMENT_LOCAL_COMMITS.bundle convention): created + verified /home/sync/GIT_INCREMENT_LOCAL_COMMITS.bundle (1,523,518,306 bytes; bundle verify OK; contains refs/heads/main @ 60b7db29b; requires origin bases 6145c7f47 + b1eb92e0a). Survives sandbox destruction via OSS-backed /home/sync (repo.tar itself is 13h stale and does NOT contain today's recovery/checkpoint commits).
+- Git safety: zero resets/cleans/rewrites/force-pushes; .env never staged; origin not modified; all operations forward-only (merge + commits + additive bundle).
+
+Stage Summary:
+- PHASE 0 PARTIAL-BLOCKED: local checkpoint FULLY created and safety-verified (merge d46a2928f + checkpoint 60b7db29b + durable bundle at /home/sync), but the GITHUB PUSH cannot be completed from this sandbox: (1) no GitHub credentials exist here — user must provide a PAT (fine-grained, Contents read/write on Hugs-4-Bugs/AQ-OS); (2) 4 blobs >100MiB in bootstrap commit babbe95a08 (local-only history) would be hard-rejected by GitHub — requires explicit user authorization to remediate (e.g. filter the never-pushed local commits, or authorize a single squashed checkpoint commit on origin/main with oversized install-artifacts excluded). Per directive: STOPPED — no application fixes (Phases 1-6) started. Awaiting user decision/credentials.

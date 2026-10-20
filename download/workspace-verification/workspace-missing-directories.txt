@@ -1,0 +1,2 @@
+# GitHub-tracked directories NOT physically present in workspace
+total: 0

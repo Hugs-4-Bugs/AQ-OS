@@ -1,0 +1,16 @@
+# Graphify indexing scope for AcquisitionOS
+# High-noise / dependency / build / data dirs — NOT application source
+node_modules/
+.next/
+upload/
+download/
+skills/
+graphify-out/
+db/
+db-backups/
+.git/
+*.lock
+*.log
+*.db
+*.db-wal
+*.db-shm
