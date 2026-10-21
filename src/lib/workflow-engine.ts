@@ -59,12 +59,19 @@ interface ProcessStepResult {
 /**
  * Execute a workflow. Creates a WorkflowExecution record and processes steps.
  * Returns the execution ID immediately (202 Accepted pattern).
+ *
+ * options.awaitCompletion (default true) preserves the historical inline
+ * behavior: steps run to completion before the promise resolves. Batch
+ * kickers (multi-lead targeted runs) pass false so each per-lead execution
+ * starts in the background and the caller aggregates the persisted final
+ * states instead of serializing every run behind one request.
  */
 export async function executeWorkflow(
   workflowId: string,
   userId: string,
   triggerData?: Record<string, unknown>,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  options?: { awaitCompletion?: boolean }
 ): Promise<ExecuteWorkflowResult> {
   try {
     // Load workflow definition — allow both 'draft' (for testing) and 'active' workflows.
@@ -165,10 +172,17 @@ export async function executeWorkflow(
     });
 
     // Execute steps (async but we process them sequentially)
-    // We do NOT await the full execution to return 202 quickly
-    // But in this single-process model, we run inline
+    // Default (awaitCompletion !== false): run inline so the synchronous
+    // result reflects the true final status — this is the legacy contract
+    // every existing caller (UI run, autopilot runner, resume/retry) relies on.
     try {
-      await runSteps(execution.id, steps, userId, workflowId, triggerData);
+      if (options?.awaitCompletion === false) {
+        void runSteps(execution.id, steps, userId, workflowId, triggerData).catch((error) => {
+          console.error('[WorkflowEngine] Background step execution error:', error);
+        });
+      } else {
+        await runSteps(execution.id, steps, userId, workflowId, triggerData);
+      }
     } catch (error) {
       console.error('[WorkflowEngine] Step execution error:', error);
     }

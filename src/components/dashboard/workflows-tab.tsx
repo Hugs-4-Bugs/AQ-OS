@@ -50,6 +50,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -404,19 +405,36 @@ interface ExecutionLead {
   stage?: string | null;
 }
 
-function LeadPickerDialog({
+// ===== TARGETED EXECUTION (Task 1 — Workflow Target Foundation) =====
+// A run can target explicitly selected leads (multi-select), a niche, or a
+// custom query — mirroring the API's target modes. The server re-validates
+// ownership (all-or-nothing) and the caller's plan entitlements on every
+// run; the UI only collects the selection.
+
+interface RunTarget {
+  mode: 'selected_leads' | 'niche' | 'custom';
+  leadIds?: string[];
+  niche?: string;
+  customQuery?: string;
+}
+
+function TargetPickerDialog({
   workflowName,
   onClose,
-  onSelect,
+  onRun,
 }: {
   workflowName: string;
   onClose: () => void;
-  onSelect: (lead: ExecutionLead) => void;
+  onRun: (target: RunTarget) => void;
 }) {
   const { toast } = useToast();
+  const [mode, setMode] = useState<RunTarget['mode']>('selected_leads');
   const [leads, setLeads] = useState<ExecutionLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [niche, setNiche] = useState('');
+  const [customQuery, setCustomQuery] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -447,52 +465,130 @@ function LeadPickerDialog({
     l.city?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const canRun =
+    mode === 'selected_leads' ? selected.size > 0
+      : mode === 'niche' ? niche.trim().length > 0
+        : customQuery.trim().length > 0;
+
+  const toggleLead = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelected(new Set(filtered.map(l => l.id)));
+  const clearAll = () => setSelected(new Set());
+
+  const handleRun = () => {
+    if (!canRun) return;
+    if (mode === 'selected_leads') onRun({ mode, leadIds: [...selected] });
+    else if (mode === 'niche') onRun({ mode, niche: niche.trim() });
+    else onRun({ mode, customQuery: customQuery.trim() });
+  };
+
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Run against a lead</DialogTitle>
+          <DialogTitle>Run workflow against</DialogTitle>
           <DialogDescription>
-            &quot;{workflowName}&quot; operates on a lead. Choose which of your leads this run should use — the
-            workflow can only access leads that belong to you.
+            &quot;{workflowName}&quot; operates on leads. Choose which of YOUR leads this run should target — one
+            execution per selected lead; unrelated leads are never touched.
           </DialogDescription>
         </DialogHeader>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search your leads..."
-            className="pl-9"
-          />
-        </div>
-        <ScrollArea className="h-64 -mx-2 px-2">
-          {loading ? (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading leads...
+        <Tabs value={mode} onValueChange={v => setMode(v as RunTarget['mode'])}>
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="selected_leads">Selected Leads</TabsTrigger>
+            <TabsTrigger value="niche">Niche / Industry</TabsTrigger>
+            <TabsTrigger value="custom">Custom</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="selected_leads" className="space-y-3 mt-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search your leads..."
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={selectAll} disabled={filtered.length === 0}>
+                Select all
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearAll} disabled={selected.size === 0}>
+                Clear
+              </Button>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              No leads found. Discover or create a lead first.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filtered.map(lead => (
-                <button
-                  key={lead.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2 rounded-md hover:bg-accent transition-colors"
-                  onClick={() => onSelect(lead)}
-                >
-                  <div className="text-sm font-medium truncate">{lead.businessName}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {[lead.city, lead.stage].filter(Boolean).join(' · ') || lead.id}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+            <ScrollArea className="h-64 -mx-2 px-2">
+              {loading ? (
+                <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading leads...
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  No leads found. Discover or create a lead first.
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filtered.map(lead => (
+                    <label
+                      key={lead.id}
+                      className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selected.has(lead.id)}
+                        onCheckedChange={() => toggleLead(lead.id)}
+                        aria-label={`Select ${lead.businessName}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{lead.businessName}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {[lead.city, lead.stage].filter(Boolean).join(' · ') || lead.id}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+            <p className="text-xs text-muted-foreground">
+              {selected.size} lead{selected.size === 1 ? '' : 's'} selected — your plan&apos;s lead limits apply.
+            </p>
+          </TabsContent>
+
+          <TabsContent value="niche" className="space-y-3 mt-3">
+            <Input
+              value={niche}
+              onChange={e => setNiche(e.target.value)}
+              placeholder="e.g. Stationery, Real Estate, Dental"
+            />
+            <p className="text-xs text-muted-foreground">
+              Runs one execution per active lead whose niche matches exactly (case-insensitive).
+            </p>
+          </TabsContent>
+
+          <TabsContent value="custom" className="space-y-3 mt-3">
+            <Input
+              value={customQuery}
+              onChange={e => setCustomQuery(e.target.value)}
+              placeholder="Search business name, niche, city, or owner"
+            />
+            <p className="text-xs text-muted-foreground">
+              Runs one execution per active lead matching this search across your leads.
+            </p>
+          </TabsContent>
+        </Tabs>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleRun} disabled={!canRun}>
+            <Play className="h-4 w-4 mr-1" />
+            Run{mode === 'selected_leads' && selected.size > 0 ? ` (${selected.size})` : ''}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -570,6 +666,7 @@ interface WorkflowBuilderProps {
 }
 
 function WorkflowBuilder({ workflow, onSave, onCancel, saving }: WorkflowBuilderProps) {
+  const { toast } = useToast();
   const [name, setName] = useState(workflow?.name || '');
   const [description, setDescription] = useState(workflow?.description || '');
   const [triggerType, setTriggerType] = useState(workflow?.triggerType || 'lead_discovered');
@@ -630,6 +727,23 @@ function WorkflowBuilder({ workflow, onSave, onCancel, saving }: WorkflowBuilder
 
   const handleSave = () => {
     if (!name.trim()) return;
+    // add_note steps must carry explicit content. The execution layer can
+    // derive a contextual note when content is missing (so legacy
+    // contentless workflows still run), but the EDITOR's contract is: block
+    // the save with a clear error instead of persisting a contentless note
+    // step. Mirrors the AI-generate defaulting fix on the other creation path.
+    const missingNoteContent = nodes.filter(n =>
+      String(n.config.actionType || '') === 'add_note' && !String(n.config.content || '').trim()
+    );
+    if (missingNoteContent.length > 0) {
+      toast({
+        title: 'Missing note content',
+        description: `Step "${missingNoteContent[0].title || 'Add note'}": add a note content before saving — select the step and fill “Note Content”.`,
+        variant: 'destructive',
+      });
+      setSelectedNodeId(missingNoteContent[0].id);
+      return;
+    }
     const steps = nodes.map((n, i) => ({
       type: n.type,
       name: n.title,
@@ -1362,21 +1476,41 @@ function WorkflowList({
     }
   };
 
-  const executeRun = async (wf: Workflow, lead?: ExecutionLead) => {
+  const executeRun = async (wf: Workflow, target?: RunTarget) => {
     if (executingId) return;
     setExecutingId(wf.id);
     try {
-      // Lead-scoped runs carry the trusted execution context (leadId) picked
-      // by the user; the server re-verifies ownership before every step.
-      const body = lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {};
-      const result = await apiFetch<{ executionId: string; status: string }>(
+      // Targeted runs carry the user's selection (lead ids / niche / query);
+      // the server re-verifies ownership and plan entitlements before any
+      // step runs. Legacy no-target runs keep the historical empty body.
+      const body = target ? { target } : {};
+      const result = await apiFetch<{
+        executionId: string;
+        status: string;
+        error?: string;
+        executions?: { leadName: string; status: string; error?: string }[];
+        target?: { leadCount?: number };
+      }>(
         `/api/workflows/${wf.id}/execute`,
         { method: 'POST', body: JSON.stringify(body) }
       );
-      toast({
-        title: 'Workflow executing...',
-        description: `${wf.name} started${lead ? ` for ${lead.businessName}` : ''} — execution ${result.executionId}`,
-      });
+      // Honest result reporting — a synchronous failed/partial status is a
+      // real failure, never an "executing..." success toast.
+      if (result.status === 'failed' || result.status === 'partial') {
+        const failedCount = result.executions?.filter(e => e.status === 'failed').length;
+        toast({
+          title: result.status === 'partial' ? 'Workflow partially completed' : 'Workflow failed',
+          description: result.error
+            || (failedCount ? `${failedCount} of ${result.executions?.length ?? '?'} targeted runs failed.` : 'The workflow reported a failure.'),
+          variant: 'destructive',
+        });
+      } else {
+        const leadCount = result.target?.leadCount;
+        toast({
+          title: 'Workflow executing...',
+          description: `${wf.name} started${leadCount ? ` for ${leadCount} lead${leadCount === 1 ? '' : 's'}` : ''} — execution ${result.executionId}`,
+        });
+      }
       // Refresh the workflow card after 2 seconds to show the updated run count
       setTimeout(() => {
         fetchWorkflows();
@@ -1405,13 +1539,13 @@ function WorkflowList({
   return (
     <div className="space-y-4">
       {leadPickWorkflow && (
-        <LeadPickerDialog
+        <TargetPickerDialog
           workflowName={leadPickWorkflow.name}
           onClose={() => setLeadPickWorkflow(null)}
-          onSelect={lead => {
+          onRun={target => {
             const wf = leadPickWorkflow;
             setLeadPickWorkflow(null);
-            void executeRun(wf, lead);
+            void executeRun(wf, target);
           }}
         />
       )}
@@ -1860,20 +1994,39 @@ function WorkflowDetail({
   const statusBadge = getStatusBadge(workflow.status);
   const stepCount = workflow.nodes?.filter(n => n.type !== 'trigger').length || workflow.workflowSteps?.length || 0;
 
-  const executeRun = async (lead?: ExecutionLead) => {
+  const executeRun = async (target?: RunTarget) => {
     setExecuting(true);
     try {
-      // Lead-scoped runs carry the trusted execution context (leadId);
-      // the server re-verifies ownership before every step.
-      const body = lead ? { triggerData: { leadId: lead.id, leadName: lead.businessName } } : {};
-      const result = await apiFetch<{ executionId: string; status: string }>(
+      // Targeted runs carry the user's selection; the server re-verifies
+      // ownership and plan entitlements before any step runs.
+      const body = target ? { target } : {};
+      const result = await apiFetch<{
+        executionId: string;
+        status: string;
+        error?: string;
+        executions?: { leadName: string; status: string; error?: string }[];
+        target?: { leadCount?: number };
+      }>(
         `/api/workflows/${workflow.id}/execute`,
         { method: 'POST', body: JSON.stringify(body) }
       );
-      toast({
-        title: 'Workflow executed',
-        description: `${lead ? `Running for ${lead.businessName} — ` : ''}Execution ${result.executionId} started`,
-      });
+      // Honest result reporting — failed/partial statuses are surfaced as
+      // failures, not as "executed" toasts.
+      if (result.status === 'failed' || result.status === 'partial') {
+        const failedCount = result.executions?.filter(e => e.status === 'failed').length;
+        toast({
+          title: result.status === 'partial' ? 'Workflow partially completed' : 'Workflow failed',
+          description: result.error
+            || (failedCount ? `${failedCount} of ${result.executions?.length ?? '?'} targeted runs failed.` : 'The workflow reported a failure.'),
+          variant: 'destructive',
+        });
+      } else {
+        const leadCount = result.target?.leadCount;
+        toast({
+          title: 'Workflow executed',
+          description: `${leadCount ? `Running for ${leadCount} lead${leadCount === 1 ? '' : 's'} — ` : ''}Execution ${result.executionId} started`,
+        });
+      }
     } catch (err) {
       toast({
         title: 'Execution failed',
@@ -1897,12 +2050,12 @@ function WorkflowDetail({
   return (
     <div className="space-y-4">
       {leadPickOpen && (
-        <LeadPickerDialog
+        <TargetPickerDialog
           workflowName={workflow.name}
           onClose={() => setLeadPickOpen(false)}
-          onSelect={lead => {
+          onRun={target => {
             setLeadPickOpen(false);
-            void executeRun(lead);
+            void executeRun(target);
           }}
         />
       )}
@@ -2128,16 +2281,37 @@ function ExecutionsTab() {
     }
   };
 
-  const rerunWithLead = async (lead: ExecutionLead) => {
+  const rerunWithTarget = async (target: RunTarget) => {
     if (!rerunPick) return;
     const { workflowId } = rerunPick;
     setRerunPick(null);
     try {
-      await apiFetch(`/api/workflows/${workflowId}/execute`, {
+      const result = await apiFetch<{
+        executionId: string;
+        status: string;
+        error?: string;
+        executions?: { leadName: string; status: string; error?: string }[];
+        target?: { leadCount?: number };
+      }>(`/api/workflows/${workflowId}/execute`, {
         method: 'POST',
-        body: JSON.stringify({ triggerData: { leadId: lead.id, leadName: lead.businessName } }),
+        body: JSON.stringify({ target }),
       });
-      toast({ title: 'Workflow re-executed', description: `Running for ${lead.businessName}.` });
+      // Honest rerun reporting — mirror the Run paths.
+      if (result.status === 'failed' || result.status === 'partial') {
+        const failedCount = result.executions?.filter(e => e.status === 'failed').length;
+        toast({
+          title: result.status === 'partial' ? 'Workflow partially completed' : 'Workflow failed',
+          description: result.error
+            || (failedCount ? `${failedCount} of ${result.executions?.length ?? '?'} targeted runs failed.` : 'The workflow reported a failure.'),
+          variant: 'destructive',
+        });
+      } else {
+        const leadCount = result.target?.leadCount;
+        toast({
+          title: 'Workflow re-executed',
+          description: `Running for ${leadCount ?? 1} lead${(leadCount ?? 1) === 1 ? '' : 's'}.`,
+        });
+      }
       fetchExecutions();
     } catch (err) {
       toast({
@@ -2151,10 +2325,10 @@ function ExecutionsTab() {
   return (
     <div className="space-y-4">
       {rerunPick && (
-        <LeadPickerDialog
+        <TargetPickerDialog
           workflowName={rerunPick.workflowName}
           onClose={() => setRerunPick(null)}
-          onSelect={lead => void rerunWithLead(lead)}
+          onRun={target => void rerunWithTarget(target)}
         />
       )}
       {/* Filters */}

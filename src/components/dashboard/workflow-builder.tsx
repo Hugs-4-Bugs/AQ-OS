@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -287,6 +288,7 @@ function NodeConfigPanel({
   const [conditionField, setConditionField] = useState(node?.config?.field || 'stage');
   const [conditionOperator, setConditionOperator] = useState(node?.config?.operator || '==');
   const [conditionValue, setConditionValue] = useState(node?.config?.value || '');
+  const [noteContent, setNoteContent] = useState((node?.config?.content as string) || '');
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -294,16 +296,32 @@ function NodeConfigPanel({
       return;
     }
 
-    let config: Record<string, string> = {};
+    // add_note steps require explicit content (mirrors the live editor's
+    // validation and the AI-generate defaulting fix — no contentless note
+    // steps should be persisted by any creation path).
+    if (type === 'action' && actionType === 'add_note' && !noteContent.trim()) {
+      toast.error('Note content is required');
+      return;
+    }
+
+    // Start from the existing config so EDITING a node never drops keys the
+    // editor UI doesn't render (historical data-loss bug in this component).
+    let config: Record<string, string> = { ...(node?.config as Record<string, string> | undefined) };
 
     if (type === 'action') {
-      config = { actionType, channel: actionType.includes('send') ? actionType.replace('send_', '') : '', action: actionType };
+      config = {
+        ...config,
+        actionType,
+        channel: actionType.includes('send') ? actionType.replace('send_', '') : '',
+        action: actionType,
+        ...(actionType === 'add_note' ? { content: noteContent.trim() } : {}),
+      };
     } else if (type === 'delay') {
-      config = { duration: delayDuration, unit: delayUnit };
+      config = { ...config, duration: delayDuration, unit: delayUnit };
     } else if (type === 'condition') {
-      config = { field: conditionField, operator: conditionOperator, value: conditionValue };
+      config = { ...config, field: conditionField, operator: conditionOperator, value: conditionValue };
     } else if (type === 'trigger') {
-      config = { triggerType: 'lead_reply' };
+      config = { ...config, triggerType: 'lead_reply' };
     }
 
     const newNode: WorkflowNode = {
@@ -404,6 +422,19 @@ function NodeConfigPanel({
               })}
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {/* Note content (add_note) */}
+      {type === 'action' && actionType === 'add_note' && (
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Note Content</label>
+          <Textarea
+            value={noteContent}
+            onChange={(e) => setNoteContent(e.target.value)}
+            placeholder="Note content (required)..."
+            className="min-h-[80px]"
+          />
         </div>
       )}
 

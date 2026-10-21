@@ -848,7 +848,17 @@ async function executeAddNote(
     return { success: false, error: 'Add note requires a lead context' };
   }
 
-  if (!content) {
+  // Content policy: an explicit non-empty note is used as-is (with template
+  // resolution). A missing/empty note is NO LONGER a hard failure — every
+  // creation path (AI-generate, builder, editor) can produce contentless
+  // add_note steps, and failing the whole run with "Note content is
+  // required" made normal workflows un-executable at their final step.
+  // Instead we derive an informative note from the trusted execution context.
+  const explicitContent = typeof content === 'string' ? content.trim() : '';
+  const finalContent = explicitContent || (await buildContextualNoteContent(context));
+
+  if (!finalContent) {
+    // Derivation itself failed — fail honestly rather than write junk.
     return { success: false, error: 'Note content is required' };
   }
 
@@ -856,7 +866,7 @@ async function executeAddNote(
     data: {
       leadId: context.leadId,
       userId: context.userId,
-      content: resolveTemplate(String(content), context),
+      content: resolveTemplate(finalContent, context),
       pinned: Boolean(pinned),
     },
   });
@@ -866,6 +876,42 @@ async function executeAddNote(
     output: { noteId: note.id },
     creditsUsed: 1,
   };
+}
+
+/**
+ * Build a meaningful note from the trusted execution context when a step was
+ * saved without explicit content. Labels come from owner-scoped lookups (the
+ * caller's own lead + workflow), never from user-supplied free text, so the
+ * note cannot be poisoned and stays honest about what actually ran.
+ */
+async function buildContextualNoteContent(context: ActionContext): Promise<string> {
+  let leadLabel = `lead ${context.leadId}`;
+  let stageLabel = '';
+  try {
+    const resolved = await resolveLeadForExecution(context.userId, context.leadId, {
+      select: { businessName: true, stage: true },
+    });
+    if (resolved.ok) {
+      if (resolved.lead.businessName) leadLabel = resolved.lead.businessName;
+      if (resolved.lead.stage) stageLabel = ` (stage: ${resolved.lead.stage})`;
+    }
+  } catch {
+    // fall through to the generic label above
+  }
+
+  let workflowName = 'workflow';
+  try {
+    const wf = await db.workflowDefinition.findUnique({
+      where: { id: context.workflowId },
+      select: { name: true },
+    });
+    if (wf?.name) workflowName = wf.name;
+  } catch {
+    // keep the generic label
+  }
+
+  const stamp = new Date().toISOString();
+  return `Activity recorded by workflow "${workflowName}" on ${leadLabel}${stageLabel} — execution ${context.executionId} at ${stamp}`;
 }
 
 async function executeNotifyLowCredits(

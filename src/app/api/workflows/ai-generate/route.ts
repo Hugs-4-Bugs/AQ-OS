@@ -82,7 +82,7 @@ ALLOWED actionType values (pick the closest match):
 - "update_tags" (config: {"tags": ["tag1"]})
 - "create_notification"
 - "conditional_branch" (nodeType MUST be "condition"; config: {"field": "...", "operator": "=="|"!="|">"|"<"|">="|"<="|"contains", "value": "..."})
-- "webhook_call", "export_data", "score_lead", "add_note",
+- "webhook_call", "export_data", "score_lead", "add_note" (config MUST include {"content": "<the note text to record>"} — a note step without content is invalid),
 - "notify_low_credits", "notify_trial_ending"
 
 RULES:
@@ -155,6 +155,14 @@ function normalizeGenerated(raw: Record<string, unknown>): GeneratedWorkflow {
       if (!['minutes', 'hours', 'days'].includes(String(config.unit))) config.unit = 'hours';
     } else {
       config.actionType = actionType;
+    }
+
+    // add_note REQUIRES content at execution time. If the model omitted it,
+    // default an informative note so the generated workflow is immediately
+    // executable instead of failing its note step with "Note content is
+    // required" (the historical normal-run failure).
+    if (actionType === 'add_note' && !str(config.content)) {
+      config.content = 'Activity recorded by this workflow.';
     }
 
     steps.push({ nodeType, actionType, title, config });
