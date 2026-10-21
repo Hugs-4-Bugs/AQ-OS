@@ -72,6 +72,28 @@ function kickStaggerMs(): number {
   return Number.isFinite(v) ? Math.max(0, v) : 1000;
 }
 
+// Phase 6 — request-size guard (a genuine product limit, not an arbitrary
+// silent cap): one run may target at most this many leads. Exceeding it is
+// rejected honestly so the caller can refine the targeting; it never
+// silently truncates the target set.
+function maxTargetLeads(): number {
+  const v = Number(process.env.WORKFLOW_MAX_TARGET_LEADS);
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 1000;
+}
+
+// Phase 6.8 — batches up to this size wait for their background executions
+// to settle and report final per-lead statuses (the verified Task 1
+// behavior). Larger batches respond immediately with honest 'running'
+// statuses instead of holding one giant synchronous request.
+function batchSettleMaxLeads(): number {
+  const v = Number(process.env.WORKFLOW_BATCH_SETTLE_MAX_LEADS);
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 50;
+}
+
+// Resolution page size for niche/custom target queries — chunked database
+// queries keep memory flat while paging through arbitrarily large sets.
+const RESOLUTION_PAGE_SIZE = 500;
+
 // ===== HELPERS =====
 
 /** Extract the target mode from a request body (new shape or legacy). */
@@ -130,45 +152,71 @@ async function resolveSelectedLeads(
   return failed.length > 0 ? { ok: false, failed } : { ok: true, leads };
 }
 
-/** Resolve a niche/industry target against the caller's own active leads. */
+/** Resolve a niche/industry target against the caller's own active leads.
+ *
+ * Phase 6.4 — pages through the ENTIRE matching set in chunked queries:
+ * there is no arbitrary take(500) truncation. The request-size guard
+ * (maxTargetLeads) bounds pathological sets honestly at the caller.
+ */
 async function resolveNicheLeads(userId: string, niche: string): Promise<ResolvedLead[]> {
   // SQLite `contains` is case-insensitive for ASCII by default, but we need
   // an EXACT (case-insensitive) niche match, so widen with contains then
   // filter in JS — keeps the query index-friendly on SQLite.
-  const candidates = await db.lead.findMany({
-    where: { userId, isActive: true, deletedAt: null, niche: { contains: niche } },
-    select: { id: true, businessName: true, niche: true, city: true, stage: true },
-    take: 500,
-  });
   const wanted = niche.toLowerCase();
-  return candidates.filter((l) => (l.niche || '').toLowerCase() === wanted);
+  const all: ResolvedLead[] = [];
+  let skip = 0;
+  for (;;) {
+    const candidates = await db.lead.findMany({
+      where: { userId, isActive: true, deletedAt: null, niche: { contains: niche } },
+      select: { id: true, businessName: true, niche: true, city: true, stage: true },
+      take: RESOLUTION_PAGE_SIZE,
+      skip,
+    });
+    all.push(...candidates.filter((l) => (l.niche || '').toLowerCase() === wanted));
+    if (candidates.length < RESOLUTION_PAGE_SIZE) break;
+    skip += RESOLUTION_PAGE_SIZE;
+    if (all.length >= maxTargetLeads()) break; // bounded; caller enforces honestly
+  }
+  return all;
 }
 
-/** Resolve a custom free-text target against the caller's own active leads. */
+/** Resolve a custom free-text target against the caller's own active leads.
+ *
+ * Phase 6.4 — same chunked pagination: no arbitrary take(500) truncation.
+ */
 async function resolveCustomLeads(userId: string, query: string): Promise<ResolvedLead[]> {
   const q = query.toLowerCase();
-  const candidates = await db.lead.findMany({
-    where: {
-      userId,
-      isActive: true,
-      deletedAt: null,
-      OR: [
-        { businessName: { contains: query } },
-        { niche: { contains: query } },
-        { city: { contains: query } },
-        { ownerName: { contains: query } },
-      ],
-    },
-    select: { id: true, businessName: true, niche: true, city: true, stage: true },
-    take: 500,
-  });
-  // Case-insensitive re-check (SQLite contains is ASCII-case-insensitive;
-  // this keeps behavior consistent for non-ASCII locales too).
-  return candidates.filter((l) =>
-    [l.businessName, l.niche, l.city, (l as ResolvedLead & { ownerName?: string | null }).ownerName]
-      .filter(Boolean)
-      .some((v) => String(v).toLowerCase().includes(q))
-  );
+  const all: (ResolvedLead & { ownerName?: string | null })[] = [];
+  let skip = 0;
+  for (;;) {
+    const candidates = await db.lead.findMany({
+      where: {
+        userId,
+        isActive: true,
+        deletedAt: null,
+        OR: [
+          { businessName: { contains: query } },
+          { niche: { contains: query } },
+          { city: { contains: query } },
+          { ownerName: { contains: query } },
+        ],
+      },
+      select: { id: true, businessName: true, niche: true, city: true, stage: true, ownerName: true },
+      take: RESOLUTION_PAGE_SIZE,
+      skip,
+    });
+    // Case-insensitive re-check (SQLite contains is ASCII-case-insensitive;
+    // this keeps behavior consistent for non-ASCII locales too).
+    all.push(...candidates.filter((l) =>
+      [l.businessName, l.niche, l.city, l.ownerName]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    ));
+    if (candidates.length < RESOLUTION_PAGE_SIZE) break;
+    skip += RESOLUTION_PAGE_SIZE;
+    if (all.length >= maxTargetLeads()) break; // bounded; caller enforces honestly
+  }
+  return all;
 }
 
 /** Wait until all batched executions reach a terminal state (or timeout). */
@@ -260,6 +308,10 @@ export async function POST(
 
         // 1. Resolve the lead set for the requested mode
         let leads: ResolvedLead[] = [];
+        // Exact request-level target snapshot (Phase 6.9): what the user
+        // ACTUALLY targeted at execution time, preserved verbatim on every
+        // per-lead execution even if the workflow or targeting changes later.
+        let requestSnapshot: Record<string, unknown> = {};
         if (mode === 'selected_leads') {
           const rawIds = Array.isArray(target.leadIds)
             ? target.leadIds
@@ -277,12 +329,13 @@ export async function POST(
               { status: 400 }
             );
           }
-          if (leadIds.length > 1000) {
+          if (leadIds.length > maxTargetLeads()) {
             return NextResponse.json(
-              { success: false, error: 'Too many lead ids in one request (max 1000).', code: 'REQUEST_TOO_LARGE' },
+              { success: false, error: `Too many lead ids in one request (max ${maxTargetLeads()}).`, code: 'REQUEST_TOO_LARGE' },
               { status: 400 }
             );
           }
+          requestSnapshot = { selectedLeadIds: leadIds };
 
           // 2. Entitlement validation — the plan's OWN lead limit, not an
           //    arbitrary constant. Pro/Elite (limit: null) are unlimited.
@@ -329,6 +382,7 @@ export async function POST(
               { status: 400 }
             );
           }
+          requestSnapshot = { niche };
           leads = await resolveNicheLeads(user.id, niche);
           if (leads.length === 0) {
             return NextResponse.json(
@@ -350,6 +404,7 @@ export async function POST(
               { status: 400 }
             );
           }
+          requestSnapshot = { customTarget: customQuery };
           leads = await resolveCustomLeads(user.id, customQuery);
           if (leads.length === 0) {
             return NextResponse.json(
@@ -359,9 +414,60 @@ export async function POST(
           }
         }
 
+        // Phase 6.5 — backend validation for EVERY mode: the resolved target
+        // population is checked against the plan's own lead limit (niche and
+        // custom resolutions previously bypassed the entitlement gate) and
+        // against the honest request-size guard (no silent truncation — the
+        // resolver pages through the full set, and an oversized set is
+        // rejected so the caller refines the targeting).
+        const resolvedLimit = getLeadSelectionLimit(user.plan);
+        if (leads.length > maxTargetLeads()) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `This run would target ${leads.length} leads — the maximum is ${maxTargetLeads()} per run. Refine the targeting (e.g. a narrower niche) and run again.`,
+              code: 'TARGET_TOO_LARGE',
+              resolved: leads.length,
+              max: maxTargetLeads(),
+            },
+            { status: 400 }
+          );
+        }
+        if (resolvedLimit !== null && leads.length > resolvedLimit) {
+          const planType = (user.plan || 'free') as PlanType;
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Your ${planType} plan allows up to ${resolvedLimit} leads. This target resolves to ${leads.length} of your leads. Upgrade to Pro for unlimited leads.`,
+              code: 'PLAN_LEAD_LIMIT_EXCEEDED',
+              plan: planType,
+              limit: resolvedLimit,
+              resolved: leads.length,
+            },
+            { status: 400 }
+          );
+        }
+
         // 4. Kick one execution per lead (persisted target snapshot on each)
         const runBatchId = `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+        // Phase 6.9 — the EXACT request-level snapshot travels on every
+        // per-lead execution: mode, batch id, the verbatim targeting inputs
+        // (selected ids / niche / custom query) and the resolved population.
+        const targetSnapshot: Record<string, unknown> = {
+          mode,
+          runBatchId,
+          leadCount: leads.length,
+          ...requestSnapshot,
+        };
         const executions: PerLeadExecution[] = [];
+        // Phase 6.8 — scale the kick stagger for large batches so creation
+        // stays bounded (total pacing budget ~15s) instead of one giant
+        // synchronous request; small batches keep the full provider-protection
+        // stagger.
+        const baseStagger = kickStaggerMs();
+        const stagger = leads.length > 15
+          ? Math.min(baseStagger, Math.max(0, Math.floor(15000 / leads.length)))
+          : baseStagger;
         for (let i = 0; i < leads.length; i++) {
           const lead = leads[i];
           const result = await executeWorkflow(
@@ -370,7 +476,7 @@ export async function POST(
             {
               leadId: lead.id,
               leadName: lead.businessName,
-              target: { mode, runBatchId, leadId: lead.id },
+              target: { ...targetSnapshot, leadId: lead.id },
             },
             `batch_${runBatchId}_${lead.id}`,
             { awaitCompletion: false }
@@ -384,8 +490,27 @@ export async function POST(
           });
           // Stagger kicks so concurrent outreach/email steps do not
           // stampede providers (mirrors autopilot pacing).
-          const stagger = kickStaggerMs();
           if (i < leads.length - 1 && stagger > 0) await sleep(stagger);
+        }
+
+        // Phase 6.8 — large batches respond immediately with honest 'running'
+        // statuses (per-lead executions were already kicked in the
+        // background); small batches keep the verified settle-and-aggregate
+        // behavior so the response reports final per-lead outcomes.
+        if (leads.length > batchSettleMaxLeads()) {
+          return NextResponse.json(
+            {
+              executionId: executions[0]?.executionId,
+              status: 'running',
+              async: true,
+              message: `${leads.length} targeted runs started in the background — monitor their outcomes on the Executions tab.`,
+              target: { mode, leadCount: leads.length, runBatchId },
+              executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
+                leadId, leadName, executionId, status, error,
+              })),
+            },
+            { status: 202 }
+          );
         }
 
         // 5. Wait for the batch to settle, then aggregate the persisted

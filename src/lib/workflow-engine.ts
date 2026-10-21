@@ -47,6 +47,9 @@ interface ProcessStepResult {
   error?: string;
   shouldContinue: boolean;
   durationMs: number;
+  /** True when the step was never attempted (e.g. the timeout budget
+   * expired before it started) — it is logged as 'skipped', not failed. */
+  neverRan?: boolean;
 }
 
 /** Per-run execution budget (Phase 4): timeout, retry ceiling, start time. */
@@ -408,6 +411,7 @@ async function runSteps(
           error: `Execution timed out after ${timeoutMs}ms — stopped before step "${step.name}"`,
           shouldContinue: false,
           durationMs: 0,
+          neverRan: true,
         };
         break;
       }
@@ -490,13 +494,17 @@ async function runSteps(
       });
 
       // Phase 4.11 — the steps after the failure are NOT EXECUTED; persist
-      // that explicitly so the execution history is honest.
+      // that explicitly so the execution history is honest. A step that was
+      // never attempted (budget exhausted before it started) is itself
+      // logged as skipped.
       await logSkippedSteps(
         executionId,
         userId,
         steps,
-        i + 1,
-        `Not executed — workflow stopped at step "${step.name}"`
+        result.neverRan ? i : i + 1,
+        result.neverRan
+          ? `Not executed — ${result.error}`
+          : `Not executed — workflow stopped at step "${step.name}"`
       );
 
       // User-facing notification (safe message — raw errors stay in the

@@ -336,19 +336,34 @@ describe('Phase 4 — execution timeout', () => {
   }, 10000);
 
   it('stops before the next step when the budget is already exhausted', async () => {
-    process.env.WORKFLOW_TIMEOUT = '1';
+    // Deterministic between-steps timeout: step 1 is a delay that sleeps
+    // past the whole budget, so the check before step 2 finds the budget
+    // exhausted — the run fails honestly without executing step 2.
+    process.env.WORKFLOW_TIMEOUT = '10';
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
-      makeStep('s1', 'One', 'add_note', { content: 'a' }),
+      { id: 's1', type: 'delay', name: 'Wait', config: JSON.stringify({ actionType: 'wait_delay', duration: 1, unit: 'seconds' }), order: 0, nextStepId: null },
       makeStep('s2', 'Two', 'add_note', { content: 'b' }),
     ]));
+    mocks.executeAction.mockImplementation(async (type: string) => {
+      if (type === 'wait_delay') return { success: true, output: { delayMs: 50 } };
+      return { success: true };
+    });
 
     await executeWorkflow('wf_1', 'user_1', {});
 
+    // Step 2 never ran
+    expect(mocks.executeAction).toHaveBeenCalledTimes(1);
     const failedUpdate = mocks.db.workflowExecution.update.mock.calls.find(
       (c: unknown[]) => (c[0] as { data: { status?: string; error?: string } }).data?.status === 'failed'
     ) as unknown[];
     expect(failedUpdate).toBeDefined();
     expect((failedUpdate[0] as { data: { error: string } }).data.error).toContain('imed out');
+    expect((failedUpdate[0] as { data: { error: string } }).data.error).toContain('Two');
+    // Step 2 is logged as skipped — honest partial state
+    const skippedLogs = mocks.db.workflowLog.create.mock.calls
+      .map((c: unknown[]) => (c[0] as { data: { status: string } }).data)
+      .filter((d) => d.status === 'skipped');
+    expect(skippedLogs).toHaveLength(1);
   });
 });
 
