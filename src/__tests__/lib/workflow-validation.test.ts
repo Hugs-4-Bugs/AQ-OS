@@ -36,6 +36,11 @@ vi.mock('@/lib/db', () => ({ db: mocks.db }));
 vi.mock('@/lib/workflow-credits', () => ({
   checkWorkflowLimit: vi.fn(async () => ({ allowed: true, current: 1, limit: 25 })),
   checkExecutionLimit: vi.fn(async () => ({ allowed: true, current: 1, limit: 500 })),
+  // Part 2 — the flat execution fee charged at run acceptance (behavior
+  // covered by the dedicated part2 suites; mocked here as succeeding).
+  chargeWorkflowExecutionFee: vi.fn(async () => ({ ok: true, alreadyProcessed: false, newBalance: 745 })),
+  refundWorkflowExecutionFee: vi.fn(async () => ({ refunded: true, newBalance: 750 })),
+  WORKFLOW_EXECUTION_FEE_CREDITS: 5,
 }));
 vi.mock('@/lib/workflow-audit', () => ({ logWorkflowEvent: vi.fn(async () => {}) }));
 vi.mock('@/lib/lead-resolution', () => ({ resolveLeadForExecution: mocks.resolveLeadForExecution }));

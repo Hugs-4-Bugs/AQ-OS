@@ -200,6 +200,15 @@ export interface BackendSubscriptionData {
     addons: number;
     plan: PlanType;
     percentage: number;
+    /** Part 2 — daily outreach quota snapshot (absent on older
+     * backend responses; the store keeps its last known values). */
+    dailyOutreach?: {
+      used: number;
+      limit: number | null;
+      remaining: number | null;
+      resetsAt: string | null;
+      timezone: string;
+    };
   };
 }
 
@@ -237,6 +246,14 @@ interface SubscriptionState {
   creditsMonthly: number;
   rolloverCredits: number;
   addonCredits: number;
+
+  // Part 2 — daily outreach quota (authoritative from backend; cosmetic
+  // until first sync — enforcement is ALWAYS server-side)
+  dailyOutreachUsed: number;
+  dailyOutreachLimit: number | null;
+  dailyOutreachRemaining: number | null;
+  dailyOutreachResetsAt: string | null;
+  dailyOutreachTimezone: string;
 
   // Trial info
   isTrial: boolean;
@@ -294,6 +311,11 @@ const DEFAULT_STATE = {
   creditsMonthly: 50,
   rolloverCredits: 0,
   addonCredits: 0,
+  dailyOutreachUsed: 0,
+  dailyOutreachLimit: null as number | null,
+  dailyOutreachRemaining: null as number | null,
+  dailyOutreachResetsAt: null as string | null,
+  dailyOutreachTimezone: "UTC",
   isTrial: true,
   trialEndsAt: null as string | null,
   trialDaysRemaining: 14,
@@ -535,6 +557,15 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       creditsMonthly: credits.monthly,
       rolloverCredits: credits.rollover,
       addonCredits: credits.addons,
+      ...(credits.dailyOutreach
+        ? {
+            dailyOutreachUsed: credits.dailyOutreach.used,
+            dailyOutreachLimit: credits.dailyOutreach.limit,
+            dailyOutreachRemaining: credits.dailyOutreach.remaining,
+            dailyOutreachResetsAt: credits.dailyOutreach.resetsAt,
+            dailyOutreachTimezone: credits.dailyOutreach.timezone,
+          }
+        : {}),
       isTrial: trial.isTrial,
       trialEndsAt: trial.trialEndsAt,
       trialDaysRemaining: trial.daysRemaining ?? trialDaysRemaining,

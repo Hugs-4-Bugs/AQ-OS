@@ -6,7 +6,7 @@
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
 import { executeAction, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
-import { deductExecutionCredits, getActionCreditCost, checkExecutionLimit } from '@/lib/workflow-credits';
+import { checkExecutionLimit } from '@/lib/workflow-credits';
 import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
 import { createNotificationOnce } from '@/lib/notification-service';
@@ -659,50 +659,15 @@ export async function processStep(
     // legacy steps that stored the action type directly.
     const actionType = String(step.config?.actionType || step.type);
 
-    // ── Approval-gated sends are charged ONLY when actually delivered ──
-    // When the workflow requires approval, send actions park a draft and
-    // return early — no delivery happens in this step, so no credits are
-    // deducted here (the human-approved send path carries the cost).
-    const SEND_ACTIONS = new Set(['send_email', 'send_telegram', 'send_whatsapp']);
-    const approvalSkipsCharge = Boolean(context.requiresApproval) && SEND_ACTIONS.has(actionType);
-
-    // Deduct credits before execution — keyed on the ACTION type, not the
-    // node type (Phase 4 fix: 'delay'/'condition' nodes carrying an
-    // actionType were previously charged the generic fallback cost, and
-    // ai actions were undercharged).
-    let creditResult: { success: boolean; creditsUsed: number; error?: string } = {
-      success: true,
-      creditsUsed: 0,
-    };
-    if (!approvalSkipsCharge) {
-      creditResult = await deductExecutionCredits(context.userId, actionType);
-    }
-
-    if (!creditResult.success && creditResult.creditsUsed > 0) {
-      // Only fail if the action actually costs credits and we can't afford them
-      const durationMs = Date.now() - startTime;
-
-      await db.workflowLog.create({
-        data: {
-          executionId,
-          stepName: step.name,
-          stepType: step.type,
-          status: 'failed',
-          input: JSON.stringify(step.config),
-          error: `Insufficient credits: ${creditResult.error}`,
-          durationMs,
-          retryAttempt,
-          userId: context.userId,
-        },
-      });
-
-      return {
-        success: false,
-        error: `Insufficient credits: ${creditResult.error}`,
-        shouldContinue: false,
-        durationMs,
-      };
-    }
+    // ── Part 2 — NO per-step, per-lead, or per-retry charging ──
+    // Workflow execution billing is a FLAT fee (5 credits) charged exactly
+    // once per accepted run at the run-acceptance boundary (execute route,
+    // trigger scheduler, Autopilot runner — all through the central
+    // chargeWorkflowExecutionFee path). Steps, leads, AI calls, retries,
+    // resumes, and queue replays never touch the balance from here. The
+    // approval-gated send path also no longer needs a charge carve-out:
+    // the flat fee covers the run whether a send parks a draft or delivers.
+    // Daily outreach quotas are enforced inside the send actions themselves.
 
     // Execute the action.
     // WorkflowStep.type stores the NODE type ('action' | 'delay' | 'condition' | 'ai_action'),

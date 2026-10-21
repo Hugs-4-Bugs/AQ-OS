@@ -42,6 +42,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscriptionStore } from '@/lib/subscription-store';
+import { refreshSubscriptionNow } from '@/hooks/use-subscription-sync';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -500,6 +501,19 @@ interface RunTarget {
   leadIds?: string[];
   niche?: string;
   customQuery?: string;
+  /** Part 2 — client-generated run identity. A rapid double-click replays
+   * the SAME id: the server's charge idempotency and per-lead execution
+   * keys then collapse the replay into one logical run and one 5-credit
+   * charge. (UX guard only — the server remains authoritative.) */
+  runId?: string;
+}
+
+/** Part 2 — stable run identity for one user-initiated run attempt. */
+function newRunId(): string {
+  const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return uuid.replace(/[^A-Za-z0-9_-]/g, '');
 }
 
 function TargetPickerDialog({
@@ -1633,13 +1647,17 @@ function WorkflowList({
       // Targeted runs carry the user's selection (lead ids / niche / query);
       // the server re-verifies ownership and plan entitlements before any
       // step runs. Legacy no-target runs keep the historical empty body.
-      const body = target ? { target } : {};
+      // Part 2 — every attempt carries a client run identity so a rapid
+      // double-click cannot create two logical runs / two charges.
+      const runId = newRunId();
+      const body = target ? { target: { ...target, runId } } : { idempotencyKey: runId };
       const result = await apiFetch<{
         executionId: string;
         status: string;
         error?: string;
         executions?: { leadName: string; status: string; error?: string }[];
         target?: { leadCount?: number };
+        creditsCharged?: number;
       }>(
         `/api/workflows/${wf.id}/execute`,
         { method: 'POST', body: JSON.stringify(body) }
@@ -1661,6 +1679,9 @@ function WorkflowList({
           description: `${wf.name} started${leadCount ? ` for ${leadCount} lead${leadCount === 1 ? '' : 's'}` : ''} — execution ${result.executionId}`,
         });
       }
+      // Part 2 §29 — the run charged the flat execution fee: refresh the
+      // authoritative credit state immediately (no stale display).
+      void refreshSubscriptionNow();
       // Refresh the workflow card after 2 seconds to show the updated run count
       setTimeout(() => {
         fetchWorkflows();
@@ -1670,9 +1691,19 @@ function WorkflowList({
       // Find-Leads confirmation dialog instead of a raw error toast. The
       // server rejected the run BEFORE creating any execution record, so
       // Cancel is completely safe (no retry loop, no notifications).
-      const body = (err as Error & { body?: NoMatchingLeadsBody }).body;
-      if (body && body.code === 'NO_MATCHING_LEADS' && body.workflowId === wf.id) {
-        setNoLeads({ wf, body });
+      const body = (err as Error & { body?: NoMatchingLeadsBody | { code: string; error?: string } }).body;
+      if (body && body.code === 'NO_MATCHING_LEADS' && 'workflowId' in body && body.workflowId === wf.id) {
+        setNoLeads({ wf, body: body as NoMatchingLeadsBody });
+        return;
+      }
+      // Part 2 — a structured INSUFFICIENT_CREDITS rejection gets a clear,
+      // actionable message (nothing was executed or charged).
+      if (body && body.code === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: 'Not enough credits',
+          description: (body as { error?: string }).error || 'Top up credits to run workflows.',
+          variant: 'destructive',
+        });
         return;
       }
       toast({
@@ -2168,13 +2199,17 @@ function WorkflowDetail({
     try {
       // Targeted runs carry the user's selection; the server re-verifies
       // ownership and plan entitlements before any step runs.
-      const body = target ? { target } : {};
+      // Part 2 — every attempt carries a client run identity so a rapid
+      // double-click cannot create two logical runs / two charges.
+      const runId = newRunId();
+      const body = target ? { target: { ...target, runId } } : { idempotencyKey: runId };
       const result = await apiFetch<{
         executionId: string;
         status: string;
         error?: string;
         executions?: { leadName: string; status: string; error?: string }[];
         target?: { leadCount?: number };
+        creditsCharged?: number;
       }>(
         `/api/workflows/${workflow.id}/execute`,
         { method: 'POST', body: JSON.stringify(body) }
@@ -2196,11 +2231,24 @@ function WorkflowDetail({
           description: `${leadCount ? `Running for ${leadCount} lead${leadCount === 1 ? '' : 's'} — ` : ''}Execution ${result.executionId} started`,
         });
       }
+      // Part 2 §29 — the run charged the flat execution fee: refresh the
+      // authoritative credit state immediately (no stale display).
+      void refreshSubscriptionNow();
     } catch (err) {
       // Part 1 — structured NO_MATCHING_LEADS → confirmation dialog.
-      const body = (err as Error & { body?: NoMatchingLeadsBody }).body;
-      if (body && body.code === 'NO_MATCHING_LEADS' && body.workflowId === workflow.id) {
-        setNoLeads(body);
+      const body = (err as Error & { body?: NoMatchingLeadsBody | { code: string; error?: string } }).body;
+      if (body && body.code === 'NO_MATCHING_LEADS' && 'workflowId' in body && body.workflowId === workflow.id) {
+        setNoLeads(body as NoMatchingLeadsBody);
+        return;
+      }
+      // Part 2 — a structured INSUFFICIENT_CREDITS rejection gets a clear,
+      // actionable message (nothing was executed or charged).
+      if (body && body.code === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: 'Not enough credits',
+          description: (body as { error?: string }).error || 'Top up credits to run workflows.',
+          variant: 'destructive',
+        });
         return;
       }
       toast({

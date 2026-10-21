@@ -5,6 +5,10 @@
 
 import { db } from '@/lib/db';
 import { executeWorkflow } from '@/lib/workflow-engine';
+import {
+  chargeWorkflowExecutionFee,
+  refundWorkflowExecutionFee,
+} from '@/lib/workflow-credits';
 import { createNotificationOnce } from '@/lib/notification-service';
 
 // ===== TYPES =====
@@ -89,12 +93,69 @@ export async function evaluateTrigger(
           null;
         const idempotencyKey = `trigger_${eventType}_${workflow.id}_${eventData.leadId || 'no-lead'}_${stableEventId || Date.now()}`;
 
+        // ── Part 2 — flat execution fee for trigger-fired runs ──
+        // An event-triggered run is an ACTUAL workflow execution: the same
+        // flat 5-credit fee, through the same central service, with a charge
+        // key derived from the SAME stable identity the engine uses — so a
+        // duplicate event delivery can never double-charge. An account
+        // without credits skips the firing honestly (no execution record,
+        // no side effects, no negative balance).
+        const chargeKey = `wfexec-run:${idempotencyKey}`;
+        const charge = await chargeWorkflowExecutionFee({
+          userId,
+          workflowId: workflow.id,
+          chargeKey,
+          source: 'EVENT_TRIGGER',
+          referenceId: idempotencyKey,
+          leadCount: eventData.leadId ? 1 : 0,
+        });
+        if (!charge.ok) {
+          console.warn(
+            `[WorkflowTriggers] Event-triggered workflow "${workflow.name}" (${workflow.id}) skipped — ` +
+            `insufficient credits (have ${charge.balance}, need ${charge.fee}).`
+          );
+          await createNotificationOnce({
+            userId,
+            type: 'workflow_failed',
+            title: 'Workflow skipped — insufficient credits',
+            message: `"${workflow.name}" was triggered but did not run: the account has ${charge.balance} credits and each execution costs ${charge.fee}. Top up credits to re-enable triggered runs.`,
+            actionUrl: '/business-ai/settings',
+            metadata: {
+              workflowId: workflow.id,
+              eventType,
+              balance: charge.balance,
+              fee: charge.fee,
+            },
+            // One notification per workflow per day — a busy trigger day
+            // must not spam the bell (the root cause of the Part 1 storm).
+            dedupeKey: `wftrigger:${workflow.id}:insufficient-credits`,
+            dedupeWindowMinutes: 24 * 60,
+          }).catch(() => {
+            // Never break the trigger loop over a notification problem
+          });
+          continue;
+        }
+
         const result = await executeWorkflow(
           workflow.id,
           userId,
           { eventType, ...eventData },
           idempotencyKey
         );
+
+        // Part 2 §21 — the run never actually started (no execution record
+        // at all): release the fee idempotently.
+        if (!result.executionId) {
+          await refundWorkflowExecutionFee({
+            userId,
+            workflowId: workflow.id,
+            chargeKey,
+            source: 'EVENT_TRIGGER',
+            referenceId: idempotencyKey,
+          }).catch(() => {
+            // Ledger idempotency makes a later retry safe.
+          });
+        }
 
         if (result.executionId) {
           executionIds.push(result.executionId);
@@ -347,13 +408,71 @@ export async function processScheduledTriggers(): Promise<string[]> {
       // 08:00 Asia/Kolkata schedule dedupes on the Kolkata calendar day.
       const tz = scheduleTimezone(config);
       const dateKey = getZonedTimeParts(now, tz).dateKey;
+      const scheduledKey = `scheduled_${workflow.id}_${dateKey}`;
+
+      // ── Part 2 — flat execution fee for scheduled runs ──
+      // A scheduled firing is an ACTUAL workflow execution: the same flat
+      // 5-credit fee through the central service, keyed on the SAME
+      // day-granular identity the engine uses — scheduler replay, worker
+      // restart, or overlapping scheduler ticks can never double-charge.
+      // An account without credits skips the firing honestly and gets ONE
+      // deduped notification (the circuit-breaker pattern from Part 1).
+      const scheduledChargeKey = `wfexec-run:${scheduledKey}`;
+      const scheduledCharge = await chargeWorkflowExecutionFee({
+        userId: workflow.userId,
+        workflowId: workflow.id,
+        chargeKey: scheduledChargeKey,
+        source: 'SCHEDULED_TRIGGER',
+        referenceId: scheduledKey,
+      });
+      if (!scheduledCharge.ok) {
+        console.warn(
+          `[WorkflowTriggers] Scheduled workflow "${workflow.name}" (${workflow.id}) skipped — ` +
+          `insufficient credits (have ${scheduledCharge.balance}, need ${scheduledCharge.fee}).`
+        );
+        if (workflow.userId) {
+          await createNotificationOnce({
+            userId: workflow.userId,
+            type: 'workflow_failed',
+            title: 'Scheduled workflow skipped — insufficient credits',
+            message: `"${workflow.name}" was scheduled to run but the account has ${scheduledCharge.balance} credits and each execution costs ${scheduledCharge.fee}. Nothing was executed. Top up credits to re-enable the schedule.`,
+            actionUrl: '/business-ai/settings',
+            metadata: {
+              workflowId: workflow.id,
+              balance: scheduledCharge.balance,
+              fee: scheduledCharge.fee,
+              scheduledSkipped: true,
+            },
+            // One notification per workflow per day — same anti-storm rule.
+            dedupeKey: `wfsched:${workflow.id}:insufficient-credits`,
+            dedupeWindowMinutes: 24 * 60,
+          }).catch(() => {
+            // Never break the scheduler tick over a notification problem
+          });
+        }
+        continue;
+      }
 
       const result = await executeWorkflow(
         workflow.id,
         workflow.userId,
         { eventType: 'scheduled', firedAt: now.toISOString() },
-        `scheduled_${workflow.id}_${dateKey}`
+        scheduledKey
       );
+
+      // Part 2 §21 — the firing never actually started (no execution
+      // record at all): release the fee idempotently.
+      if (!result.executionId) {
+        await refundWorkflowExecutionFee({
+          userId: workflow.userId,
+          workflowId: workflow.id,
+          chargeKey: scheduledChargeKey,
+          source: 'SCHEDULED_TRIGGER',
+          referenceId: scheduledKey,
+        }).catch(() => {
+          // Ledger idempotency makes a later retry safe.
+        });
+      }
 
       if (result.executionId) {
         executionIds.push(result.executionId);

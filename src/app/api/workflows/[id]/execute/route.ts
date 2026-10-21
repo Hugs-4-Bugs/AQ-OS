@@ -26,6 +26,12 @@ import { ENTITLEMENTS, type PlanType } from '@/lib/entitlement-service';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { validateDefinition } from '@/lib/workflow-validation';
 import {
+  chargeWorkflowExecutionFee,
+  refundWorkflowExecutionFee,
+  WORKFLOW_EXECUTION_FEE_CREDITS,
+  type WorkflowChargeSource,
+} from '@/lib/workflow-credits';
+import {
   splitNicheList,
   leadMatchesRequestedNiches,
   NO_MATCHING_LEADS,
@@ -42,6 +48,9 @@ interface RunTarget {
   leadIds?: unknown;
   niche?: string;
   customQuery?: string;
+  /** Part 2 — client-supplied run identity for charge/execution
+   * idempotency (double-click protection). */
+  runId?: unknown;
 }
 
 interface ResolvedLead {
@@ -94,6 +103,46 @@ function maxTargetLeads(): number {
 function batchSettleMaxLeads(): number {
   const v = Number(process.env.WORKFLOW_BATCH_SETTLE_MAX_LEADS);
   return Number.isFinite(v) && v > 0 ? Math.floor(v) : 50;
+}
+
+// ── Part 2 — flat execution fee identity ─────────────────────────
+// One accepted workflow run costs WORKFLOW_EXECUTION_FEE_CREDITS (5),
+// charged exactly once per run identity. The client may supply a run id
+// (`target.runId`, or the legacy `body.idempotencyKey`): a rapid
+// double-click then replays the SAME identity, so the engine's per-lead
+// idempotency keys AND the ledger's charge idempotency both dedupe —
+// one logical run, one 5-credit charge. Invalid/absent ids degrade to a
+// server-generated key (a genuinely new run).
+const RUN_KEY_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+function sanitizeRunKey(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  return RUN_KEY_PATTERN.test(v) ? v : null;
+}
+function generateRunKey(): string {
+  return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Insufficient-credits rejection (Part 2 §11): honest 402 BEFORE any
+ * execution record, side effect, or misleading running state exists. */
+function insufficientCreditsResponse(
+  workflowId: string,
+  charge: { fee: number; balance: number; shortfall: number }
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      code: 'INSUFFICIENT_CREDITS',
+      error:
+        `Insufficient credits to run this workflow — the execution fee is ${charge.fee} credit${charge.fee === 1 ? '' : 's'}, ` +
+        `and this account has ${charge.balance}. Nothing was executed. Top up credits or reduce spending, then run again.`,
+      workflowId,
+      fee: charge.fee,
+      balance: charge.balance,
+      shortfall: charge.shortfall,
+    },
+    { status: 402 }
+  );
 }
 
 // Resolution page size for niche/custom target queries — chunked database
@@ -485,8 +534,33 @@ export async function POST(
           );
         }
 
+        // ── Part 2 — flat execution fee, charged exactly ONCE per run ──
+        // Every validation that can reject the run for free (entitlement,
+        // ownership, definition validity, subscription state, target
+        // resolution, plan/size limits, NO_MATCHING_LEADS) has already
+        // passed above — so this is the "accepted for execution" moment.
+        // The fee is a FLAT 5 credits regardless of lead count (1 or 1000),
+        // charged atomically through the central credit service with an
+        // idempotency key tied to the run identity: replays of the same
+        // client run id (double-click / network retry) never double-charge.
+        const runKey =
+          sanitizeRunKey((body.target as RunTarget | undefined)?.runId) ??
+          sanitizeRunKey(body.idempotencyKey) ??
+          generateRunKey();
+        const charge = await chargeWorkflowExecutionFee({
+          userId: user.id,
+          workflowId: id,
+          chargeKey: `wfexec-run:${runKey}`,
+          source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
+          referenceId: runKey,
+          leadCount: leads.length,
+        });
+        if (!charge.ok) {
+          return insufficientCreditsResponse(id, charge);
+        }
+
         // 4. Kick one execution per lead (persisted target snapshot on each)
-        const runBatchId = `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+        const runBatchId = runKey;
         // Phase 6.9 — the EXACT request-level snapshot travels on every
         // per-lead execution: mode, batch id, the verbatim targeting inputs
         // (selected ids / niche / custom query) and the resolved population.
@@ -505,29 +579,79 @@ export async function POST(
         const stagger = leads.length > 15
           ? Math.min(baseStagger, Math.max(0, Math.floor(15000 / leads.length)))
           : baseStagger;
+        let kickError: unknown = null;
         for (let i = 0; i < leads.length; i++) {
           const lead = leads[i];
-          const result = await executeWorkflow(
-            id,
-            user.id,
-            {
+          try {
+            const result = await executeWorkflow(
+              id,
+              user.id,
+              {
+                leadId: lead.id,
+                leadName: lead.businessName,
+                target: { ...targetSnapshot, leadId: lead.id },
+              },
+              `batch_${runBatchId}_${lead.id}`,
+              { awaitCompletion: false }
+            );
+            executions.push({
               leadId: lead.id,
               leadName: lead.businessName,
-              target: { ...targetSnapshot, leadId: lead.id },
-            },
-            `batch_${runBatchId}_${lead.id}`,
-            { awaitCompletion: false }
-          );
-          executions.push({
-            leadId: lead.id,
-            leadName: lead.businessName,
-            executionId: result.executionId,
-            status: result.status,
-            error: result.error,
-          });
+              executionId: result.executionId,
+              status: result.status,
+              error: result.error,
+            });
+          } catch (kickErr) {
+            // An internal preflight failure BEFORE any execution exists for
+            // this lead — recorded and surfaced; the refund check below
+            // releases the fee if NOTHING actually started.
+            kickError = kickErr;
+            executions.push({
+              leadId: lead.id,
+              leadName: lead.businessName,
+              executionId: '',
+              status: 'failed',
+              error: kickErr instanceof Error ? kickErr.message : 'Failed to start execution',
+            });
+          }
           // Stagger kicks so concurrent outreach/email steps do not
           // stampede providers (mirrors autopilot pacing).
           if (i < leads.length - 1 && stagger > 0) await sleep(stagger);
+        }
+
+        // ── Part 2 §21 — reservation release ──
+        // The flat fee was charged for THIS run; if an internal failure
+        // prevented even ONE execution from being created (a genuine
+        // preflight failure, not ordinary step failures), the run never
+        // actually started and the fee is refunded — idempotently, so
+        // retries of this code path can never double-refund.
+        const anyStarted = executions.some((e) => Boolean(e.executionId));
+        if (!anyStarted) {
+          await refundWorkflowExecutionFee({
+            userId: user.id,
+            workflowId: id,
+            chargeKey: `wfexec-run:${runKey}`,
+            source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
+            referenceId: runKey,
+          }).catch(() => {
+            // A refund failure must not mask the run's real outcome; the
+            // ledger's idempotency key makes a later retry safe.
+          });
+          return NextResponse.json(
+            {
+              success: false,
+              error: kickError instanceof Error
+                ? `The run could not be started (${kickError.message}). The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`
+                : `The run could not be started. The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`,
+              code: 'RUN_START_FAILED',
+              creditsRefunded: true,
+              target: { mode, leadCount: leads.length, runBatchId },
+              executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
+                leadId, leadName, executionId, status, error,
+              })),
+            },
+            { status: 500 }
+          );
         }
 
         // Phase 6.8 — large batches respond immediately with honest 'running'
@@ -541,7 +665,8 @@ export async function POST(
               status: 'running',
               async: true,
               message: `${leads.length} targeted runs started in the background — monitor their outcomes on the Executions tab.`,
-              target: { mode, leadCount: leads.length, runBatchId },
+              target: { mode, leadCount: leads.length, runBatchId, runId: runKey },
+              creditsCharged: WORKFLOW_EXECUTION_FEE_CREDITS,
               executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
                 leadId, leadName, executionId, status, error,
               })),
@@ -582,7 +707,8 @@ export async function POST(
             executionId: executions[0]?.executionId,
             status: overall,
             error: failed.length > 0 ? (failed[0].error || 'One or more targeted runs failed.') : undefined,
-            target: { mode, leadCount: leads.length, runBatchId },
+            target: { mode, leadCount: leads.length, runBatchId, runId: runKey },
+            creditsCharged: WORKFLOW_EXECUTION_FEE_CREDITS,
             executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
               leadId, leadName, executionId, status, error,
             })),
@@ -618,6 +744,26 @@ export async function POST(
         }
       }
 
+      // ── Part 2 — flat execution fee for the legacy (single/no-target) ──
+      // Same acceptance moment as targeted runs: every free rejection has
+      // already happened above (entitlement, ownership, definition
+      // validation, subscription gate, lead resolution). The charge key
+      // rides the SAME idempotency identity the engine uses, so replays
+      // (double-click with the same client key, network retry) dedupe on
+      // both the execution and the charge.
+      const legacyRunKey = sanitizeRunKey(body.idempotencyKey) ?? generateRunKey();
+      const legacyCharge = await chargeWorkflowExecutionFee({
+        userId: user.id,
+        workflowId: id,
+        chargeKey: `wfexec-run:${legacyRunKey}`,
+        source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
+        referenceId: legacyRunKey,
+        leadCount: legacyLeadIdRaw !== undefined ? 1 : 0,
+      });
+      if (!legacyCharge.ok) {
+        return insufficientCreditsResponse(id, legacyCharge);
+      }
+
       // Execute the workflow
       const legacyTriggerData = (body.triggerData && typeof body.triggerData === 'object'
         ? body.triggerData
@@ -626,12 +772,31 @@ export async function POST(
         id,
         user.id,
         legacyTriggerData,
-        typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined
+        legacyRunKey
       );
 
-      if (result.status === 'failed' && !result.executionId) {
+      // ── Part 2 §21 — refund when the run never actually started ──
+      // 'failed' with an executionId means a record exists and honestly
+      // says why nothing ran (still a started-and-failed run — fee stands
+      // per the explicit product rule). NO executionId at all (not found,
+      // monthly execution limit, engine preflight) means NOTHING started:
+      // the fee must be released, idempotently.
+      if (!result.executionId) {
+        await refundWorkflowExecutionFee({
+          userId: user.id,
+          workflowId: id,
+          chargeKey: `wfexec-run:${legacyRunKey}`,
+          source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
+          referenceId: legacyRunKey,
+        }).catch(() => {
+          // Ledger idempotency makes a later retry safe.
+        });
         return NextResponse.json(
-          { error: result.error },
+          {
+            error: result.error || 'Workflow execution could not be started',
+            code: 'RUN_START_FAILED',
+            creditsRefunded: true,
+          },
           { status: 400 }
         );
       }
@@ -642,6 +807,7 @@ export async function POST(
           executionId: result.executionId,
           status: result.status,
           error: result.error,
+          creditsCharged: WORKFLOW_EXECUTION_FEE_CREDITS,
         },
         { status: 202 }
       );

@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => ({
     lead: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
   },
   executeWorkflow: vi.fn(),
+  chargeWorkflowExecutionFee: vi.fn(),
+  refundWorkflowExecutionFee: vi.fn(),
   resolveLeadForExecution: vi.fn(),
 }));
 
@@ -37,6 +39,14 @@ vi.mock('@/lib/entitlement-middleware', () => ({
   checkPlanEntitlement: vi.fn(async () => ({ allowed: true })),
 }));
 vi.mock('@/lib/workflow-engine', () => ({ executeWorkflow: mocks.executeWorkflow }));
+// Part 2 — the route charges the flat execution fee through the central
+// workflow-credits service; mocked here so route tests can assert the
+// charge/no-charge behavior without a real ledger.
+vi.mock('@/lib/workflow-credits', () => ({
+  chargeWorkflowExecutionFee: mocks.chargeWorkflowExecutionFee,
+  refundWorkflowExecutionFee: mocks.refundWorkflowExecutionFee,
+  WORKFLOW_EXECUTION_FEE_CREDITS: 5,
+}));
 
 import { POST as executeRoute } from '@/app/api/workflows/[id]/execute/route';
 
@@ -73,6 +83,9 @@ beforeEach(() => {
     executionId: `exec_${String(triggerData.leadId)}`,
     status: 'running',
   }));
+  // Part 2 — default: the flat execution fee charge succeeds.
+  mocks.chargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 745 });
+  mocks.refundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 750 });
   process.env.WORKFLOW_BATCH_SETTLE_MS = '2000';
   process.env.WORKFLOW_BATCH_POLL_MS = '1';
   process.env.WORKFLOW_KICK_STAGGER_MS = '0';

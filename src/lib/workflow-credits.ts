@@ -4,7 +4,136 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
-import { deductCredits, checkCreditSufficiency } from '@/lib/credit-service';
+import { deductCredits, refundCredits, checkCreditSufficiency } from '@/lib/credit-service';
+import { WORKFLOW_EXECUTION_CREDIT_COST } from '@/lib/credit-costs';
+
+// ===== WORKFLOW EXECUTION FEE (Part 2) =====
+
+/**
+ * The flat fee for ONE accepted workflow execution (5 credits) —
+ * authoritative value lives in credit-costs.ts (single source of truth).
+ * Re-exported here for the workflow layer's convenience.
+ */
+export const WORKFLOW_EXECUTION_FEE_CREDITS = WORKFLOW_EXECUTION_CREDIT_COST;
+
+/** Who started the run — recorded on the ledger for the audit trail. */
+export type WorkflowChargeSource =
+  | 'MANUAL_WORKFLOW'
+  | 'AUTOPILOT'
+  | 'SCHEDULED_TRIGGER'
+  | 'EVENT_TRIGGER'
+  | 'WEBHOOK';
+
+export interface ChargeWorkflowExecutionFeeParams {
+  userId: string;
+  workflowId: string;
+  /** Stable identity of the run being charged (run batch id, execution-bound
+   * key, or trigger idempotency key). The SAME key on a replay/retry returns
+   * alreadyProcessed instead of charging again. */
+  chargeKey: string;
+  source: WorkflowChargeSource;
+  /** Execution id / run batch id — lands on the ledger's referenceId. */
+  referenceId?: string;
+  /** How many leads the run targets (informational, never affects the fee). */
+  leadCount?: number;
+}
+
+export type ChargeWorkflowExecutionFeeResult =
+  | {
+      ok: true;
+      /** True when this chargeKey was already charged (idempotent replay). */
+      alreadyProcessed: boolean;
+      newBalance: number;
+    }
+  | {
+      ok: false;
+      code: 'INSUFFICIENT_CREDITS';
+      fee: number;
+      balance: number;
+      shortfall: number;
+    };
+
+/**
+ * Charge the flat workflow execution fee — THE single authoritative path
+ * every actual workflow execution uses (manual runs, scheduled triggers,
+ * event/webhook triggers, and Autopilot). Properties:
+ *
+ * • FLAT: WORKFLOW_EXECUTION_FEE_CREDITS regardless of lead/step/AI counts.
+ * • EXACTLY ONCE: idempotent on chargeKey (a CreditsLedger row labeled
+ *   `workflow_execution_idempotent_<chargeKey>` makes replays no-ops).
+ * • ATOMIC + NEVER NEGATIVE: delegated to credit-service deductCredits'
+ *   transactional balance check — a balance below the fee is rejected
+ *   with INSUFFICIENT_CREDITS and NOTHING is deducted.
+ * • AUDITED: source, workflow, run reference, and lead count are recorded
+ *   on the ledger description; billing-audit events fire inside the service.
+ */
+export async function chargeWorkflowExecutionFee(
+  params: ChargeWorkflowExecutionFeeParams
+): Promise<ChargeWorkflowExecutionFeeResult> {
+  const { userId, workflowId, chargeKey, source, referenceId, leadCount } = params;
+
+  const result = await deductCredits({
+    userId,
+    action: 'workflow_execution',
+    cost: WORKFLOW_EXECUTION_FEE_CREDITS,
+    referenceId,
+    idempotencyKey: chargeKey,
+    description:
+      `Workflow execution fee (${source}) — workflow ${workflowId}` +
+      (leadCount !== undefined ? `, ${leadCount} lead${leadCount === 1 ? '' : 's'}` : '') +
+      (referenceId ? `, run ${referenceId}` : ''),
+  });
+
+  if (!result.success) {
+    // Insufficient credits (or the user vanished mid-charge): surface the
+    // honest rejection — the caller must NOT start the execution.
+    const balanceMatch = /have (\d+(?:\.\d+)?)/.exec(result.error || '');
+    const balance = balanceMatch ? Number(balanceMatch[1]) : 0;
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_CREDITS',
+      fee: WORKFLOW_EXECUTION_FEE_CREDITS,
+      balance,
+      shortfall: Math.max(0, WORKFLOW_EXECUTION_FEE_CREDITS - balance),
+    };
+  }
+
+  return {
+    ok: true,
+    alreadyProcessed: Boolean(result.alreadyProcessed),
+    newBalance: result.newBalance,
+  };
+}
+
+/**
+ * Refund the workflow execution fee when a charged run NEVER actually
+ * started (internal preflight failure after the charge — e.g. zero
+ * executions could be created). Idempotent on `${chargeKey}:refund`, so
+ * worker retries / duplicate failure events refund at most once.
+ *
+ * NOT used for ordinary partial workflow failure — a run that started and
+ * failed honestly consumed its execution fee (explicit product rule).
+ */
+export async function refundWorkflowExecutionFee(params: {
+  userId: string;
+  workflowId: string;
+  chargeKey: string;
+  source: WorkflowChargeSource;
+  referenceId?: string;
+}): Promise<{ refunded: boolean; newBalance: number }> {
+  const { userId, workflowId, chargeKey, source, referenceId } = params;
+  const result = await refundCredits({
+    userId,
+    amount: WORKFLOW_EXECUTION_FEE_CREDITS,
+    originalAction: 'workflow_execution',
+    // The refund's ledger reference points at the run identity; source and
+    // workflow context ride on the charge row that is being reversed.
+    referenceId: referenceId || workflowId,
+    idempotencyKey: `${chargeKey}:refund`,
+  });
+  void source; // recorded on the original charge row; kept for signature clarity
+  return { refunded: result.success && !result.alreadyProcessed, newBalance: result.newBalance };
+}
 
 // ===== PLAN LIMITS =====
 
@@ -27,6 +156,14 @@ const EXECUTION_LIMITS: Record<string, number> = {
 };
 
 // ===== CREDIT COSTS PER ACTION TYPE =====
+//
+// Part 2 note: these PER-ACTION costs are NO LONGER used to bill workflow
+// executions. Billing for workflow runs is the flat fee above, charged once
+// per accepted run. The table and helper remain for backwards compatibility
+// and informational display only. (Historical conflict, documented in the
+// Part 2 report: workflow-credits.ts and credit-costs.ts carried two
+// different per-action tables; neither participates in execution billing
+// anymore, which removes the ambiguity.)
 
 export type WorkflowActionType =
   | 'send_email'

@@ -8,6 +8,7 @@ import { withAuth } from '@/lib/auth-middleware';
 import { getSubscriptionStatus } from '@/lib/subscription-service';
 import { checkTrialStatus } from '@/lib/trial-service';
 import { getCreditBalance } from '@/lib/credit-service';
+import { getDailyOutreachUsage } from '@/lib/daily-outreach-quota';
 import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -44,6 +45,9 @@ export async function GET(request: NextRequest) {
 
       // Get credit balance breakdown
       const creditBalance = await getCreditBalance(user.id);
+
+      // Part 2 — daily outreach quota snapshot (authoritative, server-side)
+      const dailyOutreach = await getDailyOutreachUsage(user.id);
 
       // Fetch full subscription record to get billingCycle and creditsResetAt
       const fullSubscription = subStatus.subscription
@@ -97,6 +101,13 @@ export async function GET(request: NextRequest) {
             creditBalance.monthly > 0
               ? Math.round((creditBalance.total / creditBalance.monthly) * 100)
               : 0,
+          dailyOutreach: {
+            used: dailyOutreach.used,
+            limit: dailyOutreach.limit,
+            remaining: dailyOutreach.remaining,
+            resetsAt: dailyOutreach.resetsAt,
+            timezone: dailyOutreach.timezone,
+          },
         },
       });
     } catch (error) {

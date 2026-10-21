@@ -26,6 +26,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ db: mocks.db }));
 vi.mock('@/lib/workflow-engine', () => ({ executeWorkflow: mocks.executeWorkflow }));
+// Part 2 — scheduled firings charge the flat execution fee via the central
+// service; mocked so these breaker tests stay focused on the streak logic.
+vi.mock('@/lib/workflow-credits', () => ({
+  chargeWorkflowExecutionFee: vi.fn(async () => ({ ok: true, alreadyProcessed: false, newBalance: 995 })),
+  refundWorkflowExecutionFee: vi.fn(async () => ({ refunded: true, newBalance: 1000 })),
+  WORKFLOW_EXECUTION_FEE_CREDITS: 5,
+}));
 vi.mock('@/lib/notification-service', () => ({
   createNotificationOnce: mocks.createNotificationOnce,
 }));

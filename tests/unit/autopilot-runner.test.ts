@@ -51,6 +51,16 @@ vi.mock('@/lib/credit-service', () => ({
   checkCreditSufficiency: mockCheckCreditSufficiency,
   CREDIT_COSTS: { lead_discovery: 1 },
 }));
+// Part 2 — the runner charges the flat execution fee per actual workflow
+// execution through the central service; mocked so these tests can assert
+// charge counts and idempotency behavior.
+const mockChargeWorkflowExecutionFee = vi.hoisted(() => vi.fn());
+const mockRefundWorkflowExecutionFee = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/workflow-credits', () => ({
+  chargeWorkflowExecutionFee: mockChargeWorkflowExecutionFee,
+  refundWorkflowExecutionFee: mockRefundWorkflowExecutionFee,
+  WORKFLOW_EXECUTION_FEE_CREDITS: 5,
+}));
 
 import { executeAutopilotRun, runAutopilot, recoverStuckAutopilotRuns, withUserLock } from '@/lib/autopilot/runner';
 
@@ -107,6 +117,9 @@ beforeEach(() => {
   mockPrisma.discoveryJob.findUnique.mockResolvedValue(completedJob());
   mockStartDiscoveryJob.mockResolvedValue({ jobId: 'job1', status: 'started', message: 'ok' });
   mockExecuteWorkflow.mockResolvedValue({ id: 'exec1' });
+  // Part 2 — default: the flat execution fee charge succeeds.
+  mockChargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 995 });
+  mockRefundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 1000 });
   // resolve payloads to leads by website
   mockPrisma.lead.findFirst.mockImplementation(async ({ where }) => {
     if (where.website === 'https://bright.example') return { id: 'lead-bright' };

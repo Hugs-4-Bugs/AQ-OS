@@ -21,6 +21,28 @@ import { apiCall, ApiError } from '@/lib/api-error-handler';
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
+ * Imperative one-shot credit/subscription refresh (Part 2 §29).
+ *
+ * Called after balance-changing events (e.g. a workflow run that charged
+ * the 5-credit execution fee) so the UI immediately reflects the
+ * AUTHORITATIVE backend state instead of waiting for the next 5-minute
+ * sync tick. Never throws — a failed refresh just leaves the store at
+ * its last-known-good values (the regular sync will catch up).
+ */
+export async function refreshSubscriptionNow(): Promise<void> {
+  try {
+    const subData = await apiCall<BackendSubscriptionData>(
+      '/api/subscriptions/current',
+      { credentials: 'include' },
+      { errorMessage: 'Failed to refresh credits', showToast: false }
+    );
+    useSubscriptionStore.getState().syncFromBackend(subData);
+  } catch {
+    // Best-effort refresh: swallow errors (the periodic sync recovers).
+  }
+}
+
+/**
  * Hook that syncs subscription data from the backend to the Zustand store.
  * - Fetches /api/subscriptions/current for subscription, trial, and credit data
  * - Fetches /api/subscriptions/entitlements for feature entitlements

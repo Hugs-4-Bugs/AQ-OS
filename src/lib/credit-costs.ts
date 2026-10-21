@@ -114,6 +114,20 @@ export const PLAN_CREDITS: Record<PlanType, number> = {
   elite: 2000,
 };
 
+// ===== Workflow Execution Fee (Part 2 product rule) =====
+//
+// ONE accepted workflow execution costs a FLAT 5 credits — independent of
+// the number of leads the run targets, the number of steps it executes,
+// the number of AI calls it makes, or any retries. The fee is charged
+// exactly once per accepted run through the central charging path
+// (src/lib/workflow-credits.ts → credit-service deductCredits) and is
+// idempotent per run identity (execution id / run batch id / trigger key).
+//
+// Charged ONLY when a run is accepted for execution after every
+// validation passes. Workflow creation, editing, saving, validation,
+// no-matching-leads results, and pre-execution rejections never charge.
+export const WORKFLOW_EXECUTION_CREDIT_COST = 5;
+
 // ===== Helper Functions =====
 
 /** Get the cost of a core credit action. */

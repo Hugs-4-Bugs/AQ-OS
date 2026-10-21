@@ -129,6 +129,7 @@ model User {
   subscriptions            Subscription[]
   creditsLedger            CreditsLedger[]
   creditAddons             CreditAddon[]
+  dailyOutreachUsage       DailyOutreachUsage[]
   paymentOrders            PaymentOrder[]
   emailAccounts            EmailAccount[]
   outreachSequences        OutreachSequence[]
@@ -394,6 +395,24 @@ model CreditsLedger {
   @@index([action])
   @@index([createdAt])
   @@index([referenceId])
+}
+
+// Part 2 — daily outreach send quota usage. ONE row per (user, local-day):
+// the row is the atomic reservation counter for the plan's daily outreach
+// limit (see src/lib/daily-outreach-quota.ts). A new local day = a new
+// dateKey row; historical rows are NEVER deleted to "reset" a quota.
+model DailyOutreachUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  dateKey   String // YYYY-MM-DD in the USER's account timezone
+  used      Int      @default(0) // reserved sends this local day
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey])
+  @@index([userId])
+  @@index([dateKey])
 }
 
 model CreditAddon {

@@ -10,6 +10,7 @@ import { executeAction } from '@/lib/workflow-actions';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
 import { createNotificationOnce } from '@/lib/notification-service';
 import { classifyStepError, computeBackoffDelayMs } from '@/lib/workflow-retry';
+import { reserveDailyOutreachSend, DAILY_OUTREACH_LIMIT_EXCEEDED } from '@/lib/daily-outreach-quota';
 import {
   type WorkflowNode,
   type WorkflowEdge,
@@ -396,6 +397,15 @@ async function executeStepAction(
   switch (effectiveType) {
     case 'send_email': {
       if (!leadId) throw new Error('No lead ID for send_email step');
+
+      // ── Part 2 — daily outreach quota (race-safe, server-authoritative).
+      // Throwing here fails the step honestly; the executor's error handling
+      // (classifyStepError) treats it as a non-retryable business refusal.
+      const emailQuota = await reserveDailyOutreachSend(userId || '');
+      if (!emailQuota.allowed) {
+        throw new Error(`${DAILY_OUTREACH_LIMIT_EXCEEDED}: ${emailQuota.blockedReason}`);
+      }
+
       const lead = await requireOwnedLead(userId, leadId);
 
       const message = await db.outreachMessage.create({
@@ -417,6 +427,13 @@ async function executeStepAction(
 
     case 'send_whatsapp': {
       if (!leadId) throw new Error('No lead ID for send_whatsapp step');
+
+      // ── Part 2 — daily outreach quota (race-safe, server-authoritative).
+      const waQuota = await reserveDailyOutreachSend(userId || '');
+      if (!waQuota.allowed) {
+        throw new Error(`${DAILY_OUTREACH_LIMIT_EXCEEDED}: ${waQuota.blockedReason}`);
+      }
+
       const message = await db.messageDelivery.create({
         data: {
           userId: userId || 'system',
@@ -433,6 +450,12 @@ async function executeStepAction(
     }
 
     case 'send_telegram': {
+      // ── Part 2 — daily outreach quota (race-safe, server-authoritative).
+      const tgQuota = await reserveDailyOutreachSend(userId || '');
+      if (!tgQuota.allowed) {
+        throw new Error(`${DAILY_OUTREACH_LIMIT_EXCEEDED}: ${tgQuota.blockedReason}`);
+      }
+
       const message = await db.messageDelivery.create({
         data: {
           userId: userId || 'system',

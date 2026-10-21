@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [],
+  "files": [
+    "next-env.d.ts",
+    "src/lib/credit-costs.ts",
+    "src/lib/credit-service.ts",
+    "src/lib/workflow-credits.ts",
+    "src/lib/daily-outreach-quota.ts",
+    "src/lib/workflow-engine.ts",
+    "src/lib/workflow-executor.ts",
+    "src/lib/workflow-triggers.ts",
+    "src/lib/workflow-actions.ts",
+    "src/lib/autopilot/runner.ts",
+    "src/lib/subscription-store.ts",
+    "src/hooks/use-subscription-sync.ts",
+    "src/app/api/workflows/[id]/execute/route.ts",
+    "src/app/api/credits/route.ts",
+    "src/app/api/subscriptions/current/route.ts",
+    "src/components/dashboard/credit-display.tsx",
+    "src/components/dashboard/workflows-tab.tsx",
+    "src/__tests__/lib/part2-execution-billing.test.ts",
+    "src/__tests__/lib/part2-execute-route.test.ts",
+    "src/__tests__/lib/part2-daily-quota.test.ts",
+    "src/__tests__/lib/part2-autopilot-billing.test.ts"
+  ]
+}

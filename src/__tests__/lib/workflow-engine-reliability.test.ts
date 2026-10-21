@@ -439,19 +439,23 @@ describe('Phase 4 — invalid definitions never silently execute', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 10. Credit cost keyed on action type
+// 10. Credit billing — Part 2 flat execution fee
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — credit cost fix', () => {
-  it('deducts credits using the ACTION type, not the node type', async () => {
+describe('Part 2 — flat execution fee replaces per-step charging', () => {
+  it('processStep NEVER charges per action/attempt — billing happens once per accepted run at the entry points', async () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
       makeStep('s1', 'Note', 'add_note', { content: 'a' }),
+      makeStep('s2', 'Email', 'send_email', { subject: 's', body: 'b' }),
     ]));
 
     await executeWorkflow('wf_1', 'user_1', {});
 
-    expect(mocks.deductExecutionCredits).toHaveBeenCalledWith('user_1', 'add_note');
-    expect(mocks.deductExecutionCredits).not.toHaveBeenCalledWith('user_1', 'action');
+    // The product rule changed in Part 2: ONE accepted run = ONE flat
+    // 5-credit fee charged at the run-acceptance boundary (execute route,
+    // triggers, autopilot). The engine must never touch credits per step,
+    // per lead, or per retry — the old per-action charging storm is gone.
+    expect(mocks.deductExecutionCredits).not.toHaveBeenCalled();
   });
 });
 

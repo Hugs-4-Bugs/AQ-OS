@@ -53,6 +53,11 @@ export interface DeductCreditsParams {
   cost: number;
   referenceId?: string;
   idempotencyKey?: string;
+  /** Optional ledger description (Part 2): lets callers record the
+   * charge's business context (source, workflow, run identity) directly
+   * on the CreditsLedger row for a reliable audit trail. Falls back to
+   * the generic "Deducted N credits for ACTION" text. */
+  description?: string;
 }
 
 export interface DeductCreditsResult {
@@ -123,7 +128,7 @@ export interface RefundCreditsResult {
  */
 export async function deductCredits(params: DeductCreditsParams): Promise<DeductCreditsResult> {
   try {
-    const { userId, action, cost, referenceId, idempotencyKey } = params;
+    const { userId, action, cost, referenceId, idempotencyKey, description } = params;
 
     // Validate cost
     if (cost <= 0) {
@@ -188,7 +193,7 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
           action: ledgerAction,
           credits: -cost,
           balance: newBalance,
-          description: `Deducted ${cost} credits for ${action}`,
+          description: description || `Deducted ${cost} credits for ${action}`,
           referenceId: referenceId || null,
         },
       });

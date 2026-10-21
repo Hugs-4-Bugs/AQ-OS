@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { deductCredits, getCreditBalance, CREDIT_COSTS, type CreditAction } from '@/lib/credit-service';
 import { getEntitlements, type PlanType } from '@/lib/entitlement-service';
+import { getDailyOutreachUsage } from '@/lib/daily-outreach-quota';
 import { logBillingEvent } from '@/lib/billing-audit';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
@@ -29,6 +30,10 @@ export async function GET(request: NextRequest) {
       // Get plan entitlements for credit actions
       const plan = (user.plan || 'free') as PlanType;
       const entitlements = getEntitlements(plan);
+
+      // Part 2 — the user's daily outreach quota snapshot (authoritative
+      // server-side usage; the UI only renders what this returns).
+      const dailyOutreach = await getDailyOutreachUsage(user.id);
 
       // Build credit action entitlements (only actions that have a credit cost)
       const creditActionEntitlements: Record<
@@ -58,6 +63,13 @@ export async function GET(request: NextRequest) {
             ? Math.round((creditBalance.total / creditBalance.monthly) * 100)
             : 0,
         creditActionEntitlements,
+        dailyOutreach: {
+          used: dailyOutreach.used,
+          limit: dailyOutreach.limit,
+          remaining: dailyOutreach.remaining,
+          resetsAt: dailyOutreach.resetsAt,
+          timezone: dailyOutreach.timezone,
+        },
       });
     } catch (error) {
       console.error('[API] Failed to fetch credits:', error);

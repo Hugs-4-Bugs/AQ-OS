@@ -148,6 +148,11 @@ export default function CreditDisplay({
   const currentPlan = useSubscriptionStore((s) => s.currentPlan);
   const getCreditPercentage = useSubscriptionStore((s) => s.getCreditPercentage);
   const getPlanDetails = useSubscriptionStore((s) => s.getPlanDetails);
+  // Part 2 — daily outreach quota (authoritative backend snapshot; the
+  // displayed values come from /api/subscriptions/current, never from a
+  // local counter the client could disagree with the server about).
+  const dailyOutreachUsed = useSubscriptionStore((s) => s.dailyOutreachUsed);
+  const dailyOutreachLimit = useSubscriptionStore((s) => s.dailyOutreachLimit);
 
   const [purchaseOpen, setPurchaseOpen] = useState(false);
 
@@ -224,6 +229,18 @@ export default function CreditDisplay({
       )}
 
       <div className="text-xs space-y-1 border-t border-white/20 pt-1.5">
+        <div className="flex justify-between gap-4">
+          <span className="text-white font-medium">Workflow run fee</span>
+          <span className="text-white font-bold">5 credits</span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span className="text-white font-medium">Daily outreach</span>
+          <span className="text-white font-bold">
+            {dailyOutreachLimit === null
+              ? `${dailyOutreachUsed} sent · unlimited`
+              : `${dailyOutreachUsed}/${dailyOutreachLimit} sent`}
+          </span>
+        </div>
         {(Object.entries(CREDIT_COSTS) as [CreditAction, number][]).map(
           ([action, cost]) => (
             <div key={action} className="flex justify-between gap-4">

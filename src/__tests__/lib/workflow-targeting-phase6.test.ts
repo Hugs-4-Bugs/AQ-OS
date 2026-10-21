@@ -41,6 +41,14 @@ vi.mock('@/lib/entitlement-middleware', () => ({
   checkPlanEntitlement: vi.fn(async () => ({ allowed: true })),
 }));
 vi.mock('@/lib/workflow-engine', () => ({ executeWorkflow: mocks.executeWorkflow }));
+// Part 2 — the route charges the flat execution fee via the central
+// workflow-credits service; mocked so these suites keep testing their own
+// concerns (the dedicated part2 suites cover the fee behavior).
+vi.mock('@/lib/workflow-credits', () => ({
+  chargeWorkflowExecutionFee: vi.fn(async () => ({ ok: true, alreadyProcessed: false, newBalance: 745 })),
+  refundWorkflowExecutionFee: vi.fn(async () => ({ refunded: true, newBalance: 750 })),
+  WORKFLOW_EXECUTION_FEE_CREDITS: 5,
+}));
 
 import { POST as executeRoute } from '@/app/api/workflows/[id]/execute/route';
 

@@ -31,6 +31,15 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ db: mocks.db }));
 vi.mock('@/lib/email', () => ({ sendEmail: mocks.sendEmail }));
+// Part 2 — the daily outreach quota is enforced inside the send actions;
+// these suites test OTHER action concerns, so the quota gate is a
+// pass-through here (its own dedicated suite covers the limit behavior).
+vi.mock('@/lib/daily-outreach-quota', () => ({
+  reserveDailyOutreachSend: vi.fn(async () => ({
+    allowed: true, used: 0, limit: 500, remaining: 500, dateKey: '2026-10-21', timezone: 'UTC',
+  })),
+  DAILY_OUTREACH_LIMIT_EXCEEDED: 'DAILY_OUTREACH_LIMIT_EXCEEDED',
+}));
 vi.mock('@/lib/lead-audit', () => ({ logAuditEvent: vi.fn(async () => {}) }));
 vi.mock('@/lib/lead-score-recalc', () => ({ recalcLeadScores: vi.fn(async () => {}) }));
 vi.mock('@/lib/ai/sender-signature', () => ({

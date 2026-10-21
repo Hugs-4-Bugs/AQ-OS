@@ -24,6 +24,11 @@ import { db } from '@/lib/db';
 import { startDiscoveryJob } from '@/lib/lead-discovery-service';
 import { executeWorkflow } from '@/lib/workflow-executor';
 import { checkCreditSufficiency, CREDIT_COSTS } from '@/lib/credit-service';
+import {
+  chargeWorkflowExecutionFee,
+  refundWorkflowExecutionFee,
+  WORKFLOW_EXECUTION_FEE_CREDITS,
+} from '@/lib/workflow-credits';
 import { normalizeCountryName } from '@/lib/countries';
 import {
   AUTOPILOT_DISCOVERY_BATCH,
@@ -254,6 +259,10 @@ export async function executeAutopilotRun(
   let processed = 0;
   let executionsCreated = 0;
   let hardFailures = 0;
+  // Part 2 — set once the workflow execution fee can no longer be paid:
+  // remaining leads are skipped honestly instead of the loop pointlessly
+  // re-attempting a charge that will keep failing.
+  let insufficientCredits = false;
 
   try {
     // Linked workflow must exist, belong to the user, and be ACTIVE.
@@ -274,6 +283,22 @@ export async function executeAutopilotRun(
     if (!sufficiency.sufficient) {
       throw new Error(
         `Insufficient credits for discovery: need ~${planCredits}, available ${sufficiency.balance}. Top up credits and run again.`
+      );
+    }
+
+    // ── Part 2 — pre-flight for the workflow execution fee ──
+    // Every ACTUAL autopilot workflow execution is billed through the
+    // central flat-fee service (5 credits, below). Discovery alone is
+    // never billed as a workflow execution, but an autopilot whose
+    // balance cannot even cover ONE execution fee cannot achieve its
+    // purpose — refuse honestly before burning discovery credits.
+    const feeSufficiency = await checkCreditSufficiency(
+      autopilot.userId,
+      WORKFLOW_EXECUTION_FEE_CREDITS
+    );
+    if (!feeSufficiency.sufficient) {
+      throw new Error(
+        `Insufficient credits for workflow execution: each run costs ${WORKFLOW_EXECUTION_FEE_CREDITS}, available ${feeSufficiency.balance}. Top up credits and run again.`
       );
     }
 
@@ -359,10 +384,45 @@ export async function executeAutopilotRun(
           continue;
         }
 
+        // Part 2 — once the balance can no longer cover the execution fee,
+        // remaining discovered leads are recorded but NOT executed (and
+        // not re-charged): an honest partial run instead of a doomed loop.
+        if (insufficientCredits) {
+          continue;
+        }
+
         // Execute the user's configured workflow against this lead via
         // the EXISTING execution engine. Stable idempotency key = one
         // execution per (autopilot, lead) even under retries/duplicates.
         const idempotencyKey = `autopilot:${autopilot.id}:lead:${lead.id}`;
+        // ── Part 2 — the SAME central flat-fee path as manual runs ──
+        // The charge key mirrors the engine's stable idempotency key, so
+        // scheduler replay, worker retry, or duplicate queue delivery can
+        // never double-charge the same (autopilot, lead) execution. On
+        // insufficient credits the lead is marked EXEC_FAILED (nothing
+        // executed — no partial processing) and remaining leads are
+        // skipped with the same honest reason instead of burning the
+        // loop. Autopilot has NO separate billing loophole.
+        const chargeKey = `wfexec-run:autopilot-${autopilot.id}-lead-${lead.id}`;
+        const charge = await chargeWorkflowExecutionFee({
+          userId: autopilot.userId,
+          workflowId: autopilot.workflowId,
+          chargeKey,
+          source: 'AUTOPILOT',
+          referenceId: idempotencyKey,
+          leadCount: 1,
+        });
+        if (!charge.ok) {
+          const insufficientError =
+            `Insufficient credits for workflow execution: need ${charge.fee}, available ${charge.balance}. Nothing was executed for this lead.`;
+          await db.autopilotLead.updateMany({
+            where: { autopilotId: autopilot.id, leadId: lead.id },
+            data: { status: 'EXEC_FAILED', error: insufficientError },
+          });
+          hardFailures++;
+          insufficientCredits = true;
+          continue;
+        }
         try {
           const execution = await executeWorkflow(
             autopilot.workflowId,
@@ -383,6 +443,18 @@ export async function executeAutopilotRun(
             data: { status: 'EXEC_QUEUED', executionId: execution.id },
           });
         } catch (execErr) {
+          // The execution never started (record could not be created) —
+          // Part 2 §21: release the fee idempotently, then record the
+          // honest per-lead failure.
+          await refundWorkflowExecutionFee({
+            userId: autopilot.userId,
+            workflowId: autopilot.workflowId,
+            chargeKey,
+            source: 'AUTOPILOT',
+            referenceId: idempotencyKey,
+          }).catch(() => {
+            // Ledger idempotency makes a later retry safe.
+          });
           await db.autopilotLead.updateMany({
             where: { autopilotId: autopilot.id, leadId: lead.id },
             data: {
@@ -417,6 +489,9 @@ export async function executeAutopilotRun(
       .filter((n) => n.error)
       .map((n) => `${n.niche}: ${n.error}`)
       .join(' | ');
+    const insufficientSummary = insufficientCredits
+      ? `Insufficient credits: workflow execution fee (${WORKFLOW_EXECUTION_FEE_CREDITS}) could not be paid after ${executionsCreated} execution${executionsCreated === 1 ? '' : 's'}; remaining discovered leads were not executed.`
+      : '';
 
     await db.autopilotRun.update({
       where: { id: runId },
@@ -427,14 +502,20 @@ export async function executeAutopilotRun(
         processed,
         executionsCreated,
         completedAt: new Date(),
-        ...(errorSummary ? { error: errorSummary.substring(0, 2000) } : {}),
-        ...(status === 'FAILED' && !errorSummary ? { error: 'Run failed — no leads imported and no executions created' } : {}),
+        ...((errorSummary || insufficientSummary)
+          ? { error: [insufficientSummary, errorSummary].filter(Boolean).join(' | ').substring(0, 2000) }
+          : {}),
+        ...(status === 'FAILED' && !errorSummary && !insufficientSummary
+          ? { error: 'Run failed — no leads imported and no executions created' }
+          : {}),
       },
     });
 
     return {
       runId, status, discovered, saved, processed, executionsCreated, perNiche,
-      ...(errorSummary ? { error: errorSummary } : {}),
+      ...((errorSummary || insufficientSummary)
+        ? { error: [insufficientSummary, errorSummary].filter(Boolean).join(' | ') }
+        : {}),
     };
   } catch (fatal) {
     const message = fatal instanceof Error ? fatal.message : 'Autopilot run failed';

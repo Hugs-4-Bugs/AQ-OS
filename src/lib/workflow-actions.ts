@@ -6,6 +6,7 @@
 import { db } from '@/lib/db';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { sendEmail } from '@/lib/email';
+import { reserveDailyOutreachSend, DAILY_OUTREACH_LIMIT_EXCEEDED } from '@/lib/daily-outreach-quota';
 import { moveLeadToStage } from '@/lib/pipeline-service';
 import {
   buildSenderSignatureBlock,
@@ -179,6 +180,19 @@ async function executeSendEmail(
     };
   }
 
+  // ── Part 2 — daily outreach quota (race-safe, server-authoritative) ──
+  // Applies to the ACTUAL outbound send only: the approval branch above
+  // parks a draft (no delivery, no quota consumption). Blocked sends fail
+  // this step honestly and consume ZERO credits (the flat execution fee
+  // was charged for the run, not per send).
+  const quota = await reserveDailyOutreachSend(context.userId);
+  if (!quota.allowed) {
+    return {
+      success: false,
+      error: `${DAILY_OUTREACH_LIMIT_EXCEEDED}: ${quota.blockedReason}`,
+    };
+  }
+
   const result = await sendEmail({
     to: recipient,
     subject: resolvedSubject,
@@ -190,7 +204,6 @@ async function executeSendEmail(
     success: result.sent,
     output: { messageId: result.messageId, devMode: result.devMode },
     error: result.error,
-    creditsUsed: 2,
   };
 }
 
@@ -277,6 +290,15 @@ async function executeSendTelegram(
     return { success: false, error: 'Telegram not connected' };
   }
 
+  // ── Part 2 — daily outreach quota (race-safe, server-authoritative) ──
+  const quota = await reserveDailyOutreachSend(context.userId);
+  if (!quota.allowed) {
+    return {
+      success: false,
+      error: `${DAILY_OUTREACH_LIMIT_EXCEEDED}: ${quota.blockedReason}`,
+    };
+  }
+
   // In production, this would send via Telegram Bot API
   // Create an outreach message record
   if (context.leadId) {
@@ -297,7 +319,6 @@ async function executeSendTelegram(
   return {
     success: true,
     output: { chatId: chatId || telegramConfig.chatId },
-    creditsUsed: 2,
   };
 }
 
@@ -320,6 +341,15 @@ async function executeSendWhatsapp(
     return { success: false, error: 'WhatsApp not connected' };
   }
 
+  // ── Part 2 — daily outreach quota (race-safe, server-authoritative) ──
+  const quota = await reserveDailyOutreachSend(context.userId);
+  if (!quota.allowed) {
+    return {
+      success: false,
+      error: `${DAILY_OUTREACH_LIMIT_EXCEEDED}: ${quota.blockedReason}`,
+    };
+  }
+
   // Create outreach message record
   if (context.leadId) {
     await db.outreachMessage.create({
@@ -339,7 +369,6 @@ async function executeSendWhatsapp(
   return {
     success: true,
     output: { phoneNumber: phoneNumber || '' },
-    creditsUsed: 2,
   };
 }
 
