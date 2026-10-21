@@ -25,6 +25,12 @@ import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 import { ENTITLEMENTS, type PlanType } from '@/lib/entitlement-service';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { validateDefinition } from '@/lib/workflow-validation';
+import {
+  splitNicheList,
+  leadMatchesRequestedNiches,
+  NO_MATCHING_LEADS,
+  TERMINAL_EXECUTION_STATUSES,
+} from '@/lib/workflow-retry';
 import { db } from '@/lib/db';
 
 // ===== TYPES =====
@@ -157,22 +163,35 @@ async function resolveSelectedLeads(
  * Phase 6.4 — pages through the ENTIRE matching set in chunked queries:
  * there is no arbitrary take(500) truncation. The request-size guard
  * (maxTargetLeads) bounds pathological sets honestly at the caller.
+ *
+ * Part 1 — a niche target may list multiple niches ("hospital, dentist").
+ * Each requested niche is matched EXACTLY (case-insensitive) against the
+ * leads' OWN stored niche, so a lead is attributed to the niche it actually
+ * carries — never relabeled with the comma-joined request string.
  */
 async function resolveNicheLeads(userId: string, niche: string): Promise<ResolvedLead[]> {
-  // SQLite `contains` is case-insensitive for ASCII by default, but we need
-  // an EXACT (case-insensitive) niche match, so widen with contains then
-  // filter in JS — keeps the query index-friendly on SQLite.
-  const wanted = niche.toLowerCase();
+  const wantedList = splitNicheList(niche);
+  if (wantedList.length === 0) return [];
+  // Candidate narrowing per requested niche (contains stays index-friendly
+  // on SQLite; the exact per-niche match is re-checked in JS below).
+  const nicheContains = wantedList.map((n) => ({ niche: { contains: n } }));
   const all: ResolvedLead[] = [];
   let skip = 0;
   for (;;) {
     const candidates = await db.lead.findMany({
-      where: { userId, isActive: true, deletedAt: null, niche: { contains: niche } },
+      where: {
+        userId,
+        isActive: true,
+        deletedAt: null,
+        ...(wantedList.length === 1
+          ? { niche: { contains: wantedList[0] } }
+          : { OR: nicheContains }),
+      },
       select: { id: true, businessName: true, niche: true, city: true, stage: true },
       take: RESOLUTION_PAGE_SIZE,
       skip,
     });
-    all.push(...candidates.filter((l) => (l.niche || '').toLowerCase() === wanted));
+    all.push(...candidates.filter((l) => leadMatchesRequestedNiches(l.niche, wantedList)));
     if (candidates.length < RESOLUTION_PAGE_SIZE) break;
     skip += RESOLUTION_PAGE_SIZE;
     if (all.length >= maxTargetLeads()) break; // bounded; caller enforces honestly
@@ -219,7 +238,8 @@ async function resolveCustomLeads(userId: string, query: string): Promise<Resolv
   return all;
 }
 
-/** Wait until all batched executions reach a terminal state (or timeout). */
+/** Wait until all batched executions reach a terminal state (or timeout).
+ * Part 1 — 'exhausted' is terminal alongside completed/failed/cancelled. */
 async function waitForBatchSettle(executionIds: string[]): Promise<void> {
   const deadline = Date.now() + batchSettleTimeoutMs();
   while (Date.now() < deadline) {
@@ -227,7 +247,7 @@ async function waitForBatchSettle(executionIds: string[]): Promise<void> {
       where: { id: { in: executionIds } },
       select: { status: true },
     });
-    const settled = rows.every((r) => r.status === 'completed' || r.status === 'failed' || r.status === 'cancelled');
+    const settled = rows.every((r) => TERMINAL_EXECUTION_STATUSES.has(r.status));
     if (settled || rows.length < executionIds.length) return;
     await sleep(batchPollIntervalMs());
   }
@@ -382,11 +402,28 @@ export async function POST(
               { status: 400 }
             );
           }
-          requestSnapshot = { niche };
+          requestSnapshot = { niche, requestedNiches: splitNicheList(niche) };
           leads = await resolveNicheLeads(user.id, niche);
           if (leads.length === 0) {
+            // Part 1 — NO_MATCHING_LEADS is a structured BUSINESS result,
+            // distinct from an engine crash, a provider failure, or an
+            // invalid configuration. The frontend uses these fields to
+            // offer the Find-Leads handoff; nothing was executed and no
+            // execution record exists, so there is nothing to retry or
+            // cancel server-side — the run ends here, honestly.
             return NextResponse.json(
-              { success: false, error: `No active leads match the niche "${niche}". Discover leads in that niche first.`, code: 'NO_LEADS_FOR_NICHE' },
+              {
+                success: false,
+                code: NO_MATCHING_LEADS,
+                error: `No active leads match the niche "${niche}". Discover leads in that niche first.`,
+                workflowId: id,
+                userId: user.id,
+                targetMode: 'niche',
+                requestedNiche: niche,
+                requestedNiches: splitNicheList(niche),
+                targetConfig: { mode: 'niche', niche },
+                matchingLeadCount: leads.length,
+              },
               { status: 400 }
             );
           }
@@ -533,7 +570,7 @@ export async function POST(
         }
 
         const completed = executions.filter((e) => e.status === 'completed').length;
-        const failed = executions.filter((e) => e.status === 'failed');
+        const failed = executions.filter((e) => e.status === 'failed' || e.status === 'exhausted');
         const overall: string = failed.length === 0
           ? 'completed'
           : completed === 0

@@ -11,6 +11,11 @@ import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
 import { createNotificationOnce } from '@/lib/notification-service';
 import {
+  classifyStepError,
+  computeBackoffDelayMs,
+  type StepErrorClassification,
+} from '@/lib/workflow-retry';
+import {
   loadStepsForExecution,
   type ValidatedStep,
 } from '@/lib/workflow-validation';
@@ -193,13 +198,19 @@ export async function executeWorkflow(
       await createExecutionRecord(db);
     }
 
-    if (existingExecution) {
-      return { executionId: existingExecution.id, status: existingExecution.status };
+    // The idempotent-hit variables are assigned inside the closure above;
+    // re-read them through a non-narrowed view (TS cannot track closure
+    // assignments, so it would otherwise narrow these to `never`).
+    const existingHit = existingExecution as { id: string; status: string } | null;
+    const createdHit = createdExecution as { id: string } | null;
+
+    if (existingHit) {
+      return { executionId: existingHit.id, status: existingHit.status };
     }
-    if (!createdExecution) {
+    if (!createdHit) {
       throw new Error('Failed to create execution record');
     }
-    const executionId = createdExecution.id;
+    const executionId = createdHit.id;
 
     // Invalid definition: the execution record exists and honestly says WHY
     // nothing ran. No steps execute, no credits are deducted, no side effects.
@@ -399,6 +410,11 @@ async function runSteps(
     const retryBudget = stepRetryBudget(step.config, maxRetries);
     let attempt = 0;
     let result: ProcessStepResult;
+    // Part 1 — classification of the last failure decides whether another
+    // attempt is spent at all (only positively-identified transient errors:
+    // 429/rate limits, 5xx, network, timeouts). It is carried out of the
+    // loop so the failure handler can distinguish 'exhausted' from 'failed'.
+    let lastClassification: StepErrorClassification | null = null;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -434,6 +450,12 @@ async function runSteps(
 
       if (result.success || attempt >= retryBudget) break;
 
+      // Part 1 — classify BEFORE spending another attempt. Validation /
+      // auth / business failures fail honestly on the first attempt;
+      // retrying them would only burn credits and duplicate work.
+      lastClassification = classifyStepError(result.error);
+      if (!lastClassification.retryable) break;
+
       // Between retry attempts: re-check cancellation / pause / budget so a
       // user cancelling mid-retry is respected immediately.
       const midStatus = await db.workflowExecution
@@ -450,10 +472,13 @@ async function runSteps(
         break;
       }
 
-      // Exponential backoff (1s, 2s, 4s… capped at 30s), mirrors the legacy
-      // executor's retry pacing. Base is env-tunable for tests.
-      const backoffBase = Number(process.env.WORKFLOW_RETRY_BACKOFF_BASE_MS) || 1000;
-      await sleep(Math.min(backoffBase * Math.pow(2, attempt), 30000));
+      // Part 1 — exponential backoff with FULL jitter (uniform within
+      // [0, base·2^attempt], capped) so concurrent retries never re-align
+      // into a synchronized stampede. A provider Retry-After hint (parsed
+      // by the classifier, e.g. from a 429 body) is honored as the floor.
+      await sleep(computeBackoffDelayMs(attempt, {
+        retryAfterMs: lastClassification.retryAfterMs,
+      }));
       attempt++;
     }
 
@@ -483,11 +508,33 @@ async function runSteps(
     }
 
     if (!result.success) {
-      // Mark execution as failed
+      // Part 1 — classify the TERMINAL failure fresh from result.error (the
+      // loop's classification decided retry attempts only; result always
+      // carries the final attempt's outcome, so this is never stale).
+      const classification = classifyStepError(result.error);
+      const retryableFailure = classification.retryable;
+
+      // Retry accounting read BEFORE the terminal write (the notification
+      // and logs below never touch this row's retry fields).
+      const execution = await db.workflowExecution.findUnique({
+        where: { id: executionId },
+        select: { retryCount: true, maxRetries: true },
+      });
+      const budgetSpent =
+        !execution || execution.retryCount >= (execution.maxRetries ?? maxRetries);
+
+      // Part 1 — 'exhausted' is a DISTINCT terminal state: a retryable
+      // failure that burned its entire retry budget. A non-retryable
+      // failure is a plain honest 'failed' (retrying it would be waste).
+      const terminalStatus: string = retryableFailure && budgetSpent
+        ? 'exhausted'
+        : 'failed';
+
+      // Mark execution as failed/exhausted
       await db.workflowExecution.update({
         where: { id: executionId },
         data: {
-          status: 'failed',
+          status: terminalStatus,
           error: result.error || 'Step execution failed',
           completedAt: new Date(),
         },
@@ -536,18 +583,15 @@ async function runSteps(
         error: result.error,
       });
 
-      // Check if we should retry
-      const execution = await db.workflowExecution.findUnique({
-        where: { id: executionId },
-        select: { retryCount: true, maxRetries: true },
-      });
-
-      if (execution && execution.retryCount < execution.maxRetries) {
+      // Retry accounting (Part 1): only RETRYABLE failures consume retry
+      // budget and can dead-letter. A permanent failure has nothing to
+      // retry — it fails once, honestly, with no background re-runs.
+      if (retryableFailure && execution && execution.retryCount < execution.maxRetries) {
         await db.workflowExecution.update({
           where: { id: executionId },
           data: { retryCount: { increment: 1 } },
         });
-      } else {
+      } else if (retryableFailure) {
         // Max retries exceeded — dead letter
         await sendToDeadLetter(executionId, `Max retries exceeded. Last error: ${result.error || 'Unknown'}`);
       }
@@ -626,7 +670,10 @@ export async function processStep(
     // node type (Phase 4 fix: 'delay'/'condition' nodes carrying an
     // actionType were previously charged the generic fallback cost, and
     // ai actions were undercharged).
-    let creditResult = { success: true, creditsUsed: 0, error: undefined as string | undefined };
+    let creditResult: { success: boolean; creditsUsed: number; error?: string } = {
+      success: true,
+      creditsUsed: 0,
+    };
     if (!approvalSkipsCharge) {
       creditResult = await deductExecutionCredits(context.userId, actionType);
     }
@@ -910,7 +957,7 @@ export async function retryExecution(
       return { success: false, error: 'Not authorized' };
     }
 
-    if (!['failed', 'cancelled'].includes(execution.status)) {
+    if (!['failed', 'cancelled', 'exhausted'].includes(execution.status)) {
       return { success: false, error: `Cannot retry execution in '${execution.status}' status` };
     }
 

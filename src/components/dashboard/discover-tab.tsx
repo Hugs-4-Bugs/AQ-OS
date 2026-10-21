@@ -70,6 +70,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { pickResumableJobFromStorage } from '@/lib/discovery-resume';
 import { fetchLeads, updateLead } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { splitNicheList } from '@/lib/workflow-retry';
 import { cn } from '@/lib/utils';
 import type { Lead, LeadStage } from '@/lib/types';
 import LeadImportDialog from './lead-import-dialog';
@@ -653,6 +654,29 @@ export default function DiscoverTab() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [city, setCity] = useState('');
 
+  // ── Part 1 — NO_MATCHING_LEADS → "Find Leads" handoff ────────────
+  // The Workflows tab hands off with the workflow's requested niche. The
+  // niche field is populated ONLY — the rest of the targeting configuration
+  // is preserved untouched, and discovery NEVER auto-starts: the user
+  // reviews the pre-filled target and explicitly clicks the existing
+  // "Start Discovery" action themselves.
+  const pendingDiscoverNiche = useAppStore((s) => s.pendingDiscoverNiche);
+  const pendingDiscoverFromWorkflow = useAppStore((s) => s.pendingDiscoverFromWorkflow);
+  const clearPendingDiscoverNiche = useAppStore((s) => s.clearPendingDiscoverNiche);
+  const [prefillBanner, setPrefillBanner] = useState<{ niche: string; workflowName: string } | null>(null);
+  useEffect(() => {
+    if (pendingDiscoverNiche && pendingDiscoverNiche.trim()) {
+      setNiche(pendingDiscoverNiche.trim());
+      if (pendingDiscoverFromWorkflow?.name) {
+        setPrefillBanner({
+          niche: pendingDiscoverNiche.trim(),
+          workflowName: pendingDiscoverFromWorkflow.name,
+        });
+      }
+      clearPendingDiscoverNiche();
+    }
+  }, [pendingDiscoverNiche, pendingDiscoverFromWorkflow, clearPendingDiscoverNiche]);
+
   // ── Context / campaign selector (Discover page context feature) ────
   // 'none' = no override. Applies to BOTH filter and AI search modes;
   // resolved + ownership-checked server-side on /api/leads/discover.
@@ -821,8 +845,16 @@ export default function DiscoverTab() {
   // Start discovery mutation — accepts explicit variables (AI Chat Mode) or falls back to filter state
   const discoverMutation = useMutation({
     mutationFn: async (vars?: DiscoveryVars) => {
-      const payload = {
-        niche: (vars?.niche ?? niche).trim(),
+      // Part 1 — a multi-niche entry ("hospital, dentist") starts ONE
+      // discovery job PER niche so every discovered lead is attributed to
+      // the niche that actually produced it — never the comma-joined
+      // string (the attribution bug: hospital lead -> "hospital,dentist").
+      const rawNiche = (vars?.niche ?? niche).trim();
+      const niches = splitNicheList(rawNiche);
+      if (niches.length === 0) throw new Error('A niche is required to start discovery');
+
+      const buildPayload = (targetNiche: string) => ({
+        niche: targetNiche,
         country: (vars?.country ?? country).trim() || undefined,
         city: (vars?.city ?? city).trim() || undefined,
         source: vars?.source ?? source,
@@ -840,23 +872,49 @@ export default function DiscoverTab() {
               : contextMode === 'profile' && contextProfileId
                 ? { mode: 'profile', profileId: contextProfileId }
                 : undefined,
-      };
-      const res = await fetch('/api/leads/discover', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to start discovery');
+
+      const startOne = async (payload: Record<string, unknown>) => {
+        const res = await fetch('/api/leads/discover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to start discovery');
+        }
+        return (await res.json()) as {
+          jobId: string;
+          status?: string;
+          message?: string;
+        };
+      };
+
+      // Single niche keeps the exact historical one-job behavior.
+      if (niches.length === 1) {
+        const payload = buildPayload(niches[0]);
+        const data = await startOne(payload);
+        return { data, payload, jobs: [{ data, payload }] };
       }
-      const data = await res.json();
-      return { data, payload };
+
+      // Multi-niche: sequential starts (provider-friendly pacing), one
+      // job per niche — attribution follows each job's own niche.
+      const jobs: {
+        data: { jobId: string; status?: string; message?: string };
+        payload: ReturnType<typeof buildPayload>;
+      }[] = [];
+      for (const n of niches) {
+        const payload = buildPayload(n);
+        const data = await startOne(payload);
+        jobs.push({ data, payload });
+      }
+      return { data: jobs[0].data, payload: jobs[0].payload, jobs };
     },
-    onSuccess: ({ data, payload }) => {
+    onSuccess: ({ data, payload, jobs }) => {
       const job: DiscoveryJob = {
         id: data.jobId,
-        status: data.status || 'pending',
+        status: (data.status || 'pending') as DiscoveryJob['status'],
         source: payload.source,
         niche: payload.niche,
         country: payload.country || '',
@@ -870,15 +928,38 @@ export default function DiscoverTab() {
       };
       setActiveJob(job);
 
-      // Save to localStorage
+      // Save to localStorage — every started job (one per niche)
       try {
         const stored = localStorage.getItem('acquisitionos_discovery_jobs');
-        const jobs: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
-        jobs.unshift(job);
-        localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(jobs.slice(0, 20)));
+        const existing: DiscoveryJob[] = stored ? JSON.parse(stored) : [];
+        const extras = (jobs || []).slice(1).map(
+          ({ data: d, payload: p }) =>
+            ({
+              id: d.jobId,
+              status: d.status || 'pending',
+              source: p.source as string,
+              niche: p.niche as string,
+              country: (p.country as string) || '',
+              city: p.city as string | undefined,
+              totalFound: 0,
+              leadsAdded: 0,
+              duplicatesSkipped: 0,
+              errors: 0,
+              createdAt: new Date().toISOString(),
+              message: d.message,
+            }) as DiscoveryJob
+        );
+        existing.unshift(job, ...extras);
+        localStorage.setItem('acquisitionos_discovery_jobs', JSON.stringify(existing.slice(0, 20)));
       } catch {}
 
-      toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
+      if ((jobs || []).length > 1) {
+        toast.success(`${jobs.length} discovery jobs started — one per niche`, {
+          description: `Searching ${jobs.map((j) => j.payload.niche).join(', ')} in ${payload.country || 'worldwide'}... Each niche's leads keep their own attribution.`,
+        });
+      } else {
+        toast.success('Discovery job started!', { description: `Searching ${payload.niche} in ${payload.country}...` });
+      }
     },
     onError: (error: Error) => {
       toast.error('Failed to start discovery', { description: error.message });
@@ -1212,6 +1293,30 @@ export default function DiscoverTab() {
 
             {/* Niche Input */}
             <div className="space-y-2">
+              {/* Part 1 — NO_MATCHING_LEADS handoff banner: the niche below was
+                  pre-filled from a workflow run; the user reviews it and starts
+                  discovery explicitly (nothing runs automatically). */}
+              {prefillBanner && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
+                  <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">
+                      Niche pre-filled from workflow &ldquo;{prefillBanner.workflowName}&rdquo;
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Review the target below and click Start Discovery when you are ready — nothing runs automatically.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Dismiss prefill notice"
+                    onClick={() => setPrefillBanner(null)}
+                    className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               <label className="text-sm font-medium flex items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5 text-primary" />
                 Niche
@@ -1222,6 +1327,9 @@ export default function DiscoverTab() {
                 onChange={(e) => setNiche(e.target.value)}
                 className="border-primary/20 focus:ring-primary/30"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Multiple niches? Separate them with commas — each niche gets its own discovery job and keeps its own leads.
+              </p>
             </div>
 
             {/* Country selector — worldwide dataset (spec §5): searchable,

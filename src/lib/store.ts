@@ -80,12 +80,28 @@ interface AppState {
    */
   pendingSettingsSection: string | null;
 
+  /**
+   * Part 1 — one-shot Lead Discovery prefill (the NO_MATCHING_LEADS →
+   * "Find Leads" handoff). Carries the workflow's requested niche so the
+   * EXISTING Discover tab opens with the niche field populated and the
+   * rest of the targeting configuration untouched. The user stays in
+   * control: discovery NEVER auto-starts — they review the pre-filled
+   * target and click the existing Find Leads action themselves.
+   * Consumed (and cleared) by DiscoverTab on mount.
+   */
+  pendingDiscoverNiche: string | null;
+  /** Human context for the prefill banner (which workflow asked for leads). */
+  pendingDiscoverFromWorkflow: { id: string; name: string } | null;
+
   setActiveTab: (tab: TabId) => void;
   setSelectedLeadId: (id: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   requestSettingsSection: (section: string) => void;
   clearPendingSettingsSection: () => void;
+  /** Part 1 — hand off to Discover with a prefilled niche (never auto-runs). */
+  requestDiscoverForNiche: (niche: string, fromWorkflow: { id: string; name: string }) => void;
+  clearPendingDiscoverNiche: () => void;
 }
 
 // localStorage key for the desktop sidebar collapsed preference (client-only
@@ -98,6 +114,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: false,
   sidebarCollapsed: false,
   pendingSettingsSection: null,
+  pendingDiscoverNiche: null,
+  pendingDiscoverFromWorkflow: null,
 
   setActiveTab: (tab) => {
     set({ activeTab: tab });
@@ -120,6 +138,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().setActiveTab('settings');
   },
   clearPendingSettingsSection: () => set({ pendingSettingsSection: null }),
+  // Part 1 — the no-leads "Find Leads" handoff: remember the requested
+  // niche (+ which workflow asked) and switch to the EXISTING Discover
+  // tab. DiscoverTab consumes the prefill on mount and clears it; the
+  // user explicitly clicks Find Leads — discovery never auto-starts.
+  requestDiscoverForNiche: (niche, fromWorkflow) => {
+    set({
+      pendingDiscoverNiche: niche,
+      pendingDiscoverFromWorkflow: fromWorkflow,
+    });
+    get().setActiveTab('discover');
+  },
+  clearPendingDiscoverNiche: () =>
+    set({ pendingDiscoverNiche: null, pendingDiscoverFromWorkflow: null }),
   // Persist the collapsed preference so a refresh restores the user's choice.
   // Initial render always uses the expanded default (SSR-safe); the persisted
   // value is re-applied after mount by the layout's hydration effect.

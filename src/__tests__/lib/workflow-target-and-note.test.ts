@@ -425,11 +425,20 @@ describe('POST /api/workflows/[id]/execute — niche target', () => {
     expect(where.isActive).toBe(true);
   });
 
-  it('rejects when no own leads match the niche', async () => {
+  it('rejects when no own leads match the niche (Part 1: structured NO_MATCHING_LEADS)', async () => {
     mocks.db.lead.findMany.mockResolvedValue([]);
     const { status, json } = await callExecuteRoute({ target: { mode: 'niche', niche: 'Dental' } });
     expect(status).toBe(400);
-    expect(json.code).toBe('NO_LEADS_FOR_NICHE');
+    // Part 1 — the canonical structured business code (previously
+    // NO_LEADS_FOR_NICHE). The body carries everything the frontend needs
+    // to offer the Find-Leads handoff.
+    expect(json.code).toBe('NO_MATCHING_LEADS');
+    expect(json.workflowId).toBe('wf_1');
+    expect(json.targetMode).toBe('niche');
+    expect(json.requestedNiche).toBe('Dental');
+    expect(json.requestedNiches).toEqual(['Dental']);
+    expect(json.matchingLeadCount).toBe(0);
+    // Nothing executed — no execution record, no retry loop to cancel.
     expect(mocks.executeWorkflow).not.toHaveBeenCalled();
   });
 

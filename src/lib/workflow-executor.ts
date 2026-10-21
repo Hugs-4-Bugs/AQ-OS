@@ -9,6 +9,7 @@ import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { executeAction } from '@/lib/workflow-actions';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
 import { createNotificationOnce } from '@/lib/notification-service';
+import { classifyStepError, computeBackoffDelayMs } from '@/lib/workflow-retry';
 import {
   type WorkflowNode,
   type WorkflowEdge,
@@ -186,13 +187,28 @@ export async function processExecution(executionId: string): Promise<void> {
         stepSuccess = true;
         stepResults[step.id] = result;
       } catch (error) {
-        attempt++;
+        // Part 1 — classify BEFORE spending another attempt: only
+        // positively-identified transient errors (429/rate limits, 5xx,
+        // network, timeouts) are retried. Validation/auth/business errors
+        // fail on the first attempt instead of blindly re-running
+        // side-effecting steps.
+        const classification = classifyStepError(
+          error instanceof Error ? error.message : String(error),
+        );
         stepError = error instanceof Error ? error.message : String(error);
+        if (!classification.retryable) {
+          break;
+        }
+        attempt++;
 
         if (attempt <= maxRetries) {
-          // Wait before retry (exponential backoff)
-          const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          // Part 1 — exponential backoff with FULL jitter (de-synchronizes
+          // concurrent retries); a Retry-After hint from a 429 is honored.
+          await new Promise((resolve) =>
+            setTimeout(resolve, computeBackoffDelayMs(attempt - 1, {
+              retryAfterMs: classification.retryAfterMs,
+            }))
+          );
         }
       }
     }
@@ -240,11 +256,14 @@ export async function processExecution(executionId: string): Promise<void> {
       }
 
       // Mark execution as failed / dead letter
+      // Part 1 — 'exhausted' is the DISTINCT terminal state for a retryable
+      // failure that burned its whole per-step retry budget; a first-attempt
+      // (non-retryable) failure stays a plain honest 'failed'.
       const isDeadLetter = attempt > maxRetries;
       await db.workflowExecution.update({
         where: { id: executionId },
         data: {
-          status: 'failed',
+          status: isDeadLetter ? 'exhausted' : 'failed',
           error: lastError,
           completedAt: new Date(),
           durationMs: Date.now() - startTime,
@@ -962,7 +981,7 @@ export async function handleWebhookTrigger(
 /** Retry a failed execution */
 export async function retryExecution(executionId: string, userId: string) {
   const execution = await assertExecutionOwnership(executionId, userId);
-  if (!['failed', 'dead_letter'].includes(execution.status)) {
+  if (!['failed', 'dead_letter', 'exhausted'].includes(execution.status)) {
     throw new Error('Execution is not in a retryable state');
   }
 

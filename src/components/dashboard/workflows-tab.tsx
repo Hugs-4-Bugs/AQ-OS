@@ -42,6 +42,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscriptionStore } from '@/lib/subscription-store';
+import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -367,9 +368,92 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    // Part 1 — the parsed error body rides on the thrown Error so callers
+    // can branch on STRUCTURED business codes (e.g. NO_MATCHING_LEADS)
+    // instead of only having the human message.
+    const err = new Error(body.error || `HTTP ${res.status}`) as Error & { body?: unknown };
+    err.body = body;
+    throw err;
   }
   return res.json();
+}
+
+// ===== PART 1 — NO_MATCHING_LEADS CONFIRMATION DIALOG =====
+
+/**
+ * Structured no-leads payload returned by the execute route. This is a
+ * BUSINESS result (zero matching leads for the targeted niche) — clearly
+ * distinct from an engine crash, a provider/API failure, or an invalid
+ * workflow configuration, each of which surfaces through its own code.
+ */
+interface NoMatchingLeadsBody {
+  code: 'NO_MATCHING_LEADS';
+  workflowId: string;
+  targetMode: 'niche';
+  requestedNiche: string;
+  requestedNiches: string[];
+  matchingLeadCount: number;
+}
+
+function NoLeadsDialog({
+  workflow,
+  body,
+  onClose,
+}: {
+  workflow: Pick<Workflow, 'id' | 'name'>;
+  body: NoMatchingLeadsBody;
+  onClose: () => void;
+}) {
+  const requestDiscoverForNiche = useAppStore((s) => s.requestDiscoverForNiche);
+  const multi = body.requestedNiches.length > 1;
+
+  return (
+    <AlertDialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <AlertDialogContent className="max-w-md">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-primary shrink-0" />
+            No leads in this niche yet
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-left">
+              <p>
+                No leads currently exist in your account for this target niche
+                {multi ? ' (any of: ' : ': '}
+                <span className="font-medium text-foreground">{body.requestedNiches.join(', ')}</span>
+                {multi ? ')' : ''}.
+              </p>
+              <p className="text-muted-foreground">
+                Would you like to find leads for this niche now? You will review the
+                pre-filled search on the Discover page and start it yourself — nothing
+                runs automatically.
+              </p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          {/* Cancel is safe: the run was rejected BEFORE any execution record
+              existed — no retry, no notifications, no duplicate runs. */}
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              // Hand off to the EXISTING Lead Discovery page with the niche
+              // pre-filled and the rest of the targeting config preserved.
+              // The user reviews the target and EXPLICITLY clicks the
+              // existing Find Leads action — discovery never auto-starts.
+              requestDiscoverForNiche(
+                body.requestedNiche,
+                { id: workflow.id, name: workflow.name },
+              );
+              onClose();
+            }}
+          >
+            Find Leads
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 // ===== LEAD-AWARE EXECUTION =====
@@ -1467,6 +1551,9 @@ function WorkflowList({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [leadPickWorkflow, setLeadPickWorkflow] = useState<Workflow | null>(null);
+  // Part 1 — the NO_MATCHING_LEADS confirmation dialog state (a structured
+  // business result from a niche-targeted run with zero matching leads).
+  const [noLeads, setNoLeads] = useState<{ wf: Workflow; body: NoMatchingLeadsBody } | null>(null);
 
   const fetchWorkflows = useCallback(async () => {
     try {
@@ -1579,6 +1666,15 @@ function WorkflowList({
         fetchWorkflows();
       }, 2000);
     } catch (err) {
+      // Part 1 — a structured NO_MATCHING_LEADS business result opens the
+      // Find-Leads confirmation dialog instead of a raw error toast. The
+      // server rejected the run BEFORE creating any execution record, so
+      // Cancel is completely safe (no retry loop, no notifications).
+      const body = (err as Error & { body?: NoMatchingLeadsBody }).body;
+      if (body && body.code === 'NO_MATCHING_LEADS' && body.workflowId === wf.id) {
+        setNoLeads({ wf, body });
+        return;
+      }
       toast({
         title: 'Execution failed',
         description: err instanceof Error ? err.message : 'Failed to execute workflow',
@@ -1610,6 +1706,14 @@ function WorkflowList({
             setLeadPickWorkflow(null);
             void executeRun(wf, target);
           }}
+        />
+      )}
+      {/* Part 1 — NO_MATCHING_LEADS confirmation (Find Leads / Cancel) */}
+      {noLeads && (
+        <NoLeadsDialog
+          workflow={noLeads.wf}
+          body={noLeads.body}
+          onClose={() => setNoLeads(null)}
         />
       )}
       {/* Filters */}
@@ -2053,6 +2157,8 @@ function WorkflowDetail({
   const { toast } = useToast();
   const [executing, setExecuting] = useState(false);
   const [leadPickOpen, setLeadPickOpen] = useState(false);
+  // Part 1 — NO_MATCHING_LEADS dialog state for the detail view.
+  const [noLeads, setNoLeads] = useState<NoMatchingLeadsBody | null>(null);
 
   const statusBadge = getStatusBadge(workflow.status);
   const stepCount = workflow.nodes?.filter(n => n.type !== 'trigger').length || workflow.workflowSteps?.length || 0;
@@ -2091,6 +2197,12 @@ function WorkflowDetail({
         });
       }
     } catch (err) {
+      // Part 1 — structured NO_MATCHING_LEADS → confirmation dialog.
+      const body = (err as Error & { body?: NoMatchingLeadsBody }).body;
+      if (body && body.code === 'NO_MATCHING_LEADS' && body.workflowId === workflow.id) {
+        setNoLeads(body);
+        return;
+      }
       toast({
         title: 'Execution failed',
         description: err instanceof Error ? err.message : 'Failed to execute',
@@ -2120,6 +2232,14 @@ function WorkflowDetail({
             setLeadPickOpen(false);
             void executeRun(target);
           }}
+        />
+      )}
+      {/* Part 1 — NO_MATCHING_LEADS confirmation (Find Leads / Cancel) */}
+      {noLeads && (
+        <NoLeadsDialog
+          workflow={workflow}
+          body={noLeads}
+          onClose={() => setNoLeads(null)}
         />
       )}
       <div className="flex items-center gap-2">

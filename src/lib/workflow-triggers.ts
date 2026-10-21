@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/db';
 import { executeWorkflow } from '@/lib/workflow-engine';
+import { createNotificationOnce } from '@/lib/notification-service';
 
 // ===== TYPES =====
 
@@ -295,6 +296,53 @@ export async function processScheduledTriggers(): Promise<string[]> {
       // never dependent on a browser tab).
       if (!shouldFireSchedule(config, now)) continue;
 
+      // ── Part 1 — consecutive-failure circuit breaker ──────────────
+      // A scheduled workflow whose last CONSECUTIVE_FAILURE_BREAKER
+      // executions ALL failed (or exhausted their retry budget) is NOT
+      // fired again. Repeated background runs would only burn credits
+      // and flood the user with one failure notification per run (the
+      // observed "100+ new notifications" storm). Exactly ONE honest
+      // attention notification is sent (deduped per workflow), and the
+      // scheduler stops re-kicking until the workflow succeeds again —
+      // any completed/cancelled/paused/running run breaks the streak.
+      const recentExecutions = await db.workflowExecution.findMany({
+        where: { workflowId: workflow.id },
+        orderBy: { startedAt: 'desc' },
+        take: CONSECUTIVE_FAILURE_BREAKER,
+        select: { status: true },
+      });
+      const allRecentFailed =
+        recentExecutions.length >= CONSECUTIVE_FAILURE_BREAKER &&
+        recentExecutions.every(
+          (r) => r.status === 'failed' || r.status === 'exhausted'
+        );
+      if (allRecentFailed) {
+        console.warn(
+          `[WorkflowTriggers] Scheduled workflow "${workflow.name}" (${workflow.id}) skipped — ` +
+          `${CONSECUTIVE_FAILURE_BREAKER} consecutive failed executions (circuit breaker).`
+        );
+        if (workflow.userId) {
+          await createNotificationOnce({
+            userId: workflow.userId,
+            type: 'workflow_failed',
+            title: 'Scheduled workflow paused — repeated failures',
+            message: `"${workflow.name}" failed ${CONSECUTIVE_FAILURE_BREAKER} scheduled runs in a row, so the scheduler stopped running it automatically. Review the workflow and run it manually when fixed — a successful run re-enables the schedule.`,
+            actionUrl: '/business-ai/workflows',
+            metadata: {
+              workflowId: workflow.id,
+              consecutiveFailures: CONSECUTIVE_FAILURE_BREAKER,
+              schedulerPaused: true,
+            },
+            // No time window: ONE notification for this pause state, ever —
+            // the streak only re-arms after a successful run resets it.
+            dedupeKey: `wfsched:${workflow.id}:consecutive-failures`,
+          }).catch(() => {
+            // Never break the scheduler tick over a notification problem
+          });
+        }
+        continue;
+      }
+
       // Day-granular idempotency keyed on the WORKFLOW's LOCAL date, so a
       // 08:00 Asia/Kolkata schedule dedupes on the Kolkata calendar day.
       const tz = scheduleTimezone(config);
@@ -318,6 +366,9 @@ export async function processScheduledTriggers(): Promise<string[]> {
     return [];
   }
 }
+
+/** Part 1 — consecutive failed executions after which the scheduler pauses a workflow. */
+export const CONSECUTIVE_FAILURE_BREAKER = 3;
 
 // ===== SCHEDULE EVALUATOR (timezone-aware, with catch-up) =====
 

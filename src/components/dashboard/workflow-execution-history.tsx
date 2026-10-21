@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 // ─── Local types (mirrors workflow domain models) ───────────────
 
-type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused' | 'dead_letter';
+type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused' | 'dead_letter' | 'exhausted' | 'waiting_user_action' | 'retrying' | 'partial';
 
 interface WorkflowStepLog {
   id: string;
@@ -58,6 +58,14 @@ const STATUS_CONFIG: Record<ExecutionStatus, { color: string; icon: React.Elemen
   cancelled: { color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400', icon: XIcon, label: 'Cancelled' },
   paused: { color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: Pause, label: 'Paused' },
   dead_letter: { color: 'bg-red-500/10 text-red-600 dark:text-red-400', icon: AlertTriangle, label: 'Dead Letter' },
+  // Part 1 — reliable execution states: a retryable failure that burned
+  // its whole retry budget, and a business state waiting on the user
+  // (e.g. the no-leads Find-Leads handoff). A 'waiting_user_action' run is
+  // NEVER retried in the background and never shows as stuck 'Running'.
+  exhausted: { color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400', icon: AlertTriangle, label: 'Retries Exhausted' },
+  waiting_user_action: { color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', icon: Clock, label: 'Waiting for Leads' },
+  retrying: { color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: Loader2, label: 'Retrying' },
+  partial: { color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: AlertTriangle, label: 'Partially Succeeded' },
 };
 
 const STEP_STATUS_COLORS: Record<string, string> = {
@@ -371,7 +379,7 @@ export default function WorkflowExecutionHistory() {
                                       <p className="text-[10px] text-red-500 mt-0.5">{log.error}</p>
                                     )}
                                     {/* Input/Output collapsible */}
-                                    {(log.input || log.output) && (
+                                    {Boolean(log.input || log.output) && (
                                       <StepLogDetail log={log} />
                                     )}
                                   </div>
@@ -421,7 +429,7 @@ function StepLogDetail({ log }: { log: WorkflowStepLog }) {
       </button>
       {showDetail && (
         <div className="mt-1 space-y-1">
-          {log.input && (
+          {Boolean(log.input) && (
             <div>
               <span className="text-[9px] font-semibold text-muted-foreground">INPUT:</span>
               <pre className="text-[9px] bg-muted/50 rounded p-1.5 mt-0.5 overflow-x-auto max-h-32">
@@ -429,7 +437,7 @@ function StepLogDetail({ log }: { log: WorkflowStepLog }) {
               </pre>
             </div>
           )}
-          {log.output && (
+          {Boolean(log.output) && (
             <div>
               <span className="text-[9px] font-semibold text-muted-foreground">OUTPUT:</span>
               <pre className="text-[9px] bg-muted/50 rounded p-1.5 mt-0.5 overflow-x-auto max-h-32">

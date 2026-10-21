@@ -191,7 +191,7 @@ describe('Phase 4 — honest failure and partial failure', () => {
 
     // Step 3 got an explicit skipped log — partial failure is honest
     const skippedLogs = mocks.db.workflowLog.create.mock.calls
-      .map((c: unknown[]) => (c[0] as { data: { status: string; stepName: string } }).data)
+      .map((c: unknown[]) => (c[0] as { data: { status: string; stepName: string; error?: string } }).data)
       .filter((d) => d.status === 'skipped');
     expect(skippedLogs).toHaveLength(1);
     expect(skippedLogs[0].stepName).toBe('Three');
@@ -211,7 +211,9 @@ describe('Phase 4 — per-step retries', () => {
     let attempts = 0;
     mocks.executeAction.mockImplementation(async () => {
       attempts++;
-      if (attempts < 3) return { success: false, error: 'transient' };
+      // Part 1 — a positively-identified TRANSIENT error (recognized by
+      // the classifier); unrecognized errors no longer retry blindly.
+      if (attempts < 3) return { success: false, error: 'HTTP 503: Service temporarily unavailable' };
       return { success: true, output: { ok: true } };
     });
 
@@ -246,7 +248,9 @@ describe('Phase 4 — per-step retries', () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
       makeStep('s1', 'Flaky', 'webhook_call', { url: 'https://x.test', retries: 10 }),
     ]));
-    mocks.executeAction.mockResolvedValue({ success: false, error: 'always fails' });
+    // Part 1 — a recognized rate-limit error: retryable, so the bounded
+    // retry budget (2) is honored: 1 initial attempt + 2 re-attempts.
+    mocks.executeAction.mockResolvedValue({ success: false, error: 'HTTP 429: Too Many Requests' });
 
     await executeWorkflow('wf_1', 'user_1', {});
 
