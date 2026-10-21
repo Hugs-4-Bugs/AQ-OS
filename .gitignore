@@ -14,3 +14,17 @@ scripts/.repro-cookies*
 scripts/phase3-token.txt
 scripts/.qa-*
 !/.env.example
+
+# Runtime state and local artifacts — never commit (Phase 3–6 line hygiene)
+node_modules/
+.next/
+*.log
+*.tsbuildinfo
+db/
+db-backups/
+prisma/db/
+backend/test.db
+**/__pycache__/
+upload/
+download/
+env (1).txt
