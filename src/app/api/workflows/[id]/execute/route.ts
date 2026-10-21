@@ -24,6 +24,7 @@ import { executeWorkflow } from '@/lib/workflow-engine';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 import { ENTITLEMENTS, type PlanType } from '@/lib/entitlement-service';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
+import { validateDefinition } from '@/lib/workflow-validation';
 import { db } from '@/lib/db';
 
 // ===== TYPES =====
@@ -201,15 +202,40 @@ export async function POST(
       const entitlementCheck = await checkPlanEntitlement(user.id, user.plan, 'workflow_access');
       if (!entitlementCheck.allowed) return entitlementCheck.response!;
 
-      // Verify ownership
+      // Verify ownership (with persisted steps — Run Now validates the
+      // full definition before creating any execution record)
       const workflow = await db.workflowDefinition.findFirst({
         where: { id, userId: user.id },
+        include: { workflowSteps: { orderBy: { order: 'asc' } } },
       });
 
       if (!workflow) {
         return NextResponse.json(
           { error: 'Workflow not found' },
           { status: 404 }
+        );
+      }
+
+      // Phase 3 — Run Now configuration pre-flight. A workflow whose
+      // persisted definition is invalid (missing required step config,
+      // unsupported action, malformed JSON, or no steps at all) is
+      // rejected with a repair error BEFORE any execution record or
+      // side effect exists. Legacy/malformed definitions surface here
+      // as a clear 422 instead of silently "completing" with 0 steps
+      // or failing mid-run with a confusing payload error.
+      const definitionValidation = validateDefinition(
+        workflow.workflowSteps as unknown as { type: string; name: string; config: string; order: number }[],
+        workflow.nodes
+      );
+      if (!definitionValidation.valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Workflow configuration is invalid — repair it before running.',
+            code: 'WORKFLOW_INVALID',
+            issues: definitionValidation.issues,
+          },
+          { status: 422 }
         );
       }
 

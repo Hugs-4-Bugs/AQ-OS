@@ -126,6 +126,13 @@ beforeEach(() => {
   mocks.sendEmail.mockResolvedValue({ sent: true, messageId: 'msg_test' });
   mocks.db.workflowDefinition.findFirst.mockResolvedValue({
     id: 'wf_1', userId: 'user_1', name: 'Follow-up', status: 'active', disabledBySubscription: false,
+    // Phase 3: Run Now now pre-flight-validates the persisted definition —
+    // the mocked workflow carries a valid nodes-based definition.
+    nodes: JSON.stringify([
+      { id: 'n_trigger', type: 'trigger', title: 'Trigger', config: {} },
+      { id: 'n_note', type: 'action', title: 'Record activity', config: { actionType: 'add_note', content: 'Contacted' } },
+    ]),
+    workflowSteps: [],
   });
   mocks.resolveLeadForExecution.mockImplementation(async (_userId: string, leadId: string) => {
     const known: Record<string, { id: string; businessName: string; niche: string; city: string; stage: string }> = {

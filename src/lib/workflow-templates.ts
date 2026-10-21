@@ -6,6 +6,7 @@
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
 import { checkWorkflowLimit } from '@/lib/workflow-credits';
+import { validateDefinition, formatIssues } from '@/lib/workflow-validation';
 
 // ===== BUILT-IN TEMPLATE DEFINITIONS =====
 
@@ -347,6 +348,18 @@ export async function instantiateTemplate(
         }
         return node;
       });
+    }
+
+    // Phase 3 — a template must NEVER produce a malformed workflow. The
+    // instantiated definition (after customizations) is validated against
+    // the same rules the executor enforces; invalid results are rejected
+    // with a clear error instead of persisting an unexecutable workflow.
+    const instantiationValidation = validateDefinition([], JSON.stringify(nodes));
+    if (!instantiationValidation.valid) {
+      return {
+        success: false,
+        error: `This template would create an invalid workflow: ${formatIssues(instantiationValidation.issues)}`,
+      };
     }
 
     // Create workflow from template

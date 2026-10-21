@@ -6,6 +6,10 @@
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
 import { checkWorkflowLimit } from '@/lib/workflow-credits';
+import {
+  validateDefinition,
+  formatIssues,
+} from '@/lib/workflow-validation';
 
 // ===== TYPES =====
 
@@ -109,6 +113,48 @@ function validateUpdateInput(data: UpdateWorkflowInput): string | null {
   return null;
 }
 
+/**
+ * Phase 3 — step configuration validation.
+ * Every saved step must carry the configuration its action type
+ * requires (derived from the actual action registry), so the persisted
+ * definition is always sufficient for execution. A workflow cannot be
+ * SAVED with invalid steps — the error names the exact step + field so
+ * the user can repair it immediately.
+ */
+function validateStepsForSave(steps: CreateWorkflowStepInput[] | undefined): string | null {
+  if (!steps || steps.length === 0) return null; // empty drafts are allowed; enable/run gates catch them
+  const validation = validateDefinition(
+    steps.map((s) => ({ ...s, config: s.config as unknown })),
+    null
+  );
+  if (!validation.valid) {
+    return `Workflow configuration is invalid: ${formatIssues(validation.issues)}`;
+  }
+  return null;
+}
+
+/**
+ * Phase 3 — enable gate.
+ * A workflow may only become ACTIVE (executable) when its full definition
+ * validates: at least one executable step, known action types, and every
+ * required step field present. Invalid workflows stay draft/paused with a
+ * clear repair message — they are never silently executable.
+ */
+function validateForActivation(
+  steps: CreateWorkflowStepInput[] | undefined,
+  existingSteps: { type: string; name: string; config: string; order: number; nextStepId?: string | null }[],
+  existingNodes: string | null
+): string | null {
+  const validation = validateDefinition(
+    steps ?? existingSteps,
+    existingNodes
+  );
+  if (!validation.valid) {
+    return `Cannot enable this workflow — fix these issues first: ${formatIssues(validation.issues)}`;
+  }
+  return null;
+}
+
 // ===== CREATE WORKFLOW =====
 
 export async function createWorkflow(
@@ -120,6 +166,20 @@ export async function createWorkflow(
     const validationError = validateCreateInput(data);
     if (validationError) {
       return { success: false, error: validationError };
+    }
+
+    // Phase 3 — step configuration must be complete and executable
+    // before it is persisted. Activating at create time additionally
+    // requires at least one step (validateDefinition enforces it).
+    const stepValidationError = validateStepsForSave(data.steps);
+    if (stepValidationError) {
+      return { success: false, error: stepValidationError };
+    }
+    if (data.status === 'active') {
+      const activationError = validateForActivation(data.steps, [], null);
+      if (activationError) {
+        return { success: false, error: activationError };
+      }
     }
 
     // Check plan limits
@@ -283,6 +343,7 @@ export async function updateWorkflow(
     // Check ownership
     const existing = await db.workflowDefinition.findFirst({
       where: { id: workflowId, userId },
+      include: { workflowSteps: true },
     });
 
     if (!existing) {
@@ -291,6 +352,13 @@ export async function updateWorkflow(
 
     if (existing.status === 'archived') {
       return { success: false, error: 'Cannot update an archived workflow' };
+    }
+
+    // Phase 3 — saved step configuration must be complete (same rule as
+    // create). Editing a workflow can never persist an unexecutable step.
+    const stepValidationError = validateStepsForSave(data.steps);
+    if (stepValidationError) {
+      return { success: false, error: stepValidationError };
     }
 
     // Subscription-retention guard: if the workflow was auto-paused by the
@@ -303,6 +371,19 @@ export async function updateWorkflow(
         error:
           'Cannot enable this workflow — your subscription is paused. Please renew your subscription to resume automated workflows.',
       };
+    }
+
+    // Phase 3 — enable gate: becoming ACTIVE requires a fully valid,
+    // executable definition (steps as they will be AFTER this update).
+    if (data.status === 'active' && existing.status !== 'active') {
+      const activationError = validateForActivation(
+        data.steps,
+        existing.workflowSteps as unknown as { type: string; name: string; config: string; order: number; nextStepId?: string | null }[],
+        data.nodes !== undefined ? JSON.stringify(data.nodes) : existing.nodes
+      );
+      if (activationError) {
+        return { success: false, error: activationError };
+      }
     }
 
     // Build update data
@@ -520,6 +601,21 @@ export async function activateWorkflow(
         error:
           'Cannot enable this workflow — your subscription is paused. Please renew your subscription to resume automated workflows.',
       };
+    }
+
+    // Phase 3 — enable gate: only a valid, executable definition can become
+    // active. Load the persisted steps and validate the full definition.
+    const withSteps = await db.workflowDefinition.findFirst({
+      where: { id: workflowId, userId },
+      include: { workflowSteps: { orderBy: { order: 'asc' } } },
+    });
+    const activationError = validateForActivation(
+      undefined,
+      (withSteps?.workflowSteps ?? []) as unknown as { type: string; name: string; config: string; order: number; nextStepId?: string | null }[],
+      withSteps?.nodes ?? null
+    );
+    if (activationError) {
+      return { success: false, error: activationError };
     }
 
     await db.workflowDefinition.update({
