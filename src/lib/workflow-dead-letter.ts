@@ -135,13 +135,14 @@ export async function retryFromDeadLetter(
       return { success: false, error: 'Not authorized' };
     }
 
-    // Reset dead letter state and retry
+    // Reset dead letter state and retry ('failed' is the status the main
+    // engine's retryExecution accepts)
     await db.workflowExecution.update({
       where: { id: executionId },
       data: {
         deadLettered: false,
         deadLetterReason: null,
-        status: 'running',
+        status: 'failed',
         error: null,
         completedAt: null,
         retryCount: 0,

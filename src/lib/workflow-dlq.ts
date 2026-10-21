@@ -72,7 +72,10 @@ export async function retryDeadLetter(executionId: string, userId: string) {
   await db.workflowExecution.update({
     where: { id: executionId },
     data: {
-      status: 'queued',
+      // 'failed' (not 'queued') so the MAIN workflow engine's retryExecution
+      // accepts the re-run request — Phase 4 consolidates DLQ retry onto the
+      // same engine that created the execution.
+      status: 'failed',
       isDeadLetter: false,
       deadLetterReason: null,
       currentStep: 0,
@@ -90,12 +93,12 @@ export async function retryDeadLetter(executionId: string, userId: string) {
     fromDeadLetter: true,
   });
 
-  // NOTE: The caller (API route) must call processExecution() from
-  // workflow-executor after this function returns, to actually re-run
-  // the execution. This separation avoids pulling the heavy executor
-  // module into routes that only need listing/purge.
+  // NOTE: The caller (API route) must call retryExecution() from
+  // workflow-engine after this function returns, to actually re-run the
+  // execution through the main engine (full reliability semantics:
+  // ordering, retries, timeout, cancellation, honest statuses).
 
-  return { id: executionId, status: 'queued' };
+  return { id: executionId, status: 'failed' };
 }
 
 /** Purge all dead letter executions for a user */

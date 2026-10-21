@@ -185,7 +185,7 @@ export function loadSteps(
         issues.push({
           stepIndex: index,
           stepName: row.name || row.title || `Step ${index + 1}`,
-          message: `Step configuration is malformed (invalid JSON) — repair this step before running.`,
+          message: `Step "${row.name || row.title || `Step ${index + 1}`}": configuration is malformed (invalid JSON) — repair this step before running.`,
         });
         return;
       }
@@ -227,7 +227,7 @@ export function loadSteps(
         issues.push({
           stepIndex: i,
           stepName: String(n.title || n.name || `Step ${i + 1}`),
-          message: `Step configuration is malformed (invalid JSON) — repair this step before running.`,
+          message: `Step "${String(n.title || n.name || `Step ${i + 1}`)}": configuration is malformed (invalid JSON) — repair this step before running.`,
         });
         return;
       }

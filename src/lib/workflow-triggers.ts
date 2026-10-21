@@ -74,8 +74,19 @@ export async function evaluateTrigger(
       );
 
       if (configMatches) {
-        // Generate idempotency key to prevent duplicate executions
-        const idempotencyKey = `trigger_${eventType}_${workflow.id}_${eventData.leadId || 'no-lead'}_${Date.now()}`;
+        // Generate idempotency key to prevent duplicate executions (Phase 4.9).
+        // The key is built from STABLE event identity (event id / message id /
+        // reply id when the event carries one) so a duplicated DELIVERY of the
+        // same event (webhook retry, worker restart) cannot execute the
+        // workflow twice. Events without a stable identity keep the legacy
+        // time-based key — they are genuinely distinct occurrences.
+        const stableEventId =
+          (typeof eventData.id === 'string' && eventData.id) ||
+          (typeof eventData.eventId === 'string' && eventData.eventId) ||
+          (typeof eventData.messageId === 'string' && eventData.messageId) ||
+          (typeof eventData.replyId === 'string' && eventData.replyId) ||
+          null;
+        const idempotencyKey = `trigger_${eventType}_${workflow.id}_${eventData.leadId || 'no-lead'}_${stableEventId || Date.now()}`;
 
         const result = await executeWorkflow(
           workflow.id,

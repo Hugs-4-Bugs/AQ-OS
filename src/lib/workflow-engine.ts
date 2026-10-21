@@ -10,6 +10,10 @@ import { deductExecutionCredits, getActionCreditCost, checkExecutionLimit } from
 import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
 import { createNotificationOnce } from '@/lib/notification-service';
+import {
+  loadStepsForExecution,
+  type ValidatedStep,
+} from '@/lib/workflow-validation';
 
 // Helper to publish workflow SSE events safely
 async function emitWorkflowEvent(
@@ -37,21 +41,37 @@ export interface ExecuteWorkflowResult {
   error?: string;
 }
 
-interface StepDefinition {
-  id: string;
-  type: string;
-  name: string;
-  config: Record<string, unknown>;
-  order: number;
-  nextStepId?: string;
-}
-
 interface ProcessStepResult {
   success: boolean;
   output?: Record<string, unknown>;
   error?: string;
   shouldContinue: boolean;
   durationMs: number;
+}
+
+/** Per-run execution budget (Phase 4): timeout, retry ceiling, start time. */
+interface RunOptions {
+  timeoutMs: number;
+  maxRetries: number;
+  startedAtMs: number;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function defaultTimeoutMs(): number {
+  return Number(process.env.WORKFLOW_TIMEOUT) || 300000;
+}
+function defaultMaxRetries(): number {
+  return Number(process.env.WORKFLOW_MAX_RETRIES) || 3;
+}
+
+/** Per-step retry policy (Phase 4.6): explicit opt-in via config.retries,
+ * bounded by the execution's maxRetries. Default 0 — side-effecting steps
+ * are never blindly re-executed. */
+function stepRetryBudget(config: Record<string, unknown>, maxRetries: number): number {
+  const raw = Number(config?.retries);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.min(Math.floor(raw), Math.max(0, maxRetries));
 }
 
 // ===== MAIN EXECUTION ENTRY POINT =====
@@ -95,93 +115,117 @@ export async function executeWorkflow(
       };
     }
 
-    // Idempotency check
-    if (idempotencyKey) {
-      const existing = await db.workflowExecution.findFirst({
-        where: { idempotencyKey, workflowId },
+    // Idempotency check + execution creation run inside ONE transaction
+    // (Phase 4.9) so a concurrent duplicate request (double-click, network
+    // retry, worker restart) can never create two executions for the same
+    // idempotency key. Falls back to sequential when $transaction is
+    // unavailable (test doubles).
+    let existingExecution: { id: string; status: string } | null = null;
+    let createdExecution: { id: string } | null = null;
+
+    // Parse + structurally validate the definition BEFORE creating the
+    // execution (Phase 3.13 / 4.12): legacy or malformed definitions must
+    // fail honestly instead of silently "completing" with zero steps or
+    // crashing mid-parse. Required-field validation happens upstream
+    // (save/enable/Run Now gates); this is the engine's defense in depth
+    // for webhook/trigger/scheduled callers.
+    const stepLoad = loadStepsForExecution(workflow.workflowSteps, workflow.nodes);
+    const steps: ValidatedStep[] = stepLoad.steps;
+
+    const createExecutionRecord = async (client: typeof db): Promise<void> => {
+      if (idempotencyKey) {
+        const found = await client.workflowExecution.findFirst({
+          where: { idempotencyKey, workflowId },
+          select: { id: true, status: true },
+        });
+        if (found) {
+          existingExecution = found;
+          return;
+        }
+      }
+      createdExecution = await client.workflowExecution.create({
+        data: {
+          workflowId,
+          // Persist the execution owner. The trusted execution context (userId +
+          // leadId) must survive on the execution record so that retries,
+          // resumes, and audit trails all resolve leads against the SAME user
+          // who started the run — never against a null/system owner.
+          userId,
+          status: stepLoad.ok ? 'running' : 'failed',
+          // Effective-configuration snapshot: historical runs stay explainable
+          // (what the workflow was, and with which settings, at run time).
+          triggerData: triggerData
+            ? JSON.stringify({
+                ...triggerData,
+                workflowSnapshot: {
+                  name: workflow.name,
+                  triggerType: workflow.triggerType,
+                  requiresApproval: workflow.requiresApproval,
+                  profileId: workflow.profileId ?? null,
+                  stepCount: steps.length,
+                  snapshottedAt: new Date().toISOString(),
+                },
+              })
+            : null,
+          triggerEvent: triggerData ? JSON.stringify(triggerData) : null,
+          currentStep: 0,
+          totalSteps: steps.length,
+          idempotencyKey: idempotencyKey || null,
+          maxRetries,
+          timeoutMs,
+          ...(stepLoad.ok ? {} : { error: stepLoad.error, completedAt: new Date() }),
+        },
       });
-      if (existing) {
-        return { executionId: existing.id, status: existing.status };
-      }
-    }
+    };
 
-    // Parse steps from nodes/edges if no explicit steps
-    let steps: StepDefinition[] = [];
-    if (workflow.workflowSteps.length > 0) {
-      steps = workflow.workflowSteps.map((s) => ({
-        id: s.id,
-        type: s.type,
-        name: s.name,
-        config: JSON.parse(s.config || '{}'),
-        order: s.order,
-        nextStepId: s.nextStepId || undefined,
-      }));
+    const maxRetries = defaultMaxRetries();
+    const timeoutMs = defaultTimeoutMs();
+    const startedAtMs = Date.now();
+
+    if (typeof (db as unknown as { $transaction?: unknown }).$transaction === 'function') {
+      await (db as unknown as {
+        $transaction: (fn: (tx?: typeof db) => Promise<void>) => Promise<void>;
+      }).$transaction(async (tx) => createExecutionRecord((tx as typeof db) ?? db));
     } else {
-      // Parse nodes from JSON
-      try {
-        const nodes = JSON.parse(workflow.nodes || '[]');
-        steps = nodes
-          .filter((n: Record<string, unknown>) => n.type !== 'trigger')
-          .map((n: Record<string, unknown>, i: number) => ({
-            id: String(n.id || `step-${i}`),
-            type: String(n.type || 'action'),
-            name: String(n.title || n.name || `Step ${i + 1}`),
-            config: (n.config as Record<string, unknown>) || {},
-            order: i,
-          }));
-      } catch {
-        steps = [];
-      }
+      await createExecutionRecord(db);
     }
 
-    // Create execution record
-    const maxRetries = Number(process.env.WORKFLOW_MAX_RETRIES) || 3;
-    const timeoutMs = Number(process.env.WORKFLOW_TIMEOUT) || 300000;
+    if (existingExecution) {
+      return { executionId: existingExecution.id, status: existingExecution.status };
+    }
+    if (!createdExecution) {
+      throw new Error('Failed to create execution record');
+    }
+    const executionId = createdExecution.id;
 
-    const execution = await db.workflowExecution.create({
-      data: {
+    // Invalid definition: the execution record exists and honestly says WHY
+    // nothing ran. No steps execute, no credits are deducted, no side effects.
+    if (!stepLoad.ok) {
+      await logWorkflowEvent(userId, 'workflow_failed', {
         workflowId,
-        // Persist the execution owner. The trusted execution context (userId +
-        // leadId) must survive on the execution record so that retries,
-        // resumes, and audit trails all resolve leads against the SAME user
-        // who started the run — never against a null/system owner.
-        userId,
-        status: 'running',
-        // Effective-configuration snapshot: historical runs stay explainable
-        // (what the workflow was, and with which settings, at run time).
-        triggerData: triggerData
-          ? JSON.stringify({
-              ...triggerData,
-              workflowSnapshot: {
-                name: workflow.name,
-                triggerType: workflow.triggerType,
-                requiresApproval: workflow.requiresApproval,
-                profileId: workflow.profileId ?? null,
-                stepCount: steps.length,
-                snapshottedAt: new Date().toISOString(),
-              },
-            })
-          : null,
-        triggerEvent: triggerData ? JSON.stringify(triggerData) : null,
-        currentStep: 0,
-        totalSteps: steps.length,
-        idempotencyKey: idempotencyKey || null,
-        maxRetries,
-        timeoutMs,
-      },
-    });
+        executionId,
+        error: stepLoad.error,
+      });
+      await emitWorkflowEvent('workflow_failed', userId, {
+        workflowId,
+        executionId,
+        error: stepLoad.error,
+      });
+      return { executionId, status: 'failed', error: stepLoad.error };
+    }
 
     // Execute steps (async but we process them sequentially)
     // Default (awaitCompletion !== false): run inline so the synchronous
     // result reflects the true final status — this is the legacy contract
     // every existing caller (UI run, autopilot runner, resume/retry) relies on.
+    const runOptions: RunOptions = { timeoutMs, maxRetries, startedAtMs };
     try {
       if (options?.awaitCompletion === false) {
-        void runSteps(execution.id, steps, userId, workflowId, triggerData).catch((error) => {
+        void runSteps(executionId, steps, userId, workflowId, triggerData, runOptions).catch((error) => {
           console.error('[WorkflowEngine] Background step execution error:', error);
         });
       } else {
-        await runSteps(execution.id, steps, userId, workflowId, triggerData);
+        await runSteps(executionId, steps, userId, workflowId, triggerData, runOptions);
       }
     } catch (error) {
       console.error('[WorkflowEngine] Step execution error:', error);
@@ -190,27 +234,27 @@ export async function executeWorkflow(
     // Log audit event
     await logWorkflowEvent(userId, 'workflow_executed', {
       workflowId,
-      executionId: execution.id,
+      executionId,
       triggerType: workflow.triggerType,
     });
 
     // Emit realtime event
     await emitWorkflowEvent('workflow_started', userId, {
       workflowId,
-      executionId: execution.id,
+      executionId,
       workflowName: workflow.name,
       triggerType: workflow.triggerType,
     });
 
     // Fetch final state
     const finalExecution = await db.workflowExecution.findUnique({
-      where: { id: execution.id },
+      where: { id: executionId },
       select: { id: true, status: true, error: true },
     });
 
     return {
-      executionId: execution.id,
-      status: finalExecution?.status || 'running',
+      executionId,
+      status: finalExecution?.status || 'failed',
       error: finalExecution?.error || undefined,
     };
   } catch (error) {
@@ -225,15 +269,93 @@ export async function executeWorkflow(
 
 // ===== STEP RUNNER =====
 
+/**
+ * Write "skipped" log entries for steps that will never run (Phase 4.11 —
+ * partial failure must be represented honestly: Step 3 FAILED means
+ * Step 4 is NOT EXECUTED, not silently absent).
+ */
+async function logSkippedSteps(
+  executionId: string,
+  userId: string,
+  steps: ValidatedStep[],
+  fromIndex: number,
+  reason: string
+): Promise<void> {
+  for (let j = fromIndex; j < steps.length; j++) {
+    try {
+      await db.workflowLog.create({
+        data: {
+          executionId,
+          stepName: steps[j].name,
+          stepType: steps[j].type,
+          status: 'skipped',
+          input: JSON.stringify(steps[j].config),
+          error: reason,
+          userId,
+        },
+      });
+    } catch {
+      // Logging must never mask the real failure
+    }
+  }
+}
+
+/**
+ * Run one step attempt bounded by the remaining execution-timeout budget
+ * (Phase 4.8). A step that hangs on an external call can no longer hold
+ * the execution indefinitely: the attempt resolves as a timeout failure.
+ */
+async function runStepWithBudget(
+  executionId: string,
+  step: ValidatedStep,
+  context: ActionContext,
+  retryAttempt: number,
+  remainingMs: number
+): Promise<ProcessStepResult> {
+  const budget = Math.max(1, remainingMs);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      processStep(executionId, step, context, retryAttempt),
+      new Promise<ProcessStepResult>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('__wf_step_timeout__')), budget);
+      }),
+    ]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === '__wf_step_timeout__') {
+      return {
+        success: false,
+        error: `Step "${step.name}" timed out after ${budget}ms (execution timeout budget)`,
+        shouldContinue: false,
+        durationMs: budget,
+      };
+    }
+    return {
+      success: false,
+      error: message,
+      shouldContinue: false,
+      durationMs: 0,
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function runSteps(
   executionId: string,
-  steps: StepDefinition[],
+  steps: ValidatedStep[],
   userId: string,
   workflowId: string,
-  triggerData?: Record<string, unknown>
+  triggerData?: Record<string, unknown>,
+  runOptions?: RunOptions
 ): Promise<void> {
   const previousOutputs: Record<string, unknown> = {};
   let shouldContinue = true;
+
+  const timeoutMs = runOptions?.timeoutMs ?? defaultTimeoutMs();
+  const maxRetries = runOptions?.maxRetries ?? defaultMaxRetries();
+  const startedAtMs = runOptions?.startedAtMs ?? Date.now();
 
   // Workflow-level approval gate: loaded once so execute/resume/retry paths
   // all enforce the same "human approval before send" behavior.
@@ -251,22 +373,85 @@ async function runSteps(
   for (let i = 0; i < steps.length && shouldContinue; i++) {
     const step = steps[i];
 
+    // Phase 4.7 / 3.10 — honor mid-run cancellation and pause BEFORE each
+    // step. A cancelled execution is never overwritten by a later
+    // "completed" update; a paused execution stops here and resume
+    // re-runs the remaining steps from currentStep.
+    const liveStatus = await db.workflowExecution
+      .findUnique({ where: { id: executionId }, select: { status: true } })
+      .catch(() => null);
+    if (liveStatus?.status === 'cancelled') return;
+    if (liveStatus?.status === 'paused') return;
+
     // Update current step
     await db.workflowExecution.update({
       where: { id: executionId },
       data: { currentStep: i },
     });
 
-    // Process the step
-    const result = await processStep(executionId, step, {
-      userId,
-      workflowId,
-      executionId,
-      leadId: triggerData?.leadId as string | undefined,
-      triggerData,
-      previousOutputs,
-      requiresApproval,
-    });
+    // Phase 4.6 — per-step retries. Explicit opt-in via step config
+    // `retries` (bounded by the execution's maxRetries); attempts are
+    // persisted with retryAttempt and spaced with exponential backoff.
+    // Default 0 retries: side-effecting steps are never blindly repeated.
+    const retryBudget = stepRetryBudget(step.config, maxRetries);
+    let attempt = 0;
+    let result: ProcessStepResult;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const remaining = timeoutMs - (Date.now() - startedAtMs);
+
+      // Phase 4.8 — the overall timeout budget is exhausted.
+      if (remaining <= 0) {
+        result = {
+          success: false,
+          error: `Execution timed out after ${timeoutMs}ms — stopped before step "${step.name}"`,
+          shouldContinue: false,
+          durationMs: 0,
+        };
+        break;
+      }
+
+      result = await runStepWithBudget(
+        executionId,
+        step,
+        {
+          userId,
+          workflowId,
+          executionId,
+          leadId: triggerData?.leadId as string | undefined,
+          triggerData,
+          previousOutputs,
+          requiresApproval,
+        },
+        attempt,
+        remaining
+      );
+
+      if (result.success || attempt >= retryBudget) break;
+
+      // Between retry attempts: re-check cancellation / pause / budget so a
+      // user cancelling mid-retry is respected immediately.
+      const midStatus = await db.workflowExecution
+        .findUnique({ where: { id: executionId }, select: { status: true } })
+        .catch(() => null);
+      if (midStatus?.status === 'cancelled' || midStatus?.status === 'paused') return;
+      if (Date.now() - startedAtMs >= timeoutMs) {
+        result = {
+          success: false,
+          error: `Execution timed out after ${timeoutMs}ms — stopped while retrying step "${step.name}"`,
+          shouldContinue: false,
+          durationMs: 0,
+        };
+        break;
+      }
+
+      // Exponential backoff (1s, 2s, 4s… capped at 30s), mirrors the legacy
+      // executor's retry pacing. Base is env-tunable for tests.
+      const backoffBase = Number(process.env.WORKFLOW_RETRY_BACKOFF_BASE_MS) || 1000;
+      await sleep(Math.min(backoffBase * Math.pow(2, attempt), 30000));
+      attempt++;
+    }
 
     // Store output
     if (result.output) {
@@ -303,6 +488,16 @@ async function runSteps(
           completedAt: new Date(),
         },
       });
+
+      // Phase 4.11 — the steps after the failure are NOT EXECUTED; persist
+      // that explicitly so the execution history is honest.
+      await logSkippedSteps(
+        executionId,
+        userId,
+        steps,
+        i + 1,
+        `Not executed — workflow stopped at step "${step.name}"`
+      );
 
       // User-facing notification (safe message — raw errors stay in the
       // execution record, never in the notification text).
@@ -355,8 +550,14 @@ async function runSteps(
     shouldContinue = result.shouldContinue;
   }
 
-  // Mark execution as completed
+  // Mark execution as completed — but never overwrite a terminal state a
+  // user/system set while the final steps were running (Phase 4.7).
   if (shouldContinue) {
+    const finalStatus = await db.workflowExecution
+      .findUnique({ where: { id: executionId }, select: { status: true } })
+      .catch(() => null);
+    if (finalStatus?.status === 'cancelled' || finalStatus?.status === 'paused') return;
+
     await db.workflowExecution.update({
       where: { id: executionId },
       data: {
@@ -393,8 +594,9 @@ async function runSteps(
 
 export async function processStep(
   executionId: string,
-  step: StepDefinition,
-  context: ActionContext
+  step: ValidatedStep,
+  context: ActionContext,
+  retryAttempt = 0
 ): Promise<ProcessStepResult> {
   const startTime = Date.now();
 
@@ -412,10 +614,13 @@ export async function processStep(
     const SEND_ACTIONS = new Set(['send_email', 'send_telegram', 'send_whatsapp']);
     const approvalSkipsCharge = Boolean(context.requiresApproval) && SEND_ACTIONS.has(actionType);
 
-    // Deduct credits before execution
+    // Deduct credits before execution — keyed on the ACTION type, not the
+    // node type (Phase 4 fix: 'delay'/'condition' nodes carrying an
+    // actionType were previously charged the generic fallback cost, and
+    // ai actions were undercharged).
     let creditResult = { success: true, creditsUsed: 0, error: undefined as string | undefined };
     if (!approvalSkipsCharge) {
-      creditResult = await deductExecutionCredits(context.userId, step.type);
+      creditResult = await deductExecutionCredits(context.userId, actionType);
     }
 
     if (!creditResult.success && creditResult.creditsUsed > 0) {
@@ -431,6 +636,7 @@ export async function processStep(
           input: JSON.stringify(step.config),
           error: `Insufficient credits: ${creditResult.error}`,
           durationMs,
+          retryAttempt,
           userId: context.userId,
         },
       });
@@ -463,6 +669,7 @@ export async function processStep(
         output: result.output ? JSON.stringify(result.output) : null,
         error: result.error || null,
         durationMs,
+        retryAttempt,
         userId: context.userId,
       },
     });
@@ -499,6 +706,7 @@ export async function processStep(
         input: JSON.stringify(step.config),
         error: error instanceof Error ? error.message : 'Step execution failed',
         durationMs,
+        retryAttempt,
         userId: context.userId,
       },
     });
@@ -584,26 +792,37 @@ export async function resumeExecution(
       data: { status: 'running', resumedAt: new Date() },
     });
 
-    // Re-run remaining steps
+    // Re-run remaining steps — resolved through the SAME shared loader the
+    // engine uses (WorkflowStep rows, then nodes JSON), so nodes-based
+    // (legacy/autopilot) definitions resume correctly instead of silently
+    // "completing" with zero steps.
     const workflow = await db.workflowDefinition.findUnique({
       where: { id: execution.workflowId },
       include: { workflowSteps: { orderBy: { order: 'asc' } } },
     });
 
     if (workflow) {
-      const steps = workflow.workflowSteps.map((s) => ({
-        id: s.id,
-        type: s.type,
-        name: s.name,
-        config: JSON.parse(s.config || '{}'),
-        order: s.order,
-        nextStepId: s.nextStepId || undefined,
-      }));
-
+      const stepLoad = loadStepsForExecution(workflow.workflowSteps, workflow.nodes);
       const triggerData = execution.triggerData ? JSON.parse(execution.triggerData) : undefined;
-      const remainingSteps = steps.slice(execution.currentStep);
 
-      await runSteps(executionId, remainingSteps, userId, execution.workflowId, triggerData);
+      if (!stepLoad.ok) {
+        // The definition became invalid after this execution started — fail
+        // honestly instead of running nothing.
+        await db.workflowExecution.update({
+          where: { id: executionId },
+          data: { status: 'failed', error: stepLoad.error, completedAt: new Date() },
+        });
+        return { success: false, error: stepLoad.error };
+      }
+
+      const remainingSteps = stepLoad.steps.slice(execution.currentStep);
+
+      await runSteps(executionId, remainingSteps, userId, execution.workflowId, triggerData, {
+        timeoutMs: execution.timeoutMs ?? defaultTimeoutMs(),
+        maxRetries: execution.maxRetries ?? defaultMaxRetries(),
+        // Resume restarts the timeout budget for the remaining work.
+        startedAtMs: Date.now(),
+      });
     }
 
     await logWorkflowEvent(userId, 'workflow_resumed', { executionId });
@@ -687,7 +906,8 @@ export async function retryExecution(
       return { success: false, error: `Cannot retry execution in '${execution.status}' status` };
     }
 
-    // Re-execute from the failed step
+    // Re-execute from the failed step — resolved through the SAME shared
+    // loader the engine uses so nodes-based definitions retry correctly.
     const workflow = await db.workflowDefinition.findUnique({
       where: { id: execution.workflowId },
       include: { workflowSteps: { orderBy: { order: 'asc' } } },
@@ -697,14 +917,16 @@ export async function retryExecution(
       return { success: false, error: 'Workflow not found' };
     }
 
-    const steps = workflow.workflowSteps.map((s) => ({
-      id: s.id,
-      type: s.type,
-      name: s.name,
-      config: JSON.parse(s.config || '{}'),
-      order: s.order,
-      nextStepId: s.nextStepId || undefined,
-    }));
+    const stepLoad = loadStepsForExecution(workflow.workflowSteps, workflow.nodes);
+    if (!stepLoad.ok) {
+      // The definition became invalid — the retry fails honestly instead of
+      // re-running a broken payload.
+      await db.workflowExecution.update({
+        where: { id: executionId },
+        data: { status: 'failed', error: stepLoad.error, completedAt: new Date() },
+      });
+      return { success: false, error: stepLoad.error };
+    }
 
     // Reset execution state
     await db.workflowExecution.update({
@@ -718,9 +940,14 @@ export async function retryExecution(
     });
 
     const triggerData = execution.triggerData ? JSON.parse(execution.triggerData) : undefined;
-    const remainingSteps = steps.slice(execution.currentStep);
+    const remainingSteps = stepLoad.steps.slice(execution.currentStep);
 
-    await runSteps(executionId, remainingSteps, userId, execution.workflowId, triggerData);
+    await runSteps(executionId, remainingSteps, userId, execution.workflowId, triggerData, {
+      timeoutMs: execution.timeoutMs ?? defaultTimeoutMs(),
+      maxRetries: execution.maxRetries ?? defaultMaxRetries(),
+      // Retry restarts the timeout budget for the re-run work.
+      startedAtMs: Date.now(),
+    });
 
     await logWorkflowEvent(userId, 'workflow_retried', {
       executionId,

@@ -1,11 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — Dead Letter Retry API
+// Phase 4: re-runs dead-lettered executions through the MAIN workflow
+// engine (retryExecution) — the legacy parallel executor is no longer
+// involved, so DLQ retries get the same ordering, retry, timeout,
+// cancellation and honest-status semantics as every other re-run.
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { retryDeadLetter } from '@/lib/workflow-dlq';
-import { processExecution } from '@/lib/workflow-executor';
+import { retryExecution } from '@/lib/workflow-engine';
 
 /** POST /api/workflows/dead-letter/[executionId] — Retry a dead letter execution */
 export async function POST(
@@ -15,14 +19,21 @@ export async function POST(
   return withAuth(request, async (user) => {
     try {
       const { executionId } = await params;
-      const result = await retryDeadLetter(executionId, user.id);
+      const reset = await retryDeadLetter(executionId, user.id);
 
-      // Kick off execution processing (non-blocking)
-      processExecution(executionId).catch((err) => {
-        console.error('[WorkflowService] DLQ retry processExecution error:', err);
-      });
+      // Re-run through the main engine — the response reports the ACTUAL
+      // outcome of the re-run, not just the reset.
+      const result = await retryExecution(executionId, user.id);
 
-      return NextResponse.json(result);
+      if (!result.success) {
+        const status = result.error?.includes('not found') ? 404 : 400;
+        return NextResponse.json(
+          { success: false, error: result.error, reset },
+          { status }
+        );
+      }
+
+      return NextResponse.json({ ...result, reset });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to retry dead letter';
 
