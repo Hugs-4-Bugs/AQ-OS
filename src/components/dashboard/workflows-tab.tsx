@@ -435,14 +435,37 @@ function TargetPickerDialog({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [niche, setNiche] = useState('');
   const [customQuery, setCustomQuery] = useState('');
+  // Phase 5 — the picker pages through ALL of the user's leads (the list API
+  // caps a single request at 100 rows), so unlimited-plan users can select
+  // beyond the first page instead of being silently limited to 100.
+  const [page, setPage] = useState(1);
+  const [totalLeads, setTotalLeads] = useState<number | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchPage = async (p: number): Promise<{ leads: ExecutionLead[]; total: number; totalPages: number }> => {
+    const data = await apiFetch<{ leads: ExecutionLead[]; pagination?: { total?: number; totalPages?: number } }>(
+      `/api/leads?limit=100&page=${p}&sortBy=updatedAt&sortOrder=desc`
+    );
+    return {
+      leads: data.leads || [],
+      total: data.pagination?.total ?? (data.leads || []).length,
+      totalPages: data.pagination?.totalPages ?? 1,
+    };
+  };
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const data = await apiFetch<{ leads: ExecutionLead[] }>('/api/leads?limit=100&sortBy=updatedAt&sortOrder=desc');
-        if (!cancelled) setLeads(data.leads || []);
+        const result = await fetchPage(1);
+        if (!cancelled) {
+          setLeads(result.leads);
+          setTotalLeads(result.total);
+          setTotalPages(result.totalPages);
+          setPage(1);
+        }
       } catch (err) {
         if (!cancelled) {
           toast({
@@ -458,6 +481,31 @@ function TargetPickerDialog({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMore = async () => {
+    if (loadingMore || page >= totalPages) return;
+    try {
+      setLoadingMore(true);
+      const next = page + 1;
+      const result = await fetchPage(next);
+      // Append — dedupe by id so a changed list cannot create ghost rows.
+      setLeads(prev => {
+        const seen = new Set(prev.map(l => l.id));
+        return [...prev, ...result.leads.filter(l => !seen.has(l.id))];
+      });
+      setPage(next);
+      setTotalLeads(result.total);
+      setTotalPages(result.totalPages);
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to load more leads',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const filtered = leads.filter(l =>
     !search ||
@@ -555,8 +603,23 @@ function TargetPickerDialog({
                 </div>
               )}
             </ScrollArea>
+            {page < totalPages && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={loadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore
+                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading more…</>
+                  : `Load more (page ${page} of ${totalPages})`}
+              </Button>
+            )}
             <p className="text-xs text-muted-foreground">
-              {selected.size} lead{selected.size === 1 ? '' : 's'} selected — your plan&apos;s lead limits apply.
+              {selected.size} lead{selected.size === 1 ? '' : 's'} selected
+              {totalLeads !== null && ` — showing ${filtered.length} of ${totalLeads} of your leads`}
+              — your plan&apos;s lead limits apply.
             </p>
           </TabsContent>
 
@@ -2234,7 +2297,11 @@ function ExecutionsTab() {
 
   const handleRetry = async (execId: string) => {
     try {
-      await apiFetch(`/api/workflows/${execId}/resume`, { method: 'POST' });
+      // Phase 5 — per-lead retry uses the retry endpoint, which accepts
+      // FAILED/CANCELLED executions and re-runs the remaining steps. (The
+      // old call to /resume 400-rejected failed executions, making the
+      // Retry button useless for failed per-lead runs.)
+      await apiFetch(`/api/workflows/executions/${execId}/retry`, { method: 'POST' });
       toast({ title: 'Execution retried', description: 'The execution has been retried.' });
       fetchExecutions();
     } catch (err) {
