@@ -1,0 +1,106 @@
+ACQUISITIONOS PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 QuantumFusion Solutions. All rights reserved.
+
+--------------------------------------------------------------------
+
+1. PROPRIETARY NOTICE
+
+   AcquisitionOS and all of its source code, documentation, designs,
+   databases, models, workflows, scripts, configuration files, and
+   associated materials (collectively, the "Software") are the
+   proprietary and confidential property of QuantumFusion Solutions
+   ("Licensor," "we," "us," or "our").
+
+   The Software is protected by copyright law, trade secret law, and
+   other applicable intellectual property laws. Nothing in this
+   license transfers ownership of the Software to you.
+
+2. NO LICENSE BY ACCESS OR VIEWING
+
+   No license, ownership, or any other rights in or to the Software
+   are granted merely by viewing, accessing, cloning, downloading, or
+   otherwise obtaining a copy of the Software or its source code.
+
+   Access to the repository or source code does not constitute
+   permission to use the Software beyond what is expressly granted in
+   writing by the Licensor.
+
+3. RESTRICTIONS
+
+   Unless you have obtained prior written authorization from the
+   Licensor, you must NOT:
+
+   a. copy, reproduce, or distribute the Software or any part of it;
+   b. modify, adapt, or create derivative works based on the Software;
+   c. redistribute, sublicense, sell, rent, lease, or resell the
+      Software;
+   d. use the Software for any commercial purpose;
+   e. reverse engineer, decompile, or disassemble the Software, or
+      attempt to derive its source code, algorithms, or architecture
+      except where such activity is expressly permitted by applicable
+      law notwithstanding this restriction;
+   f. remove, alter, or obscure any copyright, trademark, or other
+      proprietary notices contained in the Software;
+   g. use the Software to build a competing product or service.
+
+4. COMMERCIAL USE
+
+   Any commercial use, internal business use, production deployment,
+   or distribution of the Software requires an express written license
+   agreement with QuantumFusion Solutions. Contact the Licensor
+   through the repository's official channels to obtain authorization.
+
+5. AUTHORIZED USE
+
+   Licensor may, at its sole discretion, grant written authorization
+   to specific parties (e.g., employees, contractors, auditors, or
+   commercial licensees) for limited use of the Software under terms
+   to be defined in that authorization. Any such authorization is
+   conditional, revocable, and non-transferable unless expressly
+   stated otherwise in writing.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+   BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+7. LIMITATION OF LIABILITY
+
+   To the maximum extent permitted by applicable law, QuantumFusion
+   Solutions shall not be liable for any indirect, incidental,
+   special, consequential, or punitive damages, or any loss of
+   profits, revenue, data, or use, arising from or related to the
+   Software, however caused and under any theory of liability, even if
+   advised of the possibility of such damages.
+
+8. TERMINATION
+
+   Any authorization granted in connection with the Software may be
+   terminated by the Licensor at any time and for any reason. Upon
+   termination, all copies of the Software in the recipient's
+   possession or control must be destroyed or returned to the
+   Licensor.
+
+9. RESERVATION OF RIGHTS
+
+   All rights not expressly granted by the Licensor in writing are
+   reserved. This license does not grant any rights under any patents,
+   trademarks, or trade names of QuantumFusion Solutions.
+
+10. CONTACT
+
+    Licensing and authorization inquiries regarding AcquisitionOS
+    should be directed to QuantumFusion Solutions through the
+    repository's official communication channels.
+
+--------------------------------------------------------------------
+
+FOR INTERNAL AND AUTHORIZED USE ONLY. UNAUTHORIZED POSSESSION,
+DISTRIBUTION, OR USE OF THIS SOFTWARE IS PROHIBITED.

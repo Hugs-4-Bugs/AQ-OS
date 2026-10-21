@@ -4,19 +4,15 @@
 
 # AcquisitionOS
 
-### AI Market Intelligence Platform
+### AI-native customer acquisition platform
 
-**See Everything. Close Anyone. Dominate Every Market.**
-
-> ⚠️ **DOCUMENTATION STATUS (2026-09-21):** this README still describes the early "Vantage"-era product (6-table schema). The current system is far larger — **505 API route files, 105 Prisma models, ~258 service modules** — and is documented in [`docs/01-overview/PRODUCT-OVERVIEW.md`](docs/01-overview/PRODUCT-OVERVIEW.md) and [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md). The architecture/production statements below are corrected; feature descriptions reflect the original core loop.
+**From discovering prospects to closing the opportunity — in one system.**
 
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
-[![Vercel](https://img.shields.io/badge/Deploy-Vercel-000?style=flat-square&logo=vercel)](https://vercel.com/)
-[![Supabase](https://img.shields.io/badge/DB-Supabase-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-8B0000?style=flat-square)](LICENSE)
 
 <br/>
 
@@ -26,549 +22,283 @@
 
 ## What is AcquisitionOS?
 
-AcquisitionOS is an **AI-powered market intelligence platform** that automates the entire client acquisition lifecycle — from discovering businesses to closing deals. It combines OSINT-based prospecting, predictive lead scoring, AI-driven outreach automation, and real-time deal intelligence into a single, unified command center.
+AcquisitionOS is an **AI-native customer acquisition platform that takes a business from discovering prospects to closing an opportunity.**
 
-Built for agencies, consultancies, and sales teams who need to **find, qualify, contact, and close** businesses at scale.
+It covers the full outbound journey in a single workspace:
 
----
+**Discover → Research → Identify Opportunities → Score → Personalize → Outreach → Replies → Meetings → Pipeline → Proposals → Close**
 
-## Why AcquisitionOS?
-
-| Problem | AcquisitionOS Solution |
-|---------|-----------------|
-| Hours of manual prospecting | AI-powered business discovery across 22 niches and 6 countries |
-| Guessing which leads to pursue | Predictive scoring engine with 4 composite scores per lead |
-| Generic outreach that gets ignored | AI-generated, contextual outreach across Email, WhatsApp, LinkedIn, Instagram |
-| Deals slipping through the cracks | Visual pipeline with stage tracking, aging alerts, and velocity metrics |
-| No visibility into team performance | Real-time dashboards with activity heatmaps, conversion funnels, and trend analysis |
+The platform is built for **outbound-heavy agencies, consultancies, B2B service businesses, and sales teams** that need to find, qualify, contact, and convert prospects at scale — without losing the thread between first discovery and signed deal.
 
 ---
 
-## Key Features
+## Core Capabilities
 
-### 🎯 AI Lead Intelligence
-- **OSINT Business Discovery** — Find businesses across Google Maps, LinkedIn, Yelp, IndiaMart
-- **Predictive Scoring** — Reply Score, Deal Conversion Score, Urgency Score, Revenue Potential Score
-- **Digital Audit** — Automated UI/UX, SEO, and tech stack analysis for every prospect
-- **Score Explanation** — AI-generated reasoning for why a lead received its scores
+Capability status below reflects the current codebase honestly: **Available** (implemented), **In development** (actively being built or hardened), **Planned** (on the roadmap, not yet in the codebase).
 
-### 📊 Deal Intelligence
-- **Visual Pipeline** — Kanban-style pipeline with drag-and-drop stage management
-- **Deal Flow Analytics** — Pipeline funnel, win/loss analysis, velocity metrics
-- **AI Proposal Generation** — One-click professional proposal creation using LLM
-- **Aging Alerts** — Configurable thresholds for deals stuck in stages too long
+### Lead Discovery — Available
+- Prospect discovery by niche/industry and geographic targeting (country, city)
+- Multi-source discovery pipeline with source adapters, verification, and normalization
+- Lead intelligence: enrichment, research jobs, website analysis
+- Lead qualification with composite scoring (reply, conversion, urgency, revenue potential)
+- Persistent lead database with activity history, notes, tags, import/export
 
-### 📈 Market Analytics
-- **Conversion Funnels** — Stage-by-stage conversion rates with drop-off analysis
-- **Score Distribution** — Donut chart of lead quality distribution
-- **Performance Trends** — 7-day vs previous 7-day comparison metrics
-- **Lead Score Heatmap** — Niche × Country grid visualization of average scores
-- **Source Effectiveness** — Compare lead quality by discovery source
+### Business Context — Available (hardening in progress)
+- **My Context** — the user's saved business context
+- **Business Profile** — saved business information per user
+- **My Offer** — the user's offer/positioning
+- Saved business information is the foundation for outreach personalization
 
-### 🤖 AI Automation
-- **Smart Outreach Templates** — 5 contextual template categories with variable interpolation
-- **AI Message Generation** — LLM-powered personalized outreach messages
-- **Sales Assistant** — Real-time chatbot with objection handling and buying signal detection
-- **Follow-up Scheduling** — Schedule and track follow-up reminders
+### Workflows — Available (targeting expansion in development)
+- Visual workflow builder with configurable multi-step definitions
+- Workflow execution engine with execution records, step logs, templates, and triggers
+- Lead-based execution and execution history/analytics
+- Run-against-lead execution with multi-lead selection and advanced targeting modes in active development
 
-### 🔔 Intelligence Center
-- **Real-time Notifications** — Lead events, deal updates, and system alerts
-- **Activity Timeline** — Chronological feed of all lead and deal activities
-- **Follow-up Reminders** — Overdue reminders with polling-based checking
-- **Command Palette** — `⌘K` for instant search and navigation
+### Personalization — In development
+Intended architecture: **user business context + user offer/profile + individual lead information + lead-specific signals → individualized outreach and actions per lead.** The building blocks (context, profiles, offers, AI generation, lead data) are present; deep per-lead individualization is being completed.
 
-### 📱 Responsive Design
-- **Mobile-first** — Optimized for phones, tablets, and desktops
-- **Adaptive Navigation** — Bottom nav on mobile, sidebar on desktop
-- **Touch-friendly** — 44px minimum touch targets, swipe gestures
-- **Dark/Light Mode** — Full theme support with smooth transitions
+### Autopilot — In development
+Intended role: **automatic prospect discovery → lead creation → deduplication → workflow execution → scheduling → tracking**, configurable per niche, country, and schedule. Core models and run tracking exist in the codebase; completion of targeting breadth, dynamic workflow selection, and schedule granularity is in progress.
+
+### Outreach — Email available; other channels expanding
+- **Email** — SMTP delivery, Gmail OAuth integration, sequences with scheduled enrollment, open/click tracking, bounce and unsubscribe handling
+- **WhatsApp / Telegram** — credential-gated messaging integrations
+- **LinkedIn / Instagram** — planned, not yet implemented
+
+### Pipeline & Deals — Available
+- Kanban pipeline with stage management (including custom stages)
+- Deal analytics: funnel, velocity, win/loss, aging alerts
+- Meeting scheduling with calendar integration
+
+### Analytics & Insights — Available
+- Conversion funnels, performance trends, score distributions
+- Predictive analytics and anomaly detection engines
+- Real-time dashboards and activity feeds
+
+### Platform — Available
+- Authentication: email/password, Google OAuth, OTP, magic link, MFA support
+- Organizations, team management, role-based access control
+- Plans & entitlements (Free / Starter / Pro / Elite), credits ledger, invoicing, Stripe and Razorpay payment integrations
+- Real-time updates (WebSocket + SSE), notifications, feature flags
+- Internationalization (next-intl), dark/light theming, responsive UI
+
+---
+
+## AI / RAG / Lead Intelligence
+
+AcquisitionOS is AI-native: AI participates in discovery assistance, lead analysis and scoring, outreach generation, reply intelligence, meeting assistance, and insights.
+
+- **AI layer** — a gateway service (`src/lib/ai/`) built on `z-ai-web-dev-sdk` with provider fallback, prompt management, and AI cost tracking/credits
+- **Lead intelligence** — enrichment, website scoring, composite lead scores with AI-generated explanations
+- **RAG** — document ingestion (text, CSV, URL) with context retrieval (`src/lib/rag-service.ts`, `src/lib/vector-search-service.ts`, `/api/ai/rag/*`) — foundational implementation, in development
+
+No specific model, provider count, or accuracy claims are made; capabilities evolve with the configured AI provider.
 
 ---
 
 ## Architecture
 
-**Current architecture (verified): Modular Monolith — a single Next.js 16 application serving UI, API, and business logic from one process with one database.** See [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md) for the verified classification and [`docs/02-architecture/ARCHITECTURE-DIAGRAM.md`](docs/02-architecture/ARCHITECTURE-DIAGRAM.md) for the full diagram.
+**Modular monolith** — a single Next.js 16 application serving UI, API, and business logic from one process with one database.
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                       AcquisitionOS Platform                     │
-├──────────────┬───────────────┬───────────────────────────────────┤
-│   Frontend   │    Backend    │          AI Engine                 │
-│   (Next.js)  │  (API Routes) │     (z-ai-web-dev-sdk primary,     │
-│              │               │      OpenAI-compatible fallback)   │
-├──────────────┼───────────────┼───────────────────────────────────┤
-│ React 19     │ 505 REST      │ Lead Scoring (4 composite scores)  │
-│ TypeScript   │ route files   │ Proposal Generation                │
-│ Tailwind 4   │ Prisma ORM    │ Outreach Generation                │
-│ shadcn/ui    │ SQLite today; │ Sales Assistant                    │
-│ Recharts     │ PostgreSQL    │ Website Analysis                   │
-│ Framer       │ migration     │ Score Explanation                  │
-│ Motion       │ prepared      │ Market Discovery                   │
-├──────────────┴───────────────┴───────────────────────────────────┤
-│                      State Management                             │
-│           TanStack Query + Zustand + React Context                │
-├──────────────────────────────────────────────────────────────────┤
-│                         Database                                  │
-│      Dev (current runtime): SQLite via Prisma ORM                 │
-│      Production deploy: NOT currently running; a reduced          │
-│      6-model PostgreSQL variant exists at                         │
-│      prisma/schema.production.prisma (Supabase-oriented) —        │
-│      it does NOT cover the full 105-model schema                  │
-└──────────────────────────────────────────────────────────────────┘
+```text
+AcquisitionOS (single deployable)
+│
+├── Frontend — React 19 · TypeScript · Tailwind 4 · shadcn/ui · TanStack Query · Zustand
+│
+├── API / Backend — Next.js App Router (~500 REST route files)
+│
+├── Authentication — credentials · Google OAuth · OTP · magic link · sessions/JWT · MFA · RBAC
+│
+├── Lead Discovery — discovery engine · source adapters · verification · enrichment · dedup
+│
+├── Lead Intelligence — scoring engine · website scorer · reply intelligence · analytics engines
+│
+├── Workflow Engine — definitions · executor · executions/logs · templates · triggers · DLQ
+│
+├── Autopilot — workflow/run/lead models · scheduler (in development)
+│
+├── AI Layer — z-ai-web-dev-sdk gateway · provider fallback · RAG · prompt manager · cost tracking
+│
+├── Outreach / Integrations — Email (SMTP/Gmail) · WhatsApp · Telegram · Google Calendar · Stripe · Razorpay
+│
+└── Database — Prisma ORM · 105 models · SQLite (development runtime)
 ```
 
-### Data Flow
+**Database:** development runs on SQLite via Prisma (`db/`). A PostgreSQL schema variant exists for production (`prisma/schema.production.prisma`) but currently covers only a subset of models — full production database migration is on the roadmap, and no production deployment is live yet.
 
-```mermaid
-graph LR
-    A[Discovery Engine] -->|Create| B[Lead]
-    B -->|Score| C[AI Scoring Engine]
-    C -->|Enrich| B
-    B -->|Select| D[Outreach Engine]
-    D -->|Generate| E[AI Message Generator]
-    E -->|Send| F[Communication]
-    F -->|Track| G[Pipeline]
-    G -->|Close| H[Deal]
-    H -->|Generate| I[AI Proposal]
-    I -->|Win| J[Revenue]
-    B --> K[Analytics]
-    G --> K
-    H --> K
-```
-
-### Module Architecture
-
-```
-src/
-├── app/                        # Next.js App Router
-│   ├── api/                    # REST API endpoints
-│   │   ├── leads/              # Lead CRUD + discovery + analysis + outreach
-│   │   ├── deals/              # Deal CRUD + status management
-│   │   ├── insights/           # Analytics + funnel + heatmap + trends
-│   │   ├── sales-assistant/    # AI chat + proposal generation
-│   │   ├── reminders/          # Follow-up reminder management
-│   │   └── settings/           # App settings + data management
-│   ├── globals.css             # Global styles + custom utilities
-│   ├── layout.tsx              # Root layout + providers + metadata
-│   └── page.tsx                # Entry point
-├── components/
-│   ├── dashboard/              # Business logic components
-│   │   ├── dashboard-layout.tsx    # Main layout + navigation
-│   │   ├── overview-tab.tsx        # Dashboard + stats + activity
-│   │   ├── leads-tab.tsx           # Lead table + filters + bulk actions
-│   │   ├── pipeline-tab.tsx        # Kanban pipeline view
-│   │   ├── discover-tab.tsx        # Business discovery + results
-│   │   ├── outreach-tab.tsx        # Outreach + templates + timeline
-│   │   ├── assistant-tab.tsx       # AI sales assistant chat
-│   │   ├── insights-tab.tsx        # Analytics + charts + recommendations
-│   │   ├── deals-tab.tsx           # Deal management + proposals
-│   │   ├── lead-detail-panel.tsx   # Lead detail sheet + editing
-│   │   ├── notification-center.tsx # Notification popover
-│   │   ├── command-palette.tsx      # ⌘K command palette
-│   │   ├── settings-panel.tsx      # App settings dialog
-│   │   ├── shortcuts-dialog.tsx    # Keyboard shortcuts reference
-│   │   ├── import-leads-dialog.tsx # CSV import workflow
-│   │   ├── lead-compare-dialog.tsx # Lead comparison tool
-│   │   ├── tag-input.tsx           # Tag management component
-│   │   ├── quick-actions-fab.tsx   # Floating action button
-│   │   ├── follow-up-reminders.tsx # Sidebar reminders widget
-│   │   └── theme-toggle.tsx        # Dark/light mode toggle
-│   ├── ui/                     # shadcn/ui primitives (40+ components)
-│   └── providers.tsx           # Theme + client providers
-├── hooks/                      # Custom React hooks
-│   ├── use-keyboard-shortcuts.ts
-│   ├── use-mobile.ts
-│   └── use-toast.ts
-└── lib/                        # Shared utilities
-    ├── api.ts                  # API client functions
-    ├── db.ts                   # Prisma client singleton
-    ├── export.ts               # CSV export utilities
-    ├── import.ts               # CSV import utilities
-    ├── settings-store.ts       # Settings Zustand store
-    ├── store.ts                # Global Zustand store
-    ├── types.ts                # TypeScript type definitions
-    └── utils.ts                # Utility functions
-```
+Deeper documentation lives in [`docs/`](docs/): [Product Overview](docs/01-overview/PRODUCT-OVERVIEW.md), [System Architecture](docs/02-architecture/SYSTEM-ARCHITECTURE.md), [Database Schema](docs/02-architecture/DATABASE-SCHEMA.md), [Deployment](DEPLOYMENT.md), and operational runbooks.
 
 ---
 
 ## Tech Stack
 
-| Category | Technology | Purpose |
-|----------|-----------|---------|
-| **Framework** | Next.js 16 (App Router) | Full-stack React framework |
-| **Language** | TypeScript 5 | Type-safe development |
-| **Styling** | Tailwind CSS 4 | Utility-first CSS |
-| **UI Library** | shadcn/ui (New York) | Accessible component primitives |
-| **Database (Local)** | SQLite via Prisma ORM | Current runtime database |
-| **Database (Prod)** | PostgreSQL migration prepared (`schema.production.prisma`) | **Not currently deployed**; production variant covers 6 of 105 models |
-| **State** | TanStack Query + Zustand | Server + client state management |
-| **Animations** | Framer Motion | Smooth transitions and gestures |
-| **Charts** | Recharts | Data visualization |
-| **AI Engine** | z-ai-web-dev-sdk | LLM, VLM, Web Search |
-| **Icons** | Lucide React | Consistent icon system |
-| **Theme** | next-themes | Dark/light mode |
-| **Tables** | TanStack Table | Headless data tables |
-| **Forms** | React Hook Form + Zod | Validation and form handling |
-| **Notifications** | Sonner | Toast notifications |
-| **Markdown** | ReactMarkdown | Proposal rendering |
-| **Deployment** | Vercel | Serverless hosting with edge CDN |
+| Category | Technology |
+|----------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 |
+| UI | React 19, Tailwind CSS 4, shadcn/ui, Radix UI, Framer Motion, Lucide |
+| State / Data | TanStack Query, TanStack Table, Zustand, React Hook Form + Zod |
+| Database | Prisma ORM (105 models), SQLite (development) |
+| Auth | NextAuth, jose / jsonwebtoken, bcryptjs (credentials, Google OAuth, OTP, magic link, MFA) |
+| AI | z-ai-web-dev-sdk gateway with provider fallback, RAG services, prompt management |
+| Email / Messaging | Nodemailer (SMTP), Resend, Gmail OAuth, WhatsApp & Telegram integrations |
+| Payments | Stripe, Razorpay |
+| Realtime | WebSocket + SSE |
+| Observability | OpenTelemetry, health endpoints |
+| Charts | Recharts |
+| Testing | Vitest, Testing Library, MSW |
+| Deployment | Vercel (`vercel.json`) and Docker (`Dockerfile`, `docker-compose*.yml`) |
 
 ---
 
-## Getting Started
+## Project Structure
+
+```text
+/
+├── src/app/            # Next.js App Router — pages + ~500 API route files
+├── src/components/     # dashboard feature components + shadcn/ui primitives
+├── src/lib/            # ~258 service modules (workflows, discovery, AI, billing, outreach, ...)
+├── prisma/             # schema.prisma (105 models) + production schema variant
+├── scripts/            # db-safety, backup, and operational scripts
+├── db/                 # SQLite database (development)
+├── docs/               # architecture, runbooks, checklists, integration guides
+├── Dockerfile / docker-compose*.yml / vercel.json / DEPLOYMENT.md
+├── README.md
+└── LICENSE
+```
+
+---
+
+## Local Development
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
-- **Bun** ≥ 1.0 (recommended) or npm/yarn/pnpm
-- **Git** for version control
+- **Node.js ≥ 20** (required by Next.js 16)
+- **Bun ≥ 1.0** (recommended) or npm
+- **Git**
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/AcquisitionOS.git
-cd AcquisitionOS
-
-# Install dependencies
-bun install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your values (see Environment Variables below)
-
-# Set up the database (SQLite for local development)
-bun run db:push
-
-# Start the development server
-bun run dev
+git clone https://github.com/Hugs-4-Bugs/AQ-OS.git
+cd AQ-OS
+bun install        # postinstall generates the Prisma client
 ```
-
-The application will be available at `http://localhost:3000`.
 
 ### Environment Variables
 
-Create a `.env` file in the project root (or copy from `.env.example`):
-
-#### Local Development (SQLite)
+Create a `.env` file in the project root. Minimal safe example (**never commit real credentials**):
 
 ```env
-# Database — SQLite for local development
+# Database (SQLite, local development)
 DATABASE_URL="file:./db/custom.db"
 
-# AI SDK — Required for AI features
-ZAI_API_KEY=your_zai_api_key_here
+# AI provider (required for AI features)
+ZAI_API_KEY=
 
-# Optional: Authentication
-# NEXTAUTH_SECRET=your_nextauth_secret
-# NEXTAUTH_URL=http://localhost:3000
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# SMTP email delivery (optional)
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASSWORD=
+
+# Session secrets
+AUTH_SECRET=
+
+# Google Programmable Search (optional, discovery)
+GOOGLE_SEARCH_API_KEY=
+GOOGLE_SEARCH_CX=
 ```
 
-#### Production (Supabase PostgreSQL)
+The complete variable reference is in [`docs/ENV-SECRETS-REFERENCE.md`](docs/ENV-SECRETS-REFERENCE.md) and [`docs/04-secrets-and-configuration/`](docs/04-secrets-and-configuration/).
 
-```env
-# Database — Supabase PostgreSQL for production
-DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres"
-
-# AI SDK — Required for AI features
-ZAI_API_KEY=your_zai_api_key_here
-
-# Optional: Authentication
-# NEXTAUTH_SECRET=your_nextauth_secret
-# NEXTAUTH_URL=https://your-domain.vercel.app
-
-# Optional: App Configuration
-# NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
-# NEXT_TELEMETRY_DISABLED=1
-```
-
-#### Environment Variable Reference
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | ✅ Yes | Database connection string. SQLite path for local, Supabase pooler URL for production |
-| `DIRECT_URL` | ⚠️ Prod only | Direct PostgreSQL connection (bypasses PgBouncer). Required for Prisma migrations on Supabase |
-| `ZAI_API_KEY` | ✅ Yes | API key for z-ai-web-dev-sdk. Powers all AI features: discovery, scoring, outreach, assistant, proposals |
-| `NEXTAUTH_SECRET` | ❌ Optional | Secret for NextAuth.js session encryption. Generate with `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | ❌ Optional | Canonical URL of your app for NextAuth.js callbacks |
-| `NEXT_PUBLIC_APP_URL` | ❌ Optional | Public URL accessible in browser |
-| `NEXT_TELEMETRY_DISABLED` | ❌ Optional | Set to `1` to disable Next.js telemetry |
-
-> **Note:** Without `ZAI_API_KEY`, AI features will fail. All AI-powered capabilities (discovery, scoring, outreach, assistant, proposals, website analysis) require a valid key.
-
----
-
-## 🚀 Deploy to Vercel
-
-AcquisitionOS is designed to deploy seamlessly on **Vercel** with **Supabase** as the production database.
-
-### Quick Deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-org/AcquisitionOS&env=DATABASE_URL,DIRECT_URL,ZAI_API_KEY&envDescription=AcquisitionOS%20requires%20these%20environment%20variables&envLink=https://github.com/your-org/AcquisitionOS/blob/main/DEPLOYMENT.md)
-
-### Deployment Overview
-
-```
-┌──────────────────────┐     ┌────────────────────────────┐
-│   Vercel Edge CDN    │────▶│   Next.js Serverless       │
-│   (Static Assets)    │     │   Functions (API Routes)   │
-└──────────────────────┘     └──────────┬─────────────────┘
-                                        │
-                       ┌────────────────┼──────────────┐
-                       ▼                ▼              ▼
-             ┌──────────────┐  ┌──────────────┐  ┌──────────┐
-             │   Supabase   │  │   ZAI SDK    │  │  Vercel  │
-             │  PostgreSQL  │  │  AI Engine   │  │  Blob    │
-             │  Database    │  │  (LLM/Web)   │  │ (Assets) │
-             └──────────────┘  └──────────────┘  └──────────┘
-```
-
-### Step-by-Step Deployment
-
-#### 1. Set Up Supabase
-
-1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
-2. Go to **Settings → Database** → copy both connection strings:
-   - **Transaction Pooler** (port 6543) → `DATABASE_URL`
-   - **Direct Connection** (port 5432) → `DIRECT_URL`
-
-#### 2. Push Schema to Supabase
+### Database Setup
 
 ```bash
-export DATABASE_URL="postgresql://postgres.[ref]:[pw]@aws-0-[region].pooler.supabase.com:5432/postgres"
-export DIRECT_URL="$DATABASE_URL"
-npx prisma db push --schema=prisma/schema.production.prisma
+bun run db:push      # apply the schema (wrapped by an automatic safety snapshot)
 ```
 
-#### 3. Switch to Production Schema
+### Running the Application
 
 ```bash
-cp prisma/schema.prisma prisma/schema.local.prisma
-cp prisma/schema.production.prisma prisma/schema.prisma
-git add . && git commit -m "Switch to PostgreSQL for Vercel" && git push
+bun run dev          # development server at http://localhost:3000
+bun run build        # production build
+bun run start        # production server
+bun test             # run the test suite (Vitest)
 ```
 
-#### 4. Deploy on Vercel
+---
 
-1. Go to [vercel.com/new](https://vercel.com/new)
-2. Import your GitHub repository
-3. Add environment variables (see table below)
-4. Deploy
+## Database & Data Safety
 
-#### Required Vercel Environment Variables
+Persistent application data (users, leads, profiles, contexts, offers, workflows, executions, outreach, pipeline, billing records) is **intended to remain persistent** and must never be automatically deleted, reset, or truncated as part of normal application operation. Deletion happens only through explicit, supported user actions.
 
-| Variable | Value |
-|----------|-------|
-| `DATABASE_URL` | Supabase Transaction Pooler URL (port 6543, `?pgbouncer=true`) |
-| `DIRECT_URL` | Supabase Direct Connection URL (port 5432) |
-| `ZAI_API_KEY` | Your z-ai-web-dev-sdk API key |
+The repository ships with safety tooling that reflects this policy:
 
-#### Vercel Configuration
+- `db:push` / `db:migrate` are wrapped by `scripts/db-safety.mjs`, which takes an automatic snapshot before touching the schema
+- `db:reset` is gated behind an explicit guard
+- `db:snapshot` / `db:safety` provide manual snapshot and status checks
+- `backup` / `backup:restore` scripts provide operational backups
 
-The project includes a `vercel.json` that configures:
-- **Build command**: `bun run db:generate && next build` (generates Prisma client before build)
-- **Install command**: `bun install`
-- **Security headers**: XSS protection, frame options, cache control on API routes
-- **Region**: Singapore (`sin1`) — change to your preferred region
-
-> 📖 **For the complete deployment guide with troubleshooting, cost estimates, and detailed Supabase setup instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).**
+Do not run destructive database operations (`DROP`, `TRUNCATE`, bulk `DELETE`, reset/reseed) against an application database — they are not part of any documented setup or runbook procedure.
 
 ---
 
-## Usage Guide
+## Authentication
 
-### 1. Discover Businesses
-Navigate to the **Discover** tab. Select a niche (e.g., "Dental", "Restaurant") and country, then click **Discover Businesses**. The AI engine will find and score businesses matching your criteria.
+Implemented authentication flows:
 
-### 2. Analyze & Score Leads
-Each discovered lead receives four predictive scores:
-- **Reply Score** — Likelihood of responding to outreach
-- **Conversion Score** — Probability of becoming a paying client
-- **Urgency Score** — How urgently the business needs your services
-- **Revenue Potential Score** — Estimated deal value
+- **Email / password** with verification, password reset, and account lock protection
+- **Google OAuth**
+- **OTP login**
+- **Magic link login**
+- **MFA** configuration support and session management (refresh, device history, suspicious-login detection)
 
-Click any lead to view detailed scoring reasoning, digital weaknesses, and the best contact strategy.
-
-### 3. Automate Outreach
-Select a lead in the **Outreach** tab. Choose from 5 template categories or let AI generate a personalized message. Send via Email, WhatsApp, LinkedIn, or Instagram.
-
-### 4. Track Pipeline
-Monitor deals through 9 pipeline stages: Discovered → Analyzed → Contacted → Replied → Discussion → Proposal → Negotiation → Won → Lost. Each stage shows conversion rates and revenue potential.
-
-### 5. Close Deals
-Create deals with project scope and pricing. Use **AI Proposal Generation** for professional, contextual proposals. Track deal velocity and win rates in real-time.
-
-### 6. Gain Insights
-The **Insights** tab provides conversion funnels, score distributions, performance trends by niche/country, source effectiveness analysis, and actionable AI recommendations.
+Individual flows can be enabled/disabled via environment flags (e.g., `ENABLE_GOOGLE_OAUTH`, `ENABLE_OTP_LOGIN`, `ENABLE_MAGIC_LINK`). Sessions use signed JWTs with refresh handling.
 
 ---
 
-## API Reference
+## Deployment
 
-### Leads
+Two deployment paths are provided:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/leads` | List leads with filters, sorting, and pagination |
-| `POST` | `/api/leads` | Create a new lead |
-| `GET` | `/api/leads/stats` | Get dashboard statistics |
-| `GET` | `/api/leads/[id]` | Get lead details |
-| `PATCH` | `/api/leads/[id]` | Update lead fields |
-| `DELETE` | `/api/leads/[id]` | Delete a lead |
-| `POST` | `/api/leads/discover` | Discover businesses via AI |
-| `POST` | `/api/leads/[id]/analyze` | AI-analyze a lead |
-| `POST` | `/api/leads/[id]/analyze-website` | AI website analysis |
-| `GET` | `/api/leads/[id]/explain-scores` | Get AI score explanations |
-| `POST` | `/api/leads/[id]/outreach` | AI-generate outreach message |
-| `GET` | `/api/leads/[id]/communications` | List lead communications |
-| `POST` | `/api/leads/[id]/communications` | Log a communication |
-| `GET` | `/api/leads/[id]/deals` | List lead's deals |
-| `GET` | `/api/leads/[id]/activities` | List lead activity log |
-| `GET` | `/api/leads/[id]/reminders` | List follow-up reminders |
-| `POST` | `/api/leads/[id]/reminders` | Create a reminder |
+- **Vercel** — `vercel.json` (build via `npm run vercel-build`, security headers, region config)
+- **Docker** — `Dockerfile`, `docker-compose.yml`, `docker-compose.local.yml`, `docker-compose.prod.yml`
 
-### Deals
+Guides: [`DEPLOYMENT.md`](DEPLOYMENT.md), [`LOCAL-TO-PRODUCTION-DEPLOYMENT.md`](LOCAL-TO-PRODUCTION-DEPLOYMENT.md), and [`docs/03-setup-and-deployment/`](docs/03-setup-and-deployment/).
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/deals` | List all deals |
-| `POST` | `/api/deals` | Create a new deal |
-| `PATCH` | `/api/deals/[id]` | Update deal status/price |
-
-### AI & Intelligence
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/sales-assistant` | Chat with AI assistant or generate proposal |
-| `GET` | `/api/insights` | Get analytics, funnel, heatmap, trends |
-
-### System
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/reminders` | List reminders (with overdue filter) |
-| `POST` | `/api/settings/clear-data` | Clear all application data |
+> Note: no production deployment is currently live; the PostgreSQL production schema variant covers a subset of the full model set (see Architecture).
 
 ---
 
-## Keyboard Shortcuts
+## Status & Roadmap
 
-| Key | Action |
-|-----|--------|
-| `1` – `8` | Switch tabs (Overview → Deals) |
-| `⌘K` / `Ctrl+K` | Open command palette |
-| `N` | New lead |
-| `?` | Show shortcuts |
+### Current Product (implemented)
+Lead discovery pipeline · lead intelligence & scoring · persistent lead database · pipeline & deal management · email outreach (SMTP/Gmail, sequences, tracking) · workflows engine with executions & logs · My Context / Business Profile / My Offer · authentication suite (password, Google, OTP, magic link) · organizations & RBAC · plans, entitlements, credits, billing (Stripe/Razorpay) · analytics & insights · notifications & realtime · RAG foundation · admin foundation · i18n & theming
 
----
+### In Progress
+Workflow step-execution reliability hardening · multi-lead selection and advanced workflow targeting · Autopilot completion (targeting breadth, dynamic workflow selection, schedule granularity) · per-lead personalization depth · admin operations expansion · full production database migration
 
-## Database Schema
-
-> The diagram below shows only the original Vantage-era core. The current schema has **105 models** — see [`docs/02-architecture/DATABASE-SCHEMA.md`](docs/02-architecture/DATABASE-SCHEMA.md).
-
-```
-┌──────────┐     ┌────────────────┐     ┌──────────┐
-│   Lead   │────<│  Communication │     │   Deal   │
-│          │     └────────────────┘     │          │
-│ id       │     ┌────────────────┐     │ id       │
-│ business │────<│  LeadActivity  │     │ leadId   │
-│ scores   │     └────────────────┘     │ status   │
-│ stage    │     ┌────────────────┐     │ price    │
-│ digital  │────<│ FollowUpReminder│    │ proposal │
-│ contact  │     └────────────────┘     └──────────┘
-│ source   │                             │
-└──────────┘     ┌────────────────┐
-                  │    Insight     │
-                  │ type + content │
-                  └────────────────┘
-```
-
-### Database Configurations
-
-| Environment | Provider | Connection | Schema File |
-|---|---|---|---|
-| **Local Dev** | SQLite | `file:./db/custom.db` | `prisma/schema.prisma` |
-| **Production** | PostgreSQL (Supabase) | Connection pooler + direct URL | `prisma/schema.production.prisma` |
-
----
-
-## Roadmap
-
-### v1.0 — Foundation ✅
-- [x] AI business discovery (OSINT)
-- [x] Predictive lead scoring
-- [x] Multi-channel outreach automation
-- [x] Visual deal pipeline
-- [x] AI proposal generation
-- [x] Real-time analytics dashboards
-- [x] CSV import/export
-- [x] Dark/light mode
-- [x] Responsive mobile design
-- [x] Command palette (⌘K)
-- [x] Keyboard shortcuts
-- [x] Notification center
-- [x] Lead comparison tool
-- [x] Follow-up reminders
-- [x] Vercel deployment support
-- [ ] Supabase PostgreSQL integration — migration prepared (`schema.production.prisma`), **not currently deployed**
-
-### v1.1 — Collaboration (Planned → **shipped since**) 
-- [x] Multi-tenant organization support (`Organization`/`OrgMember` models + settings/org APIs)
-- [x] Role-based access control (RBAC: owner/admin/member/viewer — `src/lib/rbac.ts`)
-- [x] Team activity feed / audit (`AuditLog`, `LeadActivity`)
-- [x] Assignment and ownership (lead ownership model)
-
-### v1.2 — Integrations (Planned → **shipped since**)
-- [x] Email integration (Gmail OAuth + inbox sync + Pub/Sub)
-- [x] Calendar integration (Google Calendar OAuth, free/busy, watch)
-- [x] Webhook API (workflow webhooks + payment webhooks)
-- [ ] CRM sync (HubSpot, Salesforce) — `meeting/crm-sync.ts` scaffold only
-- [x] Telegram + WhatsApp notification channels (credential-gated)
-
-### v2.0 — Intelligence (Planned → **shipped since**)
-- [x] Competitor intelligence tracking (`competitor-intelligence-service.ts`, `/api/competitors/*`)
-- [x] Predictive analytics / anomaly detection engines
-- [x] Real-time WebSocket + SSE updates (`/api/ws`, `/api/events/*`)
-- [x] Custom workflow automation builder (definitions/executor/DLQ)
-- [ ] Automated A/B testing for outreach — not implemented
-
----
-
-## Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Development Guidelines
-
-- Use **TypeScript** for all new code
-- Follow the existing **component architecture** patterns
-- Write **responsive** code (mobile-first)
-- Use **shadcn/ui** components over custom implementations
-- Add **loading states** for async operations
-- Include **error handling** with user-friendly messages
-- Test on **dark and light** themes
-- Ensure **44px minimum** touch targets on mobile
+### Planned
+Additional outreach channels (LinkedIn, Instagram) · CRM sync (HubSpot, Salesforce) · A/B testing for outreach · advanced opportunity analysis
 
 ---
 
 ## License
 
-> ⚠️ **No LICENSE file is currently present in the repository**, although a MIT badge appears at the top of this file. Licensing and IP ownership status must be established and a LICENSE file added before any commercial distribution or acquisition transfer.
+This repository contains **proprietary software**. See [`LICENSE`](LICENSE).
+
+Copyright © 2026 **QuantumFusion Solutions**. All rights reserved. Unauthorized copying, reproduction, distribution, or modification is prohibited.
 
 ---
 
 <div align="center">
 
-### Built with AI. Designed for closers.
-
-**AcquisitionOS** — Where intelligence meets execution.
+**AI-native customer acquisition infrastructure for modern sales teams.**
 
 </div>
