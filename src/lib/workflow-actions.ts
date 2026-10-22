@@ -14,6 +14,13 @@ import {
 } from '@/lib/ai/sender-signature';
 import { loadSenderProfile } from '@/lib/ai/outreach-generator';
 import { buildPersonalContextBlockForUser } from '@/lib/personal-context';
+import {
+  validateWebhookUrl,
+  describeWebhookFetchError,
+  webhookTimeoutMs,
+  methodAllowsBody,
+  isValidWebhookMethod,
+} from '@/lib/workflow-webhook';
 
 // ===== TYPES =====
 
@@ -727,31 +734,67 @@ async function executeWebhookCall(
   config: Record<string, unknown>,
   context: ActionContext
 ): Promise<ActionResult> {
-  const { url, method, headers, body } = config;
+  const { url, method, headers, body, params } = config;
 
-  if (!url) {
-    return { success: false, error: 'Webhook requires a URL' };
+  // ── Pre-flight URL validation (Oct 2026 incident fix) ────────────
+  // A placeholder/malformed URL (https://api.example.com/…) previously
+  // went straight to fetch and failed with the opaque "fetch failed".
+  // Validate BEFORE any network I/O and fail with actionable guidance.
+  const check = validateWebhookUrl(url);
+  if (!check.valid) {
+    return { success: false, error: `Webhook call failed: ${check.error}` };
+  }
+  const target = check.url!;
+
+  // ── Request construction ─────────────────────────────────────────
+  const httpMethod = String(method || 'POST').toUpperCase();
+  if (!isValidWebhookMethod(httpMethod)) {
+    return { success: false, error: `Webhook call failed: unsupported HTTP method "${httpMethod}"` };
+  }
+  // GET/HEAD must NOT carry a body (fetch rejects it). The step's `params`
+  // object is merged into the query string instead — the natural shape for
+  // search-style endpoints (url + params + method GET).
+  if (!methodAllowsBody(httpMethod) && params && typeof params === 'object' && !Array.isArray(params)) {
+    for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+      if (value !== undefined && value !== null) {
+        target.searchParams.set(key, String(value));
+      }
+    }
   }
 
+  // ── Bounded per-call timeout ─────────────────────────────────────
+  const timeoutMs = webhookTimeoutMs(config);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(String(url), {
-      method: String(method || 'POST'),
+    const response = await fetch(target.toString(), {
+      method: httpMethod,
       headers: {
         'Content-Type': 'application/json',
-        ...(headers as Record<string, string> || {}),
+        ...((headers && typeof headers === 'object' ? headers : {}) as Record<string, string>),
       },
-      body: body ? JSON.stringify({
-        ...((typeof body === 'object' ? body : {}) as Record<string, unknown>),
-        workflowId: context.workflowId,
-        executionId: context.executionId,
-        leadId: context.leadId,
-        triggerData: context.triggerData,
-      }) : JSON.stringify({
-        workflowId: context.workflowId,
-        executionId: context.executionId,
-        leadId: context.leadId,
-        triggerData: context.triggerData,
-      }),
+      ...(methodAllowsBody(httpMethod)
+        ? {
+            body: JSON.stringify(
+              body
+                ? {
+                    ...((typeof body === 'object' ? body : {}) as Record<string, unknown>),
+                    workflowId: context.workflowId,
+                    executionId: context.executionId,
+                    leadId: context.leadId,
+                    triggerData: context.triggerData,
+                  }
+                : {
+                    workflowId: context.workflowId,
+                    executionId: context.executionId,
+                    leadId: context.leadId,
+                    triggerData: context.triggerData,
+                  }
+            ),
+          }
+        : {}),
+      signal: controller.signal,
     });
 
     let responseBody: unknown;
@@ -771,10 +814,16 @@ async function executeWebhookCall(
       creditsUsed: 1,
     };
   } catch (error) {
+    // ── Real cause surfacing ────────────────────────────────────────
+    // Node hides the actionable detail in error.cause (ENOTFOUND,
+    // ECONNREFUSED, TLS problems, …). "fetch failed" alone told the user
+    // nothing; the description names the host and the failure class.
     return {
       success: false,
-      error: `Webhook call failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: `Webhook call failed: ${describeWebhookFetchError(error, timeoutMs)}`,
     };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

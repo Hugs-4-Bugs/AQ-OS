@@ -20,6 +20,7 @@ import {
 } from '@/lib/entitlement-service';
 import { logEntitlementEvent } from '@/lib/billing-audit';
 import { loadPersonalContextForAi } from '@/lib/personal-context';
+import { validateWebhookUrl } from '@/lib/workflow-webhook';
 import ZAI from 'z-ai-web-dev-sdk';
 
 const AI_WORKFLOW_COST = 5;
@@ -91,7 +92,8 @@ RULES:
 3. Any "using AI" / "personalized" / "generate" phrase becomes an ai_action step with ai_outreach or ai_analysis.
 4. Any "if/when condition" phrase becomes a condition step with conditional_branch.
 5. Map stage moves to move_lead_stage with the mentioned stage.
-6. Keep 2-8 steps. Use the user's wording for titles.`;
+6. Keep 2-8 steps. Use the user's wording for titles.
+7. webhook_call may ONLY be used when the user's description explicitly contains a real endpoint URL (starting with http:// or https://). If the user asks to "search", "find", "fetch", or "discover" something WITHOUT providing a URL, do NOT invent a URL and do NOT use webhook_call — represent that step as ai_analysis or add_note instead. Never emit placeholder domains such as api.example.com; they cannot be reached.`;
 
 interface GeneratedStep {
   nodeType: string;
@@ -163,6 +165,30 @@ function normalizeGenerated(raw: Record<string, unknown>): GeneratedWorkflow {
     // required" (the historical normal-run failure).
     if (actionType === 'add_note' && !str(config.content)) {
       config.content = 'Activity recorded by this workflow.';
+    }
+
+    // webhook_call REQUIRES a real, reachable endpoint URL (Oct 2026
+    // incident fix). When the model invents one — the classic placeholder
+    // is https://api.example.com/... — the workflow would save fine and
+    // then fail at run time with an opaque network error. Repair it into
+    // an honest note step that tells the user to configure the endpoint;
+    // the intent is preserved in the step title and note content.
+    if (actionType === 'webhook_call') {
+      const urlCheck = validateWebhookUrl(config.url);
+      if (!urlCheck.valid) {
+        const originalUrl = str(config.url);
+        actionType = 'add_note';
+        nodeType = 'action';
+        config.actionType = 'add_note';
+        config.content =
+          `Webhook step "${title}" needs a real endpoint URL — open this step in the workflow builder and ` +
+          `configure it (the placeholder ${originalUrl ? `"${originalUrl}" ` : ''}was removed because it can never respond).`;
+        delete config.url;
+        delete config.method;
+        delete config.headers;
+        delete config.params;
+        delete config.body;
+      }
     }
 
     steps.push({ nodeType, actionType, title, config });

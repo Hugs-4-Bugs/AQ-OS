@@ -13,7 +13,13 @@
 // src/lib/workflow-actions.ts (required-field checks marked "is required")
 // plus the legacy executor's aliases in src/lib/workflow-executor.ts.
 // No action types are invented here.
+//
+// Oct 2026 addition: webhook_call steps get SEMANTIC URL validation (the
+// "fetch failed" incident — a placeholder URL like https://api.example.com
+// saved fine, then failed at run time). Shared logic: workflow-webhook.ts.
 // ═══════════════════════════════════════════════════════════════════
+
+import { validateWebhookUrl } from '@/lib/workflow-webhook';
 
 // ===== TYPES =====
 
@@ -290,6 +296,24 @@ export function validateDefinition(
           stepName: step.name,
           field: group.join(' or '),
           message: `Step ${index + 1} (${rule.label}): ${group.join(' or ')} is required.`,
+        });
+      }
+    }
+
+    // ── Webhook URL semantic validation (Oct 2026 incident fix) ──────
+    // A webhook URL that can never respond (unparseable, non-http(s)
+    // scheme, or a reserved documentation domain like api.example.com)
+    // is rejected HERE — at save/enable/Run-Now pre-flight time, BEFORE
+    // the execution fee is charged and before any run is accepted — with
+    // an actionable repair message instead of a mid-run "fetch failed".
+    if (step.actionType === 'webhook_call' && isFilled(step.config.url)) {
+      const urlCheck = validateWebhookUrl(step.config.url);
+      if (!urlCheck.valid) {
+        issues.push({
+          stepIndex: index,
+          stepName: step.name,
+          field: 'url',
+          message: `Step ${index + 1} (Webhook Call): url ${urlCheck.error}.`,
         });
       }
     }

@@ -13,6 +13,13 @@ import { classifyStepError, computeBackoffDelayMs } from '@/lib/workflow-retry';
 import { refundNeverStartedWorkflowExecutionFee } from '@/lib/workflow-credits';
 import { reserveDailyOutreachSend, DAILY_OUTREACH_LIMIT_EXCEEDED } from '@/lib/daily-outreach-quota';
 import {
+  validateWebhookUrl,
+  describeWebhookFetchError,
+  webhookTimeoutMs,
+  methodAllowsBody,
+  isValidWebhookMethod,
+} from '@/lib/workflow-webhook';
+import {
   type WorkflowNode,
   type WorkflowEdge,
   generateIdempotencyKey,
@@ -716,22 +723,52 @@ async function executeStepAction(
 
     case 'webhook_call': {
       const url = (config.url as string) || '';
-      const method = (config.method as string) || 'POST';
+      const method = String((config.method as string) || 'POST').toUpperCase();
       const body = config.body || triggerData;
+      const params = config.params;
 
-      if (!url) throw new Error('No URL specified for webhook call');
+      // Pre-flight URL validation (Oct 2026 incident fix): placeholder /
+      // malformed URLs fail fast with actionable guidance instead of the
+      // opaque "fetch failed" (Node hides the real cause in error.cause).
+      const check = validateWebhookUrl(url);
+      if (!check.valid) {
+        throw new Error(`Webhook call failed: ${check.error}`);
+      }
+      const target = check.url!;
+      if (!isValidWebhookMethod(method)) {
+        throw new Error(`Webhook call failed: unsupported HTTP method "${method}"`);
+      }
+      // GET/HEAD must not carry a body; the step's `params` merge into the
+      // query string (search-style endpoints: url + params + method GET).
+      if (!methodAllowsBody(method) && params && typeof params === 'object' && !Array.isArray(params)) {
+        for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+          if (value !== undefined && value !== null) {
+            target.searchParams.set(key, String(value));
+          }
+        }
+      }
+
+      const timeoutMs = webhookTimeoutMs(config);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
-        const response = await fetch(url, {
+        const response = await fetch(target.toString(), {
           method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          headers: {
+            'Content-Type': 'application/json',
+            ...((config.headers && typeof config.headers === 'object' ? config.headers : {}) as Record<string, string>),
+          },
+          ...(methodAllowsBody(method) ? { body: JSON.stringify(body) } : {}),
+          signal: controller.signal,
         });
 
         const responseText = await response.text();
         return { statusCode: response.status, response: responseText.slice(0, 1000) };
       } catch (error) {
-        throw new Error(`Webhook call failed: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Webhook call failed: ${describeWebhookFetchError(error, timeoutMs)}`);
+      } finally {
+        clearTimeout(timer);
       }
     }
 
