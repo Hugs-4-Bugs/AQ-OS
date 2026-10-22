@@ -1595,3 +1595,23 @@ Work Log:
 Stage Summary:
 - GitHub main is now 57a88f5543ce6d8acd6ec945ea51e2ea9e7d092e — the complete Phase 7-10 lineage (93d38a9fa -> 57a88f554) is published.
 - Local and remote main are in sync; working tree clean.
+
+---
+Task ID: env-auth-credentials-1
+Agent: Super Z (main agent)
+Task: Configure local-testing env vars for Google OAuth, Gmail OTP, magic-link auth (no code changes)
+
+Work Log:
+- Audited expected env names via src/lib/email-ethereal.ts (alias chains: SMTP_USER > SMTP_USERNAME > GMAIL_USER > ...; SMTP_PASSWORD > SMTP_PASS > SMTP_AUTH_PASSWORD > GMAIL_APP_PASSWORD > ...), src/lib/email.ts, auth routes, and ENVIRONMENT-VARIABLES.md.
+- Updated .env ONLY (env-level change; zero source/auth-logic changes): SMTP_USER, GMAIL_USER, EMAIL_FROM (new sender address), SMTP_PASSWORD, SMTP_PASS, GMAIL_APP_PASSWORD (new Gmail app password), GOOGLE_CLIENT_SECRET (new secret). Canonical keys + all aliases kept consistent to prevent priority-order mismatches.
+- Left untouched: GOOGLE_CLIENT_ID (pre-existing, pairs with new secret — live-verified), JWT_SECRET/AUTH_SECRET/NEXTAUTH_SECRET, DATABASE_URL, SMTP_HOST/PORT (smtp.gmail.com:587), auth flags (AUTH_DEV_MODE=false etc.).
+- Backup: .env.pre-gmail-oct22 (gitignored via .env.* rule — verified with git check-ignore).
+- Verified nothing committed: git status --porcelain = 0 entries before and after.
+- App start verification (running Next dev server, env auto-reloaded): GET /api -> HTTP 200; GET /api/auth/config -> {googleConfigured:true, emailConfigured:true}.
+- Live SMTP probe (scripts/verify-smtp-config.mjs — prints safe metadata only): smtp.gmail.com:587 STARTTLS, connection VERIFIED, authentication VERIFIED (no mail sent).
+- Live Google OAuth probe (scripts/verify-google-oauth-provider.mjs): token endpoint returned invalid_grant (client credentials VALID — new secret pairs with existing client_id); authorization endpoint served consent page for http://localhost:3000/api/auth/callback/google (redirect_uri REGISTERED).
+
+Stage Summary:
+- All required env vars for Google Sign-In, Gmail OTP, and magic-link auth are CONFIGURED; none missing. Optional unset: RESEND_API_KEY (SMTP is active provider), APP_URL/NEXTAUTH_URL/NEXT_PUBLIC_APP_URL (intentionally unset — dynamic request-origin detection), GOOGLE_REDIRECT_URI.
+- No code changes, no commits, no secrets printed anywhere; .env and its backup are gitignored.
+- Reminder logged: new SMTP app password + Google client secret were shared in chat (and older values persist in git history) — rotate after local testing.
