@@ -138,13 +138,32 @@ export async function PUT(
       if ('name' in data && (!data.name || !String(data.name).trim())) {
         return NextResponse.json({ error: 'Profile name cannot be empty' }, { status: 400 });
       }
-      if (Object.keys(data).length === 0) {
+
+      // Phase 14 — explicit default selection on update: exactly one of
+      // the caller's active profiles may be the default; setting a new
+      // default unsets the previous one (scoped per user, never touches
+      // other users' profiles). Archiving the current default clears the
+      // flag so a default is always an ACTIVE profile.
+      const updateData: Record<string, unknown> = { ...data };
+      if (body.isDefault === true && profile.status === 'active' && body.status !== 'archived') {
+        await db.businessProfile.updateMany({
+          where: { userId: user.id, isDefault: true, NOT: { id: profile.id } },
+          data: { isDefault: false },
+        });
+        updateData.isDefault = true;
+      } else if (body.isDefault === false) {
+        updateData.isDefault = false;
+      }
+      if (updateData.status === 'archived' && profile.isDefault) {
+        updateData.isDefault = false;
+      }
+      if (Object.keys(updateData).length === 0) {
         return NextResponse.json({ error: 'No changes provided' }, { status: 400 });
       }
 
       const updated = await db.businessProfile.update({
         where: { id: profile.id },
-        data,
+        data: updateData,
       });
 
       return NextResponse.json({ profile: updated });

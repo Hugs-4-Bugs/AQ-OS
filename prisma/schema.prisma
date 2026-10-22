@@ -3157,6 +3157,12 @@ model BusinessProfile {
   researchPreferences   String?
   outreachPreferences   String?
   status                String   @default("active") // active | archived
+  // Phase 14 (Oct 2026): EXPLICIT default-profile selection. Exactly one of
+  // a user's active profiles may carry isDefault=true (the setter unsets the
+  // previous default, scoped per user). When none is flagged, deterministic
+  // fallback = earliest-created active profile. Additive column; existing
+  // rows read as false and every legacy query is unchanged.
+  isDefault             Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

@@ -52,6 +52,12 @@ import { createNotificationOnce } from '@/lib/notification-service';
 import { resolveNicheLeads, maxTargetLeads, type ResolvedTargetLead } from '@/lib/workflow-targeting';
 import { getLeadCounts, type LeadCounts } from '@/lib/workflow-execution-leads';
 import { startDiscoveryJob } from '@/lib/lead-discovery-service';
+import {
+  resolveBusinessProfileForUser,
+  buildLeadIntelligence,
+  loadLeadFacts,
+  type ProfileResolution,
+} from '@/lib/lead-intelligence';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -111,6 +117,11 @@ export interface ExecuteWorkflowBatchOptions {
    * run terminates with zero steps completed (same contract as the legacy
    * single-lead engine option). */
   neverStartedAutoRefund?: boolean;
+  /** Phase 17 — explicitly supplied execution settings (HIGHEST precedence
+   * tier). Accepted from the execute request body: { profileId?, tone?,
+   * language?, cta?, channel?, style? }. Overrides the workflow's own
+   * profile and any business-profile defaults. */
+  executionSettings?: Record<string, unknown>;
 }
 
 export interface BatchExecutionResult {
@@ -132,6 +143,11 @@ interface BatchRunOptions {
   startStepsCompleted: number;
   /** Wall-clock start of this segment (duration reporting). */
   startedAtMs: number;
+  /** Phase 16/17 — per-lead personalization inputs: the run's resolved
+   * business profile (precedence: execution setting > workflow > default)
+   * and the explicit execution settings tier. */
+  resolvedProfile?: ProfileResolution;
+  executionSettings?: Record<string, unknown>;
 }
 
 interface LeadStepOutcome {
@@ -260,6 +276,20 @@ export async function executeWorkflowBatch(
     const stepLoad = loadStepsForExecution(workflow.workflowSteps, workflow.nodes);
     const steps: ValidatedStep[] = stepLoad.steps;
 
+    // ── Phase 16/17 — per-lead personalization inputs (resolved ONCE per
+    // run; owner-scoped; foreign/missing profiles fall through safely) ──
+    // Precedence: explicit execution setting → workflow's own profile →
+    // the user's deterministic default profile.
+    const explicitProfileIdRaw = options.executionSettings?.profileId;
+    const explicitProfileId =
+      typeof explicitProfileIdRaw === 'string' && explicitProfileIdRaw.trim()
+        ? explicitProfileIdRaw.trim()
+        : null;
+    const profileResolution = await resolveBusinessProfileForUser(userId, {
+      explicitProfileId,
+      workflowProfileId: workflow.profileId ?? null,
+    }).catch(() => ({ profile: null, source: 'none' as const }));
+
     // Idempotency: a replay of the same run identity returns the SAME
     // execution — never a second history row, never a second charge scope.
     let existingExecution: { id: string; status: string; currentStep: number } | null = null;
@@ -291,6 +321,16 @@ export async function executeWorkflowBatch(
               requiresApproval: workflow.requiresApproval,
               profileId: workflow.profileId ?? null,
               stepCount: steps.length,
+              snapshottedAt: new Date().toISOString(),
+            },
+            // Phase 16/17 — the personalization configuration this run uses
+            // (profile precedence resolution + snapshot; historical runs
+            // never rewrite when the profile is later edited).
+            intelligenceConfig: {
+              profileId: profileResolution.profile?.id ?? null,
+              profileName: profileResolution.profile?.name ?? null,
+              profileSource: profileResolution.source,
+              executionSettings: options.executionSettings ?? null,
               snapshottedAt: new Date().toISOString(),
             },
           }),
@@ -354,6 +394,8 @@ export async function executeWorkflowBatch(
       rechargeOnStart: false,
       startStepsCompleted: 0,
       startedAtMs: Date.now(),
+      resolvedProfile: profileResolution,
+      executionSettings: options.executionSettings,
     };
 
     try {
@@ -496,6 +538,22 @@ async function runBatchSteps(
       executionId, leadId: item.leadId, leadName: item.leadName,
     });
 
+    // ── Phase 16 — THIS lead's personalized intelligence, composed ONCE
+    // before its steps run and reused by every step of this lead. The
+    // run-level resolved profile rides in via runOptions (precedence:
+    // execution setting > workflow > default). Null on lookup failure —
+    // personalization must never break execution.
+    const leadFacts = item.leadId
+      ? await loadLeadFacts(userId, item.leadId).catch(() => null)
+      : null;
+    const leadIntelligence = leadFacts
+      ? await buildLeadIntelligence(
+          userId,
+          { ...leadFacts, businessName: leadFacts.businessName || item.leadName || 'Unknown' },
+          { resolvedProfile: runOptions.resolvedProfile }
+        ).catch(() => null)
+      : null;
+
     // Retry/resume: this item may already carry partial progress.
     const priorOutcomes = parseStepSummary(item.stepSummary);
     const fromStep = lastCompletedStepIndex(priorOutcomes) + 1;
@@ -555,6 +613,10 @@ async function runBatchSteps(
           triggerData: { leadId: item.leadId, leadName: item.leadName },
           previousOutputs,
           requiresApproval,
+          // Phase 16/17 — per-lead personalization + highest-precedence
+          // execution settings ride the action context.
+          leadIntelligence: leadIntelligence ?? undefined,
+          executionSettings: runOptions.executionSettings,
         }, attempt, remaining, item);
 
         if (result.success || attempt >= retryBudget) break;
@@ -1261,6 +1323,42 @@ async function matchPersistedLead(
 // single-lead retry: a never-started run's refunded fee is re-charged the
 // moment the retry's first step actually completes (`wfexec-started:<id>`).
 
+/** Load the workflow's steps + resolve this RUN's personalization inputs
+ * from the execution's OWN persisted intelligenceConfig snapshot (retry/
+ * resume continuation): the profile the run originally used is re-resolved
+ * owner-scoped (falls back to the default resolution when it was since
+ * deleted), and the run's original execution settings ride along. */
+async function loadRunPersonalization(
+  execution: { workflowId: string; triggerData?: string | null },
+  userId: string
+): Promise<{ resolvedProfile?: ProfileResolution; executionSettings?: Record<string, unknown> }> {
+  let snapshottedProfileId: string | null = null;
+  let executionSettings: Record<string, unknown> | undefined;
+  try {
+    const parsed = execution.triggerData
+      ? (JSON.parse(execution.triggerData) as Record<string, unknown>)
+      : {};
+    const ic = parsed.intelligenceConfig as Record<string, unknown> | undefined;
+    if (ic && typeof ic === 'object') {
+      if (typeof ic.profileId === 'string' && ic.profileId) snapshottedProfileId = ic.profileId;
+      if (ic.executionSettings && typeof ic.executionSettings === 'object') {
+        executionSettings = ic.executionSettings as Record<string, unknown>;
+      }
+    }
+  } catch {
+    // unparseable triggerData → fresh resolution below
+  }
+  const workflow = await db.workflowDefinition.findUnique({
+    where: { id: execution.workflowId },
+    select: { profileId: true },
+  }).catch(() => null);
+  const resolvedProfile = await resolveBusinessProfileForUser(userId, {
+    explicitProfileId: snapshottedProfileId,
+    workflowProfileId: workflow?.profileId ?? null,
+  }).catch(() => ({ profile: null, source: 'none' as const }));
+  return { resolvedProfile, executionSettings };
+}
+
 export async function retryBatchExecution(
   executionId: string,
   userId: string
@@ -1355,6 +1453,9 @@ export async function retryBatchExecution(
     rechargeOnStart,
     startStepsCompleted: execution.currentStep ?? 0,
     startedAtMs: Date.now(),
+    // Retry continues the SAME run: the originally-snapshotted profile +
+    // execution settings are restored from the execution record.
+    ...(await loadRunPersonalization(execution, userId)),
   });
 
   await logWorkflowEvent(userId, 'workflow_retried', { executionId, workflowId: execution.workflowId });
@@ -1405,6 +1506,8 @@ export async function resumeBatchExecution(
     rechargeOnStart: false,
     startStepsCompleted: execution.currentStep ?? 0,
     startedAtMs: Date.now(),
+    // Resume continues the SAME run: restore its personalization config.
+    ...(await loadRunPersonalization(execution, userId)),
   });
   return { success: true, executionId };
 }

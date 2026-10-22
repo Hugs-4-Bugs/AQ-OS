@@ -16,6 +16,13 @@ import {
 import { loadSenderProfile } from '@/lib/ai/outreach-generator';
 import { buildPersonalContextBlockForUser } from '@/lib/personal-context';
 import {
+  buildLeadIntelligenceBlock,
+  composeLeadIntelligence,
+  resolveEffectiveSettings,
+  OUTREACH_SETTING_KEYS,
+  type LeadIntelligence,
+} from '@/lib/lead-intelligence';
+import {
   validateWebhookUrl,
   describeWebhookFetchError,
   webhookTimeoutMs,
@@ -35,6 +42,17 @@ export interface ActionContext {
   /** Workflow-level human-approval gate: send actions create a draft +
    *  notification instead of sending (a human approves before delivery). */
   requiresApproval?: boolean;
+  /** Phase 16 — per-lead personalized intelligence, PRE-BUILT by the
+   *  multi-lead batch runner (one composition per lead, reused by that
+   *  lead's steps). Legacy single-lead paths leave it unset and the AI
+   *  actions compose it on demand — every entry point gets the same
+   *  personalization semantics. */
+  leadIntelligence?: LeadIntelligence;
+  /** Phase 17 — explicitly supplied execution settings (the HIGHEST
+   *  precedence tier: they override workflow/campaign overrides which in
+   *  turn override business-profile defaults). Supplied by the execute
+   *  route from the request body. */
+  executionSettings?: Record<string, unknown>;
 }
 
 export interface ActionResult {
@@ -401,6 +419,17 @@ async function executeAiAnalysis(
     }
     const lead = resolution.lead;
 
+    // Phase 16 — per-lead personalized intelligence: the analysis sees the
+    // user's business profile / context / offer AND this lead's specific
+    // business, niche, geography and signals. Pre-built by the batch
+    // runner when available; composed on demand otherwise (legacy paths).
+    const intelligence =
+      context.leadIntelligence ??
+      (await composeLeadIntelligence(context.userId, context.leadId, {
+        workflowProfileId: await workflowProfileId(context),
+      }).catch(() => null));
+    const intelligenceBlock = intelligence ? buildLeadIntelligenceBlock(intelligence) : '';
+
     const analysisPrompt = prompt
       ? resolveTemplate(String(prompt), context)
       : `Analyze this lead for sales potential: ${lead.businessName}. 
@@ -411,7 +440,9 @@ async function executeAiAnalysis(
     // Rate-limit reliability: 429s from the provider are retried INSIDE
     // the call with bounded backoff honoring Retry-After (the error that
     // finally escapes keeps its 429 token for downstream classifiers).
-    const response = await withAiRateLimitRetry(() => chat.sendMessage(analysisPrompt));
+    const response = await withAiRateLimitRetry(() =>
+      chat.sendMessage(`${analysisPrompt}${intelligenceBlock}`)
+    );
 
     return {
       success: true,
@@ -449,9 +480,41 @@ async function executeAiOutreach(
     }
     const lead = resolution.lead;
 
-    const outreachChannel = String(channel || 'email');
-    const outreachStyle = style || 'professional';
-    const outreachTone = tone || 'friendly';
+    // ── Phase 16 — PER-LEAD personalized intelligence ──
+    // Pre-built by the multi-lead batch runner (one composition per lead);
+    // composed on demand for legacy single-lead paths. The block embeds
+    // THIS lead's business, niche, geography and signals plus the user's
+    // business profile / My Context / My Offer — no generic
+    // one-message-for-all-1,000-leads behavior is possible.
+    const intelligence =
+      context.leadIntelligence ??
+      (await composeLeadIntelligence(context.userId, context.leadId, {
+        workflowProfileId: await workflowProfileId(context),
+      }).catch(() => null));
+
+    // ── Phase 17 — REQUIRED precedence hierarchy ──
+    // business-profile defaults → workflow/campaign overrides (step
+    // config) → explicitly supplied execution settings (highest).
+    const profileDefaults: Record<string, unknown> = intelligence?.businessProfile
+      ? {
+          tone: intelligence.businessProfile.preferredTone,
+          language: intelligence.businessProfile.preferredLanguage,
+          cta: intelligence.businessProfile.cta,
+        }
+      : {};
+    const effective = resolveEffectiveSettings(
+      OUTREACH_SETTING_KEYS,
+      profileDefaults,
+      { tone, style, channel, language: config.language, cta: config.cta },
+      context.executionSettings
+    );
+
+    const outreachChannel = String(effective.channel || channel || 'email');
+    const outreachStyle = String(effective.style || style || 'professional');
+    const outreachTone = String(effective.tone || tone || 'friendly');
+    const outreachLanguage = effective.language ? ` Language: ${effective.language}.` : '';
+    const outreachCta = effective.cta ? ` Preferred call to action: ${effective.cta}.` : '';
+    const intelligenceBlock = intelligence ? buildLeadIntelligenceBlock(intelligence) : '';
 
     // SENDER IDENTITY: the workflow acts on behalf of the user who owns it.
     // Real profile goes into the prompt; placeholder tokens the model still
@@ -459,22 +522,21 @@ async function executeAiOutreach(
     const senderProfile = await loadSenderProfile(context.userId);
     const senderBlock = buildSenderSignatureBlock(senderProfile);
 
-    // USER PERSONAL CONTEXT: workflow-generated outreach must be personalized
-    // exactly like the manual path — the user's own description of what they
-    // do, their services, audience and positioning is authoritative and the
-    // model may never invent facts beyond it.
-    const personalContextBlock = await buildPersonalContextBlockForUser(context.userId);
+    // USER PERSONAL CONTEXT (legacy block retained for users with no
+    // business profile — the intelligence block already embeds it when
+    // present, so this stays ONLY when no intelligence was resolvable).
+    const personalContextBlock = intelligence ? '' : await buildPersonalContextBlockForUser(context.userId);
 
     const prompt = `Generate a ${outreachStyle} ${outreachChannel} outreach message for:
       Business: ${lead.businessName}
       Owner: ${lead.ownerName || 'Unknown'}
       Niche: ${lead.niche || 'Unknown'}
       City: ${lead.city || 'Unknown'}
-      Tone: ${outreachTone}
+      Tone: ${outreachTone}${outreachLanguage}${outreachCta}
       
       Create a compelling, personalized message that addresses their potential needs.
 
-${senderBlock}${personalContextBlock}`;
+${senderBlock}${intelligenceBlock}${personalContextBlock}`;
 
     // Rate-limit reliability: bounded retry honoring Retry-After (same
     // wrapper as AI analysis). The message row is only created AFTER the
@@ -505,6 +567,15 @@ ${senderBlock}${personalContextBlock}`;
         messageId: message.id,
         channel: outreachChannel,
         generatedMessage,
+        personalization: intelligence
+          ? {
+              profileId: intelligence.businessProfile?.id ?? null,
+              profileSource: intelligence.businessProfile?.source ?? 'none',
+              leadNiche: intelligence.lead.niche,
+              leadGeography: intelligence.lead.geography,
+              signalCount: intelligence.lead.signals.length,
+            }
+          : null,
       },
       creditsUsed: 5,
     };
@@ -513,6 +584,21 @@ ${senderBlock}${personalContextBlock}`;
       success: false,
       error: `AI outreach failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     };
+  }
+}
+
+/** The workflow's own Business Profile association (Tier-2 precedence),
+ * loaded lazily and cached per execution in the action context's
+ * triggerData to avoid repeated lookups inside one run. */
+async function workflowProfileId(context: ActionContext): Promise<string | null> {
+  try {
+    const wf = await db.workflowDefinition.findUnique({
+      where: { id: context.workflowId },
+      select: { profileId: true },
+    });
+    return wf?.profileId ?? null;
+  } catch {
+    return null;
   }
 }
 

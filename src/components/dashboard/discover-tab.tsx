@@ -727,7 +727,7 @@ export default function DiscoverTab() {
   // 'none' = no override. Applies to BOTH filter and AI search modes;
   // resolved + ownership-checked server-side on /api/leads/discover.
   // Selection persists across visits (localStorage).
-  const [contextMode, setContextMode] = useState<'none' | 'campaign' | 'business' | 'profile'>('none');
+  const [contextMode, setContextMode] = useState<'none' | 'campaign' | 'business' | 'profile' | 'default_profile'>('none');
   const [contextCampaignId, setContextCampaignId] = useState<string>('');
   const [contextProfileId, setContextProfileId] = useState<string>('');
   useEffect(() => {
@@ -735,7 +735,7 @@ export default function DiscoverTab() {
       const stored = localStorage.getItem('acquisitionos_discovery_context');
       if (stored) {
         const parsed = JSON.parse(stored) as { mode?: string; campaignId?: string; profileId?: string };
-        if (parsed.mode === 'campaign' || parsed.mode === 'business' || parsed.mode === 'profile' || parsed.mode === 'none') {
+        if (parsed.mode === 'campaign' || parsed.mode === 'business' || parsed.mode === 'profile' || parsed.mode === 'default_profile' || parsed.mode === 'none') {
           setContextMode(parsed.mode);
           if (parsed.campaignId) setContextCampaignId(parsed.campaignId);
           if (parsed.profileId) setContextProfileId(parsed.profileId);
@@ -928,9 +928,11 @@ export default function DiscoverTab() {
             ? { mode: 'campaign', campaignId: contextCampaignId }
             : contextMode === 'business'
               ? { mode: 'business' }
-              : contextMode === 'profile' && contextProfileId
-                ? { mode: 'profile', profileId: contextProfileId }
-                : undefined,
+              : contextMode === 'default_profile'
+                ? { mode: 'profile' } // server resolves the deterministic default
+                : contextMode === 'profile' && contextProfileId
+                  ? { mode: 'profile', profileId: contextProfileId }
+                  : undefined,
       });
 
       const startOne = async (payload: Record<string, unknown>) => {
@@ -1249,7 +1251,7 @@ export default function DiscoverTab() {
                     : contextMode
               }
               onValueChange={(v) => {
-                if (v === 'none' || v === 'business') {
+                if (v === 'none' || v === 'business' || v === 'default_profile') {
                   setContextMode(v);
                   setContextCampaignId('');
                   setContextProfileId('');
@@ -1270,6 +1272,7 @@ export default function DiscoverTab() {
               <SelectContent>
                 <SelectItem value="none">None — no override</SelectItem>
                 <SelectItem value="business">My business context</SelectItem>
+                <SelectItem value="default_profile">My default business profile</SelectItem>
                 {(contextProfiles ?? []).length > 0 && (
                   <div className="px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
                     Business Profiles

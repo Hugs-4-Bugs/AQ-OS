@@ -62,6 +62,18 @@ function pickProfileFields(body: Record<string, unknown>): Record<string, string
   return data;
 }
 
+/** Phase 14 — exactly-one-default invariant, scoped per user. */
+async function setSoleDefault(userId: string, profileId: string): Promise<void> {
+  await db.businessProfile.updateMany({
+    where: { userId, isDefault: true, NOT: { id: profileId } },
+    data: { isDefault: false },
+  });
+  await db.businessProfile.update({
+    where: { id: profileId },
+    data: { isDefault: true },
+  });
+}
+
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
@@ -73,12 +85,15 @@ export async function GET(request: NextRequest) {
       const plan = (user.plan || 'free') as PlanType;
       const activeCount = profiles.filter((p) => p.status === 'active').length;
       const limit = getFeatureLimit(plan, 'business_profiles');
+      const defaultProfileId =
+        profiles.find((p) => p.isDefault && p.status === 'active')?.id ?? null;
 
       return NextResponse.json({
         profiles,
         total: profiles.length,
         activeCount,
         planLimit: limit,
+        defaultProfileId,
       });
     } catch (error) {
       console.error('[BusinessProfiles] GET failed:', error);
@@ -127,6 +142,19 @@ export async function POST(request: NextRequest) {
           ...Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'name')),
         },
       });
+
+      // Phase 14 — explicit default selection: creating a profile with
+      // isDefault=true unsets the caller's previous default (scoped per
+      // user; exactly one default at any time).
+      if (body.isDefault === true) {
+        await setSoleDefault(user.id, profile.id).catch(() => {});
+        profile.isDefault = true;
+      } else if (activeCount === 0) {
+        // First-ever profile becomes the deterministic default implicitly
+        // (idempotent, never creates a duplicate row).
+        await setSoleDefault(user.id, profile.id).catch(() => {});
+        profile.isDefault = true;
+      }
 
       return NextResponse.json({ profile }, { status: 201 });
     } catch (error) {
