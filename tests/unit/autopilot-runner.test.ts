@@ -36,16 +36,16 @@ const mockPrisma = vi.hoisted(() => ({
 vi.mock('@/lib/db', () => ({ db: mockPrisma }));
 
 // Mock the external execution layers — the runner must integrate with
-// (not reimplement) the discovery pipeline and workflow engine.
+// (not reimplement) the discovery pipeline and the batch execution engine.
 const mockStartDiscoveryJob = vi.hoisted(() => vi.fn());
-const mockExecuteWorkflow = vi.hoisted(() => vi.fn());
+const mockExecuteWorkflowBatch = vi.hoisted(() => vi.fn());
 const mockCheckCreditSufficiency = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/lead-discovery-service', () => ({
   startDiscoveryJob: mockStartDiscoveryJob,
 }));
-vi.mock('@/lib/workflow-executor', () => ({
-  executeWorkflow: mockExecuteWorkflow,
+vi.mock('@/lib/workflow-batch', () => ({
+  executeWorkflowBatch: mockExecuteWorkflowBatch,
 }));
 vi.mock('@/lib/credit-service', () => ({
   checkCreditSufficiency: mockCheckCreditSufficiency,
@@ -60,6 +60,7 @@ vi.mock('@/lib/workflow-credits', () => ({
   chargeWorkflowExecutionFee: mockChargeWorkflowExecutionFee,
   refundWorkflowExecutionFee: mockRefundWorkflowExecutionFee,
   WORKFLOW_EXECUTION_FEE_CREDITS: 5,
+  checkExecutionLimit: vi.fn(async () => ({ allowed: true, current: 0, limit: 500 })),
 }));
 
 import { executeAutopilotRun, runAutopilot, recoverStuckAutopilotRuns, withUserLock } from '@/lib/autopilot/runner';
@@ -116,30 +117,45 @@ beforeEach(() => {
   mockPrisma.autopilotLead.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.discoveryJob.findUnique.mockResolvedValue(completedJob());
   mockStartDiscoveryJob.mockResolvedValue({ jobId: 'job1', status: 'started', message: 'ok' });
-  mockExecuteWorkflow.mockResolvedValue({ id: 'exec1' });
+  mockExecuteWorkflowBatch.mockImplementation(
+    async (_wf: string, _user: string, opts: { leads: unknown[] }) => ({
+      executionId: 'exec1',
+      status: 'running',
+      leadCount: opts.leads.length,
+      stepsCompleted: 0,
+    }),
+  );
   // Part 2 — default: the flat execution fee charge succeeds.
   mockChargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 995 });
   mockRefundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 1000 });
   // resolve payloads to leads by website
   mockPrisma.lead.findFirst.mockImplementation(async ({ where }) => {
-    if (where.website === 'https://bright.example') return { id: 'lead-bright' };
-    if (where.website === 'https://cityh.example') return { id: 'lead-cityh' };
+    if (where.website === 'https://bright.example') return { id: 'lead-bright', businessName: 'Bright Smiles', niche: 'Dental' };
+    if (where.website === 'https://cityh.example') return { id: 'lead-cityh', businessName: 'City Hospital', niche: 'Hospital' };
     return null;
   });
 });
 
 describe('executeAutopilotRun', () => {
-  it('executes the workflow for each NEW lead with a stable idempotency key', async () => {
+  it('executes ONE grouped workflow per niche with a stable idempotency key (multi-lead model)', async () => {
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('COMPLETED');
-    expect(outcome.executionsCreated).toBe(2);
-    expect(mockExecuteWorkflow).toHaveBeenCalledTimes(2);
-    const [wfId, userId, triggerData, key] = mockExecuteWorkflow.mock.calls[0];
+    // BOTH niches discover the SAME two leads; the AutopilotLead unique
+    // guard dedupes them across niches, so the FIRST niche's group runs
+    // and the second niche has nothing new left: ONE grouped execution
+    // covering both leads (never one execution record per lead).
+    expect(outcome.executionsCreated).toBe(1);
+    expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
+    const [wfId, userId, opts] = mockExecuteWorkflowBatch.mock.calls[0];
     expect(wfId).toBe('wf1');
     expect(userId).toBe('u1');
-    expect(triggerData.leadId).toBe('lead-bright');
-    expect(triggerData.source).toBe('autopilot');
-    expect(key).toBe('autopilot:ap1:lead:lead-bright');
+    expect(opts.leads.map((l: { id: string }) => l.id)).toEqual(['lead-bright', 'lead-cityh']);
+    expect(opts.idempotencyKey).toBe('autopilot:ap1:run:run1:niche:dental');
+    expect(opts.targetSnapshot.source).toBe('autopilot');
+    expect(opts.targetSnapshot.niche).toBe('Dental');
+    // ONE flat fee per niche group — never per lead.
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mockChargeWorkflowExecutionFee.mock.calls[0][0].leadCount).toBe(2);
   });
 
   it('never executes the same lead twice — ledger unique guard wins', async () => {
@@ -148,24 +164,33 @@ describe('executeAutopilotRun', () => {
     (mockPrisma.__ledger as Set<string>).add('ap1:lead-cityh');
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('COMPLETED');
-    // Only lead-bright executes — exactly once, even though BOTH niches
-    // returned it.
+    // Only lead-bright remains in the niche group — it executes exactly
+    // once, even though BOTH niches discovered it.
     expect(outcome.executionsCreated).toBe(1);
-    expect(mockExecuteWorkflow).toHaveBeenCalledTimes(1);
-    expect(mockExecuteWorkflow.mock.calls[0][3]).toBe('autopilot:ap1:lead:lead-bright');
+    expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
+    const opts = mockExecuteWorkflowBatch.mock.calls[0][2];
+    expect(opts.leads.map((l: { id: string }) => l.id)).toEqual(['lead-bright']);
+    expect(opts.idempotencyKey).toBe('autopilot:ap1:run:run1:niche:dental');
   });
 
-  it('marks EXEC_FAILED honestly when the workflow engine rejects a lead', async () => {
-    mockExecuteWorkflow.mockRejectedValueOnce(new Error('Workflow concurrency limit reached'));
+  it('marks EXEC_FAILED honestly when the batch engine rejects the niche group', async () => {
+    mockExecuteWorkflowBatch.mockRejectedValueOnce(new Error('Workflow concurrency limit reached'));
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
-    expect(outcome.status).toBe('COMPLETED'); // one failure doesn't kill the run
-    expect(outcome.executionsCreated).toBe(1);
+    expect(outcome.status).toBe('COMPLETED'); // a group failure doesn't kill the run
+    // The Dental group failed to start; the Hospital niche rediscovers the
+    // same two leads — already in the ledger — so nothing more executes.
+    expect(outcome.executionsCreated).toBe(0);
     expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { autopilotId: 'ap1', leadId: 'lead-bright' },
+        where: expect.objectContaining({
+          autopilotId: 'ap1',
+          leadId: { in: ['lead-bright', 'lead-cityh'] },
+        }),
         data: expect.objectContaining({ status: 'EXEC_FAILED' }),
       })
     );
+    // The rejected group's fee was released idempotently.
+    expect(mockRefundWorkflowExecutionFee).toHaveBeenCalledTimes(1);
   });
 
   it('claims the run atomically — a second claim cannot execute', async () => {
@@ -174,7 +199,7 @@ describe('executeAutopilotRun', () => {
     expect(outcome.status).toBe('FAILED');
     expect(outcome.error).toContain('already claimed');
     expect(mockStartDiscoveryJob).not.toHaveBeenCalled();
-    expect(mockExecuteWorkflow).not.toHaveBeenCalled();
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
   });
 
   it('refuses to run when the linked workflow is not active (honest error)', async () => {
@@ -201,7 +226,8 @@ describe('executeAutopilotRun', () => {
     expect(outcome.perNiche[0].status).toBe('FAILED');
     expect(outcome.perNiche[0].error).toContain('No search API');
     expect(outcome.perNiche[1].status).toBe('COMPLETED');
-    expect(outcome.executionsCreated).toBe(2);
+    // ONE grouped execution for the surviving niche.
+    expect(outcome.executionsCreated).toBe(1);
   });
 
   it('FAILED run when ALL niches fail and nothing was imported', async () => {

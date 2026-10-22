@@ -1,18 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════
 // Unit Tests: Part 1 — Execute Route (multi-niche targeting +
-// structured NO_MATCHING_LEADS)
+// missing-niche discovery bridge)
 //
 // Covers POST /api/workflows/[id]/execute:
 //   1. Multi-niche resolution — "hospital, dentist" matches leads whose
 //      OWN niche is either value (per-lead attribution preserved; the
-//      comma-joined string never matches).
-//   2. NO_MATCHING_LEADS for a multi-niche target carries the full
-//      structured payload (requestedNiches split, matchingLeadCount 0).
-//   3. Nothing executes for a no-leads run — no execution records, so
-//      nothing retries or notifies in the background.
+//      comma-joined string never matches) — resolved into ONE grouped
+//      execution.
+//   2. A niche with zero matching leads no longer hard-fails: with the
+//      discovery provider configured, the run transitions into the
+//      discovery bridge (ONE execution, discovering → running); without
+//      the provider, an actionable configuration error is returned.
+//   3. Nothing executes without a target resolution — no charges, no
+//      execution records.
 // ═══════════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
@@ -21,10 +24,15 @@ const mocks = vi.hoisted(() => ({
   },
   db: {
     workflowDefinition: { findFirst: vi.fn(), findUnique: vi.fn() },
-    workflowExecution: { findMany: vi.fn() },
+    workflowExecution: { findMany: vi.fn(), findUnique: vi.fn() },
+    workflowExecutionLead: { findMany: vi.fn() },
     lead: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
   },
   executeWorkflow: vi.fn(),
+  executeWorkflowBatch: vi.fn(),
+  executeNicheRunWithDiscovery: vi.fn(),
+  isZaiProviderConfigured: vi.fn(),
+  getLeadCounts: vi.fn(),
   chargeWorkflowExecutionFee: vi.fn(),
   refundWorkflowExecutionFee: vi.fn(),
   resolveLeadForExecution: vi.fn(),
@@ -39,9 +47,17 @@ vi.mock('@/lib/entitlement-middleware', () => ({
   checkPlanEntitlement: vi.fn(async () => ({ allowed: true })),
 }));
 vi.mock('@/lib/workflow-engine', () => ({ executeWorkflow: mocks.executeWorkflow }));
-// Part 2 — the route charges the flat execution fee through the central
-// workflow-credits service; mocked here so route tests can assert the
-// charge/no-charge behavior without a real ledger.
+vi.mock('@/lib/workflow-batch', () => ({
+  executeWorkflowBatch: mocks.executeWorkflowBatch,
+  executeNicheRunWithDiscovery: mocks.executeNicheRunWithDiscovery,
+  isZaiProviderConfigured: mocks.isZaiProviderConfigured,
+}));
+vi.mock('@/lib/workflow-execution-leads', () => ({
+  getLeadCounts: mocks.getLeadCounts,
+  hasLeadItems: vi.fn(async () => false),
+}));
+// The shared niche resolver runs REAL against the mocked db (owner-scope
+// semantics stay under test); workflow-targeting imports only db + retry.
 vi.mock('@/lib/workflow-credits', () => ({
   chargeWorkflowExecutionFee: mocks.chargeWorkflowExecutionFee,
   refundWorkflowExecutionFee: mocks.refundWorkflowExecutionFee,
@@ -56,7 +72,9 @@ const WORKFLOW = {
     { id: 'n_trigger', type: 'trigger', title: 'Trigger', config: {} },
     { id: 'n_note', type: 'action', title: 'Record activity', config: { actionType: 'add_note', content: 'Contacted' } },
   ]),
-  workflowSteps: [],
+  workflowSteps: [
+    { id: 'n_note', type: 'action', name: 'Record activity', order: 0, config: JSON.stringify({ actionType: 'add_note', content: 'Contacted' }) },
+  ],
 };
 
 function makeLead(id: string, niche: string) {
@@ -79,39 +97,53 @@ async function callExecuteRoute(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.db.workflowDefinition.findFirst.mockResolvedValue({ ...WORKFLOW });
-  mocks.executeWorkflow.mockImplementation(async (_wf: string, _user: string, triggerData: Record<string, unknown>) => ({
-    executionId: `exec_${String(triggerData.leadId)}`,
-    status: 'running',
-  }));
-  // Part 2 — default: the flat execution fee charge succeeds.
+  // Multi-lead model: the route kicks ONE grouped batch execution.
+  mocks.executeWorkflowBatch.mockImplementation(
+    async (_wf: string, _user: string, opts: { leads: unknown[] }) => ({
+      executionId: 'exec_batch_1',
+      status: 'running',
+      leadCount: opts.leads.length,
+      stepsCompleted: 0,
+    }),
+  );
+  // Settle path reads the ONE execution + its lead items.
+  mocks.db.workflowExecution.findUnique.mockResolvedValue({
+    id: 'exec_batch_1', status: 'completed', error: null, currentStep: 6,
+  });
+  mocks.db.workflowExecution.findMany.mockImplementation(
+    async ({ where }: { where: { id: { in: string[] } } }) =>
+      (where.id.in ?? []).map((id) => ({ id, status: 'completed', error: null })),
+  );
+  mocks.db.workflowExecutionLead.findMany.mockImplementation(
+    async ({ where }: { where: { executionId: string } }) =>
+      where.executionId === 'exec_batch_1'
+        ? [
+            { leadId: 'lead_h', leadName: 'Business lead_h', status: 'completed', error: null },
+            { leadId: 'lead_d', leadName: 'Business lead_d', status: 'completed', error: null },
+          ]
+        : [],
+  );
+  mocks.getLeadCounts.mockResolvedValue({ total: 2, pending: 0, running: 0, completed: 2, failed: 0, skipped: 0 });
+  mocks.isZaiProviderConfigured.mockReturnValue(true);
+  mocks.executeNicheRunWithDiscovery.mockResolvedValue({ executionId: 'exec_disc_1', status: 'discovering' });
   mocks.chargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 745 });
   mocks.refundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 750 });
   process.env.WORKFLOW_BATCH_SETTLE_MS = '2000';
   process.env.WORKFLOW_BATCH_POLL_MS = '1';
-  process.env.WORKFLOW_KICK_STAGGER_MS = '0';
-});
-
-afterEach(() => {
-  delete process.env.WORKFLOW_BATCH_SETTLE_MS;
-  delete process.env.WORKFLOW_BATCH_POLL_MS;
-  delete process.env.WORKFLOW_KICK_STAGGER_MS;
-  delete process.env.WORKFLOW_MAX_TARGET_LEADS;
-  delete process.env.WORKFLOW_BATCH_SETTLE_MAX_LEADS;
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 1. Multi-niche resolution
+// 1. Multi-niche resolution → ONE grouped execution
 // ═══════════════════════════════════════════════════════════════════
 
 describe('Part 1 — multi-niche targeting resolution', () => {
-  it('"hospital, dentist" matches leads carrying EITHER niche exactly — one execution per lead', async () => {
+  it('"hospital, dentist" matches leads carrying EITHER niche exactly — ONE grouped execution over both', async () => {
     mocks.db.lead.findMany.mockResolvedValue([
       makeLead('lead_h', 'hospital'),
       makeLead('lead_d', 'dentist'),
       makeLead('lead_j', 'hospital, dentist'), // the joined string — NOT a match
       makeLead('lead_x', 'stationery'),
     ]);
-    mocks.db.workflowExecution.findMany.mockResolvedValue([]);
 
     const { status, json } = await callExecuteRoute({
       target: { mode: 'niche', niche: 'hospital, dentist' },
@@ -119,24 +151,23 @@ describe('Part 1 — multi-niche targeting resolution', () => {
 
     expect(status).toBe(202);
     expect(json.target.leadCount).toBe(2);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(2);
-    const targetedIds = mocks.executeWorkflow.mock.calls.map(
-      (c: unknown[]) => (c[2] as { leadId: string }).leadId,
-    );
-    expect(targetedIds).toEqual(['lead_h', 'lead_d']);
+    // ONE grouped execution — never one execution record per lead.
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    const batchCall = mocks.executeWorkflowBatch.mock.calls[0];
+    expect(batchCall[0]).toBe('wf_1');
+    expect(batchCall[1]).toBe('user_1');
+    expect((batchCall[2] as { leads: { id: string }[] }).leads.map((l) => l.id)).toEqual(['lead_h', 'lead_d']);
 
-    // The per-lead executions snapshot the verbatim niche AND the split list.
-    const triggerData = mocks.executeWorkflow.mock.calls[0][2] as {
-      target: { niche: string; requestedNiches?: string[]; mode: string };
-    };
-    expect(triggerData.target.niche).toBe('hospital, dentist');
-    expect(triggerData.target.requestedNiches).toEqual(['hospital', 'dentist']);
-    expect(triggerData.target.mode).toBe('niche');
+    // The single execution snapshots the verbatim niche AND the split list.
+    const snapshot = (batchCall[2] as { targetSnapshot: Record<string, unknown> }).targetSnapshot;
+    expect(snapshot.niche).toBe('hospital, dentist');
+    expect(snapshot.requestedNiches).toEqual(['hospital', 'dentist']);
+    expect(snapshot.mode).toBe('niche');
+    expect(snapshot.leadCount).toBe(2);
   });
 
   it('the multi-niche query is owner-scoped and only fetches matching candidates', async () => {
     mocks.db.lead.findMany.mockResolvedValue([]);
-    mocks.db.workflowExecution.findMany.mockResolvedValue([]);
 
     await callExecuteRoute({ target: { mode: 'niche', niche: 'hospital, dentist' } });
 
@@ -151,44 +182,64 @@ describe('Part 1 — multi-niche targeting resolution', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 2. Structured NO_MATCHING_LEADS (multi-niche)
+// 2. Missing niche → discovery bridge (replaces NO_MATCHING_LEADS)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Part 1 — structured NO_MATCHING_LEADS for a multi-niche target', () => {
-  it('returns the full structured business payload and executes nothing', async () => {
+describe('Part 1 — missing-niche discovery bridge', () => {
+  it('niche with zero matching leads + provider configured → 202 discovering, ONE execution, no upfront charge', async () => {
     mocks.db.lead.findMany.mockResolvedValue([]);
 
     const { status, json } = await callExecuteRoute({
       target: { mode: 'niche', niche: 'agency, real estate, restaurants' },
     });
 
-    expect(status).toBe(400);
-    // A structured BUSINESS result — distinct from engine crash (500),
-    // provider failure, and invalid configuration (WORKFLOW_INVALID 422).
-    expect(json.code).toBe('NO_MATCHING_LEADS');
-    expect(json.workflowId).toBe('wf_1');
-    expect(json.userId).toBe('user_1');
-    expect(json.targetMode).toBe('niche');
-    expect(json.requestedNiche).toBe('agency, real estate, restaurants');
-    expect(json.requestedNiches).toEqual(['agency', 'real estate', 'restaurants']);
-    expect(json.targetConfig).toEqual({ mode: 'niche', niche: 'agency, real estate, restaurants' });
-    expect(json.matchingLeadCount).toBe(0);
-    expect(json.error).toContain('Discover leads in that niche first');
-
-    // No execution record was created: no retry loop, no notifications,
-    // nothing for Cancel to clean up server-side.
-    expect(mocks.executeWorkflow).not.toHaveBeenCalled();
+    expect(status).toBe(202);
+    expect(json.status).toBe('discovering');
+    expect(json.executionId).toBe('exec_disc_1');
+    expect(json.async).toBe(true);
+    expect(json.creditsCharged).toBe(0); // the fee lands only when leads exist
+    expect(json.error).toBeUndefined();
+    // The discovery bridge received the structured niche target.
+    expect(mocks.executeNicheRunWithDiscovery).toHaveBeenCalledTimes(1);
+    const bridgeCall = mocks.executeNicheRunWithDiscovery.mock.calls[0][0];
+    expect(bridgeCall.workflowId).toBe('wf_1');
+    expect(bridgeCall.userId).toBe('user_1');
+    expect(bridgeCall.niche).toBe('agency, real estate, restaurants');
+    expect(bridgeCall.targetSnapshot.requestedNiches).toEqual(['agency', 'real estate', 'restaurants']);
+    // No batch execution was kicked yet; nothing was charged.
+    expect(mocks.executeWorkflowBatch).not.toHaveBeenCalled();
+    expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
   });
 
-  it('a partially-matching multi-niche target still runs (only full misses are business results)', async () => {
+  it('niche with zero matching leads + provider NOT configured → actionable 422, nothing executed', async () => {
+    mocks.db.lead.findMany.mockResolvedValue([]);
+    mocks.isZaiProviderConfigured.mockReturnValue(false);
+
+    const { status, json } = await callExecuteRoute({
+      target: { mode: 'niche', niche: 'agency' },
+    });
+
+    expect(status).toBe(422);
+    expect(json.code).toBe('DISCOVERY_PROVIDER_NOT_CONFIGURED');
+    expect(json.requestedNiche).toBe('agency');
+    expect(json.requestedNiches).toEqual(['agency']);
+    expect(json.matchingLeadCount).toBe(0);
+    expect(json.error).toContain('.z-ai-config');
+    expect(mocks.executeNicheRunWithDiscovery).not.toHaveBeenCalled();
+    expect(mocks.executeWorkflowBatch).not.toHaveBeenCalled();
+    expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+
+  it('a partially-matching multi-niche target still runs (only full misses enter the discovery bridge)', async () => {
     mocks.db.lead.findMany.mockResolvedValue([makeLead('lead_d', 'dentist')]);
-    mocks.db.workflowExecution.findMany.mockResolvedValue([]);
 
     const { status } = await callExecuteRoute({
       target: { mode: 'niche', niche: 'hospital, dentist' },
     });
 
     expect(status).toBe(202);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(1);
+    expect(mocks.executeNicheRunWithDiscovery).not.toHaveBeenCalled();
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect((mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[] }).leads).toHaveLength(1);
   });
 });

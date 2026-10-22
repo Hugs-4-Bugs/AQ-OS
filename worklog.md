@@ -1720,3 +1720,59 @@ Work Log:
 
 Stage Summary:
 - GitHub main = 3aeaed617 — the webhook "fetch failed" fix (root-cause surfacing, pre-flight URL validation, GET request construction, timeout, AI-generator guard) is LIVE on GitHub main, on top of the never-started billing fix (9d4e61788).
+
+---
+Task ID: push-develop-cb694c17c
+Agent: Super Z (main agent)
+Task: Authorized push of the current verified GLM workspace implementation to the develop branch (baseline = remote develop HEAD; never rollback/replace develop)
+
+Work Log:
+- Pre-push verification (all read-only):
+  * Remote develop baseline = 9d4e61788d67c4b307507b8edf09aa54acf41157 (never-started billing fix); remote main = cb694c17c (untouched target reference).
+  * Workspace HEAD = cb694c17c237804d1b09d1e209a193424e21304b on main; working tree clean (0 entries).
+  * Ancestry: merge-base --is-ancestor 9d4e61788 cb694c17c → OK; develop push = clean fast-forward of 3 commits (f37c1066d worklog, 3aeaed617 webhook fetch-failed fix, cb694c17c worklog push record). No reset/checkout/rebase/amend/force involved.
+  * Workflow execution fix presence verified in current source: NEW src/lib/workflow-webhook.ts (214 lines; validateWebhookUrl/describeWebhookFetchError/webhookTimeoutMs present) + integration spot-checked in workflow-actions.ts (2 refs), workflow-executor.ts (2 refs), workflow-validation.ts (2 refs) + 415-line test suite src/__tests__/lib/workflow-webhook.test.ts. Diffstat 9d4e61788..cb694c17c: 10 files, +1299/-26 — exactly the verified webhook-fix changeset. Workspace is CURRENT (not stale/rolled back).
+  * Secrets: no .env/secret/key/pem files in the push range; diff scan found no tokens, private keys, or real API keys (only the known fake test fixture 'aq_live_test_key').
+- Push executed: git push origin cb694c17c:refs/heads/develop via one-time inline credential helper (PAT read at runtime from /home/sync/upload/GITHUB_PAT.txt; token never written to git config, remote URL, or any output/log).
+- Push result: 9d4e61788..cb694c17c cb694c17c... -> develop (normal fast-forward; no force).
+- Post-push verification: git ls-remote origin refs/heads/develop = cb694c17c237804d1b09d1e209a193424e21304b == local HEAD (MATCH); baseline 9d4e61788 confirmed still an ancestor of remote develop (baseline preserved, additive only); remote main untouched at cb694c17c; working tree still clean.
+
+Stage Summary:
+- GitHub develop: 9d4e61788 → cb694c17c. The develop baseline (never-started billing fix) is fully preserved; the verified webhook execution fix (3aeaed617) + its worklog records are now additive on top; zero rollback/stale code pushed; main branch untouched by this push.
+
+---
+Task ID: multi-lead-execution-1
+Agent: Super Z (main agent)
+Task: Multi-lead workflow execution model (ONE execution per run), server-side executions pagination, niche-based execution, missing-niche → discovery bridge, 429/rate-limit reliability, preserved billing + regression safety
+
+Work Log:
+- Architecture (reuse, no engine rewrite): NEW src/lib/workflow-batch.ts (executeWorkflowBatch — ONE WorkflowExecution per run with per-lead child items pending→running→completed/failed/skipped; sequential provider-friendly pacing; per-lead isolation; classify/backoff/timeout via the engine's own processStep + workflow-retry; batch retry/resume that re-run ONLY failed leads; executeNicheRunWithDiscovery — discovering→running→terminal bridge over the EXISTING lead-discovery-service with cancel-before-charge; isZaiProviderConfigured pre-flight). NEW src/lib/workflow-ai-retry.ts (429 bounded retry INSIDE AI calls: Retry-After honored, provider-appropriate 8/15/25s ladder for hint-less rate limits — the discovery pacer's proven cooldowns, env-tunable; bounded attempts+total wait; original error token preserved). NEW src/lib/workflow-targeting.ts (shared owner-scoped niche resolver moved from the execute route). NEW src/lib/workflow-execution-leads.ts (neutral lead-count aggregation, no N+1). Prisma: additive WorkflowExecutionLead table (db push; integrity ok; 422 existing execution rows untouched; snapshot taken first).
+- Route: execute route targeted path now charges the flat fee then kicks ONE executeWorkflowBatch (idempotency batch_<runKey>); niche with 0 leads → discovery bridge (202 discovering, 0 upfront credits) or actionable 422 DISCOVERY_PROVIDER_NOT_CONFIGURED; settle path reports per-lead outcomes; 'partial' treated as terminal. Executions route: server-side search param. Retry/resume routes dispatch batch-aware versions via hasLeadItems. Engine: getExecutionHistory gains search + leadSummary/durationMs; getExecutionDetail exposes leadItems; processStep accepts optional lead log context; cancel accepts 'discovering'.
+- Autopilot: runner now groups each niche's discovered leads into ONE executeWorkflowBatch (stable idempotency autopilot:<id>:run:<run>:niche:<slug>, ONE flat fee per group — never per lead; insufficient credits marks the whole niche's leads EXEC_FAILED honestly; the legacy per-lead workflow-executor import removed). Execution history = workflow RUNS.
+- 429 reliability: AI actions (ai_analysis/ai_outreach/score_lead) wrapped with withAiRateLimitRetry; outreach row created only after generation succeeds (no duplicates); batch runner adds a 15s rate-limit cooldown before the next lead after a rate-limited failure.
+- Billing preserved: successful run = exactly 5 (flat, regardless of 1/4/100/127 leads); never-started (0 steps) = 0 with the same ledger keys; retry of a partial run adds no charge; retry after never-started refund re-charges exactly once on actual start; discovery keeps its pre-existing 1-credit-per-imported-lead rule.
+- UI: executions list shows lead count badge + per-status lead summary + total count; 'discovering' status with cancel; retry offered for partial/exhausted; pagination already server-side, search now too.
+- Tests: NEW workflow-batch-execution.test.ts (20 tests: 1/4/100 leads → ONE execution; 100 leads = 5 credits not 500; replay = same execution/zero charge; per-lead failure isolation; all-fail pre-start = 0 credits + ONE refund; batch retry only-failed-leads + no duplicate outreach + exactly-once recharge; pagination/search/no-mutation; discovery bridge success/zero/provider-failure; 429 ladder + Retry-After floor + bounded exhaustion + non-retryable immediate + per-lead isolation). UPDATED 5 suites that encoded the per-lead model (part1/part2 execute route, autopilot billing + runner, targeting phase6, target-and-note) to the grouped model.
+- Full suite: 36 failed / 1578 passed — failure set IDENTICAL to the pre-existing baseline (9 untouched files); +37 new passing. Scoped tsc: all changed files type-clean.
+- E2E (real dev server + real routes + real engine + real AI provider + real discovery + real DB, scripts/e2e-batch-run.cjs): Phase 1: 4 selected leads → ONE execution, 4 items, 4/4 completed (5 steps each), exactly -5. Phase 2: replay same runId → same execution, 0 new rows/items/charges. Phase 3: niche 'Dental' (127 leads) → ONE execution + 127 items, exactly -5 (not 635); real 429s surfaced honestly (partial). Phase 3b: batch retry → ONLY the 16 failed leads re-ran (attempts 1→2), 111 completed leads untouched (attempts=1), no new charge; 126/127 final. Phase 4: pagination pages disjoint, search filters server-side, page changes never mutate state. Phase 5: niche 'Ayurvedic Wellness Center' (0 leads) → discovering (0 upfront charge) → REAL discovery (25 found, 24 imported, 1 duplicate deduped) → run completed with 25 items; billing = flat 5 + pre-existing 24 discovery credits; 24 real leads persisted. Provider-config pre-flight verified by unit test (422 DISCOVERY_PROVIDER_NOT_CONFIGURED without .z-ai-config).
+- Data safety: no reset/truncate/delete/reseed/rollback anywhere; DB integrity ok; users 56 / leads 687 / ledger 796 rows all additive; elite test account 1848 → 1804 (5 workflow runs × 5 + 24 discovery credits), fully ledger-auditable; no stuck executions (killed command's background batch settled on its own).
+
+Stage Summary:
+- Execution model fixed: N leads (selected/niche/discovered) = ONE WorkflowExecution with per-lead child items; executions history represents workflow runs; autopilot uses the same coordinator (one engine for both paths).
+- Pagination fixed: server-side page/limit/search + totals; lead summaries attached without N+1.
+- Missing-niche discovery fixed: 0-leads niche → real discovery pipeline → dedup → continuation, all inside ONE execution; actionable provider-config error; 0 credits when discovery yields nothing.
+- 429 handling fixed: bounded in-call retry (Retry-After honored, provider ladder), per-lead isolation, inter-lead cooldown, honest per-lead failure marking; no duplicate executions/outreach/charges.
+
+---
+Task ID: push-develop-03a8ddfad
+Agent: Super Z (main agent)
+Task: Authorized push of the verified multi-lead execution model to develop
+
+Work Log:
+- Pre-push: remote develop baseline = cb694c17c; workspace HEAD = 03a8ddfad (direct descendant, clean fast-forward of 2 commits: 5e93c1e85 worklog + 03a8ddfad feature); working tree clean; secret scan over the staged diff clean (no tokens/keys/env files).
+- Push: cb694c17c..03a8ddfad → refs/heads/develop (normal fast-forward, no force).
+- Post-push: git ls-remote origin refs/heads/develop = 03a8ddfad395b68cd264fde737ab2ed3443ed668 == local HEAD; baseline cb694c17c confirmed ancestor (additive only); remote main untouched at cb694c17c; working tree clean.
+
+Stage Summary:
+- develop baseline SHA → implementation SHA → remote develop SHA: cb694c17c → 03a8ddfad → 03a8ddfad (exact match, verified).
+- GitHub baseline preserved + current verified GLM changes added + no rollback/stale code pushed.

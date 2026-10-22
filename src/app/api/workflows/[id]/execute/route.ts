@@ -21,6 +21,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { executeWorkflow } from '@/lib/workflow-engine';
+import {
+  executeWorkflowBatch,
+  executeNicheRunWithDiscovery,
+  isZaiProviderConfigured,
+} from '@/lib/workflow-batch';
+import { resolveNicheLeads, maxTargetLeads } from '@/lib/workflow-targeting';
+import { getLeadCounts } from '@/lib/workflow-execution-leads';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
 import { ENTITLEMENTS, type PlanType } from '@/lib/entitlement-service';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
@@ -33,8 +40,6 @@ import {
 } from '@/lib/workflow-credits';
 import {
   splitNicheList,
-  leadMatchesRequestedNiches,
-  NO_MATCHING_LEADS,
   TERMINAL_EXECUTION_STATUSES,
 } from '@/lib/workflow-retry';
 import { db } from '@/lib/db';
@@ -61,39 +66,16 @@ interface ResolvedLead {
   stage?: string | null;
 }
 
-interface PerLeadExecution {
-  leadId: string;
-  leadName: string;
-  executionId: string;
-  status: string;
-  error?: string;
-}
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// How long a batched (multi-lead) request waits for the kicked background
-// executions to reach a terminal state before reporting current statuses.
+// How long a batched (multi-lead) request waits for the background batch
+// execution to reach a terminal state before reporting the current state.
 // Env-configurable so tests can run without real waiting.
 function batchSettleTimeoutMs(): number {
   return Number(process.env.WORKFLOW_BATCH_SETTLE_MS) || 90000;
 }
 function batchPollIntervalMs(): number {
   return Number(process.env.WORKFLOW_BATCH_POLL_MS) || 1500;
-}
-// Pacing between per-lead kicks — mirrors the autopilot runner's stagger so
-// a large batch does not stampede external AI/email providers.
-function kickStaggerMs(): number {
-  const v = Number(process.env.WORKFLOW_KICK_STAGGER_MS);
-  return Number.isFinite(v) ? Math.max(0, v) : 1000;
-}
-
-// Phase 6 — request-size guard (a genuine product limit, not an arbitrary
-// silent cap): one run may target at most this many leads. Exceeding it is
-// rejected honestly so the caller can refine the targeting; it never
-// silently truncates the target set.
-function maxTargetLeads(): number {
-  const v = Number(process.env.WORKFLOW_MAX_TARGET_LEADS);
-  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 1000;
 }
 
 // Phase 6.8 — batches up to this size wait for their background executions
@@ -207,47 +189,6 @@ async function resolveSelectedLeads(
   return failed.length > 0 ? { ok: false, failed } : { ok: true, leads };
 }
 
-/** Resolve a niche/industry target against the caller's own active leads.
- *
- * Phase 6.4 — pages through the ENTIRE matching set in chunked queries:
- * there is no arbitrary take(500) truncation. The request-size guard
- * (maxTargetLeads) bounds pathological sets honestly at the caller.
- *
- * Part 1 — a niche target may list multiple niches ("hospital, dentist").
- * Each requested niche is matched EXACTLY (case-insensitive) against the
- * leads' OWN stored niche, so a lead is attributed to the niche it actually
- * carries — never relabeled with the comma-joined request string.
- */
-async function resolveNicheLeads(userId: string, niche: string): Promise<ResolvedLead[]> {
-  const wantedList = splitNicheList(niche);
-  if (wantedList.length === 0) return [];
-  // Candidate narrowing per requested niche (contains stays index-friendly
-  // on SQLite; the exact per-niche match is re-checked in JS below).
-  const nicheContains = wantedList.map((n) => ({ niche: { contains: n } }));
-  const all: ResolvedLead[] = [];
-  let skip = 0;
-  for (;;) {
-    const candidates = await db.lead.findMany({
-      where: {
-        userId,
-        isActive: true,
-        deletedAt: null,
-        ...(wantedList.length === 1
-          ? { niche: { contains: wantedList[0] } }
-          : { OR: nicheContains }),
-      },
-      select: { id: true, businessName: true, niche: true, city: true, stage: true },
-      take: RESOLUTION_PAGE_SIZE,
-      skip,
-    });
-    all.push(...candidates.filter((l) => leadMatchesRequestedNiches(l.niche, wantedList)));
-    if (candidates.length < RESOLUTION_PAGE_SIZE) break;
-    skip += RESOLUTION_PAGE_SIZE;
-    if (all.length >= maxTargetLeads()) break; // bounded; caller enforces honestly
-  }
-  return all;
-}
-
 /** Resolve a custom free-text target against the caller's own active leads.
  *
  * Phase 6.4 — same chunked pagination: no arbitrary take(500) truncation.
@@ -287,8 +228,9 @@ async function resolveCustomLeads(userId: string, query: string): Promise<Resolv
   return all;
 }
 
-/** Wait until all batched executions reach a terminal state (or timeout).
- * Part 1 — 'exhausted' is terminal alongside completed/failed/cancelled. */
+/** Wait until the batch execution reaches a terminal state (or timeout).
+ * Part 1 — 'exhausted' is terminal alongside completed/failed/cancelled;
+ * the multi-lead batch model adds 'partial' (a settled mixed-outcome run). */
 async function waitForBatchSettle(executionIds: string[]): Promise<void> {
   const deadline = Date.now() + batchSettleTimeoutMs();
   while (Date.now() < deadline) {
@@ -296,57 +238,11 @@ async function waitForBatchSettle(executionIds: string[]): Promise<void> {
       where: { id: { in: executionIds } },
       select: { status: true },
     });
-    const settled = rows.every((r) => TERMINAL_EXECUTION_STATUSES.has(r.status));
+    const settled = rows.every(
+      (r) => TERMINAL_EXECUTION_STATUSES.has(r.status) || r.status === 'partial',
+    );
     if (settled || rows.length < executionIds.length) return;
     await sleep(batchPollIntervalMs());
-  }
-}
-
-/** ── Part 2 §21 (amended) — never-started BATCH fee release ──
- *
- * ONE flat fee covered the WHOLE multi-lead batch. The run actually
- * started only if at least one kicked execution completed at least one
- * step. When EVERY kicked execution terminated (failed/exhausted) with
- * ZERO steps completed — the canonical case: the first step's webhook /
- * network / provider call failed ("fetch failed") for every lead — the
- * run never actually started and the shared fee is released: ONE refund,
- * idempotent on the run's charge key (the same key the no-kick §21
- * release uses, so the two can never double-refund). A batch where any
- * execution completed a step, is still running, or is missing its final
- * row keeps the fee — conservative by construction, never a wrong refund.
- */
-async function refundBatchIfNeverStarted(
-  executionIds: string[],
-  params: { userId: string; workflowId: string; runKey: string }
-): Promise<boolean> {
-  if (executionIds.length === 0) return false;
-  try {
-    const rows = await db.workflowExecution.findMany({
-      where: { id: { in: executionIds } },
-      select: { id: true, status: true, currentStep: true },
-    });
-    if (rows.length !== executionIds.length) return false; // unsettled/unknown — never refund blindly
-    const allNeverStarted = rows.every(
-      (r) =>
-        (r.status === 'failed' || r.status === 'exhausted') &&
-        (r.currentStep ?? 0) === 0
-    );
-    if (!allNeverStarted) return false;
-    const refund = await refundWorkflowExecutionFee({
-      userId: params.userId,
-      workflowId: params.workflowId,
-      chargeKey: `wfexec-run:${params.runKey}`,
-      source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
-      // The run batch id rides on the refund row so ANY of the batch's
-      // failed executions can discover it when retried (retry-time
-      // actual-start re-charge reconciliation).
-      referenceId: params.runKey,
-    });
-    return refund.refunded;
-  } catch {
-    // A reconciliation failure must not surface as a run error; the
-    // ledger's idempotency key makes a later retry safe.
-    return false;
   }
 }
 
@@ -502,26 +398,82 @@ export async function POST(
           requestSnapshot = { niche, requestedNiches: splitNicheList(niche) };
           leads = await resolveNicheLeads(user.id, niche);
           if (leads.length === 0) {
-            // Part 1 — NO_MATCHING_LEADS is a structured BUSINESS result,
-            // distinct from an engine crash, a provider failure, or an
-            // invalid configuration. The frontend uses these fields to
-            // offer the Find-Leads handoff; nothing was executed and no
-            // execution record exists, so there is nothing to retry or
-            // cancel server-side — the run ends here, honestly.
+            // ── Missing-niche discovery bridge (multi-lead task §4) ──
+            // A niche with no matching leads does NOT simply fail the run:
+            // the existing Lead Discovery pipeline runs for that niche
+            // (real web search + LLM extraction + DB-level dedup against
+            // existing leads) and the workflow CONTINUES with the
+            // discovered leads — all inside ONE execution that transitions
+            // discovering → running → terminal. The flat fee is charged
+            // only once discovery actually produced eligible leads; a
+            // discovery that yields nothing or fails costs 0 credits.
+            //
+            // Pre-flight: discovery depends on the Z-ai provider config
+            // (.z-ai-config) — without it the run is refused with an
+            // actionable configuration error instead of silently failing.
+            if (!isZaiProviderConfigured()) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  code: 'DISCOVERY_PROVIDER_NOT_CONFIGURED',
+                  error:
+                    `No active leads match the niche "${niche}", and lead discovery cannot run because the ` +
+                    'Z-ai provider (web search + AI extraction) is not configured. Create a valid ' +
+                    '.z-ai-config file (with baseUrl and apiKey) in the project root or home directory, ' +
+                    'or discover leads manually first, then run again.',
+                  workflowId: id,
+                  targetMode: 'niche',
+                  requestedNiche: niche,
+                  requestedNiches: splitNicheList(niche),
+                  targetConfig: { mode: 'niche', niche },
+                  matchingLeadCount: 0,
+                },
+                { status: 422 }
+              );
+            }
+
+            // Cap discovery to the plan's own lead allowance (Free=10,
+            // Starter=25, Pro/Elite unlimited) — the same entitlement the
+            // resolved-target path enforces below.
+            const planLimit = getLeadSelectionLimit(user.plan);
+            const discoveryRunKey =
+              sanitizeRunKey((body.target as RunTarget | undefined)?.runId) ??
+              sanitizeRunKey(body.idempotencyKey) ??
+              generateRunKey();
+            const discoveryStart = await executeNicheRunWithDiscovery({
+              workflowId: id,
+              userId: user.id,
+              niche,
+              runKey: discoveryRunKey,
+              targetSnapshot: {
+                mode: 'niche',
+                runBatchId: discoveryRunKey,
+                leadCount: 0,
+                ...requestSnapshot,
+              },
+              ...(planLimit !== null ? { maxResults: planLimit } : {}),
+              source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
+            });
             return NextResponse.json(
               {
-                success: false,
-                code: NO_MATCHING_LEADS,
-                error: `No active leads match the niche "${niche}". Discover leads in that niche first.`,
-                workflowId: id,
-                userId: user.id,
-                targetMode: 'niche',
-                requestedNiche: niche,
-                requestedNiches: splitNicheList(niche),
-                targetConfig: { mode: 'niche', niche },
-                matchingLeadCount: leads.length,
+                executionId: discoveryStart.executionId,
+                status: 'discovering',
+                async: true,
+                message:
+                  `No active leads match the niche "${niche}" — lead discovery is running for that niche. ` +
+                  'The workflow will continue automatically with the discovered leads (deduplicated against your existing leads); ' +
+                  'monitor the run on the Executions tab.',
+                target: {
+                  mode: 'niche',
+                  niche,
+                  runBatchId: discoveryRunKey,
+                  runId: discoveryRunKey,
+                  discovery: true,
+                  ...(planLimit !== null ? { discoveryCap: planLimit } : {}),
+                },
+                creditsCharged: 0,
               },
-              { status: 400 }
+              { status: 202 }
             );
           }
         } else {
@@ -585,12 +537,12 @@ export async function POST(
         // ── Part 2 — flat execution fee, charged exactly ONCE per run ──
         // Every validation that can reject the run for free (entitlement,
         // ownership, definition validity, subscription state, target
-        // resolution, plan/size limits, NO_MATCHING_LEADS) has already
-        // passed above — so this is the "accepted for execution" moment.
-        // The fee is a FLAT 5 credits regardless of lead count (1 or 1000),
-        // charged atomically through the central credit service with an
-        // idempotency key tied to the run identity: replays of the same
-        // client run id (double-click / network retry) never double-charge.
+        // resolution, plan/size limits) has already passed above — so this
+        // is the "accepted for execution" moment. The fee is a FLAT 5
+        // credits regardless of lead count (1 or 1000), charged atomically
+        // through the central credit service with an idempotency key tied
+        // to the run identity: replays of the same client run id
+        // (double-click / network retry) never double-charge.
         const runKey =
           sanitizeRunKey((body.target as RunTarget | undefined)?.runId) ??
           sanitizeRunKey(body.idempotencyKey) ??
@@ -607,74 +559,48 @@ export async function POST(
           return insufficientCreditsResponse(id, charge);
         }
 
-        // 4. Kick one execution per lead (persisted target snapshot on each)
+        // ── Multi-lead execution model: ONE run = ONE execution ──
+        // The whole lead set (selected / niche / custom) executes as a
+        // SINGLE grouped WorkflowExecution with one child item per lead
+        // (pending → running → completed/failed/skipped, per-lead
+        // isolation, sequential provider-friendly pacing). The executions
+        // history shows ONE row for this run.
         const runBatchId = runKey;
-        // Phase 6.9 — the EXACT request-level snapshot travels on every
-        // per-lead execution: mode, batch id, the verbatim targeting inputs
-        // (selected ids / niche / custom query) and the resolved population.
         const targetSnapshot: Record<string, unknown> = {
           mode,
           runBatchId,
           leadCount: leads.length,
           ...requestSnapshot,
         };
-        const executions: PerLeadExecution[] = [];
-        // Phase 6.8 — scale the kick stagger for large batches so creation
-        // stays bounded (total pacing budget ~15s) instead of one giant
-        // synchronous request; small batches keep the full provider-protection
-        // stagger.
-        const baseStagger = kickStaggerMs();
-        const stagger = leads.length > 15
-          ? Math.min(baseStagger, Math.max(0, Math.floor(15000 / leads.length)))
-          : baseStagger;
-        let kickError: unknown = null;
-        for (let i = 0; i < leads.length; i++) {
-          const lead = leads[i];
-          try {
-            const result = await executeWorkflow(
-              id,
-              user.id,
-              {
-                leadId: lead.id,
-                leadName: lead.businessName,
-                target: { ...targetSnapshot, leadId: lead.id },
-              },
-              `batch_${runBatchId}_${lead.id}`,
-              { awaitCompletion: false }
-            );
-            executions.push({
-              leadId: lead.id,
-              leadName: lead.businessName,
-              executionId: result.executionId,
-              status: result.status,
-              error: result.error,
-            });
-          } catch (kickErr) {
-            // An internal preflight failure BEFORE any execution exists for
-            // this lead — recorded and surfaced; the refund check below
-            // releases the fee if NOTHING actually started.
-            kickError = kickErr;
-            executions.push({
-              leadId: lead.id,
-              leadName: lead.businessName,
-              executionId: '',
-              status: 'failed',
-              error: kickErr instanceof Error ? kickErr.message : 'Failed to start execution',
-            });
-          }
-          // Stagger kicks so concurrent outreach/email steps do not
-          // stampede providers (mirrors autopilot pacing).
-          if (i < leads.length - 1 && stagger > 0) await sleep(stagger);
-        }
+        let batchKickError: unknown = null;
+        const batchResult = await executeWorkflowBatch(id, user.id, {
+          leads: leads.map((lead) => ({
+            id: lead.id,
+            businessName: lead.businessName,
+            niche: lead.niche ?? null,
+          })),
+          targetSnapshot,
+          idempotencyKey: `batch_${runBatchId}`,
+          // Background: the batch processes leads sequentially (the
+          // rate-limit-safe model); the route settles/polls below instead
+          // of holding one giant synchronous request.
+          awaitCompletion: false,
+          // The route's ONE charge covers this ONE execution — the batch
+          // runner itself releases the fee when the run terminates with
+          // zero steps completed (never actually started).
+          neverStartedAutoRefund: true,
+        }).catch((kickErr: unknown) => {
+          batchKickError = kickErr;
+          return { executionId: '', status: 'failed', leadCount: leads.length, stepsCompleted: 0 } as Awaited<ReturnType<typeof executeWorkflowBatch>>;
+        });
 
         // ── Part 2 §21 — reservation release ──
-        // The flat fee was charged for THIS run; if an internal failure
-        // prevented even ONE execution from being created (a genuine
-        // preflight failure, not ordinary step failures), the run never
-        // actually started and the fee is refunded — idempotently, so
-        // retries of this code path can never double-refund.
-        const anyStarted = executions.some((e) => Boolean(e.executionId));
-        if (!anyStarted) {
+        // The flat fee was charged for THIS run; an internal failure that
+        // prevented the execution record from being created means nothing
+        // started — the fee is released idempotently (no execution exists,
+        // so the runner-side refund can never have fired; the two paths
+        // can never double-refund).
+        if (!batchResult.executionId) {
           await refundWorkflowExecutionFee({
             userId: user.id,
             workflowId: id,
@@ -688,114 +614,93 @@ export async function POST(
           return NextResponse.json(
             {
               success: false,
-              error: kickError instanceof Error
-                ? `The run could not be started (${kickError.message}). The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`
-                : `The run could not be started. The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`,
+              error: batchKickError instanceof Error
+                ? `The run could not be started (${batchKickError.message}). The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`
+                : batchResult.error
+                  ? `The run could not be started (${batchResult.error}). The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`
+                  : `The run could not be started. The ${WORKFLOW_EXECUTION_FEE_CREDITS}-credit execution fee was refunded.`,
               code: 'RUN_START_FAILED',
               creditsRefunded: true,
               target: { mode, leadCount: leads.length, runBatchId },
-              executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
-                leadId, leadName, executionId, status, error,
-              })),
             },
             { status: 500 }
           );
         }
 
-        // Phase 6.8 — large batches respond immediately with honest 'running'
-        // statuses (per-lead executions were already kicked in the
-        // background); small batches keep the verified settle-and-aggregate
-        // behavior so the response reports final per-lead outcomes.
-        const realIds = executions.filter((e) => e.executionId).map((e) => e.executionId);
+        // Phase 6.8 — large batches respond immediately with an honest
+        // 'running' status (the ONE grouped execution processes its leads
+        // in the background); small batches keep the verified
+        // settle-and-report behavior so the response carries final
+        // per-lead outcomes.
         if (leads.length > batchSettleMaxLeads()) {
-          // ── Part 2 §21 (amended) — detached never-started reconciliation ──
-          // The response has already reported honestly; the fee's fate is
-          // decided AFTER the background batch settles. If EVERY execution
-          // terminates with zero steps completed, the shared fee is released
-          // (idempotently — the ledger key guards against any duplicate
-          // callback or retry of this reconciliation). A batch that started
-          // real work keeps its fee. Errors are swallowed: never break the
-          // already-accepted run over a reconciliation problem.
-          if (realIds.length > 0) {
-            void (async () => {
-              await waitForBatchSettle(realIds).catch(() => {});
-              await refundBatchIfNeverStarted(realIds, {
-                userId: user.id,
-                workflowId: id,
-                runKey,
-              });
-            })();
-          }
           return NextResponse.json(
             {
-              executionId: executions[0]?.executionId,
+              executionId: batchResult.executionId,
               status: 'running',
               async: true,
-              message: `${leads.length} targeted runs started in the background — monitor their outcomes on the Executions tab.`,
+              message: `The workflow run started in the background for ${leads.length} lead${leads.length === 1 ? '' : 's'} — monitor its progress on the Executions tab.`,
               target: { mode, leadCount: leads.length, runBatchId, runId: runKey },
               creditsCharged: WORKFLOW_EXECUTION_FEE_CREDITS,
-              executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
-                leadId, leadName, executionId, status, error,
-              })),
             },
             { status: 202 }
           );
         }
 
-        // 5. Wait for the batch to settle, then aggregate the persisted
-        //    final states — the response reports what ACTUALLY happened.
-        if (realIds.length > 0) await waitForBatchSettle(realIds);
-        const finalRows = realIds.length
-          ? await db.workflowExecution.findMany({
-              where: { id: { in: realIds } },
-              select: { id: true, status: true, error: true, currentStep: true },
-            })
-          : [];
-        const byId = new Map(finalRows.map((r) => [r.id, r]));
-        for (const e of executions) {
-          const row = byId.get(e.executionId);
-          if (row) {
-            e.status = row.status;
-            e.error = row.error || undefined;
-          }
-        }
+        // Wait for the ONE grouped execution to settle, then report the
+        // persisted per-lead outcomes — the response reports what ACTUALLY
+        // happened. The batch runner performs its own never-started refund
+        // BEFORE writing the terminal status, so a settled row is always
+        // fully reconciled.
+        await waitForBatchSettle([batchResult.executionId]);
+        const finalRow = await db.workflowExecution.findUnique({
+          where: { id: batchResult.executionId },
+          select: { id: true, status: true, error: true, currentStep: true },
+        });
+        const finalLeadItems = await db.workflowExecutionLead.findMany({
+          where: { executionId: batchResult.executionId },
+          orderBy: { createdAt: 'asc' },
+          select: { leadId: true, leadName: true, status: true, error: true },
+        });
+        const leadCounts = await getLeadCounts(batchResult.executionId);
 
-        const completed = executions.filter((e) => e.status === 'completed').length;
-        const failed = executions.filter((e) => e.status === 'failed' || e.status === 'exhausted');
-        const overall: string = failed.length === 0
-          ? 'completed'
-          : completed === 0
-            ? 'failed'
-            : 'partial';
+        // Per-lead outcomes (the UI's `executions` field name is kept for
+        // compatibility; `leads` is the same array under its true name).
+        const perLead = finalLeadItems.map((item) => ({
+          leadId: item.leadId || '',
+          leadName: item.leadName || '',
+          executionId: batchResult.executionId,
+          status: item.status,
+          error: item.error || undefined,
+        }));
+        const overall: string =
+          finalRow?.status === 'completed'
+            ? 'completed'
+            : finalRow?.status === 'partial'
+              ? 'partial'
+              : finalRow?.status === 'exhausted'
+                ? 'failed'
+                : finalRow?.status === 'cancelled'
+                  ? 'cancelled'
+                  : finalRow?.status ?? 'running';
 
-        // ── Part 2 §21 (amended) — never-started batch fee release ──
-        // Every kicked execution ended failed/exhausted with ZERO steps
-        // completed (and no kick ever failed to create its record): the
-        // run never actually started — the shared fee is released once,
-        // idempotently, and the response reports the reconciled state.
-        const neverStarted = realIds.length > 0 &&
-          executions.every((e) => {
-            if (!e.executionId) return true; // kick failure — nothing started for this lead
-            const row = byId.get(e.executionId);
-            return Boolean(row) &&
-              (row!.status === 'failed' || row!.status === 'exhausted') &&
-              (row!.currentStep ?? 0) === 0;
-          });
-        const batchFeeReleased = neverStarted
-          ? await refundBatchIfNeverStarted(realIds, { userId: user.id, workflowId: id, runKey })
-          : false;
+        // Zero steps completed + terminal failure = the run never actually
+        // started (the runner already released the fee idempotently).
+        const neverStarted =
+          (finalRow?.status === 'failed' || finalRow?.status === 'exhausted') &&
+          (finalRow?.currentStep ?? 0) === 0;
 
         return NextResponse.json(
           {
-            executionId: executions[0]?.executionId,
+            executionId: batchResult.executionId,
             status: overall,
-            error: failed.length > 0 ? (failed[0].error || 'One or more targeted runs failed.') : undefined,
+            error: finalRow?.error || undefined,
             target: { mode, leadCount: leads.length, runBatchId, runId: runKey },
-            creditsCharged: batchFeeReleased ? 0 : WORKFLOW_EXECUTION_FEE_CREDITS,
-            ...(batchFeeReleased ? { creditsRefunded: true } : {}),
-            executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
-              leadId, leadName, executionId, status, error,
-            })),
+            leadSummary: leadCounts,
+            creditsCharged: neverStarted ? 0 : WORKFLOW_EXECUTION_FEE_CREDITS,
+            ...(neverStarted ? { creditsRefunded: true } : {}),
+            leads: perLead,
+            // Compat alias (the workflows UI reads `executions`).
+            executions: perLead,
           },
           { status: 202 }
         );

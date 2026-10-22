@@ -22,7 +22,7 @@
 
 import { db } from '@/lib/db';
 import { startDiscoveryJob } from '@/lib/lead-discovery-service';
-import { executeWorkflow } from '@/lib/workflow-executor';
+import { executeWorkflowBatch } from '@/lib/workflow-batch';
 import { checkCreditSufficiency, CREDIT_COSTS } from '@/lib/credit-service';
 import {
   chargeWorkflowExecutionFee,
@@ -32,7 +32,6 @@ import {
 import { normalizeCountryName } from '@/lib/countries';
 import {
   AUTOPILOT_DISCOVERY_BATCH,
-  AUTOPILOT_EXECUTION_PACING_MS,
   AUTOPILOT_JOB_POLL_MS,
   AUTOPILOT_JOB_TIMEOUT_MS,
   AUTOPILOT_NICHE_PACING_MS,
@@ -135,12 +134,13 @@ async function pollDiscoveryJob(jobId: string): Promise<DiscoveryJobRow> {
 async function resolvePersistedLead(
   userId: string,
   payload: DiscoveredPayload
-): Promise<{ id: string } | null> {
+): Promise<{ id: string; businessName: string; niche: string | null } | null> {
+  const leadSelect = { id: true, businessName: true, niche: true };
   const website = typeof payload.website === 'string' ? payload.website.trim() : '';
   if (website) {
     const bySite = await db.lead.findFirst({
       where: { userId, website, isActive: true },
-      select: { id: true },
+      select: leadSelect,
     });
     if (bySite) return bySite;
   }
@@ -148,7 +148,7 @@ async function resolvePersistedLead(
   if (email) {
     const byEmail = await db.lead.findFirst({
       where: { userId, email, isActive: true },
-      select: { id: true },
+      select: leadSelect,
     });
     if (byEmail) return byEmail;
   }
@@ -156,7 +156,7 @@ async function resolvePersistedLead(
   if (phone) {
     const byPhone = await db.lead.findFirst({
       where: { userId, phone, isActive: true },
-      select: { id: true },
+      select: leadSelect,
     });
     if (byPhone) return byPhone;
   }
@@ -173,13 +173,13 @@ async function resolvePersistedLead(
         ...(city ? { city } : {}),
         ...(country ? { country } : {}),
       },
-      select: { id: true },
+      select: leadSelect,
     });
     if (byName) return byName;
     // name-only fallback (dedup service treats name matches as duplicates too)
     const byNameOnly = await db.lead.findFirst({
       where: { userId, businessName: name, isActive: true },
-      select: { id: true },
+      select: leadSelect,
     });
     if (byNameOnly) return byNameOnly;
   }
@@ -359,8 +359,15 @@ export async function executeAutopilotRun(
           : undefined;
       if (job.status === 'failed') hardFailures++;
 
-      // ── 3. Resolve discovered payloads → persisted leads → ledger → workflow ──
+      // ── 3. Resolve discovered payloads → persisted leads → ledger →
+      //     ONE grouped workflow execution per niche ──
+      // Multi-lead execution model: every eligible lead of this niche is
+      // part of ONE WorkflowExecution (child item rows carry the per-lead
+      // statuses), never one execution record per lead. The batch
+      // coordinator is the SAME engine the manual execute route uses —
+      // one execution infrastructure for Autopilot and normal runs.
       const payloads = job.resultData ? parseJson<DiscoveredPayload[]>(job.resultData, []) : [];
+      const eligibleLeads: { id: string; businessName: string; niche: string | null }[] = [];
       for (const payload of payloads) {
         const lead = await resolvePersistedLead(autopilot.userId, payload);
         if (!lead) continue; // payload could not be matched — skip honestly (counted via job counters)
@@ -383,92 +390,117 @@ export async function executeAutopilotRun(
           // Unique constraint hit → already processed by a previous run.
           continue;
         }
+        eligibleLeads.push(lead);
+      }
 
-        // Part 2 — once the balance can no longer cover the execution fee,
-        // remaining discovered leads are recorded but NOT executed (and
-        // not re-charged): an honest partial run instead of a doomed loop.
-        if (insufficientCredits) {
-          continue;
-        }
-
-        // Execute the user's configured workflow against this lead via
-        // the EXISTING execution engine. Stable idempotency key = one
-        // execution per (autopilot, lead) even under retries/duplicates.
-        const idempotencyKey = `autopilot:${autopilot.id}:lead:${lead.id}`;
-        // ── Part 2 — the SAME central flat-fee path as manual runs ──
-        // The charge key mirrors the engine's stable idempotency key, so
+      if (eligibleLeads.length > 0 && !insufficientCredits) {
+        // ── ONE flat fee per niche GROUP (not per lead) ──
+        // The charge key is stable per (autopilot, run, niche), so
         // scheduler replay, worker retry, or duplicate queue delivery can
-        // never double-charge the same (autopilot, lead) execution. On
-        // insufficient credits the lead is marked EXEC_FAILED (nothing
-        // executed — no partial processing) and remaining leads are
-        // skipped with the same honest reason instead of burning the
-        // loop. Autopilot has NO separate billing loophole.
-        const chargeKey = `wfexec-run:autopilot-${autopilot.id}-lead-${lead.id}`;
+        // never double-charge the same grouped execution. On insufficient
+        // credits the niche's leads are marked EXEC_FAILED (nothing
+        // executed — no partial processing) and remaining niches are
+        // skipped with the same honest reason. Autopilot has NO separate
+        // billing loophole and NO per-lead charging.
+        const nicheSlug = niche.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'niche';
+        const idempotencyKey = `autopilot:${autopilot.id}:run:${runId}:niche:${nicheSlug}`;
+        const chargeKey = `wfexec-run:autopilot-${autopilot.id}-run-${runId}-niche-${nicheSlug}`;
         const charge = await chargeWorkflowExecutionFee({
           userId: autopilot.userId,
           workflowId: autopilot.workflowId,
           chargeKey,
           source: 'AUTOPILOT',
           referenceId: idempotencyKey,
-          leadCount: 1,
+          leadCount: eligibleLeads.length,
         });
         if (!charge.ok) {
           const insufficientError =
-            `Insufficient credits for workflow execution: need ${charge.fee}, available ${charge.balance}. Nothing was executed for this lead.`;
+            `Insufficient credits for workflow execution: need ${charge.fee}, available ${charge.balance}. Nothing was executed for this niche.`;
           await db.autopilotLead.updateMany({
-            where: { autopilotId: autopilot.id, leadId: lead.id },
+            where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
             data: { status: 'EXEC_FAILED', error: insufficientError },
           });
           hardFailures++;
           insufficientCredits = true;
-          continue;
+        } else {
+          try {
+            const batchResult = await executeWorkflowBatch(
+              autopilot.workflowId,
+              autopilot.userId,
+              {
+                leads: eligibleLeads,
+                targetSnapshot: {
+                  mode: 'niche',
+                  source: 'autopilot',
+                  autopilotId: autopilot.id,
+                  runId,
+                  niche,
+                  trigger,
+                  runBatchId: `autopilot-${autopilot.id}-run-${runId}-niche-${nicheSlug}`,
+                  leadCount: eligibleLeads.length,
+                },
+                idempotencyKey,
+                // Background: the batch processes the niche's leads
+                // sequentially with provider-friendly pacing; the runner
+                // continues to the next niche and reports honest counters.
+                awaitCompletion: false,
+                // Part 2 §21 (amended): this niche group's ONE charge
+                // covers this ONE execution — the batch runner releases
+                // the fee if the run terminates with ZERO steps completed.
+                neverStartedAutoRefund: true,
+              }
+            );
+            if (batchResult.executionId) {
+              executionsCreated++;
+              await db.autopilotLead.updateMany({
+                where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
+                data: { status: 'EXEC_QUEUED', executionId: batchResult.executionId },
+              });
+            } else {
+              // The execution record could not be created — Part 2 §21:
+              // release the fee idempotently, then record the honest
+              // per-lead failure.
+              await refundWorkflowExecutionFee({
+                userId: autopilot.userId,
+                workflowId: autopilot.workflowId,
+                chargeKey,
+                source: 'AUTOPILOT',
+                referenceId: idempotencyKey,
+              }).catch(() => {
+                // Ledger idempotency makes a later retry safe.
+              });
+              await db.autopilotLead.updateMany({
+                where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
+                data: {
+                  status: 'EXEC_FAILED',
+                  error: batchResult.error || 'Execution failed to start',
+                },
+              });
+              hardFailures++;
+            }
+          } catch (execErr) {
+            // The execution never started (record could not be created) —
+            // Part 2 §21: release the fee idempotently, then record the
+            // honest per-lead failure.
+            await refundWorkflowExecutionFee({
+              userId: autopilot.userId,
+              workflowId: autopilot.workflowId,
+              chargeKey,
+              source: 'AUTOPILOT',
+              referenceId: idempotencyKey,
+            }).catch(() => {
+              // Ledger idempotency makes a later retry safe.
+            });
+            await db.autopilotLead.updateMany({
+              where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
+              data: {
+                status: 'EXEC_FAILED',
+                error: execErr instanceof Error ? execErr.message : 'Execution failed',
+              },
+            });
+            hardFailures++;
+          }
         }
-        try {
-          const execution = await executeWorkflow(
-            autopilot.workflowId,
-            autopilot.userId,
-            {
-              leadId: lead.id,
-              source: 'autopilot',
-              autopilotId: autopilot.id,
-              runId,
-              niche,
-              trigger,
-            },
-            idempotencyKey,
-            // Part 2 §21 (amended): this lead's ONE charge covers this ONE
-            // execution — the engine releases the fee if the run terminates
-            // with ZERO steps completed (never actually started).
-            { neverStartedAutoRefund: true }
-          );
-          executionsCreated++;
-          await db.autopilotLead.updateMany({
-            where: { autopilotId: autopilot.id, leadId: lead.id },
-            data: { status: 'EXEC_QUEUED', executionId: execution.id },
-          });
-        } catch (execErr) {
-          // The execution never started (record could not be created) —
-          // Part 2 §21: release the fee idempotently, then record the
-          // honest per-lead failure.
-          await refundWorkflowExecutionFee({
-            userId: autopilot.userId,
-            workflowId: autopilot.workflowId,
-            chargeKey,
-            source: 'AUTOPILOT',
-            referenceId: idempotencyKey,
-          }).catch(() => {
-            // Ledger idempotency makes a later retry safe.
-          });
-          await db.autopilotLead.updateMany({
-            where: { autopilotId: autopilot.id, leadId: lead.id },
-            data: {
-              status: 'EXEC_FAILED',
-              error: execErr instanceof Error ? execErr.message : 'Execution failed',
-            },
-          });
-        }
-        // Pacing between lead executions (provider-friendly).
-        await new Promise((r) => setTimeout(r, AUTOPILOT_EXECUTION_PACING_MS));
       }
 
       perNiche.push({
@@ -478,6 +510,7 @@ export async function executeAutopilotRun(
         discovered: job.totalFound,
         imported: job.imported,
         duplicates: job.duplicates,
+        executions: eligibleLeads.length,
         ...(nicheError ? { error: nicheError } : {}),
       });
 

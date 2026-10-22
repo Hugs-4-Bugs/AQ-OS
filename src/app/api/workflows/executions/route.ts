@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
         workflowId: searchParams.get('workflowId') || undefined,
         dateFrom: searchParams.get('dateFrom') || undefined,
         dateTo: searchParams.get('dateTo') || undefined,
+        // Server-side search (workflow name or run error text) — the UI's
+        // search box now filters in the database, not the client.
+        search: searchParams.get('search') || undefined,
         page: parseInt(searchParams.get('page') || '1', 10),
         limit: parseInt(searchParams.get('limit') || '20', 10),
       };

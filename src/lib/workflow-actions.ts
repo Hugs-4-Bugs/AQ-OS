@@ -8,6 +8,7 @@ import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { sendEmail } from '@/lib/email';
 import { reserveDailyOutreachSend, DAILY_OUTREACH_LIMIT_EXCEEDED } from '@/lib/daily-outreach-quota';
 import { moveLeadToStage } from '@/lib/pipeline-service';
+import { withAiRateLimitRetry } from '@/lib/workflow-ai-retry';
 import {
   buildSenderSignatureBlock,
   applySenderSignature,
@@ -407,7 +408,10 @@ async function executeAiAnalysis(
          Conversion score: ${lead.conversionScore}. Urgency: ${lead.urgencyScore}.
          Provide a brief analysis and recommendations.`;
 
-    const response = await chat.sendMessage(analysisPrompt);
+    // Rate-limit reliability: 429s from the provider are retried INSIDE
+    // the call with bounded backoff honoring Retry-After (the error that
+    // finally escapes keeps its 429 token for downstream classifiers).
+    const response = await withAiRateLimitRetry(() => chat.sendMessage(analysisPrompt));
 
     return {
       success: true,
@@ -472,7 +476,10 @@ async function executeAiOutreach(
 
 ${senderBlock}${personalContextBlock}`;
 
-    const response = await chat.sendMessage(prompt);
+    // Rate-limit reliability: bounded retry honoring Retry-After (same
+    // wrapper as AI analysis). The message row is only created AFTER the
+    // generation succeeds — a retried generation never duplicates outreach.
+    const response = await withAiRateLimitRetry(() => chat.sendMessage(prompt));
     const generatedMessage = applySenderSignature(
       response.text || response.content || '',
       senderProfile
@@ -883,7 +890,8 @@ async function executeScoreLead(
       
       Return ONLY a number between 0-100.`;
 
-    const response = await chat.sendMessage(prompt);
+    // Rate-limit reliability: bounded retry honoring Retry-After.
+    const response = await withAiRateLimitRetry(() => chat.sendMessage(prompt));
     const scoreText = (response.text || response.content || '0').trim();
     const score = Math.min(100, Math.max(0, parseInt(scoreText.replace(/[^0-9]/g, ''), 10) || 0));
 

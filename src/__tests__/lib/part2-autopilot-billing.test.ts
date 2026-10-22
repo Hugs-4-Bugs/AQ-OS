@@ -1,16 +1,19 @@
 // ═══════════════════════════════════════════════════════════════════
-// Unit Tests: Part 2 — Autopilot Billing (Test N)
+// Unit Tests: Part 2 — Autopilot Billing (Test N, grouped model)
 //
 // Covers src/lib/autopilot/runner.ts through the Part 2 central fee path:
-//   • Every ACTUAL autopilot workflow execution charges the flat fee via
-//     the SAME central service (no separate Autopilot billing loophole).
-//   • Charge keys mirror the engine's stable (autopilot, lead) identity —
-//     duplicate scheduler execution / worker retry can never double-charge.
+//   • Every niche GROUP is ONE WorkflowExecution (multi-lead model) and
+//     charges the flat fee ONCE through the SAME central service (no
+//     separate Autopilot billing loophole, no per-lead charging).
+//   • Charge keys mirror the batch coordinator's stable (autopilot, run,
+//     niche) identity — duplicate scheduler execution / worker retry can
+//     never double-charge.
 //   • Discovery ALONE never triggers workflow charges.
-//   • Insufficient credits mid-run: the lead is honestly EXEC_FAILED with
-//     nothing executed, and remaining leads are skipped without
-//     re-attempting a doomed charge.
-//   • A lead whose execution never started gets its fee refunded (§21).
+//   • Insufficient credits mid-run: the niche's leads are honestly
+//     EXEC_FAILED with nothing executed, and remaining niches are skipped
+//     without re-attempting a doomed charge.
+//   • A group whose execution record could not be created gets its fee
+//     refunded (§21).
 // ═══════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -44,13 +47,13 @@ const mockPrisma = vi.hoisted(() => ({
 vi.mock('@/lib/db', () => ({ db: mockPrisma }));
 
 const mockStartDiscoveryJob = vi.hoisted(() => vi.fn());
-const mockExecuteWorkflow = vi.hoisted(() => vi.fn());
+const mockExecuteWorkflowBatch = vi.hoisted(() => vi.fn());
 const mockCheckCreditSufficiency = vi.hoisted(() => vi.fn());
 const mockChargeWorkflowExecutionFee = vi.hoisted(() => vi.fn());
 const mockRefundWorkflowExecutionFee = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/lead-discovery-service', () => ({ startDiscoveryJob: mockStartDiscoveryJob }));
-vi.mock('@/lib/workflow-executor', () => ({ executeWorkflow: mockExecuteWorkflow }));
+vi.mock('@/lib/workflow-batch', () => ({ executeWorkflowBatch: mockExecuteWorkflowBatch }));
 vi.mock('@/lib/credit-service', () => ({
   checkCreditSufficiency: mockCheckCreditSufficiency,
   CREDIT_COSTS: { lead_discovery: 1 },
@@ -115,12 +118,19 @@ beforeEach(() => {
   mockPrisma.autopilotLead.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.discoveryJob.findUnique.mockResolvedValue(completedJob());
   mockStartDiscoveryJob.mockResolvedValue({ jobId: 'job1', status: 'started', message: 'ok' });
-  mockExecuteWorkflow.mockResolvedValue({ id: 'exec1' });
+  mockExecuteWorkflowBatch.mockImplementation(
+    async (_wf: string, _user: string, opts: { leads: unknown[] }) => ({
+      executionId: 'exec1',
+      status: 'running',
+      leadCount: opts.leads.length,
+      stepsCompleted: 0,
+    }),
+  );
   mockChargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 995 });
   mockRefundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 1000 });
   mockPrisma.lead.findFirst.mockImplementation(async ({ where }) => {
-    if (where.website === 'https://bright.example') return { id: 'lead-bright' };
-    if (where.website === 'https://cityh.example') return { id: 'lead-cityh' };
+    if (where.website === 'https://bright.example') return { id: 'lead-bright', businessName: 'Bright Smiles', niche: 'Dental' };
+    if (where.website === 'https://cityh.example') return { id: 'lead-cityh', businessName: 'City Hospital', niche: 'Dental' };
     return null;
   });
 });
@@ -130,41 +140,38 @@ function chargeKeys(): string[] {
 }
 
 describe('Test N — Autopilot uses the SAME central fee path', () => {
-  it('every actual autopilot execution charges the flat fee once, through the central service', async () => {
+  it('every niche group charges the flat fee ONCE for the whole group — never per lead', async () => {
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
 
     expect(outcome.status).toBe('COMPLETED');
-    expect(outcome.executionsCreated).toBe(2);
-    // ONE charge per ACTUAL execution (2 unique leads → 2 executions →
-    // 2 × flat 5) — each via chargeWorkflowExecutionFee, never a custom
-    // Autopilot deduction path.
-    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(2);
-    for (const call of mockChargeWorkflowExecutionFee.mock.calls) {
-      expect(call[0]).toMatchObject({
-        userId: 'u1',
-        workflowId: 'wf1',
-        source: 'AUTOPILOT',
-        leadCount: 1,
-      });
-    }
-    expect(chargeKeys()).toEqual([
-      'wfexec-run:autopilot-ap1-lead-lead-bright',
-      'wfexec-run:autopilot-ap1-lead-lead-cityh',
-    ]);
+    // ONE grouped execution covers BOTH leads (multi-lead model).
+    expect(outcome.executionsCreated).toBe(1);
+    expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
+    const batchOpts = mockExecuteWorkflowBatch.mock.calls[0][2];
+    expect(batchOpts.leads.map((l: { id: string }) => l.id)).toEqual(['lead-bright', 'lead-cityh']);
+    // ONE charge for the WHOLE niche group (2 leads → 1 × flat 5, not 2×5).
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mockChargeWorkflowExecutionFee.mock.calls[0][0]).toMatchObject({
+      userId: 'u1',
+      workflowId: 'wf1',
+      source: 'AUTOPILOT',
+      leadCount: 2,
+    });
+    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-run-run1-niche-dental']);
   });
 
-  it('charge keys MIRROR the engine idempotency keys — duplicate scheduler execution cannot double-charge', async () => {
-    // First run processes both leads (2 charges).
+  it('duplicate scheduler execution cannot double-charge — the AutopilotLead unique guard stops re-execution', async () => {
+    // First run processes both leads as ONE grouped execution (1 charge).
     await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
-    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(2);
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
 
     // Scheduler replay / overlapping worker runs the SAME autopilot again:
     // the AutopilotLead unique guard already marks both leads processed, so
     // nothing re-executes and NOTHING re-charges.
     await executeAutopilotRun(AUTOPILOT_ROW, 'run2', 'scheduler');
 
-    expect(mockExecuteWorkflow).toHaveBeenCalledTimes(2); // unchanged
-    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(2); // unchanged — no double charge
+    expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1); // unchanged
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1); // unchanged — no double charge
   });
 
   it('discovery ALONE creates zero workflow charges', async () => {
@@ -179,12 +186,12 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
     expect(outcome.discovered).toBe(5);
     expect(outcome.executionsCreated).toBe(0);
     expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
-    expect(mockExecuteWorkflow).not.toHaveBeenCalled();
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
   });
 
-  it('insufficient credits for the fee: the lead is honestly EXEC_FAILED, nothing executes, remaining leads are skipped without re-charging', async () => {
-    // First charge attempt fails; the second lead must be skipped rather
-    // than pointlessly re-attempting a doomed charge.
+  it('insufficient credits for the fee: the niche group is honestly EXEC_FAILED, nothing executes, nothing re-charges', async () => {
+    // The group's single charge attempt fails; BOTH of the niche's leads
+    // are marked EXEC_FAILED (never partially processed).
     mockChargeWorkflowExecutionFee.mockResolvedValue({
       ok: false, code: 'INSUFFICIENT_CREDITS', fee: 5, balance: 3, shortfall: 2,
     });
@@ -192,15 +199,17 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
 
     expect(outcome.executionsCreated).toBe(0);
-    expect(mockExecuteWorkflow).not.toHaveBeenCalled();
-    // Exactly ONE charge ATTEMPT (the first lead); the second lead was
-    // short-circuited by the honest insufficient-credits flag.
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
+    // Exactly ONE charge ATTEMPT (the niche group).
     expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
-    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-lead-lead-bright']);
-    // The lead row records the refusal reason.
+    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-run-run1-niche-dental']);
+    // BOTH lead rows record the refusal reason.
     expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { autopilotId: 'ap1', leadId: 'lead-bright' },
+        where: expect.objectContaining({
+          autopilotId: 'ap1',
+          leadId: { in: ['lead-bright', 'lead-cityh'] },
+        }),
         data: expect.objectContaining({
           status: 'EXEC_FAILED',
           error: expect.stringContaining('Insufficient credits'),
@@ -211,16 +220,26 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
     expect(outcome.error).toContain('Insufficient credits');
   });
 
-  it('a lead whose execution never started gets its fee refunded idempotently (§21)', async () => {
-    mockExecuteWorkflow.mockRejectedValueOnce(new Error('Execution record could not be created'));
+  it('a group whose execution record could not be created gets its fee refunded idempotently (§21)', async () => {
+    mockExecuteWorkflowBatch.mockRejectedValueOnce(new Error('Execution record could not be created'));
 
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
 
-    expect(outcome.executionsCreated).toBe(1); // the other lead succeeded
-    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(2);
+    expect(outcome.executionsCreated).toBe(0);
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
     expect(mockRefundWorkflowExecutionFee).toHaveBeenCalledTimes(1);
     expect(mockRefundWorkflowExecutionFee.mock.calls[0][0].chargeKey).toBe(
-      'wfexec-run:autopilot-ap1-lead-lead-bright'
+      'wfexec-run:autopilot-ap1-run-run1-niche-dental'
+    );
+    // BOTH of the group's leads are honestly EXEC_FAILED.
+    expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          autopilotId: 'ap1',
+          leadId: { in: ['lead-bright', 'lead-cityh'] },
+        }),
+        data: expect.objectContaining({ status: 'EXEC_FAILED' }),
+      })
     );
   });
 
@@ -233,6 +252,6 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
     expect(outcome.error).toContain('Insufficient credits');
     expect(mockStartDiscoveryJob).not.toHaveBeenCalled();
     expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
-    expect(mockExecuteWorkflow).not.toHaveBeenCalled();
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
   });
 });

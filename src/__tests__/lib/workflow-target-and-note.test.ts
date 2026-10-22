@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => {
     state,
     db: {
       workflowDefinition: { findFirst: vi.fn(), findUnique: vi.fn() },
-      workflowExecution: { findMany: vi.fn() },
+      workflowExecution: { findMany: vi.fn(), findUnique: vi.fn() },
+      workflowExecutionLead: { findMany: vi.fn() },
       lead: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
       leadActivity: { create: vi.fn() },
       leadNote: { create: vi.fn() },
@@ -44,6 +45,12 @@ const mocks = vi.hoisted(() => {
     sendEmail: vi.fn(),
     resolveLeadForExecution: vi.fn(),
     executeWorkflow: vi.fn(),
+    executeWorkflowBatch: vi.fn(),
+    executeNicheRunWithDiscovery: vi.fn(),
+    isZaiProviderConfigured: vi.fn(),
+    getLeadCounts: vi.fn(),
+    chargeWorkflowExecutionFee: vi.fn(),
+    refundWorkflowExecutionFee: vi.fn(),
     deductCredits: vi.fn(),
     loadPersonalContextForAi: vi.fn(),
     zaiCreate: vi.fn(),
@@ -80,6 +87,20 @@ vi.mock('@/lib/entitlement-middleware', () => ({
 }));
 vi.mock('@/lib/workflow-engine', () => ({
   executeWorkflow: mocks.executeWorkflow,
+}));
+vi.mock('@/lib/workflow-batch', () => ({
+  executeWorkflowBatch: mocks.executeWorkflowBatch,
+  executeNicheRunWithDiscovery: mocks.executeNicheRunWithDiscovery,
+  isZaiProviderConfigured: mocks.isZaiProviderConfigured,
+}));
+vi.mock('@/lib/workflow-execution-leads', () => ({
+  getLeadCounts: mocks.getLeadCounts,
+  hasLeadItems: vi.fn(async () => false),
+}));
+vi.mock('@/lib/workflow-credits', () => ({
+  chargeWorkflowExecutionFee: mocks.chargeWorkflowExecutionFee,
+  refundWorkflowExecutionFee: mocks.refundWorkflowExecutionFee,
+  WORKFLOW_EXECUTION_FEE_CREDITS: 5,
 }));
 vi.mock('@/lib/credit-service', () => ({
   deductCredits: vi.fn(async () => ({ success: true, balance: 100 })),
@@ -157,10 +178,37 @@ beforeEach(() => {
     executionId: `exec_${Math.random().toString(36).slice(2, 8)}`,
     status: 'running',
   }));
-  // Batch settle: every execution is completed by the time we poll.
+  // Multi-lead model: ONE grouped execution per run; the settle path
+  // reads the execution row + its per-lead items.
+  mocks.executeWorkflowBatch.mockImplementation(
+    async (_wf: string, _user: string, opts: { leads: { id: string; businessName: string }[] }) => ({
+      executionId: 'exec_batch_1',
+      status: 'running',
+      leadCount: opts.leads.length,
+      stepsCompleted: 0,
+    }),
+  );
+  mocks.isZaiProviderConfigured.mockReturnValue(true);
+  mocks.executeNicheRunWithDiscovery.mockResolvedValue({ executionId: 'exec_disc_1', status: 'discovering' });
+  mocks.chargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 95 });
+  mocks.refundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 100 });
   mocks.db.workflowExecution.findMany.mockImplementation(async (args: { where: { id: { in: string[] } } }) => {
     const ids = args?.where?.id?.in || [];
-    return ids.map((id: string) => ({ id, status: 'completed', error: null }));
+    return ids.map((id: string) => ({ id, status: 'completed', error: null, currentStep: 4 }));
+  });
+  mocks.db.workflowExecution.findUnique.mockResolvedValue({ id: 'exec_batch_1', status: 'completed', error: null, currentStep: 4 });
+  mocks.db.workflowExecutionLead.findMany.mockImplementation(
+    async ({ where }: { where: { executionId: string } }) => {
+      if (where.executionId !== 'exec_batch_1') return [];
+      const leads = mocks.executeWorkflowBatch.mock.calls[0]?.[2]?.leads ?? [];
+      return leads.map((l: { id: string; businessName: string }) => ({
+        leadId: l.id, leadName: l.businessName, status: 'completed', error: null,
+      }));
+    },
+  );
+  mocks.getLeadCounts.mockImplementation(async () => {
+    const n = mocks.executeWorkflowBatch.mock.calls[0]?.[2]?.leads?.length ?? 0;
+    return { total: n, pending: 0, running: 0, completed: n, failed: 0, skipped: 0 };
   });
 });
 
@@ -273,7 +321,7 @@ describe('POST /api/workflows/ai-generate — add_note content default', () => {
 // ── 3. Execute route — selected_leads ────────────────────────────
 
 describe('POST /api/workflows/[id]/execute — selected_leads target', () => {
-  it('executes one run per selected lead and persists the target snapshot', async () => {
+  it('executes ONE grouped run over the selected leads and persists the target snapshot', async () => {
     const { status, json } = await callExecuteRoute({
       target: { mode: 'selected_leads', leadIds: ['lead_a', 'lead_b', 'lead_c'] },
     });
@@ -282,22 +330,25 @@ describe('POST /api/workflows/[id]/execute — selected_leads target', () => {
     expect(json.status).toBe('completed');
     expect(json.target.mode).toBe('selected_leads');
     expect(json.target.leadCount).toBe(3);
-    expect(json.executions).toHaveLength(3);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(3);
+    // ONE execution row for the whole run; per-lead outcomes ride on it.
+    expect(json.executionId).toBe('exec_batch_1');
+    expect(json.leads).toHaveLength(3);
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
 
-    const firstCall = mocks.executeWorkflow.mock.calls[0];
-    expect(firstCall[0]).toBe('wf_1');
-    expect(firstCall[1]).toBe('user_1');
-    expect(firstCall[2]).toMatchObject({
-      leadId: 'lead_a',
-      leadName: 'Alpha',
-      target: { mode: 'selected_leads', leadId: 'lead_a' },
-    });
-    expect(typeof firstCall[2].target.runBatchId).toBe('string');
-    // Per-lead idempotency keys
-    expect(firstCall[3]).toMatch(/^batch_run_.*_lead_a$/);
-    // Batch mode: fire-and-forget kicks
-    expect(firstCall[4]).toEqual({ awaitCompletion: false });
+    const batchCall = mocks.executeWorkflowBatch.mock.calls[0];
+    expect(batchCall[0]).toBe('wf_1');
+    expect(batchCall[1]).toBe('user_1');
+    expect((batchCall[2] as { leads: { id: string }[] }).leads.map((l) => l.id)).toEqual([
+      'lead_a', 'lead_b', 'lead_c',
+    ]);
+    const snapshot = (batchCall[2] as { targetSnapshot: Record<string, unknown> }).targetSnapshot;
+    expect(snapshot.mode).toBe('selected_leads');
+    expect(snapshot.selectedLeadIds).toEqual(['lead_a', 'lead_b', 'lead_c']);
+    expect(typeof snapshot.runBatchId).toBe('string');
+    // One stable batch idempotency key (replay → same execution).
+    expect((batchCall[2] as { idempotencyKey: string }).idempotencyKey).toMatch(/^batch_run_/);
+    // Background kick: the route settles by polling, never inline awaits.
+    expect((batchCall[2] as { awaitCompletion?: boolean }).awaitCompletion).toBe(false);
   });
 
   it('rejects the whole request (all-or-nothing) when one selected lead is foreign', async () => {
@@ -318,7 +369,8 @@ describe('POST /api/workflows/[id]/execute — selected_leads target', () => {
       target: { mode: 'selected_leads', leadIds: ['lead_a', 'lead_a', 'lead_b'] },
     });
     expect(json.target.leadCount).toBe(2);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(2);
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect((mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[] }).leads).toHaveLength(2);
   });
 
   it('rejects an empty selection', async () => {
@@ -360,7 +412,7 @@ describe('POST /api/workflows/[id]/execute — plan entitlement limit on selecti
     expect(mocks.executeWorkflow).not.toHaveBeenCalled();
   });
 
-  it('allows exactly the limit on the STARTER plan (25 selected → 25 executions)', async () => {
+  it('allows exactly the limit on the STARTER plan (25 selected → ONE grouped execution over 25 leads)', async () => {
     mocks.state.user.plan = 'starter';
     // All 25 ids resolve as owned leads.
     mocks.resolveLeadForExecution.mockImplementation(async (_u: string, id: string) => ({
@@ -372,10 +424,11 @@ describe('POST /api/workflows/[id]/execute — plan entitlement limit on selecti
 
     expect(status).toBe(202);
     expect(json.target.leadCount).toBe(25);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(25);
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect((mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[] }).leads).toHaveLength(25);
   });
 
-  it('PRO plan: 30 selected leads are ALLOWED (regression: the arbitrary 25 hard cap is gone)', async () => {
+  it('PRO plan: 30 selected leads are ALLOWED in ONE grouped execution (regression: the arbitrary 25 hard cap is gone)', async () => {
     mocks.resolveLeadForExecution.mockImplementation(async (_u: string, id: string) => ({
       ok: true, lead: lead(id, `Lead ${id}`),
     }));
@@ -385,10 +438,11 @@ describe('POST /api/workflows/[id]/execute — plan entitlement limit on selecti
 
     expect(status).toBe(202);
     expect(json.target.leadCount).toBe(30);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(30);
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect((mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[] }).leads).toHaveLength(30);
   });
 
-  it('ELITE plan (unlimited) rejects nothing for a large valid selection', async () => {
+  it('ELITE plan (unlimited) rejects nothing for a large valid selection — ONE grouped execution', async () => {
     mocks.state.user.plan = 'elite';
     mocks.resolveLeadForExecution.mockImplementation(async (_u: string, id: string) => ({
       ok: true, lead: lead(id, `Lead ${id}`),
@@ -397,7 +451,8 @@ describe('POST /api/workflows/[id]/execute — plan entitlement limit on selecti
       target: { mode: 'selected_leads', leadIds: manyIds(40) },
     });
     expect(status).toBe(202);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(40);
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect((mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[] }).leads).toHaveLength(40);
   });
 
   it('uses the entitlement config as the source of the limit (Free=10, Starter=25, Pro/Elite=null)', async () => {
@@ -433,21 +488,23 @@ describe('POST /api/workflows/[id]/execute — niche target', () => {
     expect(where.isActive).toBe(true);
   });
 
-  it('rejects when no own leads match the niche (Part 1: structured NO_MATCHING_LEADS)', async () => {
+  it('bridges to discovery when no own leads match the niche (structured, no upfront charge)', async () => {
     mocks.db.lead.findMany.mockResolvedValue([]);
     const { status, json } = await callExecuteRoute({ target: { mode: 'niche', niche: 'Dental' } });
-    expect(status).toBe(400);
-    // Part 1 — the canonical structured business code (previously
-    // NO_LEADS_FOR_NICHE). The body carries everything the frontend needs
-    // to offer the Find-Leads handoff.
-    expect(json.code).toBe('NO_MATCHING_LEADS');
-    expect(json.workflowId).toBe('wf_1');
-    expect(json.targetMode).toBe('niche');
-    expect(json.requestedNiche).toBe('Dental');
-    expect(json.requestedNiches).toEqual(['Dental']);
-    expect(json.matchingLeadCount).toBe(0);
-    // Nothing executed — no execution record, no retry loop to cancel.
-    expect(mocks.executeWorkflow).not.toHaveBeenCalled();
+    // Multi-lead model §4: a niche with no leads enters the discovery
+    // bridge instead of failing — ONE execution in 'discovering' state.
+    expect(status).toBe(202);
+    expect(json.status).toBe('discovering');
+    expect(json.executionId).toBe('exec_disc_1');
+    expect(json.creditsCharged).toBe(0);
+    expect(mocks.executeNicheRunWithDiscovery).toHaveBeenCalledTimes(1);
+    const bridgeCall = mocks.executeNicheRunWithDiscovery.mock.calls[0][0];
+    expect(bridgeCall.workflowId).toBe('wf_1');
+    expect(bridgeCall.niche).toBe('Dental');
+    expect(bridgeCall.targetSnapshot.requestedNiches).toEqual(['Dental']);
+    // Nothing executed yet — no batch kick, no charge.
+    expect(mocks.executeWorkflowBatch).not.toHaveBeenCalled();
+    expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
   });
 
   it('rejects an empty niche', async () => {
@@ -470,7 +527,8 @@ describe('POST /api/workflows/[id]/execute — custom target', () => {
 
     expect(status).toBe(202);
     expect(json.target.leadCount).toBe(2);
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(2);
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect((mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[] }).leads).toHaveLength(2);
     const where = mocks.db.lead.findMany.mock.calls[0][0].where;
     expect(where.userId).toBe('user_1');
     expect(where.OR).toBeDefined();
@@ -516,15 +574,19 @@ describe('POST /api/workflows/[id]/execute — legacy compatibility + honesty', 
     expect(json.error).toMatch(/execution limit/i);
   });
 
-  it('reports a failed per-lead run in a batch honestly (overall failed, error surfaced)', async () => {
+  it('reports a failed lead inside the grouped run honestly (partial, error surfaced)', async () => {
     mocks.db.workflowExecution.findMany.mockImplementation(async (args: { where: { id: { in: string[] } } }) => {
       const ids = args?.where?.id?.in || [];
-      return ids.map((id: string, i: number) => ({
-        id,
-        status: i === 0 ? 'failed' : 'completed',
-        error: i === 0 ? 'Email requires a recipient' : null,
-      }));
+      return ids.map((id: string) => ({ id, status: 'partial', error: 'Email requires a recipient', currentStep: 2 }));
     });
+    mocks.db.workflowExecution.findUnique.mockResolvedValue({
+      id: 'exec_batch_1', status: 'partial', error: 'Email requires a recipient', currentStep: 2,
+    });
+    mocks.db.workflowExecutionLead.findMany.mockResolvedValue([
+      { leadId: 'lead_a', leadName: 'Alpha', status: 'failed', error: 'Email requires a recipient' },
+      { leadId: 'lead_b', leadName: 'Bravo', status: 'completed', error: null },
+    ]);
+    mocks.getLeadCounts.mockResolvedValue({ total: 2, pending: 0, running: 0, completed: 1, failed: 1, skipped: 0 });
 
     const { status, json } = await callExecuteRoute({
       target: { mode: 'selected_leads', leadIds: ['lead_a', 'lead_b'] },
@@ -533,7 +595,8 @@ describe('POST /api/workflows/[id]/execute — legacy compatibility + honesty', 
     expect(status).toBe(202);
     expect(json.status).toBe('partial');
     expect(json.error).toMatch(/recipient/i);
-    expect(json.executions.filter((e: { status: string }) => e.status === 'failed')).toHaveLength(1);
+    expect(json.leads.filter((e: { status: string }) => e.status === 'failed')).toHaveLength(1);
+    expect(json.executionId).toBe('exec_batch_1'); // ONE history row
   });
 
   it('returns 404 for a workflow owned by another user', async () => {

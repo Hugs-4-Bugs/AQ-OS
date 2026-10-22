@@ -9,8 +9,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { resumeExecution } from '@/lib/workflow-engine';
+import { resumeBatchExecution } from '@/lib/workflow-batch';
+import { hasLeadItems } from '@/lib/workflow-execution-leads';
 
-/** POST /api/workflows/executions/[executionId]/resume — Resume an execution */
+/** POST /api/workflows/executions/[executionId]/resume — Resume an execution.
+ *
+ * Multi-lead batch executions resume the interrupted lead from its last
+ * completed step and continue the still-pending leads; legacy single-lead
+ * executions keep the engine's from-current-step resume. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ executionId: string }> }
@@ -18,7 +24,10 @@ export async function POST(
   return withAuth(request, async (user) => {
     try {
       const { executionId } = await params;
-      const result = await resumeExecution(executionId, user.id);
+      const batch = await hasLeadItems(executionId);
+      const result = batch
+        ? await resumeBatchExecution(executionId, user.id)
+        : await resumeExecution(executionId, user.id);
 
       if (!result.success) {
         const status = result.error?.includes('not found') ? 404 : 400;

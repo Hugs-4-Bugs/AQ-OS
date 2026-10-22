@@ -1366,7 +1366,7 @@ model WorkflowStep {
 model WorkflowExecution {
   id               String    @id @default(cuid())
   workflowId       String
-  status           String    @default("running") // running, completed, failed, cancelled, paused
+  status           String    @default("running") // running, completed, failed, cancelled, paused, discovering, partial, exhausted
   triggerData      String? // JSON: data that triggered this execution
   logs             String? // JSON array of execution logs
   currentStep      Int       @default(0)
@@ -1386,6 +1386,7 @@ model WorkflowExecution {
 
   workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   stepLogs WorkflowLog[]
+  leadItems WorkflowExecutionLead[]
 
   createdAt    DateTime  @default(now())
   durationMs   Int?
@@ -1398,6 +1399,34 @@ model WorkflowExecution {
   @@index([startedAt])
   @@index([idempotencyKey])
   @@index([deadLettered])
+}
+
+// Multi-lead execution model: ONE WorkflowExecution row represents the whole
+// workflow run; each targeted lead is tracked as a child item row. Additive
+// table (Oct 2026) — no existing table/column was altered.
+model WorkflowExecutionLead {
+  id          String    @id @default(cuid())
+  executionId String
+  leadId      String?
+  leadName    String?
+  niche       String?
+  // pending → running → completed / failed / skipped
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  error       String?
+  // JSON summary of this lead's per-step outcomes (name/status/duration)
+  stepSummary String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  execution WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([leadId])
+  @@index([status])
 }
 
 model WorkflowLog {
