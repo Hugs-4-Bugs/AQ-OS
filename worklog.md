@@ -1662,3 +1662,20 @@ Work Log:
 Stage Summary:
 - Pre-start failures now cost 0 credits on every entry point (manual targeted + legacy, event/scheduled triggers, autopilot via both executors); only actually-started executions (>=1 step completed) keep the flat 5-credit fee; retries stay free until real start, then re-charge exactly once per execution; all paths ledger-idempotent (no double charge/refund).
 - Test account mailtoprabhat72@gmail.com (elite): 2000/2000 credits — the wrongly deducted 20 already restored with preserved audit trail; nothing else written to the DB.
+
+---
+Task ID: push-9d4e61788
+Agent: Super Z (main agent)
+Task: Authorized GitHub push of current HEAD (9d4e61788) to main
+
+Work Log:
+- Pre-push checks: HEAD = 9d4e61788d67c4b307507b8edf09aa54acf41157 (the committed billing fix: 17 files, +1317/-29, incl. billing-never-started tests + verification scripts); working tree clean (0 entries); remote pre-state = 57a88f554 = parent of oldest unpushed commit (b15bd90e0) → clean fast-forward of 4 commits expected.
+- Secret scans over the full push range (57a88f554..9d4e61788): no tokens/client secrets/app passwords/private keys present.
+- Push executed via one-time inline credential helper (PAT read at runtime from /home/sync/upload/GITHUB_PAT.txt; token never written to git config, remote URL, or any output/log).
+- Push result: 57a88f554..9d4e61788 main -> main (normal fast-forward; no force).
+- Post-push verification (git ls-remote origin refs/heads/main): remote main = 9d4e61788d67c4b307507b8edf09aa54acf41157; local HEAD identical; 0 unpushed commits; working tree clean.
+- No code changes, no reset/rebase/amend/force-push, no new commit created by this task.
+
+Stage Summary:
+- GitHub main = 9d4e61788 (4 commits published: b15bd90e0 + 0179101c8 worklog, eadb76fc6 db-recovery scripts + worklog, 9d4e61788 never-started billing fix + tests).
+- Local and remote main are in sync; the never-started billing fix (billing-never-started-1) is now LIVE on GitHub main.
