@@ -9,8 +9,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { retryExecution } from '@/lib/workflow-engine';
+import { retryBatchExecution } from '@/lib/workflow-batch';
+import { hasLeadItems } from '@/lib/workflow-execution-leads';
 
-/** POST /api/workflows/executions/[executionId]/retry — Retry an execution */
+/** POST /api/workflows/executions/[executionId]/retry — Retry an execution.
+ *
+ * Multi-lead batch executions (those carrying per-lead items) retry ONLY
+ * the failed leads — completed leads are never re-executed (no duplicate
+ * outreach, no duplicate charges); legacy single-lead executions keep the
+ * engine's from-current-step retry. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ executionId: string }> }
@@ -18,7 +25,10 @@ export async function POST(
   return withAuth(request, async (user) => {
     try {
       const { executionId } = await params;
-      const result = await retryExecution(executionId, user.id);
+      const batch = await hasLeadItems(executionId);
+      const result = batch
+        ? await retryBatchExecution(executionId, user.id)
+        : await retryExecution(executionId, user.id);
 
       if (!result.success) {
         const status = result.error?.includes('not found') ? 404 : 400;

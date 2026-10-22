@@ -5,6 +5,7 @@
 
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
+import { getLeadCountsForExecutions } from '@/lib/workflow-execution-leads';
 import { executeAction, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
 import {
   checkExecutionLimit,
@@ -754,7 +755,11 @@ export async function processStep(
   executionId: string,
   step: ValidatedStep,
   context: ActionContext,
-  retryAttempt = 0
+  retryAttempt = 0,
+  /** Multi-lead batch runs tag each step log with the lead it executed
+   * for, so one execution's logs stay attributable per lead. Additive and
+   * optional — every existing caller's log shape is unchanged. */
+  leadLogContext?: { leadId?: string; leadName?: string }
 ): Promise<ProcessStepResult> {
   const startTime = Date.now();
 
@@ -791,7 +796,9 @@ export async function processStep(
         stepName: step.name,
         stepType: step.type,
         status: result.success ? 'success' : 'failed',
-        input: JSON.stringify(step.config),
+        input: leadLogContext
+          ? JSON.stringify({ ...step.config, __lead: leadLogContext })
+          : JSON.stringify(step.config),
         output: result.output ? JSON.stringify(result.output) : null,
         error: result.error || null,
         durationMs,
@@ -829,7 +836,9 @@ export async function processStep(
         stepName: step.name,
         stepType: step.type,
         status: 'failed',
-        input: JSON.stringify(step.config),
+        input: leadLogContext
+          ? JSON.stringify({ ...step.config, __lead: leadLogContext })
+          : JSON.stringify(step.config),
         error: error instanceof Error ? error.message : 'Step execution failed',
         durationMs,
         retryAttempt,
@@ -991,7 +1000,11 @@ export async function cancelExecution(
       return { success: false, error: 'Not authorized' };
     }
 
-    if (!['running', 'paused'].includes(execution.status)) {
+    // 'discovering' runs (the missing-niche discovery bridge) are also
+    // cancellable: the background continuation polls the execution status
+    // before charging or creating lead items, so a cancelled run stops
+    // before any step executes (and costs nothing).
+    if (!['running', 'paused', 'discovering'].includes(execution.status)) {
       return { success: false, error: `Cannot cancel execution in '${execution.status}' status` };
     }
 
@@ -1157,11 +1170,13 @@ export async function getExecutionHistory(
     dateTo?: string;
     page?: number;
     limit?: number;
+    /** Server-side search (workflow name or run error text). */
+    search?: string;
   }
 ): Promise<{ executions: Record<string, unknown>[]; total: number; page: number; totalPages: number }> {
   try {
-    const page = filters?.page || 1;
-    const limit = Math.min(filters?.limit || 20, 100);
+    const page = Math.max(1, filters?.page || 1);
+    const limit = Math.min(Math.max(1, filters?.limit || 20), 100);
     const offset = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
@@ -1175,6 +1190,16 @@ export async function getExecutionHistory(
       if (filters?.dateFrom) startedAt.gte = new Date(filters.dateFrom);
       if (filters?.dateTo) startedAt.lte = new Date(filters.dateTo);
       where.startedAt = startedAt;
+    }
+    // Server-side search: workflow name OR the run's recorded error text
+    // (SQLite `contains` is ASCII-case-insensitive — same behavior the
+    // leads list relies on). Composable with every other filter.
+    if (filters?.search && filters.search.trim()) {
+      const needle = filters.search.trim();
+      where.OR = [
+        { workflow: { name: { contains: needle } } },
+        { error: { contains: needle } },
+      ];
     }
 
     const [executions, total] = await Promise.all([
@@ -1190,25 +1215,41 @@ export async function getExecutionHistory(
       db.workflowExecution.count({ where }),
     ]);
 
+    // One extra grouped query attaches the per-run lead summary (batch
+    // executions) without N+1 — legacy single-lead rows simply omit it.
+    const leadCounts = await getLeadCountsForExecutions(
+      executions.map((e) => e.id)
+    );
+
     return {
-      executions: executions.map((e) => ({
-        id: e.id,
-        workflowId: e.workflowId,
-        workflowName: e.workflow.name,
-        triggerType: e.workflow.triggerType,
-        status: e.status,
-        currentStep: e.currentStep,
-        totalSteps: e.totalSteps,
-        startedAt: e.startedAt,
-        completedAt: e.completedAt,
-        error: e.error,
-        retryCount: e.retryCount,
-        deadLettered: e.deadLettered,
-        deadLetterReason: e.deadLetterReason,
-      })),
+      executions: executions.map((e) => {
+        const counts = leadCounts.get(e.id);
+        return {
+          id: e.id,
+          workflowId: e.workflowId,
+          workflowName: e.workflow.name,
+          triggerType: e.workflow.triggerType,
+          status: e.status,
+          currentStep: e.currentStep,
+          totalSteps: e.totalSteps,
+          startedAt: e.startedAt,
+          completedAt: e.completedAt,
+          durationMs: e.durationMs ?? (e.completedAt ? e.completedAt.getTime() - e.startedAt.getTime() : null),
+          error: e.error,
+          retryCount: e.retryCount,
+          deadLettered: e.deadLettered,
+          deadLetterReason: e.deadLetterReason,
+          ...(counts && counts.total > 0
+            ? {
+                leadCount: counts.total,
+                leadSummary: counts,
+              }
+            : {}),
+        };
+      }),
       total,
       page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.max(0, Math.ceil(total / limit)),
     };
   } catch (error) {
     console.error('[WorkflowEngine] Failed to get execution history:', error);
@@ -1228,6 +1269,7 @@ export async function getExecutionDetail(
       include: {
         workflow: { select: { name: true, triggerType: true, userId: true } },
         stepLogs: { orderBy: { createdAt: 'asc' } },
+        leadItems: { orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -1246,6 +1288,7 @@ export async function getExecutionDetail(
       totalSteps: execution.totalSteps,
       startedAt: execution.startedAt,
       completedAt: execution.completedAt,
+      durationMs: execution.durationMs ?? (execution.completedAt ? execution.completedAt.getTime() - execution.startedAt.getTime() : null),
       error: execution.error,
       retryCount: execution.retryCount,
       maxRetries: execution.maxRetries,
@@ -1256,6 +1299,22 @@ export async function getExecutionDetail(
       resumedAt: execution.resumedAt,
       triggerData: execution.triggerData ? JSON.parse(execution.triggerData) : null,
       triggerEvent: execution.triggerEvent ? JSON.parse(execution.triggerEvent) : null,
+      // Multi-lead batch runs: the per-lead child items (status, attempts,
+      // error, per-step summary) — legacy single-lead rows carry an empty
+      // array and their stepLogs remain the authoritative record.
+      leadItems: (execution.leadItems ?? []).map((item) => ({
+        id: item.id,
+        leadId: item.leadId,
+        leadName: item.leadName,
+        niche: item.niche,
+        status: item.status,
+        attempts: item.attempts,
+        error: item.error,
+        stepSummary: item.stepSummary ? JSON.parse(item.stepSummary) : null,
+        startedAt: item.startedAt,
+        completedAt: item.completedAt,
+        durationMs: item.durationMs,
+      })),
       stepLogs: execution.stepLogs.map((log) => ({
         id: log.id,
         stepName: log.stepName,

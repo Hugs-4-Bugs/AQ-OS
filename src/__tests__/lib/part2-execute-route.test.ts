@@ -28,10 +28,15 @@ const mocks = vi.hoisted(() => ({
   },
   db: {
     workflowDefinition: { findFirst: vi.fn(), findUnique: vi.fn() },
-    workflowExecution: { findMany: vi.fn() },
+    workflowExecution: { findMany: vi.fn(), findUnique: vi.fn() },
+    workflowExecutionLead: { findMany: vi.fn() },
     lead: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
   },
   executeWorkflow: vi.fn(),
+  executeWorkflowBatch: vi.fn(),
+  executeNicheRunWithDiscovery: vi.fn(),
+  isZaiProviderConfigured: vi.fn(),
+  getLeadCounts: vi.fn(),
   chargeWorkflowExecutionFee: vi.fn(),
   refundWorkflowExecutionFee: vi.fn(),
   resolveLeadForExecution: vi.fn(),
@@ -46,6 +51,15 @@ vi.mock('@/lib/entitlement-middleware', () => ({
   checkPlanEntitlement: vi.fn(async () => ({ allowed: true })),
 }));
 vi.mock('@/lib/workflow-engine', () => ({ executeWorkflow: mocks.executeWorkflow }));
+vi.mock('@/lib/workflow-batch', () => ({
+  executeWorkflowBatch: mocks.executeWorkflowBatch,
+  executeNicheRunWithDiscovery: mocks.executeNicheRunWithDiscovery,
+  isZaiProviderConfigured: mocks.isZaiProviderConfigured,
+}));
+vi.mock('@/lib/workflow-execution-leads', () => ({
+  getLeadCounts: mocks.getLeadCounts,
+  hasLeadItems: vi.fn(async () => false),
+}));
 vi.mock('@/lib/workflow-credits', () => ({
   chargeWorkflowExecutionFee: mocks.chargeWorkflowExecutionFee,
   refundWorkflowExecutionFee: mocks.refundWorkflowExecutionFee,
@@ -106,14 +120,41 @@ beforeEach(() => {
       status: 'running',
     }),
   );
+  // Multi-lead model: the route kicks ONE grouped batch execution whose
+  // per-lead items all complete.
+  mocks.executeWorkflowBatch.mockImplementation(
+    async (_wf: string, _user: string, opts: { leads: { id: string; businessName: string }[] }) => ({
+      executionId: 'exec_batch_1',
+      status: 'running',
+      leadCount: opts.leads.length,
+      stepsCompleted: 0,
+    }),
+  );
+  mocks.isZaiProviderConfigured.mockReturnValue(true);
+  mocks.executeNicheRunWithDiscovery.mockResolvedValue({ executionId: 'exec_disc_1', status: 'discovering' });
   mocks.chargeWorkflowExecutionFee.mockResolvedValue({ ok: true, alreadyProcessed: false, newBalance: 745 });
   mocks.refundWorkflowExecutionFee.mockResolvedValue({ refunded: true, newBalance: 750 });
-  // Small batches (≤50 leads) wait for the batch to settle: the poll
-  // reads final execution states — every kicked execution reports completed.
+  // Small batches (≤50 leads) wait for the ONE grouped execution to
+  // settle: the poll reads the execution row + its per-lead items.
   mocks.db.workflowExecution.findMany.mockImplementation(
     async ({ where }: { where: { id: { in: string[] } } }) =>
       (where.id.in ?? []).map((id) => ({ id, status: 'completed', error: null })),
   );
+  mocks.db.workflowExecution.findUnique.mockResolvedValue({
+    id: 'exec_batch_1', status: 'completed', error: null, currentStep: 4,
+  });
+  mocks.db.workflowExecutionLead.findMany.mockImplementation(
+    async ({ where }: { where: { executionId: string } }) => {
+      if (where.executionId !== 'exec_batch_1') return [];
+      return (mocks.executeWorkflowBatch.mock.calls[0]?.[2]?.leads ?? []).map((l: { id: string; businessName: string }) => ({
+        leadId: l.id, leadName: l.businessName, status: 'completed', error: null,
+      }));
+    },
+  );
+  mocks.getLeadCounts.mockImplementation(async () => {
+    const n = mocks.executeWorkflowBatch.mock.calls[0]?.[2]?.leads?.length ?? 0;
+    return { total: n, pending: 0, running: 0, completed: n, failed: 0, skipped: 0 };
+  });
   process.env.WORKFLOW_BATCH_SETTLE_MS = '50';
   process.env.WORKFLOW_BATCH_POLL_MS = '1';
   process.env.WORKFLOW_KICK_STAGGER_MS = '0';
@@ -150,9 +191,12 @@ describe('Part 2 — flat fee at the run-acceptance boundary (Tests B–E)', () 
     expect(params.source).toBe('MANUAL_WORKFLOW');
     expect(params.leadCount).toBe(count);
     expect(params.chargeKey).toBe(`wfexec-run:run_${count}`);
-    // One execution per lead still runs (the engine's own semantics) —
-    // but billing happened once, at acceptance.
-    expect(mocks.executeWorkflow).toHaveBeenCalledTimes(count);
+    // ONE grouped execution carries the whole lead set — the executions
+    // history shows ONE row for this run, never one per lead.
+    expect(mocks.executeWorkflowBatch).toHaveBeenCalledTimes(1);
+    const batchOpts = mocks.executeWorkflowBatch.mock.calls[0][2] as { leads: unknown[]; idempotencyKey: string };
+    expect(batchOpts.leads).toHaveLength(count);
+    expect(batchOpts.idempotencyKey).toBe(`batch_run_${count}`);
   });
 });
 
@@ -170,24 +214,39 @@ describe('Part 2 — Test F: rapid double-click replays the same run identity', 
     expect(mocks.chargeWorkflowExecutionFee).toHaveBeenCalledTimes(2);
     expect(new Set(chargeKeys()).size).toBe(1);
     expect(chargeKeys()[0]).toBe('wfexec-run:run_double_click');
-    // Per-lead engine keys are also identical across the replay — the
-    // engine's own idempotency then returns the existing executions.
-    const engineKeys = mocks.executeWorkflow.mock.calls.map((c) => c[3] as string);
-    expect(new Set(engineKeys).size).toBe(3); // one stable key per lead
+    // The batch idempotency key is identical across the replay — the
+    // coordinator's own idempotency then returns the SAME execution.
+    const batchKeys = mocks.executeWorkflowBatch.mock.calls.map(
+      (c) => (c[2] as { idempotencyKey: string }).idempotencyKey,
+    );
+    expect(batchKeys).toEqual(['batch_run_double_click', 'batch_run_double_click']);
   });
 });
 
-describe('Part 2 — Test I: NO_MATCHING_LEADS charges nothing', () => {
-  it('a niche target with zero matching leads → 400 NO_MATCHING_LEADS, zero charges, nothing executed', async () => {
+describe('Part 2 — Test I: a niche with no matching leads charges nothing upfront', () => {
+  it('zero matching leads → the discovery bridge starts (202 discovering) with ZERO upfront charges', async () => {
     mocks.db.lead.findMany.mockResolvedValue([]);
 
     const { status, json } = await run({ target: { mode: 'niche', niche: 'nonexistent' } });
 
-    expect(status).toBe(400);
-    expect(json.code).toBe('NO_MATCHING_LEADS');
-    expect(json.matchingLeadCount).toBe(0);
+    expect(status).toBe(202);
+    expect(json.status).toBe('discovering');
+    expect(json.creditsCharged).toBe(0);
     expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
+    expect(mocks.executeWorkflowBatch).not.toHaveBeenCalled();
     expect(mocks.executeWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('zero matching leads + unconfigured discovery provider → actionable 422, zero charges', async () => {
+    mocks.db.lead.findMany.mockResolvedValue([]);
+    mocks.isZaiProviderConfigured.mockReturnValue(false);
+
+    const { status, json } = await run({ target: { mode: 'niche', niche: 'nonexistent' } });
+
+    expect(status).toBe(422);
+    expect(json.code).toBe('DISCOVERY_PROVIDER_NOT_CONFIGURED');
+    expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
+    expect(mocks.executeNicheRunWithDiscovery).not.toHaveBeenCalled();
   });
 });
 
@@ -208,6 +267,7 @@ describe('Part 2 — Test J: invalid workflow charges nothing', () => {
     expect(json.code).toBe('WORKFLOW_INVALID');
     expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
     expect(mocks.executeWorkflow).not.toHaveBeenCalled();
+    expect(mocks.executeWorkflowBatch).not.toHaveBeenCalled();
   });
 });
 
@@ -225,14 +285,15 @@ describe('Part 2 — Test K: insufficient credits rejects the run before it star
     expect(json.balance).toBe(4);
     expect(json.fee).toBe(5);
     expect(mocks.executeWorkflow).not.toHaveBeenCalled();
+    expect(mocks.executeWorkflowBatch).not.toHaveBeenCalled();
     expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled(); // nothing was charged → nothing to refund
   });
 });
 
 describe('Part 2 — §21: reservation release when NOTHING starts', () => {
-  it('charge succeeds but zero executions are created → idempotent refund + RUN_START_FAILED', async () => {
+  it('charge succeeds but the grouped execution cannot be created → idempotent refund + RUN_START_FAILED', async () => {
     const ids = primeSelectedLeads(2);
-    mocks.executeWorkflow.mockRejectedValue(new Error('engine preflight exploded'));
+    mocks.executeWorkflowBatch.mockRejectedValue(new Error('batch preflight exploded'));
 
     const { status, json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_refund' } });
 
@@ -304,9 +365,9 @@ describe('Part 2 — charge ordering: every free rejection happens BEFORE the fe
 // ═══════════════════════════════════════════════════════════════════
 
 describe('Part 2 §21 (amended) — never-started batch fee release', () => {
-  it('ALL kicked executions fail at step 0 (webhook down) → ONE refund, response reports creditsCharged 0', async () => {
+  it('the grouped run fails with ZERO steps completed (webhook down for every lead) → the runner released the fee; response reports creditsCharged 0', async () => {
     const ids = primeSelectedLeads(3);
-    // Every execution settles as a 0-step pre-start failure — the exact
+    // The ONE execution settles as a 0-step pre-start failure — the exact
     // screenshot scenario ("Webhook call failed: fetch failed", 0/6 steps).
     mocks.db.workflowExecution.findMany.mockImplementation(
       async ({ where }: { where: { id: { in: string[] } } }) =>
@@ -317,31 +378,42 @@ describe('Part 2 §21 (amended) — never-started batch fee release', () => {
           currentStep: 0,
         })),
     );
+    mocks.db.workflowExecution.findUnique.mockResolvedValue({
+      id: 'exec_batch_1', status: 'failed', error: 'Webhook call failed: fetch failed', currentStep: 0,
+    });
+    mocks.db.workflowExecutionLead.findMany.mockResolvedValue(
+      ids.map((id) => ({ leadId: id, leadName: `Lead ${id}`, status: 'failed', error: 'fetch failed' })),
+    );
+    mocks.getLeadCounts.mockResolvedValue({ total: 3, pending: 0, running: 0, completed: 0, failed: 3, skipped: 0 });
 
     const { status, json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_never' } });
 
     expect(status).toBe(202);
     expect(json.status).toBe('failed');
-    // The run never actually started → fee released, honestly reported.
+    // The run never actually started → the batch runner released the fee
+    // (idempotently, before writing the terminal status); the response
+    // reports the reconciled state and the route does NOT issue a SECOND
+    // refund on top of the runner's.
     expect(json.creditsCharged).toBe(0);
     expect(json.creditsRefunded).toBe(true);
     expect(mocks.chargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
-    expect(mocks.refundWorkflowExecutionFee).toHaveBeenCalledTimes(1);
-    expect(mocks.refundWorkflowExecutionFee.mock.calls[0][0].chargeKey).toBe('wfexec-run:run_never');
-    expect(mocks.refundWorkflowExecutionFee.mock.calls[0][0].referenceId).toBe('run_never');
+    expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled();
   });
 
-  it('a MIXED batch (one execution completed real steps) keeps its fee — no refund', async () => {
+  it('a MIXED batch (some leads completed real steps) keeps its fee — no refund', async () => {
     const ids = primeSelectedLeads(2);
     mocks.db.workflowExecution.findMany.mockImplementation(
       async ({ where }: { where: { id: { in: string[] } } }) =>
-        (where.id.in ?? []).map((id, i) => ({
-          id,
-          status: i === 0 ? 'completed' : 'failed',
-          error: i === 0 ? null : 'Webhook call failed: fetch failed',
-          currentStep: i === 0 ? 2 : 0,
-        })),
+        (where.id.in ?? []).map((id) => ({ id, status: 'partial', error: null, currentStep: 2 })),
     );
+    mocks.db.workflowExecution.findUnique.mockResolvedValue({
+      id: 'exec_batch_1', status: 'partial', error: '1 of 2 leads failed.', currentStep: 2,
+    });
+    mocks.db.workflowExecutionLead.findMany.mockResolvedValue([
+      { leadId: ids[0], leadName: `Lead ${ids[0]}`, status: 'completed', error: null },
+      { leadId: ids[1], leadName: `Lead ${ids[1]}`, status: 'failed', error: 'fetch failed' },
+    ]);
+    mocks.getLeadCounts.mockResolvedValue({ total: 2, pending: 0, running: 0, completed: 1, failed: 1, skipped: 0 });
 
     const { status, json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_mixed' } });
 
@@ -352,12 +424,19 @@ describe('Part 2 §21 (amended) — never-started batch fee release', () => {
     expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled();
   });
 
-  it('still-running executions are NEVER refunded (conservative — the batch may still start)', async () => {
+  it('a still-running batch is NEVER refunded (conservative — the run may still start)', async () => {
     const ids = primeSelectedLeads(2);
     mocks.db.workflowExecution.findMany.mockImplementation(
       async ({ where }: { where: { id: { in: string[] } } }) =>
         (where.id.in ?? []).map((id) => ({ id, status: 'running', error: null, currentStep: 0 })),
     );
+    mocks.db.workflowExecution.findUnique.mockResolvedValue({
+      id: 'exec_batch_1', status: 'running', error: null, currentStep: 0,
+    });
+    mocks.db.workflowExecutionLead.findMany.mockResolvedValue(
+      ids.map((id) => ({ leadId: id, leadName: `Lead ${id}`, status: 'running', error: null })),
+    );
+    mocks.getLeadCounts.mockResolvedValue({ total: 2, pending: 0, running: 2, completed: 0, failed: 0, skipped: 0 });
 
     const { json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_pending' } });
 

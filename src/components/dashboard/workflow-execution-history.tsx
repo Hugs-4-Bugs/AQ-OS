@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 // ─── Local types (mirrors workflow domain models) ───────────────
 
-type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused' | 'dead_letter' | 'exhausted' | 'waiting_user_action' | 'retrying' | 'partial';
+type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused' | 'dead_letter' | 'exhausted' | 'waiting_user_action' | 'retrying' | 'partial' | 'discovering';
 
 interface WorkflowStepLog {
   id: string;
@@ -47,6 +47,17 @@ interface WorkflowExecution {
   createdAt?: string;
   triggerData?: Record<string, unknown>;
   isDeadLetter?: boolean;
+  /** Batch runs: how many leads this run targets. */
+  leadCount?: number;
+  /** Batch runs: per-status lead counters. */
+  leadSummary?: {
+    total?: number;
+    pending?: number;
+    running?: number;
+    completed?: number;
+    failed?: number;
+    skipped?: number;
+  };
   [key: string]: unknown;
 }
 
@@ -66,6 +77,10 @@ const STATUS_CONFIG: Record<ExecutionStatus, { color: string; icon: React.Elemen
   waiting_user_action: { color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', icon: Clock, label: 'Waiting for Leads' },
   retrying: { color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: Loader2, label: 'Retrying' },
   partial: { color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: AlertTriangle, label: 'Partially Succeeded' },
+  // Multi-lead execution model: the niche had no leads, so the run is
+  // discovering them first (the workflow continues automatically with
+  // the discovered, deduplicated leads).
+  discovering: { color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', icon: Loader2, label: 'Discovering Leads' },
 };
 
 const STEP_STATUS_COLORS: Record<string, string> = {
@@ -113,6 +128,7 @@ export default function WorkflowExecutionHistory() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [stepLogs, setStepLogs] = useState<Record<string, WorkflowStepLog[]>>({});
   const [logsLoading, setLogsLoading] = useState<Set<string>>(new Set());
@@ -135,6 +151,7 @@ export default function WorkflowExecutionHistory() {
       const items = (data.executions || data.data || []).map(parseExecution);
       setExecutions(items);
       setTotalPages(data.totalPages || Math.ceil((data.total || items.length) / limit) || 1);
+      setTotalItems(typeof data.total === 'number' ? data.total : items.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load executions');
     } finally {
@@ -273,6 +290,11 @@ export default function WorkflowExecutionHistory() {
                           <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5', statusConf.color)}>
                             {statusConf.label}
                           </Badge>
+                          {exec.leadCount != null && exec.leadCount > 0 && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-muted-foreground">
+                              {exec.leadCount} lead{exec.leadCount === 1 ? '' : 's'}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                           <span>Steps: {exec.currentStep}/{exec.totalSteps}</span>
@@ -280,21 +302,39 @@ export default function WorkflowExecutionHistory() {
                           <span>{formatRelativeTime(exec.startedAt || exec.createdAt)}</span>
                           {exec.retryCount > 0 && <span className="text-amber-500">Retries: {exec.retryCount}</span>}
                         </div>
+                        {exec.leadSummary && exec.leadSummary.total ? (
+                          <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              {exec.leadSummary.completed ?? 0} completed
+                            </span>
+                            {(exec.leadSummary.failed ?? 0) > 0 && (
+                              <span className="text-red-600 dark:text-red-400">{exec.leadSummary.failed} failed</span>
+                            )}
+                            {(exec.leadSummary.skipped ?? 0) > 0 && (
+                              <span className="text-slate-400">{exec.leadSummary.skipped} skipped</span>
+                            )}
+                            {(exec.leadSummary.pending ?? 0) + (exec.leadSummary.running ?? 0) > 0 && (
+                              <span className="text-amber-600 dark:text-amber-400">
+                                {(exec.leadSummary.pending ?? 0) + (exec.leadSummary.running ?? 0)} in progress
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        {exec.status === 'failed' && (
+                        {(exec.status === 'failed' || exec.status === 'exhausted' || exec.status === 'partial') && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
                             onClick={() => handleAction(exec.id, 'retry')}
                             disabled={actionLoading === exec.id + 'retry'}
-                            title="Retry"
+                            title={exec.status === 'partial' ? 'Retry failed leads' : 'Retry'}
                           >
                             {actionLoading === exec.id + 'retry' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
                           </Button>
                         )}
-                        {exec.status === 'running' && (
+                        {(exec.status === 'running' || exec.status === 'discovering') && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -403,7 +443,10 @@ export default function WorkflowExecutionHistory() {
       {/* Pagination */}
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
+          <p className="text-xs text-muted-foreground">
+            Page {page} of {totalPages}
+            {totalItems > 0 ? ` — ${totalItems} execution${totalItems === 1 ? '' : 's'}` : ''}
+          </p>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}>
               &larr;
