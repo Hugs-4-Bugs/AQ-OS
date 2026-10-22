@@ -49,7 +49,10 @@ export type AdapterErrorKind =
   | 'rate_limited'
   | 'api_error'
   | 'scrape_failed'
-  | 'no_results';
+  | 'no_results'
+  // Phase 7 — the five honest outcome states: targeting/ configuration
+  // problems are distinguished from provider failures.
+  | 'invalid_targeting';
 
 export interface AdapterError {
   kind: AdapterErrorKind;

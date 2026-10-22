@@ -20,6 +20,12 @@ import {
   normalizeCriteriaInput,
   EMPTY_CRITERIA,
 } from '@/lib/discovery/hard-criteria';
+import {
+  parseCountryList,
+  parseNicheList,
+  MAX_COUNTRIES_PER_JOB,
+  MAX_NICHES_PER_JOB,
+} from '@/lib/lead-discovery/normalization';
 
 const VALID_SOURCES: DiscoverySource[] = [
   'all',
@@ -32,17 +38,76 @@ export async function POST(request: NextRequest) {
     try {
       const body = await request.json();
 
-      const { niche, country, city, source, maxResults, requirements } = body;
+      const { niche, niches, country, countries, city, source, maxResults, requirements } = body;
 
-      // Validate required fields
-      if (!niche || typeof niche !== 'string' || niche.trim().length === 0) {
+      // ── PHASE 8/9 — TARGETING INPUTS (multi-niche / multi-country) ───
+      // Accepted shapes for BOTH niche and country:
+      //   • a single string ("hospital") — the historical form;
+      //   • a comma/semicolon-separated string ("hospital, dentist") — now
+      //     split and executed SERVER-SIDE so every caller gets identical
+      //     semantics (the UI's client-side split remains, harmlessly);
+      //   • an explicit string[] ("niches": ["hospital", "dentist"] /
+      //     "countries": ["India", "United States"]) — arrays take precedence.
+      //
+      // Validation is HONEST (invalid-targeting state): unusable input or
+      // caps exceeded → 400 with an actionable message. A specific country
+      // is NEVER silently replaced by Worldwide and niches are never
+      // silently truncated.
+      const invalidTargeting = (message: string) =>
+        NextResponse.json(
+          { error: message, code: 'INVALID_DISCOVERY_TARGETING' },
+          { status: 400 }
+        );
+
+      const nicheInput =
+        Array.isArray(niches) && niches.length > 0
+          ? niches
+          : typeof niche === 'string' && niche.trim().length > 0
+            ? niche
+            : null;
+      if (nicheInput === null) {
         return NextResponse.json({ error: 'niche is required' }, { status: 400 });
+      }
+      const parsedNiches = parseNicheList(nicheInput as string | string[]);
+      if (parsedNiches.niches.length === 0) {
+        return invalidTargeting(
+          'niche is required — the provided value contained no usable niche'
+        );
+      }
+      if (parsedNiches.truncated) {
+        return invalidTargeting(
+          `Too many niches — the per-job maximum is ${MAX_NICHES_PER_JOB}. Split the run or remove niches.`
+        );
       }
 
       // Country is OPTIONAL (worldwide search, spec §5) — but when present
-      // it must be a non-empty string.
-      if (country !== undefined && country !== null && (typeof country !== 'string' || !country.trim())) {
-        return NextResponse.json({ error: 'country must be a non-empty string when provided' }, { status: 400 });
+      // it must resolve to at least one non-empty value, and it is never
+      // silently substituted.
+      const countryInput =
+        Array.isArray(countries) && countries.length > 0
+          ? countries
+          : country !== undefined && country !== null
+            ? country
+            : null;
+      let parsedCountries = { countries: [] as string[], truncated: false };
+      if (countryInput !== null) {
+        if (typeof countryInput === 'string' && !countryInput.trim()) {
+          return NextResponse.json(
+            { error: 'country must be a non-empty string when provided' },
+            { status: 400 }
+          );
+        }
+        parsedCountries = parseCountryList(countryInput as string | string[]);
+        if (parsedCountries.countries.length === 0) {
+          return invalidTargeting(
+            'country must contain at least one non-empty country name when provided'
+          );
+        }
+        if (parsedCountries.truncated) {
+          return invalidTargeting(
+            `Too many countries — the per-job maximum is ${MAX_COUNTRIES_PER_JOB}. Split the run or remove countries.`
+          );
+        }
       }
 
       if (!source || !VALID_SOURCES.includes(source)) {
@@ -52,9 +117,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Sanitize inputs
-      const sanitizedNiche = niche.trim().substring(0, 200);
-      const sanitizedCountry = country && typeof country === 'string' ? country.trim().substring(0, 100) : undefined;
+      // Sanitize inputs (display forms keep the raw joined input; the PARSED
+      // plan is what executes and what leads are attributed to).
+      const sanitizedNiche = parsedNiches.niches.join(', ').substring(0, 200);
+      const sanitizedCountry =
+        parsedCountries.countries.length > 0
+          ? parsedCountries.countries.join(', ').substring(0, 200)
+          : undefined;
       const sanitizedCity = city ? String(city).trim().substring(0, 100) : undefined;
       // Upper bound 500 — the effective ceiling stays RESULTS_PER_JOB (200
       // unless env-overridden) inside the service; the route bound only
@@ -230,7 +299,10 @@ export async function POST(request: NextRequest) {
       // Start discovery job
       const result = await startDiscoveryJob(user.id, {
         niche: sanitizedNiche,
+        niches: parsedNiches.niches,
         country: sanitizedCountry || undefined,
+        countries:
+          parsedCountries.countries.length > 0 ? parsedCountries.countries : undefined,
         city: sanitizedCity,
         source,
         maxResults: effectiveMaxResults,

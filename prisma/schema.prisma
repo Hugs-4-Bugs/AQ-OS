@@ -689,6 +689,12 @@ model Lead {
   discoveredVia      String?
   verificationStatus String?
 
+  // Phase 9 — run metadata: the discovery job that produced this lead
+  // (additive, nullable; legacy rows read as null). Together with
+  // discoveredVia (the exact query) and niche/country/city (the targeting
+  // combo context) every discovered lead keeps its full provenance.
+  discoveryJobId     String?
+
   isActive  Boolean   @default(true)
   deletedAt DateTime?
 
@@ -723,6 +729,8 @@ model Lead {
   @@index([businessName])
   @@index([userId, stage])
   @@index([userId, createdAt])
+  // Phase 9 — run-scoped lead lookups ("all leads from job X").
+  @@index([discoveryJobId])
 }
 
 model LeadAnalysis {
@@ -2019,6 +2027,15 @@ model DiscoveryJob {
   // campaignId?, campaignNiche?, instructions? }. Persisted so historical jobs
   // remain explainable. Nullable + additive (legacy jobs read as no context).
   contextJson String?
+  // Phase 7 — terminal outcome classification, one of: success | partial |
+  // zero_results | provider_failure | invalid_targeting. Nullable + additive:
+  // legacy rows read as null and are derived from status/counts for display.
+  outcome String?
+  // Phase 8/9 — parsed targeting plan for THIS run: { niches: string[],
+  // countries: string[], city: string|null, combos: number }. Multi-niche and
+  // multi-country runs stay explainable long after the input form is gone.
+  // Nullable + additive (legacy jobs read as null).
+  targetingJson String?
 
   @@index([userId])
   @@index([status])

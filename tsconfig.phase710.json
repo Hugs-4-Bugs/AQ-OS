@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [],
+  "files": [
+    "next-env.d.ts",
+    "src/lib/lead-discovery/normalization.ts",
+    "src/lib/lead-dedup-service.ts",
+    "src/lib/lead-discovery-service.ts",
+    "src/lib/lead-discovery/source-adapters.ts",
+    "src/app/api/leads/discover/route.ts",
+    "src/components/dashboard/discover-tab.tsx"
+  ]
+}

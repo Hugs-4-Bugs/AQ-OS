@@ -9,7 +9,11 @@
 import { db } from '@/lib/db';
 import { deductCredits, refundCredits, CREDIT_COSTS } from '@/lib/credit-service';
 import { logAuditEvent } from '@/lib/lead-audit';
-import { checkDuplicate } from '@/lib/lead-dedup-service';
+import {
+  buildDedupIndex,
+  addIndexEntry,
+  findDuplicateMatch,
+} from '@/lib/lead-dedup-service';
 import { createNotificationOnce } from '@/lib/notification-service';
 import ZAI from 'z-ai-web-dev-sdk';
 import {
@@ -22,6 +26,14 @@ import {
 } from '@/lib/lead-discovery/source-adapters';
 import { normalizeCountryName } from '@/lib/countries';
 import { deriveImportVerificationStatus } from '@/lib/lead-discovery/verification';
+import {
+  normalizeLeadFields,
+  normalizeUrl,
+  parseCountryList,
+  parseNicheList,
+  MAX_COUNTRIES_PER_JOB,
+  MAX_NICHES_PER_JOB,
+} from '@/lib/lead-discovery/normalization';
 import {
   type HardCriteria,
   type HardRejectReason,
@@ -83,6 +95,17 @@ export interface DiscoveryParams {
    * so historical runs stay explainable. Legacy callers omit it → null.
    */
   context?: DiscoveryJobContext | null;
+  /**
+   * Phase 8/9 — explicit multi-niche input from programmatic callers
+   * (arrays take precedence over the comma-split of `niche`). The UI and
+   * Autopilot send single niches and are unaffected.
+   */
+  niches?: string[];
+  /**
+   * Phase 9 — explicit multi-country input (arrays take precedence over
+   * the comma-split of `country`). Empty/absent = Worldwide.
+   */
+  countries?: string[];
 }
 
 /** Resolved context/campaign override attached to a discovery run. */
@@ -125,6 +148,14 @@ export interface DiscoveredLead {
   employeeCount?: number | null;
   /** Provider employee RANGE when no exact count exists (e.g. "51-100", "10000+"). */
   employeeRange?: string | null;
+  /**
+   * Phase 8 — every niche whose query independently surfaced this SAME
+   * business within the run ("hospital" and "dentist" both returning ABC
+   * Hospital). The PRIMARY attribution stays in `niche` (first query that
+   * found it); secondary attributions are preserved here and persisted in
+   * the lead's notes so nothing is silently collapsed.
+   */
+  matchedNiches?: string[];
 }
 
 export interface DiscoveryJobResult {
@@ -152,6 +183,10 @@ export interface DiscoveryJobStatus {
   createdAt: Date;
   updatedAt: Date;
   resultData?: DiscoveredLead[];
+  /** Phase 7 — terminal outcome classification (null on legacy rows). */
+  outcome?: DiscoveryOutcome | null;
+  /** Phase 8/9 — parsed targeting plan persisted for explainability. */
+  targetingJson?: string | null;
 }
 
 // ===== Z-AI API PACING =====
@@ -233,6 +268,119 @@ export function searchQueryBudget(maxResults: number | undefined): number {
   return Math.min(MIN_SEARCH_QUERIES + Math.ceil(extra / 3), MAX_SEARCH_QUERIES);
 }
 
+// ===== PHASE 8/9 — TARGETING PLAN =====
+
+/**
+ * One independent targeting combination executed by a discovery job:
+ * a single niche × a single country (or Worldwide) × the optional city.
+ * Every query built for the combo carries exactly this context, and every
+ * lead the combo produces is attributed to it.
+ */
+export interface TargetingCombo {
+  niche: string;
+  /** undefined = Worldwide (no country constraint for this combo). */
+  country?: string;
+  city?: string;
+  /** Human-readable context, e.g. "hospital in India, Mumbai". */
+  label: string;
+}
+
+export type DiscoveryOutcome =
+  | 'success'
+  | 'partial'
+  | 'zero_results'
+  | 'provider_failure'
+  | 'invalid_targeting';
+
+/** Parsed targeting plan for a job (Phases 8–9). */
+export interface TargetingPlan {
+  combos: TargetingCombo[];
+  niches: string[];
+  /** Empty array = Worldwide. */
+  countries: string[];
+  city?: string;
+  /** True when the input was rejected (no usable niches, or caps exceeded). */
+  invalid: boolean;
+  invalidReason?: string;
+}
+
+/**
+ * Parse the job's targeting inputs into the full independent combination
+ * matrix: every niche × every country (Worldwide when none), with the
+ * optional city applied to each combo. Comma-separated strings and
+ * explicit arrays are both accepted; arrays win. Order is preserved so
+ * execution order is deterministic.
+ *
+ * REJECTION (invalid) — never silent substitution:
+ *   • no usable niche after parsing (e.g. " , , ")
+ *   • more than MAX_NICHES_PER_JOB niches or MAX_COUNTRIES_PER_JOB countries
+ *   • more than TARGETING_COMBO_CAP niche×country combinations
+ */
+export const TARGETING_COMBO_CAP = 40;
+
+export function buildTargetingPlan(params: DiscoveryParams): TargetingPlan {
+  const nicheSource = Array.isArray(params.niches) && params.niches.length > 0 ? params.niches : params.niche;
+  const parsedNiches = parseNicheList(nicheSource as string | string[]);
+  const countrySource =
+    Array.isArray(params.countries) && params.countries.length > 0 ? params.countries : params.country;
+  const parsedCountries = parseCountryList(countrySource as string | string[] | undefined);
+  const city = params.city && typeof params.city === 'string' ? params.city.trim().slice(0, 100) || undefined : undefined;
+
+  if (parsedNiches.niches.length === 0) {
+    return {
+      combos: [], niches: [], countries: parsedCountries.countries, city,
+      invalid: true,
+      invalidReason: 'No usable niche was provided — enter at least one niche.',
+    };
+  }
+  if (parsedNiches.truncated) {
+    return {
+      combos: [], niches: parsedNiches.niches, countries: parsedCountries.countries, city,
+      invalid: true,
+      invalidReason: `Too many niches (${parsedNiches.niches.length}+ parsed) — the per-job maximum is ${MAX_NICHES_PER_JOB}.`,
+    };
+  }
+  if (parsedCountries.truncated) {
+    return {
+      combos: [], niches: parsedNiches.niches, countries: parsedCountries.countries, city,
+      invalid: true,
+      invalidReason: `Too many countries (${parsedCountries.countries.length}+ parsed) — the per-job maximum is ${MAX_COUNTRIES_PER_JOB}.`,
+    };
+  }
+
+  // Canonical country names where confidently resolvable (raw value kept
+  // otherwise — never a guess, never silent Worldwide).
+  const countries = parsedCountries.countries.map((c) => normalizeCountryName(c) || c);
+
+  const comboCount = parsedNiches.niches.length * (countries.length || 1);
+  if (comboCount > TARGETING_COMBO_CAP) {
+    return {
+      combos: [], niches: parsedNiches.niches, countries, city,
+      invalid: true,
+      invalidReason:
+        `Too many targeting combinations (${parsedNiches.niches.length} niche(s) × ${countries.length || 1} country selection(s) = ${comboCount}) — the per-job maximum is ${TARGETING_COMBO_CAP}. Split the run or reduce the selection.`,
+    };
+  }
+
+  const combos: TargetingCombo[] = [];
+  for (const niche of parsedNiches.niches) {
+    if (countries.length === 0) {
+      combos.push({
+        niche,
+        city,
+        label: [niche, city].filter(Boolean).join(' in ').replace(/\s+/g, ' ') + (city ? '' : ' (worldwide)'),
+      });
+    } else {
+      for (const country of countries) {
+        const location = [city, country].filter(Boolean).join(', ');
+        combos.push({ niche, country, city, label: `${niche} in ${location}`.replace(/\s+/g, ' ') });
+      }
+    }
+  }
+
+  return { combos, niches: parsedNiches.niches, countries, city, invalid: false };
+}
+
 /**
  * Error thrown by discoverFromSource carrying the provider's structured
  * error kind — so the job processor can distinguish a genuine zero-result
@@ -263,11 +411,32 @@ export async function startDiscoveryJob(
 ): Promise<DiscoveryJobResult> {
   // Validate params — country is intentionally optional (worldwide search,
   // spec §5: "Support worldwide searches without requiring a country")
-  if (!params.niche || !params.source) {
+  if (!params.niche && !(Array.isArray(params.niches) && params.niches.length > 0)) {
     return {
       jobId: '',
       status: 'failed',
       message: 'Missing required fields: niche, source',
+    };
+  }
+  if (!params.source) {
+    return {
+      jobId: '',
+      status: 'failed',
+      message: 'Missing required fields: niche, source',
+    };
+  }
+
+  // ── PHASE 8/9 — TARGETING PLAN VALIDATION (invalid-targeting state) ──
+  // Multi-niche / multi-country inputs are parsed HERE, server-side, so
+  // every caller (UI, Autopilot, direct API) gets identical semantics:
+  // each niche and each country executes as its own targeting combo and
+  // leads are attributed to the combo that actually produced them.
+  const plan = buildTargetingPlan(params);
+  if (plan.invalid) {
+    return {
+      jobId: '',
+      status: 'failed',
+      message: plan.invalidReason || 'Invalid discovery targeting configuration.',
     };
   }
 
@@ -314,8 +483,9 @@ export async function startDiscoveryJob(
       userId,
       status: 'pending',
       source: params.source,
-      niche: params.niche,
-      country: params.country || '', // '' = worldwide (column is NOT NULL)
+      // Raw input as typed (display); the PARSED plan lives in targetingJson.
+      niche: params.niche || plan.niches.join(', '),
+      country: params.country || plan.countries.join(', ') || '', // '' = worldwide (column is NOT NULL)
       city: params.city || null,
       totalFound: 0,
       imported: 0,
@@ -326,6 +496,14 @@ export async function startDiscoveryJob(
       contextJson: params.context
         ? JSON.stringify(params.context)
         : null,
+      // Phase 8/9 — parsed targeting plan (niches/countries/city + combo
+      // labels) so multi-niche and multi-country runs stay explainable.
+      targetingJson: JSON.stringify({
+        niches: plan.niches,
+        countries: plan.countries,
+        city: plan.city ?? null,
+        combos: plan.combos.length,
+      }),
     },
   });
 
@@ -382,6 +560,8 @@ export async function getDiscoveryJobStatus(jobId: string, userId: string): Prom
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     resultData,
+    outcome: ((job as { outcome?: string | null }).outcome ?? null) as DiscoveryOutcome | null,
+    targetingJson: (job as { targetingJson?: string | null }).targetingJson ?? null,
   };
 }
 
@@ -423,9 +603,60 @@ export async function listDiscoveryJobs(
       completedAt: job.completedAt,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
+      outcome: ((job as { outcome?: string | null }).outcome ?? null) as DiscoveryOutcome | null,
     })),
     total,
   };
+}
+
+// ===== PER-USER IMPORT SERIALIZATION (Phase 10, race safety) =====
+
+/**
+ * In-process per-user import locks. Discovery jobs run concurrently
+ * (MAX_CONCURRENT_JOBS), and two jobs importing for the SAME account could
+ * race the dedup check → create the same business twice. The import
+ * section of every job runs under this lock so those critical sections
+ * are strictly serialized per user. (Single-process deployment; SQLite's
+ * single-writer nature covers cross-process races at the database level.)
+ */
+const userImportLocks = new Map<string, Promise<unknown>>();
+
+async function withUserImportLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const previous = userImportLocks.get(userId) ?? Promise.resolve();
+  const run = previous.catch(() => undefined).then(fn);
+  userImportLocks.set(userId, run);
+  try {
+    return await run;
+  } finally {
+    if (userImportLocks.get(userId) === run) {
+      userImportLocks.delete(userId);
+    }
+  }
+}
+
+/**
+ * Identity keys of a discovered lead — the SAME key set used by the
+ * cross-combo/cross-query withholding and the run-level dedup (website
+ * domain-root, email, normalized business name). A business sharing ANY
+ * key with an already-collected lead is one identity, not two.
+ */
+function identityKeysOf(lead: DiscoveredLead): string[] {
+  const keys: string[] = [];
+  if (lead.website) {
+    keys.push(
+      'site:' +
+        lead.website
+          .toLowerCase()
+          .replace(/^https?:\/\//, '')
+          .replace(/^www\./, '')
+          .replace(/\/.*/, '')
+    );
+  }
+  if (lead.email) keys.push('email:' + lead.email.toLowerCase());
+  if (lead.businessName) {
+    keys.push('name:' + lead.businessName.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  }
+  return keys;
 }
 
 // ===== ASYNC JOB PROCESSOR =====
@@ -457,55 +688,218 @@ export async function processDiscoveryJob(
       throw new Error('Failed to initialize AI SDK. Check API configuration.');
     }
 
-    // Step 1a: Gather discovered leads — single source, or parallel fan-out across
-    // all configured sources when the user selected "all" (merged + deduplicated).
+    // Step 1a: PHASE 8/9 — TARGETING PLAN EXECUTION.
+    // The job's targeting input (multi-niche / multi-country / optional
+    // city) is parsed server-side into independent combos. Each combo runs
+    // its own query set with its own targeting context, and every lead it
+    // returns is attributed to THAT combo (niche/country/city/query) —
+    // never to the raw comma-joined input. Combos run sequentially (the
+    // shared SDK pacer keeps provider rate limits respected); one shared
+    // identity map deduplicates across combos and records secondary niche
+    // attributions instead of importing the same business twice.
+    const plan = buildTargetingPlan(params);
+    if (plan.invalid) {
+      // Defensive: startDiscoveryJob already rejects invalid plans before
+      // creating the job row. Reaching here means a stale/raced job.
+      throw new DiscoverySourceError(
+        plan.invalidReason || 'Invalid discovery targeting configuration.',
+        'invalid_targeting'
+      );
+    }
+
     let discoveredLeads: DiscoveredLead[] = [];
-    let skippedSourceNotes: string[] = [];
+    const skippedSourceNotes: string[] = [];
+    const comboFailureNotes: string[] = [];
+    let queriesRun = 0;
+    let queriesFailed = 0;
+    let malformedPayloads = 0;
+    let combosCompleted = 0;
+    let combosFailed = 0;
+    let lastComboError: unknown = null;
 
-    if (params.source === 'all') {
-      // Per-source quota. Previously maxResults/7 — which starved each
-      // source: a 70-lead "all" job gave ai_search a 10-result target,
-      // capping the whole run at ~20 unique leads when the other sources
-      // are unconfigured (only ai_search works without provider API keys).
-      // Each source now searches the FULL target — the merged, deduplicated
-      // set is bounded to exactly maxResults below, so there is no
-      // over-delivery and no overcharging regardless of how many sources
-      // are configured.
-      const perSourceLimit = Math.min(Math.max(maxResults, 10), RESULTS_PER_JOB);
+    // Shared cross-combo identity state (Phases 8/10): one business
+    // identity = one lead. The first combo to find a business owns its
+    // primary niche attribution; later sightings (same or OTHER niche,
+    // same or OTHER country) fill only empty fields in-memory and append
+    // the secondary niche to `matchedNiches`.
+    const seenIdentityKeys = new Set<string>();
+    const keyLead = new Map<string, DiscoveredLead>();
+    const keyNiche = new Map<string, string>();
 
-      console.log(`[DiscoveryService] "all" mode: fanning out to ${ALL_DISCOVERY_SOURCES.length} sources in parallel (per-source limit ${perSourceLimit})`);
+    // Global query-budget safety valve (env-overridable): with many thin
+    // combos the per-combo budgets alone could still fan out very widely;
+    // this bounds the worst case honestly — unexecuted combos are recorded
+    // as skipped and the job completes as PARTIAL, never silently dropped.
+    const MAX_TOTAL_QUERIES =
+      parseInt(process.env.DISCOVERY_MAX_TOTAL_QUERIES || '', 10) ||
+      Math.max(searchQueryBudget(maxResults) * 4, 40);
 
-      const settled = await Promise.allSettled(
-        ALL_DISCOVERY_SOURCES.map((src) =>
-          discoverFromSource(zai, { ...params, source: src, maxResults: perSourceLimit }, perSourceLimit)
-        )
+    for (let ci = 0; ci < plan.combos.length; ci++) {
+      const combo = plan.combos[ci];
+
+      // Fair dynamic budget: the remaining target split across the
+      // remaining combos (floor of 5 so every combo gets a real chance).
+      // Rollover is automatic — earlier combos that under-deliver leave
+      // budget for the later ones.
+      const combosRemaining = plan.combos.length - ci;
+      const comboBudget = Math.max(
+        5,
+        Math.ceil((maxResults - discoveredLeads.length) / combosRemaining)
       );
 
-      // Merge fulfilled results; each lead keeps its own per-source tag.
-      // Rejected sources are recorded as honest skip notes (config errors,
-      // rate limits, API failures) — they never produce substitute data.
-      for (let i = 0; i < settled.length; i++) {
-        const outcome = settled[i];
-        if (outcome.status === 'fulfilled') {
-          discoveredLeads.push(...outcome.value);
-        } else {
-          const src = ALL_DISCOVERY_SOURCES[i];
-          const reason = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
-          console.error(`[DiscoveryService] "all" mode: source ${src} skipped:`, reason);
-          skippedSourceNotes.push(`${src}: ${reason}`);
-        }
+      if (ci > 0 && queriesRun >= MAX_TOTAL_QUERIES) {
+        comboFailureNotes.push(
+          `global query budget exhausted after ${queriesRun} queries — ${plan.combos.length - ci} targeting combo(s) not launched`
+        );
+        console.warn(`[DiscoveryService] global query budget (${MAX_TOTAL_QUERIES}) reached — stopping combo execution`);
+        break;
       }
 
-      const beforeDedupe = discoveredLeads.length;
-      discoveredLeads = dedupeDiscoveredLeads(discoveredLeads);
-      // Keep the merged set bounded to EXACTLY the requested target so
-      // credit usage stays predictable (single-source runs already bound
-      // at maxResults via sanitizeDiscoveredLeads — this matches them).
-      discoveredLeads = discoveredLeads.slice(0, Math.max(maxResults, 1));
+      const comboParams: DiscoveryParams = {
+        ...params,
+        niche: combo.niche,
+        country: combo.country,
+        city: combo.city,
+        niches: undefined,
+        countries: undefined,
+        maxResults: comboBudget,
+      };
 
-      console.log(`[DiscoveryService] "all" mode: merged ${beforeDedupe} results → ${discoveredLeads.length} unique leads`);
-    } else {
-      discoveredLeads = await discoverFromSource(zai, params, maxResults);
+      console.log(
+        `[DiscoveryService] targeting combo ${ci + 1}/${plan.combos.length}: ${combo.label} (budget ${comboBudget}, ${discoveredLeads.length}/${maxResults} collected)`
+      );
+
+      try {
+        let comboLeads: DiscoveredLead[] = [];
+
+        if (params.source === 'all') {
+          // Per-source quota (see note below) — each source searches the
+          // FULL combo target; the merged, deduplicated set is bounded to
+          // exactly comboBudget, so there is no over-delivery and no
+          // overcharging regardless of how many sources are configured.
+          const perSourceLimit = Math.min(Math.max(comboBudget, 10), RESULTS_PER_JOB);
+
+          const settled = await Promise.allSettled(
+            ALL_DISCOVERY_SOURCES.map((src) =>
+              discoverFromSource(zai, { ...comboParams, source: src, maxResults: perSourceLimit }, perSourceLimit)
+            )
+          );
+
+          for (let i = 0; i < settled.length; i++) {
+            const outcome = settled[i];
+            if (outcome.status === 'fulfilled') {
+              comboLeads.push(...outcome.value.leads);
+              queriesRun += outcome.value.queriesRun;
+              queriesFailed += outcome.value.queriesFailed;
+              malformedPayloads += outcome.value.malformedPayloads;
+            } else {
+              const src = ALL_DISCOVERY_SOURCES[i];
+              const reason = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+              console.error(`[DiscoveryService] "all" mode: source ${src} skipped:`, reason);
+              skippedSourceNotes.push(`${combo.label} — ${src}: ${reason}`);
+            }
+          }
+
+          const beforeDedupe = comboLeads.length;
+          comboLeads = dedupeDiscoveredLeads(comboLeads);
+          comboLeads = comboLeads.slice(0, Math.max(comboBudget, 1));
+          console.log(`[DiscoveryService] "all" mode combo "${combo.label}": merged ${beforeDedupe} results → ${comboLeads.length} unique leads`);
+        } else {
+          const result = await discoverFromSource(zai, comboParams, comboBudget);
+          comboLeads = result.leads;
+          queriesRun += result.queriesRun;
+          queriesFailed += result.queriesFailed;
+          malformedPayloads += result.malformedPayloads;
+        }
+
+        combosCompleted++;
+
+        // Stamp each lead with its combo's targeting context (fill-if-empty
+        // — provider-stated values always win) so persistence never falls
+        // back to a joined multi-value label and never substitutes
+        // Worldwide for the combo's actual country.
+        for (const lead of comboLeads) {
+          lead.niche = lead.niche || combo.niche;
+          lead.country = lead.country || combo.country;
+          lead.city = lead.city || combo.city;
+          lead.discoveredVia = lead.discoveredVia || combo.label;
+        }
+
+        // Cross-combo identity dedup + secondary niche attribution.
+        const fresh: DiscoveredLead[] = [];
+        for (const lead of comboLeads) {
+          const keys = identityKeysOf(lead);
+          if (keys.length === 0) {
+            fresh.push(lead);
+            continue;
+          }
+          const clashKey = keys.find((k) => seenIdentityKeys.has(k));
+          if (!clashKey) {
+            for (const k of keys) {
+              seenIdentityKeys.add(k);
+              keyLead.set(k, lead);
+              keyNiche.set(k, combo.niche);
+            }
+            fresh.push(lead);
+            continue;
+          }
+
+          // Same business identity re-sighted by another query/niche/country
+          // (Phase 8/§10): merge into the kept lead — fill ONLY empty
+          // fields, never overwrite existing evidence.
+          const kept = keyLead.get(clashKey);
+          if (kept) {
+            kept.email = kept.email || lead.email;
+            kept.phone = kept.phone || lead.phone;
+            kept.website = kept.website || lead.website;
+            kept.sourceUrl = kept.sourceUrl || lead.sourceUrl;
+            kept.ownerName = kept.ownerName || lead.ownerName;
+            kept.city = kept.city || lead.city;
+            kept.country = kept.country || lead.country;
+            if (kept.employeeCount == null && lead.employeeCount != null) {
+              kept.employeeCount = lead.employeeCount;
+            }
+            if (!kept.employeeRange && lead.employeeRange) {
+              kept.employeeRange = lead.employeeRange;
+            }
+            // Secondary niche attribution: the OTHER niche's query
+            // independently surfaced the same business — preserve it.
+            const firstNiche = keyNiche.get(clashKey);
+            if (firstNiche && combo.niche.toLowerCase() !== firstNiche.toLowerCase()) {
+              kept.matchedNiches = Array.from(
+                new Set([...(kept.matchedNiches || []), firstNiche, combo.niche])
+              );
+            }
+            // Independent-source corroboration within the run (§7.2).
+            if (lead.source && kept.source && kept.source !== lead.source) {
+              kept.corroborated = true;
+            }
+          }
+        }
+        discoveredLeads.push(...fresh);
+
+        if (discoveredLeads.length >= maxResults) break;
+      } catch (comboErr) {
+        // A failing combo must not crash the run: remaining combos still
+        // execute and already-collected valid results are retained — the
+        // job completes as PARTIAL with the failure recorded.
+        combosFailed++;
+        lastComboError = comboErr;
+        const reason = comboErr instanceof Error ? comboErr.message : String(comboErr);
+        console.error(`[DiscoveryService] targeting combo "${combo.label}" failed:`, reason);
+        comboFailureNotes.push(`${combo.label}: ${reason}`);
+      }
+    }
+
+    console.log(
+      `[DiscoveryService] targeting plan executed: ${combosCompleted}/${plan.combos.length} combos completed, ${discoveredLeads.length} unique leads, ${queriesRun} queries (${queriesFailed} failed, ${malformedPayloads} malformed)`
+    );
+
+    // Preserve the pre-Phase-8 single-combo failure semantics EXACTLY: a
+    // job where EVERY combo failed rethrows the provider error so the
+    // outer handler classifies provider-failure vs. genuine zero-results.
+    if (combosCompleted === 0 && combosFailed > 0) {
+      throw lastComboError;
     }
 
     // Step 1b: EMPLOYEE-COUNT ENRICHMENT (only when an employee constraint
@@ -580,139 +974,230 @@ export async function processDiscoveryJob(
       console.warn('[DiscoveryService] website probe step failed (continuing without probe evidence):', probeErr instanceof Error ? probeErr.message : probeErr);
     }
 
-    for (const leadData of discoveredLeads) {
-      try {
-        // Check for duplicates
-        const dupCheck = await checkDuplicate(userId, {
-          businessName: leadData.businessName,
-          website: leadData.website,
-          email: leadData.email,
-          phone: leadData.phone,
-        });
+    // ── PHASE 10 — RUN-SCOPED DEDUP INDEX ──────────────────────────────
+    // Load the user/org's active leads ONCE per run and match every
+    // candidate in-memory through the shared priority core (domain →
+    // email → phone → normalized name → name+location). The index grows
+    // as leads import, so same-run duplicates (different queries, niches,
+    // countries, or providers) resolve without per-lead database reads.
+    // The whole import section — INCLUDING the index load — runs under a
+    // per-user in-process lock, so two concurrent discovery jobs for the
+    // same account can never race each other into creating the same
+    // business twice (loading the index before the lock would leave a
+    // check-then-create window between jobs).
+    const importStats = await withUserImportLock(userId, async () => {
+      const dedupIndex = await buildDedupIndex(userId);
 
-        if (dupCheck.isDuplicate) {
-          duplicates++;
-          // Preserve useful information from the duplicate listing instead of
-          // discarding it (spec §8): fill empty fields + provenance. Non-
-          // destructive, idempotent, never overwrites existing values.
-          if (dupCheck.duplicateOf) {
-            await mergeFillDuplicate(dupCheck.duplicateOf, leadData);
-          }
-          continue;
-        }
+      let importedLocal = 0;
+      let duplicatesLocal = 0;
+      let failedLocal = 0;
+      let partiallyVerifiedLocal = 0;
+      let unverifiedLocal = 0;
 
-        // Deduct credit for this lead. Idempotency key = job + position,
-        // so a retried/replayed job can NEVER double-charge the same slot
-        // (spec §12: usage accounting must be idempotent).
-        const creditResult = await deductCredits({
-          userId,
-          action: 'lead_discovery',
-          cost: CREDIT_COST_PER_LEAD,
-          referenceId: jobId,
-          idempotencyKey: `${jobId}:lead:${imported}`,
-        });
-
-        if (!creditResult.success) {
-          failedCount++;
-          continue;
-        }
-
-        // Canonical country (spec §5 normalization) — falls back to the raw
-        // value when it cannot be confidently resolved, never guesses.
-        const rawCountry = leadData.country || params.country;
-        const canonicalCountry = normalizeCountryName(rawCountry) || rawCountry;
-
-        // Honest import-time verification label: corroboration by 2+
-        // independent sources during this run → partially_verified;
-        // everything else → unverified (discovered, not yet assessed).
-        const importVerificationStatus = deriveImportVerificationStatus(!!leadData.corroborated);
-        if (importVerificationStatus === 'partially_verified') partiallyVerifiedCount++;
-        else unverifiedCount++;
-
-        // Website probe evidence for THIS lead (when its domain was probed)
-        let websiteStatus: string | null = null;
-        let probeNote = '';
-        if (leadData.website) {
-          let host: string | null = null;
-          try {
-            host = new URL(leadData.website).host.replace(/^www\./, '');
-          } catch {
-            host = null;
-          }
-          const probe = host ? websiteProbes.get(host) : undefined;
-          if (probe?.reachable) {
-            // The site answered — that is real, time-stamped evidence.
-            websiteStatus = 'VERIFIED';
-            probeNote = `Website responded to discovery reachability check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}).`;
-          } else if (probe) {
-            probeNote = `Website did not respond during discovery check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}) — may be a temporary or regional issue, not yet verified.`;
-          }
-        }
-
+      for (const leadData of discoveredLeads) {
         try {
-          // Create lead — tag with the lead's own source so "all" mode shows the real origin
-          await db.lead.create({
-            data: {
-              userId,
-              orgId: orgId || null,
-              businessName: leadData.businessName,
-              ownerName: leadData.ownerName || null,
-              website: leadData.website || null,
-              email: leadData.email || null,
-              phone: leadData.phone || null,
-              whatsapp: leadData.whatsapp || null,
-              linkedin: leadData.linkedin || null,
-              instagram: leadData.instagram || null,
-              facebook: leadData.facebook || null,
-              googleMapsListing: leadData.googleMapsListing || null,
-              reviews: leadData.reviews || null,
-              rating: leadData.rating || null,
-              city: leadData.city || params.city || null,
-              country: canonicalCountry,
-              niche: leadData.niche || params.niche,
-              source: leadData.source || params.source,
-              stage: 'discovered',
-              hasWebsite: !!leadData.website,
-              employeeCount:
-                typeof leadData.employeeCount === 'number' && Number.isFinite(leadData.employeeCount)
-                  ? Math.round(leadData.employeeCount)
-                  : null,
-              employeeRange: leadData.employeeRange || null,
-              sourceUrl: leadData.sourceUrl || null,
-              discoveredVia: leadData.discoveredVia || null,
-              verificationStatus: importVerificationStatus,
-              notes: [leadData.address ? `Address: ${leadData.address}` : '', probeNote]
-                .filter(Boolean)
-                .join(' ') || null,
-              websiteStatus,
-            },
+          // Check for duplicates — Phase 10 priority core, location-aware.
+          const dupCheck = findDuplicateMatch(dedupIndex, {
+            businessName: leadData.businessName,
+            website: leadData.website,
+            email: leadData.email,
+            phone: leadData.phone,
+            city: leadData.city || params.city,
+            country: leadData.country,
           });
-        } catch (createErr) {
-          // The lead was NOT saved — the credit must not be kept (spec §12:
-          // never charge for a failed operation). Idempotent deduction means
-          // the refund plus key makes retries safe.
-          failedCount++;
-          console.error(`[DiscoveryService] Failed to import lead — refunding credit:`, createErr);
-          await refundCredits({
-            userId,
-            amount: CREDIT_COST_PER_LEAD,
-            originalAction: 'lead_discovery',
-            referenceId: jobId,
-            // Same slot identity as the deduction — a retried/replayed job can
-            // never double-refund the same lead slot (one charge ↔ one refund).
-            idempotencyKey: `${jobId}:lead:${imported}:refund`,
-          }).catch((refundErr) => {
-            console.error('[DiscoveryService] Credit refund failed (ledger keeps reference):', refundErr);
-          });
-          continue;
-        }
 
-        imported++;
-      } catch (leadErr) {
-        failedCount++;
-        console.error(`[DiscoveryService] Failed to import lead:`, leadErr);
+          if (dupCheck.isDuplicate) {
+            duplicatesLocal++;
+            // Preserve useful information from the duplicate listing instead of
+            // discarding it (spec §8): fill empty fields + provenance. Non-
+            // destructive, idempotent, never overwrites existing values.
+            if (dupCheck.duplicateOf) {
+              await mergeFillDuplicate(dupCheck.duplicateOf, leadData);
+            }
+            continue;
+          }
+
+          // Deduct credit for this lead. Idempotency key = job + position,
+          // so a retried/replayed job can NEVER double-charge the same slot
+          // (spec §12: usage accounting must be idempotent).
+          const creditResult = await deductCredits({
+            userId,
+            action: 'lead_discovery',
+            cost: CREDIT_COST_PER_LEAD,
+            referenceId: jobId,
+            idempotencyKey: `${jobId}:lead:${importedLocal}`,
+          });
+
+          if (!creditResult.success) {
+            failedLocal++;
+            continue;
+          }
+
+          // Canonical country (spec §5 normalization) — falls back to the raw
+          // value when it cannot be confidently resolved, never guesses.
+          // NOTE (Phase 9): the lead's own country comes from its TARGETING
+          // COMBO (stamped during collection), never the job-level joined
+          // multi-country string; worldwide combos keep null here.
+          const rawCountry = leadData.country || '';
+          const canonicalCountry = rawCountry ? normalizeCountryName(rawCountry) || rawCountry : null;
+
+          // Honest import-time verification label: corroboration by 2+
+          // independent sources during this run → partially_verified;
+          // everything else → unverified (discovered, not yet assessed).
+          const importVerificationStatus = deriveImportVerificationStatus(!!leadData.corroborated);
+          if (importVerificationStatus === 'partially_verified') partiallyVerifiedLocal++;
+          else unverifiedLocal++;
+
+          // Website probe evidence for THIS lead (when its domain was probed)
+          let websiteStatus: string | null = null;
+          let probeNote = '';
+          if (leadData.website) {
+            let host: string | null = null;
+            try {
+              host = new URL(leadData.website).host.replace(/^www\./, '');
+            } catch {
+              host = null;
+            }
+            const probe = host ? websiteProbes.get(host) : undefined;
+            if (probe?.reachable) {
+              // The site answered — that is real, time-stamped evidence.
+              websiteStatus = 'VERIFIED';
+              probeNote = `Website responded to discovery reachability check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}).`;
+            } else if (probe) {
+              probeNote = `Website did not respond during discovery check on ${new Date().toISOString().slice(0, 10)} (${probe.detail}) — may be a temporary or regional issue, not yet verified.`;
+            }
+          }
+
+          // Phase 8 — secondary niche attributions are preserved in notes so
+          // a business found by BOTH the "hospital" and "dentist" queries
+          // keeps the full, honest attribution trail.
+          const nichesNote =
+            leadData.matchedNiches && leadData.matchedNiches.length > 1
+              ? `Niches matched: ${Array.from(new Set(leadData.matchedNiches)).join(', ')}.`
+              : '';
+
+          try {
+            // Create lead — tag with the lead's own source so "all" mode shows the real origin
+            const createdLead = await db.lead.create({
+              data: {
+                userId,
+                orgId: orgId || null,
+                businessName: leadData.businessName,
+                ownerName: leadData.ownerName || null,
+                website: leadData.website || null,
+                email: leadData.email || null,
+                phone: leadData.phone || null,
+                whatsapp: leadData.whatsapp || null,
+                linkedin: leadData.linkedin || null,
+                instagram: leadData.instagram || null,
+                facebook: leadData.facebook || null,
+                googleMapsListing: leadData.googleMapsListing || null,
+                reviews: leadData.reviews || null,
+                rating: leadData.rating || null,
+                city: leadData.city || params.city || null,
+                country: canonicalCountry,
+                niche: leadData.niche || plan.niches[0] || params.niche,
+                source: leadData.source || params.source,
+                stage: 'discovered',
+                hasWebsite: !!leadData.website,
+                employeeCount:
+                  typeof leadData.employeeCount === 'number' && Number.isFinite(leadData.employeeCount)
+                    ? Math.round(leadData.employeeCount)
+                    : null,
+                employeeRange: leadData.employeeRange || null,
+                sourceUrl: leadData.sourceUrl || null,
+                discoveredVia: leadData.discoveredVia || null,
+                verificationStatus: importVerificationStatus,
+                // Phase 9 — run metadata: every discovered lead links back to
+                // the job that produced it (provenance/audit trail).
+                discoveryJobId: jobId,
+                notes: [
+                  leadData.address ? `Address: ${leadData.address}` : '',
+                  probeNote,
+                  nichesNote,
+                ]
+                  .filter(Boolean)
+                  .join(' ') || null,
+                websiteStatus,
+              },
+            });
+
+            // The new lead joins the run's dedup index immediately so later
+            // candidates in THIS run (and any job serialized behind the same
+            // per-user lock) resolve to it instead of double-importing.
+            addIndexEntry(dedupIndex, {
+              id: createdLead.id,
+              businessName: createdLead.businessName,
+              email: createdLead.email,
+              website: createdLead.website,
+              phone: createdLead.phone,
+              city: createdLead.city,
+              country: createdLead.country,
+            });
+          } catch (createErr) {
+            // The lead was NOT saved — the credit must not be kept (spec §12:
+            // never charge for a failed operation). Idempotent deduction means
+            // the refund plus key makes retries safe.
+            failedLocal++;
+            console.error(`[DiscoveryService] Failed to import lead — refunding credit:`, createErr);
+            await refundCredits({
+              userId,
+              amount: CREDIT_COST_PER_LEAD,
+              originalAction: 'lead_discovery',
+              referenceId: jobId,
+              // Same slot identity as the deduction — a retried/replayed job can
+              // never double-refund the same lead slot (one charge ↔ one refund).
+              idempotencyKey: `${jobId}:lead:${importedLocal}:refund`,
+            }).catch((refundErr) => {
+              console.error('[DiscoveryService] Credit refund failed (ledger keeps reference):', refundErr);
+            });
+            continue;
+          }
+
+          importedLocal++;
+        } catch (leadErr) {
+          failedLocal++;
+          console.error(`[DiscoveryService] Failed to import lead:`, leadErr);
+        }
       }
-    }
+
+      return {
+        imported: importedLocal,
+        duplicates: duplicatesLocal,
+        failed: failedLocal,
+        partiallyVerified: partiallyVerifiedLocal,
+        unverified: unverifiedLocal,
+      };
+    });
+
+    imported = importStats.imported;
+    duplicates = importStats.duplicates;
+    failedCount = importStats.failed;
+    partiallyVerifiedCount = importStats.partiallyVerified;
+    unverifiedCount = importStats.unverified;
+
+    // ── PHASE 7 — TERMINAL OUTCOME CLASSIFICATION ───────────────────
+    // Five honest states: success / partial / zero_results /
+    // provider_failure / invalid_targeting. Any sub-job failure (queries,
+    // "all"-mode sources, targeting combos, malformed provider payloads)
+    // makes the run PARTIAL — valid results retained, nothing silently
+    // dropped, nothing invented — regardless of how many results landed.
+    // A clean run with no failures and no results is the only honest
+    // zero_results.
+    const hadSubJobFailures =
+      queriesFailed > 0 ||
+      malformedPayloads > 0 ||
+      skippedSourceNotes.length > 0 ||
+      combosFailed > 0 ||
+      comboFailureNotes.length > 0;
+    const outcome: DiscoveryOutcome =
+      discoveredLeads.length > 0
+        ? hadSubJobFailures
+          ? 'partial'
+          : 'success'
+        : hadSubJobFailures
+          ? 'partial'
+          : 'zero_results';
 
     // Update job as completed — filteredOut records honest rejection counts
     await db.discoveryJob.update({
@@ -726,6 +1211,7 @@ export async function processDiscoveryJob(
         filteredOut,
         resultData: JSON.stringify(discoveredLeads.slice(0, 100)), // Store up to 100 results
         completedAt: new Date(),
+        outcome,
       },
     });
 
@@ -737,6 +1223,17 @@ export async function processDiscoveryJob(
       imported,
       duplicates,
       failed: failedCount,
+      outcome,
+      targeting: {
+        niches: plan.niches,
+        countries: plan.countries,
+        city: plan.city ?? null,
+        combosCompleted,
+        combosFailed,
+        queriesRun,
+        queriesFailed,
+        malformedPayloads,
+      },
       verificationTally: {
         partially_verified: partiallyVerifiedCount,
         unverified: unverifiedCount,
@@ -758,17 +1255,23 @@ export async function processDiscoveryJob(
         hardCriteria && filterReasons.size > 0
           ? Array.from(filterReasons.entries()).slice(0, 3).map(([r, n]) => `${n} ${describeRejectReason(r)}`)
           : [],
-      skippedSourceFragments: skippedSourceNotes.map((n) => n.split(':')[0].trim()).filter(Boolean),
+      skippedSourceFragments: [...skippedSourceNotes, ...comboFailureNotes]
+        .map((n) => n.split(':')[0].trim())
+        .filter(Boolean),
     });
     await createNotificationOnce({
       userId,
       type: 'discovery_completed',
-      title: 'Lead discovery completed',
+      title:
+        outcome === 'partial'
+          ? 'Lead discovery completed (partial)'
+          : 'Lead discovery completed',
       message: summaryMessage,
       actionUrl: imported > 0 ? '/business-ai/leads' : '/business-ai/discover',
       metadata: {
         jobId,
         source: params.source,
+        outcome,
         totalFound: discoveredLeads.length,
         imported,
         duplicates,
@@ -783,7 +1286,7 @@ export async function processDiscoveryJob(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    // ══ HONEST OUTCOME CLASSIFICATION (spec §3.4) ═════════════════
+    // ══ HONEST OUTCOME CLASSIFICATION (spec §3.4 / Phase 7) ═════════
     // A provider that answered "no results" is NOT a failure. Blanket-
     // failing genuine zero-result searches is exactly what produced the
     // old misleading "No suitable leads found" behavior.
@@ -800,6 +1303,7 @@ export async function processDiscoveryJob(
           filteredOut: 0,
           errorMessage: reason,
           completedAt: new Date(),
+          outcome: 'zero_results',
         },
       });
 
@@ -825,6 +1329,11 @@ export async function processDiscoveryJob(
 
     // Provider failure / rate limit / infrastructure error — job failed,
     // with a truthful, actionable message (retry window when known).
+    // Invalid targeting (defensive path) is classified distinctly.
+    const outcome: DiscoveryOutcome =
+      error instanceof DiscoverySourceError && error.kind === 'invalid_targeting'
+        ? 'invalid_targeting'
+        : 'provider_failure';
     const friendlyMessage =
       error instanceof DiscoverySourceError && error.kind === 'rate_limited'
         ? `${errorMessage}${error.retryAfterMinutes ? ` (retry in ~${error.retryAfterMinutes} min)` : ''}`
@@ -837,6 +1346,7 @@ export async function processDiscoveryJob(
         status: 'failed',
         errorMessage: friendlyMessage,
         completedAt: new Date(),
+        outcome,
       },
     });
 
@@ -865,6 +1375,17 @@ export async function processDiscoveryJob(
 
 // ===== SEARCH QUERY BUILDER =====
 
+/** Per-source execution outcome with Phase 7 reliability stats. */
+interface SourceRunOutcome {
+  leads: DiscoveredLead[];
+  /** Search queries actually executed against the provider. */
+  queriesRun: number;
+  /** Queries that threw (network/API errors) — feeds the partial state. */
+  queriesFailed: number;
+  /** Queries whose provider payload was not a usable result array. */
+  malformedPayloads: number;
+}
+
 /**
  * REAL-DATA-ONLY dispatcher for one source.
  *  - ai_search        → built-in AI web search (existing z-ai flow, real results)
@@ -878,13 +1399,16 @@ async function discoverFromSource(
   zai: ZAI,
   params: DiscoveryParams,
   maxResults: number
-): Promise<DiscoveredLead[]> {
+): Promise<SourceRunOutcome> {
   if (params.source === 'ai_search') {
-    return sanitizeDiscoveredLeads(
-      await searchSourceLeads(zai, params, maxResults),
-      params,
-      maxResults
-    );
+    const run = await searchSourceLeads(zai, params, maxResults);
+    const leads = sanitizeDiscoveredLeads(run.leads, params, maxResults);
+    return {
+      leads,
+      queriesRun: run.queriesRun,
+      queriesFailed: run.queriesFailed,
+      malformedPayloads: run.malformedPayloads,
+    };
   }
 
   const searchLocation = [params.city, params.country].filter(Boolean).join(', ');
@@ -906,7 +1430,12 @@ async function discoverFromSource(
     );
   }
 
-  return sanitizeDiscoveredLeads(result.leads, params, maxResults);
+  return {
+    leads: sanitizeDiscoveredLeads(result.leads, params, maxResults),
+    queriesRun: 0,
+    queriesFailed: 0,
+    malformedPayloads: 0,
+  };
 }
 
 /**
@@ -946,7 +1475,11 @@ export function sanitizeDiscoveredLeads(
     : null;
 
   for (const lead of leads) {
-    const name = (lead.businessName || '').trim();
+    // Phase 7 — canonical field normalization for EVERY source (adapters,
+    // AI search, everything): consistent URLs/emails/phones/rating.
+    const candidate = normalizeLeadFields({ ...lead }) as unknown as DiscoveredLead;
+
+    const name = (candidate.businessName || '').trim();
     if (!name || name.length < 2) continue;
 
     // Malformed identity guard: a "business name" that is actually a URL,
@@ -966,21 +1499,22 @@ export function sanitizeDiscoveredLeads(
     // Geography contradiction: the candidate EXPLICITLY states a country
     // that is different from the requested one. When either side cannot be
     // confidently canonicalized, the check is skipped (never guesses).
-    if (requestedCountry && lead.country) {
-      const candidateCountry = normalizeCountryName(lead.country)?.toLowerCase() || null;
+    if (requestedCountry && candidate.country) {
+      const candidateCountry = normalizeCountryName(candidate.country)?.toLowerCase() || null;
       if (candidateCountry && candidateCountry !== requestedCountry) {
         continue;
       }
     }
 
-    const key = `${name.toLowerCase()}|${(lead.phone || lead.website || lead.city || '').toLowerCase()}`;
+    const key = `${name.toLowerCase()}|${(candidate.phone || candidate.website || candidate.city || '').toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
     out.push({
-      ...lead,
+      ...candidate,
       businessName: name,
-      source: lead.source || params.source,
+      niche: candidate.niche || params.niche,
+      source: candidate.source || params.source,
     });
 
     if (out.length >= maxResults) break;
@@ -1018,6 +1552,11 @@ function rankVerifiedLeads(leads: DiscoveredLead[]): DiscoveredLead[] {
  * again changes nothing. Preserves the duplicate listing's provenance in
  * notes and upgrades verification when the second sighting comes from a
  * DIFFERENT source (independent corroboration, spec §7.2).
+ *
+ * Phase 8/10 — the provenance note also records WHICH niche's query
+ * re-surfaced the business ("hospital" lead re-sighted by the "dentist"
+ * query), so multi-niche attribution survives cross-run deduplication
+ * without ever relabeling the existing lead.
  */
 async function mergeFillDuplicate(leadId: string, incoming: DiscoveredLead): Promise<void> {
   try {
@@ -1054,16 +1593,23 @@ async function mergeFillDuplicate(leadId: string, incoming: DiscoveredLead): Pro
     }
 
     const mergedSomething = Object.keys(data).length > 0;
-    if (!mergedSomething) return;
 
-    // Bounded provenance note (never overwrite the user's own notes)
-    const provenance = `Re-sighted via ${incoming.source}${incoming.sourceUrl ? ` — ${incoming.sourceUrl}` : ''}; merged non-conflicting fields only.`;
+    // Bounded provenance note (never overwrite the user's own notes):
+    // records the re-sighting's niche/query attribution (Phase 8) — the
+    // existing lead's own niche label is NEVER changed.
+    const nicheBit =
+      incoming.niche && existing.niche && incoming.niche.toLowerCase() !== existing.niche.toLowerCase()
+        ? ` (niche: ${incoming.niche})`
+        : incoming.niche && !existing.niche
+          ? ` (niche: ${incoming.niche})`
+          : '';
+    const provenance = `Re-sighted via ${incoming.source}${nicheBit}${incoming.discoveredVia ? ` — query: ${incoming.discoveredVia.slice(0, 160)}` : incoming.sourceUrl ? ` — ${incoming.sourceUrl}` : ''}; merged non-conflicting fields only.`;
     const currentNotes = existing.notes || '';
-    data.notes = (currentNotes ? `${currentNotes} | ` : '') + provenance;
-    if ((data.notes as string).length > 2000) {
-      data.notes = (data.notes as string).slice(-2000);
-    }
+    const nextNotes = (currentNotes ? `${currentNotes} | ` : '') + provenance;
+    data.notes = nextNotes.length > 2000 ? nextNotes.slice(-2000) : nextNotes;
 
+    // Even when no FIELD merged, the attribution provenance is itself new
+    // information worth preserving (a niche re-sighting is a real signal).
     await db.lead.update({ where: { id: leadId }, data });
   } catch (mergeErr) {
     // Merge-fill is best-effort: the duplicate is still counted, never fatal
@@ -1243,11 +1789,13 @@ async function enrichLeadEvidence(
 
   // One evidence search per candidate. All SDK calls go through the shared
   // job-wide pacer (pacedZaiCall), which spaces calls out and retries 429s.
+  // Phase 8: the query uses the LEAD's own niche (its combo attribution),
+  // never a job-level joined multi-niche string.
   async function searchEvidence(lead: DiscoveredLead): Promise<Array<{ name?: string; url?: string; snippet?: string }>> {
-    const query = `"${lead.businessName}" ${params.niche} official website employees company size headcount`;
+    const query = `"${lead.businessName}" ${lead.niche || params.niche} official website employees company size headcount`;
     try {
-      const res = await pacedZaiCall(() => zai.functions.invoke('web_search', { query, num: 5 }));
-      return Array.isArray(res) ? res : [];
+      const res: unknown = await pacedZaiCall(() => zai.functions.invoke('web_search', { query, num: 5 }));
+      return Array.isArray(res) ? (res as Array<{ name?: string; url?: string; snippet?: string }>) : [];
     } catch (err) {
       console.error(`[DiscoveryService] evidence search failed for "${lead.businessName}":`, err instanceof Error ? err.message : err);
       return [];
@@ -1445,14 +1993,19 @@ async function generateSubLocalities(
 
 /**
  * Run web-search + LLM extraction for ONE source. Used directly for single-source
- * jobs and per-source inside the "all" parallel fan-out.
+ * jobs and per-source inside the "all" parallel fan-out. Returns Phase 7
+ * reliability stats alongside the leads so the job processor can classify
+ * success vs. partial (query failures, malformed provider payloads).
  */
 async function searchSourceLeads(
   zai: ZAI,
   params: DiscoveryParams,
   maxResults: number
-): Promise<DiscoveredLead[]> {
+): Promise<SourceRunOutcome> {
   const discoveredLeads: DiscoveredLead[] = [];
+  let queriesRun = 0;
+  let queriesFailed = 0;
+  let malformedPayloads = 0;
   // Deterministic query plan (base + synonyms + directory + extra phrasings),
   // budget-scaled to the requested target by buildSearchQueries itself.
   const searchQueries = buildSearchQueries(params);
@@ -1489,8 +2042,33 @@ async function searchSourceLeads(
   // last-mile queries of raw material. Output volume is bounded instead by
   // the per-query extraction cap (maxLeads) and the loop's unique-count
   // stop condition below — over-requesting a page costs nothing.
+  //
+  // PHASE 7 — malformed provider payloads must never crash the run: the
+  // raw SDK value is validated and coerced HERE. A non-array payload, or
+  // entries that are not string-shaped objects, counts as a MALFORMED
+  // query (feeds the partial outcome) and yields zero results for that
+  // query — the remaining queries and their valid results are retained.
   async function searchOnce(query: string): Promise<Array<{ url: string; name: string; snippet: string }>> {
-    return pacedZaiCall(() => zai.functions.invoke('web_search', { query, num: 20 }));
+    const raw: unknown = await pacedZaiCall(() => zai.functions.invoke('web_search', { query, num: 20 }));
+    if (!Array.isArray(raw)) {
+      malformedPayloads++;
+      console.warn(
+        `[DiscoveryService] malformed web_search payload for "${query}" (expected array, got ${typeof raw}) — query counted as malformed, run continues`
+      );
+      return [];
+    }
+    return raw
+      .filter(
+        (item): item is { url: string; name: string; snippet: string } =>
+          !!item && typeof item === 'object' &&
+          typeof (item as { url?: unknown }).url === 'string' &&
+          typeof (item as { name?: unknown }).name === 'string'
+      )
+      .map((item) => ({
+        url: item.url,
+        name: item.name,
+        snippet: typeof item.snippet === 'string' ? item.snippet : '',
+      }));
   }
 
   // UNIQUE-IDENTITY TRACKING. The loop's stop condition must count UNIQUE
@@ -1504,18 +2082,7 @@ async function searchSourceLeads(
   // would be discarded by sanitizeDiscoveredLeads anyway, and skipping them
   // early keeps discoveredLeads.length == unique-so-far, which makes the
   // loop budget, the extraction cap, and the final target all agree.
-  const seenIdentityKeys = new Set<string>();
-  const identityKeysOf = (lead: DiscoveredLead): string[] => {
-    const keys: string[] = [];
-    if (lead.website) {
-      keys.push('site:' + lead.website.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*/, ''));
-    }
-    if (lead.email) keys.push('email:' + lead.email.toLowerCase());
-    if (lead.businessName) {
-      keys.push('name:' + lead.businessName.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    }
-    return keys;
-  };
+  const localSeenIdentityKeys = new Set<string>();
 
   for (let qi = 0; qi < searchQueries.length; qi++) {
     const query = searchQueries[qi];
@@ -1524,6 +2091,7 @@ async function searchSourceLeads(
 
     try {
       // Web search
+      queriesRun++;
       const searchResults = await searchOnce(query);
 
       console.log(`[DiscoveryService] "${query}" → ${searchResults.length} search results`);
@@ -1567,8 +2135,8 @@ async function searchSourceLeads(
       const freshLeads = leadsFromResults.filter((l) => {
         const keys = identityKeysOf(l);
         if (keys.length === 0) return true; // no identity fields — let sanitize judge
-        const isDuplicate = keys.some((k) => seenIdentityKeys.has(k));
-        for (const k of keys) seenIdentityKeys.add(k);
+        const isDuplicate = keys.some((k) => localSeenIdentityKeys.has(k));
+        for (const k of keys) localSeenIdentityKeys.add(k);
         return !isDuplicate;
       });
       if (freshLeads.length < leadsFromResults.length) {
@@ -1580,12 +2148,13 @@ async function searchSourceLeads(
         ...freshLeads.map((l) => ({ ...l, discoveredVia: l.discoveredVia ?? query }))
       );
     } catch (searchErr) {
+      queriesFailed++;
       console.error(`[DiscoveryService] Search query failed: "${query}"`, searchErr);
-      // Continue with next query
+      // Continue with next query — partial results are retained (Phase 7).
     }
   }
 
-  return discoveredLeads;
+  return { leads: discoveredLeads, queriesRun, queriesFailed, malformedPayloads };
 }
 
 /**
@@ -1954,36 +2523,44 @@ Maximum ${maxLeads} results.`;
 
     if (!Array.isArray(parsed)) return [];
 
-    // Validate and normalize each lead
+    // Validate and normalize each lead — Phase 7 shared normalization: the
+    // SAME canonical transforms (URLs, emails, phones, rating clamps) apply
+    // to every provider's output, so downstream dedup/import logic can rely
+    // on consistent field shapes. `niche` keeps THIS query's niche — the
+    // Phase 8 attribution fix: the lead's niche is the niche whose query
+    // actually produced it, never the job-level comma-joined input.
     const normalized = parsed
       .filter((lead: Record<string, unknown>) => lead.businessName && typeof lead.businessName === 'string')
       .slice(0, maxLeads)
-      .map((lead: Record<string, unknown>) => ({
-        businessName: String(lead.businessName).trim(),
-        ownerName: lead.ownerName ? String(lead.ownerName).trim() : undefined,
-        website: lead.website ? normalizeUrl(String(lead.website)) : undefined,
-        email: lead.email ? String(lead.email).trim().toLowerCase() : undefined,
-        phone: lead.phone ? String(lead.phone).trim() : undefined,
-        whatsapp: lead.whatsapp ? String(lead.whatsapp).trim() : undefined,
-        linkedin: lead.linkedin ? normalizeUrl(String(lead.linkedin)) : undefined,
-        instagram: lead.instagram ? normalizeUrl(String(lead.instagram)) : undefined,
-        facebook: lead.facebook ? normalizeUrl(String(lead.facebook)) : undefined,
-        googleMapsListing: lead.googleMapsListing ? normalizeUrl(String(lead.googleMapsListing)) : undefined,
-        reviews: lead.reviews ? String(lead.reviews).trim() : undefined,
-        rating: typeof lead.rating === 'number' ? lead.rating : undefined,
-        employeeCount:
-          typeof lead.employeeCount === 'number' && Number.isFinite(lead.employeeCount) && lead.employeeCount >= 0
-            ? Math.round(lead.employeeCount)
-            : null,
-        employeeRange:
-          typeof lead.employeeRange === 'string' && lead.employeeRange.trim()
-            ? lead.employeeRange.trim().slice(0, 40)
-            : null,
-        city: lead.city ? String(lead.city).trim() : undefined,
-        country: lead.country ? String(lead.country).trim() : undefined,
-        niche: params.niche,
-        source: params.source,
-      }));
+      .map((lead: Record<string, unknown>) =>
+        normalizeLeadFields({
+          businessName: String(lead.businessName).trim(),
+          ownerName: lead.ownerName ? String(lead.ownerName).trim() : undefined,
+          website: lead.website ? String(lead.website).trim() : undefined,
+          email: lead.email ? String(lead.email).trim() : undefined,
+          phone: lead.phone ? String(lead.phone).trim() : undefined,
+          whatsapp: lead.whatsapp ? String(lead.whatsapp).trim() : undefined,
+          linkedin: lead.linkedin ? String(lead.linkedin).trim() : undefined,
+          instagram: lead.instagram ? String(lead.instagram).trim() : undefined,
+          facebook: lead.facebook ? String(lead.facebook).trim() : undefined,
+          googleMapsListing: lead.googleMapsListing ? String(lead.googleMapsListing).trim() : undefined,
+          reviews: lead.reviews ? String(lead.reviews).trim() : undefined,
+          rating: typeof lead.rating === 'number' ? lead.rating : undefined,
+          employeeCount:
+            typeof lead.employeeCount === 'number' && Number.isFinite(lead.employeeCount) && lead.employeeCount >= 0
+              ? Math.round(lead.employeeCount)
+              : null,
+          employeeRange:
+            typeof lead.employeeRange === 'string' && lead.employeeRange.trim()
+              ? lead.employeeRange.trim().slice(0, 40)
+              : null,
+          city: lead.city ? String(lead.city).trim() : undefined,
+          country: lead.country ? String(lead.country).trim() : undefined,
+          address: lead.address ? String(lead.address).trim().slice(0, 300) : undefined,
+          niche: params.niche,
+          source: params.source,
+        }) as unknown as DiscoveredLead
+      );
     console.log(`[DiscoveryService] LLM extraction: ${normalized.length} candidates (raw ${Array.isArray(parsed) ? parsed.length : 0}, cap ${maxLeads})`);
     if (normalized.length === 0) {
       // Observability: an empty extraction must be distinguishable from an
@@ -1998,11 +2575,5 @@ Maximum ${maxLeads} results.`;
 }
 
 // ===== UTILITIES =====
-
-function normalizeUrl(url: string): string {
-  let normalized = url.trim();
-  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-    normalized = 'https://' + normalized;
-  }
-  return normalized;
-}
+// (URL normalization now lives in src/lib/lead-discovery/normalization.ts —
+// shared with the dedup service and every provider path.)

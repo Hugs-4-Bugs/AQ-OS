@@ -1,10 +1,30 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — Lead Deduplication Service
-// Phase 7: Fuzzy matching, duplicate detection, lead merging
+// Phase 10: production-safe duplicate prevention across discovery.
+//
+// Match priority (spec, strict order — first tier that hits wins):
+//   1. website DOMAIN        (registrable host, case-insensitive)
+//   2. email                 (case-insensitive, shape-validated)
+//   3. phone                 (normalized digits, prefix-insensitive)
+//   4. normalized business name (legal suffixes stripped, high similarity)
+//   5. business name + location (slightly looser name bar, same city/country)
+//
+// Existing leads are NEVER deleted or destructively overwritten by
+// discovery dedup — duplicates resolve to the existing record and only
+// EMPTY fields are merge-filled (see mergeFillDuplicate in the discovery
+// service). `mergeLeads` below is the separate, explicit USER-initiated
+// merge (soft-delete preserving all history) and is unchanged.
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
 import { logAuditEvent } from '@/lib/lead-audit';
+import {
+  extractDomain,
+  normalizeBusinessName,
+  normalizeEmail,
+  normalizeLocationToken,
+  normalizePhoneForMatch,
+} from '@/lib/lead-discovery/normalization';
 
 // ===== TYPES =====
 
@@ -29,12 +49,238 @@ export interface MergeResult {
   error?: string;
 }
 
-// ===== DUPLICATE CHECKING =====
+/** Minimal lead projection used for in-memory identity matching. */
+export interface DedupIndexEntry {
+  id: string;
+  businessName: string;
+  email?: string | null;
+  website?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  country?: string | null;
+}
+
+/** Candidate shape accepted by the matching core. */
+export interface DuplicateCandidate {
+  businessName: string;
+  website?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  country?: string | null;
+}
+
+// ===== MATCHING CORE (pure — single source of truth) =====
+
+/** Name-only similarity bar for tier 4 (normalized forms). */
+const NAME_SIMILARITY_THRESHOLD = 0.85;
+/** Slightly looser bar for tier 5, which ALSO requires location agreement. */
+const NAME_LOCATION_SIMILARITY_THRESHOLD = 0.75;
+
+/**
+ * Raw (lowercased, whitespace-collapsed) form of a name — keeps word
+ * boundaries, unlike the aggressive match form.
+ */
+function rawNameForm(name: string | null | undefined): string {
+  return (name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Branch-marker guard: "Hospital A" vs "Hospital B", "Dental Clinic 1" vs
+ * "Dental Clinic 2" share a stem but end in a DIFFERENT short marker
+ * (≤2 chars). These are conventionally DISTINCT branches/locations, not
+ * the same business — Levenshtein similarity (~0.89) would otherwise
+ * false-positive them into one lead. Only fires when everything before
+ * the final token is identical AND the final tokens actually differ.
+ */
+function looksLikeDistinctBranches(a: string, b: string): boolean {
+  const ta = a.split(' ').filter(Boolean);
+  const tb = b.split(' ').filter(Boolean);
+  if (ta.length !== tb.length || ta.length < 2) return false;
+  const headA = ta.slice(0, -1).join(' ');
+  const headB = tb.slice(0, -1).join(' ');
+  if (headA !== headB) return false;
+  const lastA = ta[ta.length - 1];
+  const lastB = tb[tb.length - 1];
+  return lastA !== lastB && Math.min(lastA.length, lastB.length) <= 2;
+}
+
+/**
+ * Find the existing lead that a candidate duplicates, using the strict
+ * priority order above. Pure function over an in-memory entry list so
+ * the discovery import loop can reuse one loaded index per run (no
+ * per-lead database round-trips, no N+1) while ad-hoc callers pass a
+ * freshly loaded set.
+ */
+export function findDuplicateMatch(
+  entries: DedupIndexEntry[],
+  candidate: DuplicateCandidate
+): DuplicateCheckResult {
+  if (!candidate.businessName) {
+    return { isDuplicate: false };
+  }
+
+  const candidateDomain = extractDomain(candidate.website);
+  const candidateEmail = normalizeEmail(candidate.email);
+  const candidatePhone = normalizePhoneForMatch(candidate.phone);
+  const candidateName = normalizeBusinessName(candidate.businessName);
+  const candidateCity = normalizeLocationToken(candidate.city);
+  const candidateCountry = normalizeLocationToken(candidate.country);
+
+  const toResult = (
+    entry: DedupIndexEntry,
+    matchField: string,
+    matchScore: number
+  ): DuplicateCheckResult => ({
+    isDuplicate: true,
+    duplicateOf: entry.id,
+    matchField,
+    matchScore,
+    existingLead: {
+      id: entry.id,
+      businessName: entry.businessName,
+      email: entry.email,
+      website: entry.website,
+    },
+  });
+
+  // ── Tier 1: website domain (case-insensitive, www-insensitive) ──
+  if (candidateDomain) {
+    for (const entry of entries) {
+      if (!entry.website) continue;
+      const entryDomain = extractDomain(entry.website);
+      if (entryDomain && entryDomain === candidateDomain) {
+        return toResult(entry, 'domain', 95);
+      }
+    }
+  }
+
+  // ── Tier 2: email (case-insensitive) ──
+  if (candidateEmail) {
+    for (const entry of entries) {
+      const entryEmail = normalizeEmail(entry.email);
+      if (entryEmail && entryEmail === candidateEmail) {
+        return toResult(entry, 'email', 100);
+      }
+    }
+  }
+
+  // ── Tier 3: phone (normalized digits) ──
+  if (candidatePhone) {
+    for (const entry of entries) {
+      const entryPhone = normalizePhoneForMatch(entry.phone);
+      if (entryPhone && entryPhone === candidatePhone) {
+        return toResult(entry, 'phone', 85);
+      }
+    }
+  }
+
+  // ── Tiers 4 + 5: normalized business name, location-aware ──────────
+  // Tier 4 (name-only, high similarity ≥ 0.85): matches UNLESS the two
+  //   records' stated locations flatly CONTRADICT each other (both state
+  //   a city/country and they differ) — the same generic chain name in two
+  //   different cities is usually two different businesses.
+  // Tier 5 (name + location, looser similarity ≥ 0.78): only fires when
+  //   the locations explicitly AGREE (same city, or same country with no
+  //   conflicting city) — this is what makes the tier distinct and keeps
+  //   slightly-different names from merging across geographies.
+  if (candidateName) {
+    let tier4: { entry: DedupIndexEntry; score: number } | null = null;
+    let tier5: { entry: DedupIndexEntry; score: number } | null = null;
+    const candidateRaw = rawNameForm(candidate.businessName);
+
+    for (const entry of entries) {
+      // Distinct-branch guard FIRST — "Hospital A" vs "Hospital B" must
+      // never merge regardless of similarity score.
+      if (looksLikeDistinctBranches(candidateRaw, rawNameForm(entry.businessName))) {
+        continue;
+      }
+
+      const entryName = normalizeBusinessName(entry.businessName);
+      if (!entryName) continue;
+      const similarity = calculateStringSimilarity(candidateName, entryName);
+
+      const entryCity = normalizeLocationToken(entry.city);
+      const entryCountry = normalizeLocationToken(entry.country);
+      const sameCity = !!candidateCity && entryCity === candidateCity;
+      const sameCountry = !!candidateCountry && entryCountry === candidateCountry;
+      const cityContradiction = !!candidateCity && !!entryCity && entryCity !== candidateCity;
+      const countryContradiction =
+        !!candidateCountry && !!entryCountry && entryCountry !== candidateCountry && !sameCity;
+      const locationsContradict = cityContradiction || countryContradiction;
+
+      if (similarity >= NAME_SIMILARITY_THRESHOLD && !locationsContradict) {
+        if (!tier4 || similarity > tier4.score) tier4 = { entry, score: similarity };
+      } else if (
+        similarity >= NAME_LOCATION_SIMILARITY_THRESHOLD &&
+        (sameCity || (sameCountry && !cityContradiction))
+      ) {
+        if (!tier5 || similarity > tier5.score) tier5 = { entry, score: similarity };
+      }
+    }
+
+    if (tier4) {
+      return toResult(tier4.entry, 'normalizedBusinessName', Math.round(tier4.score * 100));
+    }
+    if (tier5) {
+      return toResult(tier5.entry, 'businessNameLocation', Math.round(tier5.score * 100));
+    }
+  }
+
+  return { isDuplicate: false };
+}
+
+// ===== INDEX LOADING (for the discovery import loop) =====
+
+/**
+ * Load the dedup index for a user (or their org) ONCE per discovery run.
+ * Scope mirrors the ad-hoc checkDuplicate: org members share one pool,
+ * standalone users are isolated. Includes every ACTIVE lead so repeated
+ * runs, cross-niche queries and cross-country queries all resolve to the
+ * same existing records.
+ */
+export async function buildDedupIndex(userId: string): Promise<DedupIndexEntry[]> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { orgId: true },
+  });
+
+  const where: Record<string, unknown> = { isActive: true };
+  if (user?.orgId) {
+    where.orgId = user.orgId;
+  } else {
+    where.userId = userId;
+  }
+
+  return db.lead.findMany({
+    where,
+    select: {
+      id: true,
+      businessName: true,
+      email: true,
+      website: true,
+      phone: true,
+      city: true,
+      country: true,
+    },
+  });
+}
+
+/**
+ * Append a freshly created lead to an in-memory index so later candidates
+ * in the SAME run dedupe against it without another database read.
+ */
+export function addIndexEntry(index: DedupIndexEntry[], entry: DedupIndexEntry): void {
+  index.push(entry);
+}
+
+// ===== AD-HOC DUPLICATE CHECKING (existing callers unchanged) =====
 
 /**
  * Check if a lead already exists for the given user/org.
- * Fuzzy matching on business name, website, email, phone.
- * Org-level dedup scope (all org members share the same lead pool).
+ * Same matching core and priority order as the discovery import loop;
+ * loads the candidate set once per call (callers are low-volume paths:
+ * manual creation, CSV import, legacy engine).
  */
 export async function checkDuplicate(
   userId: string,
@@ -43,136 +289,26 @@ export async function checkDuplicate(
     website?: string;
     email?: string;
     phone?: string;
+    city?: string;
+    country?: string;
   }>
 ): Promise<DuplicateCheckResult> {
   if (!leadData.businessName) {
     return { isDuplicate: false };
   }
 
-  // Get user's org for org-level scoping
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { orgId: true },
+  const entries = await buildDedupIndex(userId);
+  return findDuplicateMatch(entries, {
+    businessName: leadData.businessName,
+    website: leadData.website,
+    email: leadData.email,
+    phone: leadData.phone,
+    city: leadData.city,
+    country: leadData.country,
   });
-
-  // Build where clause scoped to user or org
-  const where: Record<string, unknown> = {
-    isActive: true,
-  };
-
-  if (user?.orgId) {
-    where.orgId = user.orgId;
-  } else {
-    where.userId = userId;
-  }
-
-  // Check exact email match (highest priority)
-  if (leadData.email && leadData.email.trim()) {
-    const emailMatch = await db.lead.findFirst({
-      where: {
-        ...where,
-        email: leadData.email.trim().toLowerCase(),
-      },
-      select: { id: true, businessName: true, email: true, website: true },
-    });
-
-    if (emailMatch) {
-      return {
-        isDuplicate: true,
-        duplicateOf: emailMatch.id,
-        matchField: 'email',
-        matchScore: 100,
-        existingLead: emailMatch,
-      };
-    }
-  }
-
-  // Check website domain match
-  if (leadData.website && leadData.website.trim()) {
-    const domain = extractDomain(leadData.website);
-    if (domain) {
-      const allLeads = await db.lead.findMany({
-        where: {
-          ...where,
-          website: { not: null },
-        },
-        select: { id: true, businessName: true, email: true, website: true },
-      });
-
-      for (const existing of allLeads) {
-        if (existing.website) {
-          const existingDomain = extractDomain(existing.website);
-          if (existingDomain && existingDomain === domain) {
-            return {
-              isDuplicate: true,
-              duplicateOf: existing.id,
-              matchField: 'website',
-              matchScore: 90,
-              existingLead: existing,
-            };
-          }
-        }
-      }
-    }
-  }
-
-  // Check phone match
-  if (leadData.phone && leadData.phone.trim()) {
-    const normalizedPhone = normalizePhone(leadData.phone);
-    if (normalizedPhone) {
-      const allLeads = await db.lead.findMany({
-        where: {
-          ...where,
-          phone: { not: null },
-        },
-        select: { id: true, businessName: true, email: true, website: true, phone: true },
-      });
-
-      for (const existing of allLeads) {
-        if (existing.phone) {
-          const existingPhone = normalizePhone(existing.phone);
-          if (existingPhone && existingPhone === normalizedPhone) {
-            return {
-              isDuplicate: true,
-              duplicateOf: existing.id,
-              matchField: 'phone',
-              matchScore: 85,
-              existingLead: existing,
-            };
-          }
-        }
-      }
-    }
-  }
-
-  // Fuzzy business name match
-  const allLeads = await db.lead.findMany({
-    where,
-    select: { id: true, businessName: true, email: true, website: true },
-    take: 500,
-  });
-
-  for (const existing of allLeads) {
-    const similarity = calculateStringSimilarity(
-      leadData.businessName.toLowerCase().trim(),
-      existing.businessName.toLowerCase().trim()
-    );
-
-    if (similarity >= 0.85) {
-      return {
-        isDuplicate: true,
-        duplicateOf: existing.id,
-        matchField: 'businessName',
-        matchScore: Math.round(similarity * 100),
-        existingLead: existing,
-      };
-    }
-  }
-
-  return { isDuplicate: false };
 }
 
-// ===== LEAD MERGING =====
+// ===== LEAD MERGING (user-initiated — unchanged behaviour) =====
 
 /**
  * Merge source lead into target lead.
@@ -303,32 +439,6 @@ export async function mergeLeads(
 }
 
 // ===== UTILITY FUNCTIONS =====
-
-/**
- * Extract domain from URL.
- */
-function extractDomain(url: string): string | null {
-  try {
-    const normalized = url.startsWith('http') ? url : `https://${url}`;
-    const parsed = new URL(normalized);
-    return parsed.hostname.replace(/^www\./, '').toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Normalize phone number for comparison.
- * Removes all non-digit characters and leading country code zeros.
- */
-function normalizePhone(phone: string): string | null {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 7) return null;
-  // Remove leading country code indicators
-  if (digits.startsWith('00')) return digits.substring(2);
-  if (digits.startsWith('1') && digits.length === 11) return digits.substring(1);
-  return digits;
-}
 
 /**
  * Calculate string similarity using Levenshtein distance ratio.

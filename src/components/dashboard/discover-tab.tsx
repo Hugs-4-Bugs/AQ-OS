@@ -136,6 +136,8 @@ interface DiscoveryJob {
   errors: number;
   /** Candidates rejected by the server-side hard-criteria validator. */
   filteredOut?: number;
+  /** Phase 7 — terminal outcome: success | partial | zero_results | provider_failure | invalid_targeting. */
+  outcome?: string | null;
   resultData?: Array<{
     businessName: string;
     ownerName?: string;
@@ -196,6 +198,8 @@ interface ParsedIntent {
 interface DiscoveryVars {
   niche: string;
   country: string;
+  /** Phase 9 — multi-country AI-chat intent; takes precedence over `country`. */
+  countries?: string[];
   city?: string;
   source: string;
   maxResults?: number;
@@ -252,6 +256,31 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'bg-red-500/15 text-red-500 border-red-500/25',
 };
 
+// Phase 7 — outcome badges (the five honest terminal states).
+const OUTCOME_STYLES: Record<string, string> = {
+  success: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/25',
+  partial: 'bg-amber-500/15 text-amber-600 border-amber-500/25',
+  zero_results: 'bg-slate-500/15 text-slate-500 border-slate-500/25',
+  provider_failure: 'bg-red-500/15 text-red-600 border-red-500/25',
+  invalid_targeting: 'bg-orange-500/15 text-orange-600 border-orange-500/25',
+};
+
+function OutcomeBadge({ outcome }: { outcome?: string | null }) {
+  if (!outcome) return null;
+  const style = OUTCOME_STYLES[outcome];
+  if (!style) return null;
+  const label =
+    outcome === 'zero_results' ? 'no results'
+    : outcome === 'provider_failure' ? 'provider failed'
+    : outcome === 'invalid_targeting' ? 'invalid targeting'
+    : outcome;
+  return (
+    <Badge variant="outline" className={cn('text-[9px] border', style)}>
+      {label}
+    </Badge>
+  );
+}
+
 const STATUS_ICONS: Record<string, React.ElementType> = {
   pending: Clock,
   running: Loader2,
@@ -305,6 +334,7 @@ function DiscoveryJobsList({ onJobClick }: { onJobClick: (job: DiscoveryJob) => 
                 <Badge variant="outline" className={cn('text-[9px] border', STATUS_STYLES[job.status])}>
                   {job.status}
                 </Badge>
+                <OutcomeBadge outcome={job.outcome} />
                 {job.status === 'completed' && (
                   <span className="text-[10px] text-muted-foreground">
                     {job.leadsAdded} leads found
@@ -447,13 +477,16 @@ function DiscoveryJobProgress({
           ))}
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{currentJob.niche} · {currentJob.country}{currentJob.city ? ` · ${currentJob.city}` : ''}</span>
-          {currentJob.status === 'completed' && (
-            <span className="text-emerald-500 font-medium">
-              {currentJob.leadsAdded} verified lead{currentJob.leadsAdded === 1 ? '' : 's'} found
-              {currentJob.filteredOut ? ` · ${currentJob.filteredOut} rejected by hard filters` : ''}
-            </span>
-          )}
+          <span className="truncate max-w-[55%]">{currentJob.niche} · {currentJob.country}{currentJob.city ? ` · ${currentJob.city}` : ''}</span>
+          <span className="flex items-center gap-2">
+            <OutcomeBadge outcome={currentJob.outcome} />
+            {currentJob.status === 'completed' && (
+              <span className="text-emerald-500 font-medium">
+                {currentJob.leadsAdded} verified lead{currentJob.leadsAdded === 1 ? '' : 's'} found
+                {currentJob.filteredOut ? ` · ${currentJob.filteredOut} rejected by hard filters` : ''}
+              </span>
+            )}
+          </span>
           {currentJob.status === 'failed' && (currentJob.errorMessage || currentJob.message) && (
             <span className="text-red-500 truncate max-w-[280px]" title={currentJob.errorMessage || currentJob.message}>
               {currentJob.errorMessage || currentJob.message}
@@ -650,9 +683,22 @@ export default function DiscoverTab() {
   // Form state
   const [source, setSource] = useState<string>('ai_search');
   const [niche, setNiche] = useState('');
-  const [country, setCountry] = useState('');
+  // Phase 9 — MULTI-COUNTRY targeting: a list of selected countries; an
+  // EMPTY list means Worldwide (no country constraint). Selections toggle
+  // in the same combobox (checks, no close-on-select) and the payload sends
+  // `countries` — the server executes one targeting combo per country and
+  // attributes every lead to the country that actually produced it.
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [countryOpen, setCountryOpen] = useState(false);
   const [city, setCity] = useState('');
+  const country = selectedCountries.length > 0 ? selectedCountries.join(', ') : '';
+  const toggleCountry = (name: string) => {
+    setSelectedCountries((prev) =>
+      prev.some((c) => c.toLowerCase() === name.toLowerCase())
+        ? prev.filter((c) => c.toLowerCase() !== name.toLowerCase())
+        : [...prev, name]
+    );
+  };
 
   // ── Part 1 — NO_MATCHING_LEADS → "Find Leads" handoff ────────────
   // The Workflows tab hands off with the workflow's requested niche. The
@@ -849,13 +895,26 @@ export default function DiscoverTab() {
       // discovery job PER niche so every discovered lead is attributed to
       // the niche that actually produced it — never the comma-joined
       // string (the attribution bug: hospital lead -> "hospital,dentist").
+      // (The server ALSO parses/splits niches and countries now — Phase 8/9
+      // — so this client-side split is defense-in-depth, not the fix.)
       const rawNiche = (vars?.niche ?? niche).trim();
       const niches = splitNicheList(rawNiche);
       if (niches.length === 0) throw new Error('A niche is required to start discovery');
 
+      // Phase 9 — multi-country targeting. Precedence: AI-chat explicit
+      // countries array → AI-chat single country → the multi-select picker
+      // (empty = Worldwide). `country` stays the display string for job
+      // snapshots; `countries` is the array the server executes.
+      const effectiveCountries: string[] = Array.isArray(vars?.countries) && vars.countries.length > 0
+        ? vars.countries.map((c) => c.trim()).filter(Boolean)
+        : typeof vars?.country === 'string' && vars.country.trim()
+          ? [vars.country.trim()]
+          : selectedCountries;
+
       const buildPayload = (targetNiche: string) => ({
         niche: targetNiche,
-        country: (vars?.country ?? country).trim() || undefined,
+        countries: effectiveCountries.length > 0 ? effectiveCountries : undefined,
+        country: effectiveCountries.length > 0 ? effectiveCountries.join(', ') : undefined,
         city: (vars?.city ?? city).trim() || undefined,
         source: vars?.source ?? source,
         maxResults: vars?.maxResults || undefined,
@@ -1004,7 +1063,19 @@ export default function DiscoverTab() {
     // Fill the existing filter fields with the parsed values and switch to Filter Mode
     if (parsedIntent) {
       setNiche(parsedIntent.niche);
-      setCountry(parsedIntent.country);
+      // Phase 9 — the AI intent's country selection lands in the multi-country
+      // picker (a comma-separated intent country list is preserved as-is).
+      if (parsedIntent.country && parsedIntent.country.trim()) {
+        setSelectedCountries(
+          parsedIntent.country
+            .split(/[,;]/)
+            .map((c: string) => c.trim())
+            .filter(Boolean)
+            .slice(0, 10)
+        );
+      } else {
+        setSelectedCountries([]);
+      }
       setCity(parsedIntent.city || '');
     }
     setSearchMode('filters');
@@ -1347,13 +1418,17 @@ export default function DiscoverTab() {
                     aria-expanded={countryOpen}
                     className="w-full justify-between border-primary/20 focus:ring-primary/30 font-normal"
                   >
-                    <span className={cn('truncate', !country && 'text-muted-foreground')}>
-                      {country || '🌍 Worldwide (all countries)'}
+                    <span className={cn('truncate', selectedCountries.length === 0 && 'text-muted-foreground')}>
+                      {selectedCountries.length === 0
+                        ? '🌍 Worldwide (all countries)'
+                        : selectedCountries.length === 1
+                          ? selectedCountries[0]
+                          : `${selectedCountries.length} countries: ${selectedCountries.join(', ')}`}
                     </span>
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[320px] p-0" align="start">
+                <PopoverContent className="w-[340px] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Search countries..." />
                     <CommandList className="max-h-64 overflow-y-auto">
@@ -1362,38 +1437,48 @@ export default function DiscoverTab() {
                         <CommandItem
                           value="Worldwide all countries"
                           onSelect={() => {
-                            setCountry('');
+                            setSelectedCountries([]);
                             setCountryOpen(false);
                           }}
                         >
                           <Globe className="mr-2 h-4 w-4" />
-                          <span className={cn('flex-1', !country && 'font-medium')}>Worldwide (all countries)</span>
-                          {!country && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                          <span className={cn('flex-1', selectedCountries.length === 0 && 'font-medium')}>Worldwide (all countries)</span>
+                          {selectedCountries.length === 0 && <CheckCircle2 className="h-4 w-4 text-primary" />}
                         </CommandItem>
                       </CommandGroup>
-                      <CommandGroup heading="Countries">
-                        {COUNTRIES.map((c) => (
-                          <CommandItem
-                            key={c.code}
-                            value={`${c.name} ${c.code}`}
-                            onSelect={() => {
-                              setCountry(c.name);
-                              setCountryOpen(false);
-                            }}
-                          >
-                            <span className={cn('flex-1', country === c.name && 'font-medium')}>{c.name}</span>
-                            {country === c.name ? (
-                              <CheckCircle2 className="h-4 w-4 text-primary" />
-                            ) : (
-                              <span className="text-xs text-muted-foreground">{c.code}</span>
-                            )}
-                          </CommandItem>
-                        ))}
+                      <CommandGroup heading="Countries (tap to add / remove)">
+                        {COUNTRIES.map((c) => {
+                          const isSelected = selectedCountries.some((s) => s === c.name);
+                          return (
+                            <CommandItem
+                              key={c.code}
+                              value={`${c.name} ${c.code}`}
+                              // Multi-select (Phase 9): selecting toggles membership —
+                              // the popover stays open so several countries can be picked;
+                              // an empty selection = Worldwide.
+                              onSelect={() => {
+                                toggleCountry(c.name);
+                              }}
+                            >
+                              <span className={cn('flex-1', isSelected && 'font-medium')}>{c.name}</span>
+                              {isSelected ? (
+                                <CheckCircle2 className="h-4 w-4 text-primary" />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{c.code}</span>
+                              )}
+                            </CommandItem>
+                          );
+                        })}
                       </CommandGroup>
                     </CommandList>
                   </Command>
                 </PopoverContent>
               </Popover>
+              {selectedCountries.length > 1 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Each selected country gets its own targeting queries — leads are attributed to the country that produced them.
+                </p>
+              )}
             </div>
 
             {/* City Input */}
@@ -1626,7 +1711,14 @@ export default function DiscoverTab() {
                       transition={{ delay: i * 0.05 }}
                       onClick={() => {
                         setNiche(item.niche);
-                        setCountry(item.country);
+                        // History item's country (possibly a comma-joined
+                        // multi-country label) restores into the picker.
+                        const restored = (item.country || '')
+                          .split(/[,;]/)
+                          .map((c: string) => c.trim())
+                          .filter(Boolean)
+                          .slice(0, 10);
+                        setSelectedCountries(restored);
                         setCity(item.city || '');
                       }}
                       className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/20 transition-colors text-left"
