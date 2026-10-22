@@ -1615,3 +1615,27 @@ Stage Summary:
 - All required env vars for Google Sign-In, Gmail OTP, and magic-link auth are CONFIGURED; none missing. Optional unset: RESEND_API_KEY (SMTP is active provider), APP_URL/NEXTAUTH_URL/NEXT_PUBLIC_APP_URL (intentionally unset — dynamic request-origin detection), GOOGLE_REDIRECT_URI.
 - No code changes, no commits, no secrets printed anywhere; .env and its backup are gitignored.
 - Reminder logged: new SMTP app password + Google client secret were shared in chat (and older values persist in git history) — rotate after local testing.
+
+---
+Task ID: db-recovery-1
+Agent: Super Z (main agent)
+Task: Recover "lost" custom.db from most recent valid backup + correct PRO/ELITE account credits (no code changes, no commit/push)
+
+Work Log:
+- Premise check first (per user's own CRITICAL rules): live db/custom.db profiled read-only via scripts/db-recovery-profile.cjs (/tmp copies — originals never opened for write). RESULT: live DB is INTACT — integrity_check ok, 116/116 tables (schema drift=0 at current HEAD), users=43, leads=536, subscriptions=40, creditsLedger=617, both target accounts present with original IDs.
+- Backup candidates enumerated + verified: db-backups/custom-20261022000431Z.db (users=43, integrity ok — most recent valid pre-loss backup) and upload/pre-restore-oct22/custom.db (BYTE-IDENTICAL to it, same sha256 4dd0426811d7). Both contain users/leads/subscriptions/credit ledger — verified.
+- DECISION (data-loss avoidance): live DB is strictly NEWER/RICHER than the backup (ledger 617 vs 613, AuditLog 2268 vs 2231, UserSession 510 vs 505, LoginHistory 181 vs 179, WorkflowExecution 158 vs 147, WorkflowDefinition 8 vs 7; every count >= backup; identical 43-user email set; both accounts same user IDs). A file-level restore would have DESTROYED newer data — violating "preserve existing DB data". NO restore performed; live DB kept (it already IS the recovered state, schema-synced to current HEAD).
+- Pre-recovery backup created FIRST: db-backups/custom-20261022024204Z.db (users=43, sha256 3c39dafcca14, read-only) via the project's own db-safety.mjs snapshot tool.
+- Corrections applied via scripts/db-recovery-fix-accounts.cjs (Part 2 §28 pattern — targeted single-row updates, transactional, idempotent, unrelated-fields-verified byte-identical):
+  * PRO kattyboy785@gmail.com: credits 750 (unchanged), creditsMonthly 500 -> 750 (stale pre-Sep-2026 allowance); balance-neutral ledger row admin_credit_allowance_correction (credits=0) + AuditLog entry. 97 -> 98 ledger rows.
+  * ELITE mailtoprabhat72@gmail.com: credits 1980 -> 2000 (+20 top-up to full allowance), creditsMonthly 2000 (unchanged); ledger row admin_credit_restoration (credits=+20, balance=2000) + AuditLog entry. 33 -> 34 ledger rows.
+  * All other 41 users / leads / subscriptions / payment orders / history untouched (plan distribution identical; no table shrank — verified).
+- Login/user records verified intact: email set identical to backup (NONE missing); both accounts emailVerified=true, isActive=true, not deleted; Elite has password hash, Pro uses Google auth.
+- NO DROP/TRUNCATE/DELETE/RESEED anywhere; ledger/history fully preserved (617 -> 619 = only the 2 additive admin audit rows); no charges created (both admin rows are credits>=0).
+- Git untouched: HEAD 0179101c8f... unchanged, no reset/checkout/rollback, nothing committed or pushed (remote main still 57a88f554). Working tree: only 2 new untracked helper scripts + this worklog edit.
+
+Stage Summary:
+- Live DB was NOT lost — it already contains everything the newest backup contains plus newer activity; backup custom-20261022000431Z.db verified valid and kept as recovery copy; fresh safety snapshot custom-20261022024204Z.db created.
+- PRO account: plan=pro, credits=750/750. ELITE account: plan=elite, credits=2000/2000. Only these two User rows changed; full audit trail in CreditsLedger + AuditLog.
+- Counts before -> after: users 43 -> 43, leads 536 -> 536, subscriptions 40 -> 40, ledger 617 -> 619 (+2 audit), AuditLog 2268 -> 2270 (+2 audit), payments 6 -> 6. Integrity ok.
+- Pre-existing (untouched, disclosed): one legacy "PRO"-uppercase plan row (not one of the two accounts); prisma/db/custom.db is a stale Oct-19 artifact not used by the app (DATABASE_URL is absolute to db/custom.db).
