@@ -1705,3 +1705,18 @@ Stage Summary:
 - ROOT CAUSE: AI-generated placeholder webhook URL (api.example.com — DNS ENOTFOUND) + runtime that dropped Node's error.cause (the real ENOTFOUND detail) + GET/body+params request-construction defects + no pre-execution URL validation.
 - The configured webhook call now REALLY executes (real HTTP → the app's own leads search API, real 200 JSON response recorded in the step log); the complete 6-step workflow runs step 1→6 to COMPLETED with real AI outreach and real stage moves; retry works with reconciled billing; successful run = exactly 5 credits, rejected/never-started = 0.
 - Test account mailtoprabhat72@gmail.com: 2000 → 1990 (2 successful full runs × 5; each verified exactly-once, no double charges/refunds). Ledger fully auditable.
+
+---
+Task ID: push-3aeaed617
+Agent: Super Z (main agent)
+Task: Authorized GitHub push of the webhook fetch-failed fix (3aeaed617) to main
+
+Work Log:
+- Pre-push checks: HEAD = 3aeaed6171e7390af442eba65bd61e30dbf819fa (webhook fetch-failed fix: 10 files, +1284/-26 — 4 engine-path sources + shared workflow-webhook.ts + 23-test suite + 3 diagnostic/E2E scripts + worklog); push authorization satisfied (workflow verified executing successfully end-to-end: 6/6 steps, retry reconciled, billing exact); remote pre-state = 9d4e61788 = parent → clean fast-forward expected (2 commits: f37c1066d worklog + 3aeaed617 fix).
+- Secret scan over 9d4e61788..3aeaed617: no tokens, no private keys, no real API keys (only the fake test fixture string 'aq_live_test_key' in the unit test and the 8-char key PREFIX in the worklog — the raw key exists only in the DB workflow config, never in git).
+- Push executed via one-time inline credential helper (PAT read at runtime from /home/sync/upload/GITHUB_PAT.txt; token never written to git config, remote URL, or any output/log).
+- Push result: 9d4e61788..3aeaed617 main -> main (normal fast-forward; no force).
+- Post-push verification (git ls-remote origin refs/heads/main): remote main = 3aeaed6171e7390af442eba65bd61e30dbf819fa; local HEAD identical; working tree clean.
+
+Stage Summary:
+- GitHub main = 3aeaed617 — the webhook "fetch failed" fix (root-cause surfacing, pre-flight URL validation, GET request construction, timeout, AI-generator guard) is LIVE on GitHub main, on top of the never-started billing fix (9d4e61788).
