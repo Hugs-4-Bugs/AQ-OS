@@ -10,6 +10,7 @@ import { executeAction } from '@/lib/workflow-actions';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
 import { createNotificationOnce } from '@/lib/notification-service';
 import { classifyStepError, computeBackoffDelayMs } from '@/lib/workflow-retry';
+import { refundNeverStartedWorkflowExecutionFee } from '@/lib/workflow-credits';
 import { reserveDailyOutreachSend, DAILY_OUTREACH_LIMIT_EXCEEDED } from '@/lib/daily-outreach-quota';
 import {
   type WorkflowNode,
@@ -40,7 +41,8 @@ export async function executeWorkflow(
   workflowId: string,
   userId: string,
   triggerData?: Record<string, unknown>,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  options?: { neverStartedAutoRefund?: boolean }
 ) {
   // Check workflow exists and is active
   const workflow = await db.workflowDefinition.findFirst({
@@ -97,7 +99,7 @@ export async function executeWorkflow(
   });
 
   // Process execution asynchronously (non-blocking)
-  processExecution(execution.id).catch((err) => {
+  processExecution(execution.id, options).catch((err) => {
     console.error('[WorkflowService] processExecution error:', err);
   });
 
@@ -105,7 +107,10 @@ export async function executeWorkflow(
 }
 
 /** The CORE execution engine — processes a single execution */
-export async function processExecution(executionId: string): Promise<void> {
+export async function processExecution(
+  executionId: string,
+  options?: { neverStartedAutoRefund?: boolean }
+): Promise<void> {
   const execution = await db.workflowExecution.findUnique({
     where: { id: executionId },
     include: { workflow: true },
@@ -133,6 +138,11 @@ export async function processExecution(executionId: string): Promise<void> {
   const startTime = Date.now();
   let currentStep = execution.currentStep;
   let lastError: string | null = null;
+  // Part 2 §21 (amended) — steps that completed SUCCESSFULLY in this
+  // segment. A run whose first action node fails with zero successful
+  // steps never actually started; the caller that charged its fee (and
+  // opted in via neverStartedAutoRefund) gets it released.
+  let successfulSteps = 0;
 
   // Build a map for edge traversal
   const edgeMap = new Map<string, WorkflowEdge[]>();
@@ -216,6 +226,14 @@ export async function processExecution(executionId: string): Promise<void> {
 
     const durationMs = Date.now() - stepStartTime;
 
+    // This step's 0-based global index (captured before the loop's
+    // stepIndex bookkeeping advances).
+    const globalStepIndex = stepIndex;
+
+    if (stepSuccess) {
+      successfulSteps++;
+    }
+
     // Create log entry
     await db.workflowLog.create({
       data: {
@@ -272,6 +290,26 @@ export async function processExecution(executionId: string): Promise<void> {
           deadLetterReason: isDeadLetter ? `Step "${step.title}" failed after ${maxRetries} retries: ${lastError}` : null,
         },
       });
+
+      // ── Part 2 §21 (amended) — never-started fee release ──
+      // The failing step is the run's FIRST action node and ZERO steps
+      // completed successfully: the run never actually started (canonical
+      // case: a pre-start webhook/network/provider failure). The caller's
+      // acceptance-time fee is released — atomically and idempotently
+      // (`wfexec-neverstarted:<executionId>`), so duplicate failure
+      // handling can never double-refund. A run that failed AFTER any step
+      // completed keeps its fee (the original Part 2 rule, preserved).
+      if (options?.neverStartedAutoRefund && globalStepIndex === 0 && successfulSteps === 0) {
+        await refundNeverStartedWorkflowExecutionFee({
+          userId: execution.userId || '',
+          workflowId: workflow.id,
+          executionId,
+          reason: lastError || undefined,
+        }).catch(() => {
+          // A refund failure must not mask the run's real outcome; the
+          // ledger's idempotency key makes a later retry safe.
+        });
+      }
 
       // Update workflow stats
       await updateWorkflowStats(workflow.id, false, Date.now() - startTime);

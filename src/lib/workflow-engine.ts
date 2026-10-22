@@ -6,7 +6,13 @@
 import { db } from '@/lib/db';
 import { logWorkflowEvent } from '@/lib/workflow-audit';
 import { executeAction, type ActionContext, type ActionResult } from '@/lib/workflow-actions';
-import { checkExecutionLimit } from '@/lib/workflow-credits';
+import {
+  checkExecutionLimit,
+  refundNeverStartedWorkflowExecutionFee,
+  rechargeWorkflowExecutionFeeOnStart,
+  wasNeverStartedFeeRefunded,
+  checkWorkflowExecutionFeeSufficiency,
+} from '@/lib/workflow-credits';
 import { sendToDeadLetter } from '@/lib/workflow-dead-letter';
 import { publishEvent } from '@/lib/realtime-event-bus';
 import { createNotificationOnce } from '@/lib/notification-service';
@@ -44,6 +50,10 @@ export interface ExecuteWorkflowResult {
   executionId: string;
   status: string;
   error?: string;
+  /** Steps completed before the run reached its final state (0 = the run
+   * never actually started). Present on fresh runs; replay/replay-shaped
+   * results may omit it. Used by callers to report never-started refunds. */
+  stepsCompleted?: number;
 }
 
 interface ProcessStepResult {
@@ -62,6 +72,18 @@ interface RunOptions {
   timeoutMs: number;
   maxRetries: number;
   startedAtMs: number;
+  /** Global index of the FIRST step in this segment (fresh runs: 0;
+   * resume/retry segments: the execution's currentStep). Lets the failure
+   * handler know whether ANY step of the whole execution ever completed. */
+  startStepIndex?: number;
+  /** Part 2 §21 (amended): auto-refund the flat fee when this run segment
+   * terminates with zero steps of the WHOLE execution completed — set by
+   * sole-scope callers (legacy execute route, triggers, autopilot). */
+  neverStartedAutoRefund?: boolean;
+  /** Part 2 §21 (amended): re-charge the flat fee the moment the retried
+   * execution completes its first step (its prior fee was refunded because
+   * the run never started). Set by retryExecution after ledger reconciliation. */
+  rechargeOnStart?: boolean;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -93,13 +115,22 @@ function stepRetryBudget(config: Record<string, unknown>, maxRetries: number): n
  * kickers (multi-lead targeted runs) pass false so each per-lead execution
  * starts in the background and the caller aggregates the persisted final
  * states instead of serializing every run behind one request.
+ *
+ * options.neverStartedAutoRefund (default false): for sole-scope callers
+ * whose ONE charge covers this ONE execution (legacy execute-route runs,
+ * event/scheduled triggers, autopilot per-lead runs). When the run then
+ * terminates with ZERO steps completed — it never actually started — the
+ * engine releases the flat fee itself (idempotent on the execution id).
+ * Multi-lead batch kicks deliberately OMIT this flag: their shared fee is
+ * reconciled by the route after the WHOLE batch settles (one fee, one
+ * refund — a partially-successful batch keeps its fee).
  */
 export async function executeWorkflow(
   workflowId: string,
   userId: string,
   triggerData?: Record<string, unknown>,
   idempotencyKey?: string,
-  options?: { awaitCompletion?: boolean }
+  options?: { awaitCompletion?: boolean; neverStartedAutoRefund?: boolean }
 ): Promise<ExecuteWorkflowResult> {
   try {
     // Load workflow definition — allow both 'draft' (for testing) and 'active' workflows.
@@ -213,8 +244,21 @@ export async function executeWorkflow(
     const executionId = createdHit.id;
 
     // Invalid definition: the execution record exists and honestly says WHY
-    // nothing ran. No steps execute, no credits are deducted, no side effects.
+    // nothing ran. No steps execute, no side effects. Part 2 §21 (amended):
+    // zero steps completed = the run never actually started — the acceptance
+    // fee (if this caller charged one and opted into auto-refund) is released.
     if (!stepLoad.ok) {
+      if (options?.neverStartedAutoRefund) {
+        await refundNeverStartedWorkflowExecutionFee({
+          userId,
+          workflowId,
+          executionId,
+          reason: stepLoad.error,
+        }).catch(() => {
+          // Ledger idempotency (`wfexec-neverstarted:<executionId>`) makes a
+          // later retry of this reconciliation safe.
+        });
+      }
       await logWorkflowEvent(userId, 'workflow_failed', {
         workflowId,
         executionId,
@@ -225,14 +269,20 @@ export async function executeWorkflow(
         executionId,
         error: stepLoad.error,
       });
-      return { executionId, status: 'failed', error: stepLoad.error };
+      return { executionId, status: 'failed', error: stepLoad.error, stepsCompleted: 0 };
     }
 
     // Execute steps (async but we process them sequentially)
     // Default (awaitCompletion !== false): run inline so the synchronous
     // result reflects the true final status — this is the legacy contract
     // every existing caller (UI run, autopilot runner, resume/retry) relies on.
-    const runOptions: RunOptions = { timeoutMs, maxRetries, startedAtMs };
+    const runOptions: RunOptions = {
+      timeoutMs,
+      maxRetries,
+      startedAtMs,
+      startStepIndex: 0,
+      neverStartedAutoRefund: options?.neverStartedAutoRefund ?? false,
+    };
     try {
       if (options?.awaitCompletion === false) {
         void runSteps(executionId, steps, userId, workflowId, triggerData, runOptions).catch((error) => {
@@ -263,13 +313,14 @@ export async function executeWorkflow(
     // Fetch final state
     const finalExecution = await db.workflowExecution.findUnique({
       where: { id: executionId },
-      select: { id: true, status: true, error: true },
+      select: { id: true, status: true, error: true, currentStep: true },
     });
 
     return {
       executionId,
       status: finalExecution?.status || 'failed',
       error: finalExecution?.error || undefined,
+      stepsCompleted: finalExecution?.currentStep ?? undefined,
     };
   } catch (error) {
     console.error('[WorkflowEngine] Failed to execute workflow:', error);
@@ -370,6 +421,13 @@ async function runSteps(
   const timeoutMs = runOptions?.timeoutMs ?? defaultTimeoutMs();
   const maxRetries = runOptions?.maxRetries ?? defaultMaxRetries();
   const startedAtMs = runOptions?.startedAtMs ?? Date.now();
+  // Global index of this segment's first step (fresh runs start at 0;
+  // resume/retry segments start at the execution's currentStep). A failure
+  // at global index `startStepIndex + i` means exactly `startStepIndex + i`
+  // steps of the whole execution completed before it.
+  const startStepIndex = runOptions?.startStepIndex ?? 0;
+  const neverStartedAutoRefund = runOptions?.neverStartedAutoRefund ?? false;
+  const rechargeOnStart = runOptions?.rechargeOnStart ?? false;
 
   // Workflow-level approval gate: loaded once so execute/resume/retry paths
   // all enforce the same "human approval before send" behavior.
@@ -487,6 +545,32 @@ async function runSteps(
       previousOutputs[step.id] = result.output;
     }
 
+    // ── Part 2 §21 (amended) — actual-start re-charge ──
+    // This step is the FIRST step of the whole execution and it just
+    // completed: the run has now ACTUALLY started. If this execution's fee
+    // was refunded when a prior attempt never started, it is re-charged
+    // here — exactly once per execution (ledger idempotency on
+    // `wfexec-started:<executionId>`), never once per retry attempt.
+    if (rechargeOnStart && startStepIndex + i === 0 && result.success) {
+      const recharge = await rechargeWorkflowExecutionFeeOnStart({
+        userId,
+        workflowId,
+        executionId,
+      }).catch((error) => {
+        console.error('[WorkflowEngine] Actual-start fee re-charge failed:', error);
+        return null;
+      });
+      // An insufficient balance at this instant cannot abort a run that has
+      // already started (killing it would waste the completed work); the
+      // failure is logged and visible on the ledger, never silently ignored.
+      if (recharge && !recharge.ok) {
+        console.error(
+          '[WorkflowEngine] Actual-start fee re-charge rejected (insufficient credits):',
+          `fee=${recharge.fee} balance=${recharge.balance}`
+        );
+      }
+    }
+
     // Handle delay steps
     if (step.type === 'delay' || step.type === 'wait_delay') {
       const delayMs = result.output?.delayMs as number | undefined;
@@ -539,6 +623,28 @@ async function runSteps(
           completedAt: new Date(),
         },
       });
+
+      // ── Part 2 §21 (amended) — never-started fee release ──
+      // The failing step is the FIRST step of the whole execution and ZERO
+      // steps completed before it: the run never ACTUALLY started (the
+      // canonical case is a pre-start webhook/network/provider failure —
+      // "Webhook call failed: fetch failed" — where the user receives no
+      // work product). The acceptance-time fee is released now, atomically
+      // and idempotently (`wfexec-neverstarted:<executionId>`), so a failed
+      // pre-start run costs 0 credits and duplicate failure callbacks can
+      // never double-refund. A run that failed AFTER completing at least one
+      // step keeps its fee — the original Part 2 rule, preserved below.
+      if (neverStartedAutoRefund && startStepIndex + i === 0) {
+        await refundNeverStartedWorkflowExecutionFee({
+          userId,
+          workflowId,
+          executionId,
+          reason: result.error,
+        }).catch(() => {
+          // A refund failure must not mask the run's real outcome; the
+          // ledger's idempotency key makes a later retry safe.
+        });
+      }
 
       // Phase 4.11 — the steps after the failure are NOT EXECUTED; persist
       // that explicitly so the execution history is honest. A step that was
@@ -842,6 +948,12 @@ export async function resumeExecution(
         maxRetries: execution.maxRetries ?? defaultMaxRetries(),
         // Resume restarts the timeout budget for the remaining work.
         startedAtMs: Date.now(),
+        // The segment starts at the execution's current step; if the resumed
+        // segment then fails with the whole execution still at ZERO completed
+        // steps, the run never actually started and its fee is released
+        // (Part 2 §21 amended — never-started runs are free).
+        startStepIndex: execution.currentStep,
+        neverStartedAutoRefund: true,
       });
     }
 
@@ -926,6 +1038,42 @@ export async function retryExecution(
       return { success: false, error: `Cannot retry execution in '${execution.status}' status` };
     }
 
+    // ── Part 2 §21 (amended) — never-started fee reconciliation ──
+    // If THIS execution's fee was refunded because the original run never
+    // started (zero steps completed), a retry that ACTUALLY starts re-incurs
+    // the flat fee — charged the moment its first step completes, exactly
+    // once per execution (`wfexec-started:<executionId>`), never per attempt.
+    // Until execution actually starts, the retry stays free (test rule 3).
+    // Batch members reconcile through their shared run batch id (the batch
+    // refund row references it), so any sibling execution finds it too.
+    let rechargeOnStart = false;
+    if (execution.currentStep === 0) {
+      const refundRefs: string[] = [execution.id];
+      try {
+        const parsed = execution.triggerData ? (JSON.parse(execution.triggerData) as Record<string, unknown>) : {};
+        const target = (parsed.target && typeof parsed.target === 'object' ? parsed.target : {}) as Record<string, unknown>;
+        if (typeof target.runBatchId === 'string') refundRefs.push(target.runBatchId);
+        if (typeof parsed.runBatchId === 'string') refundRefs.push(parsed.runBatchId);
+      } catch {
+        // Unparseable triggerData never blocks a retry — the execution id
+        // reference above still covers sole-scope refunds.
+      }
+      if (await wasNeverStartedFeeRefunded(userId, refundRefs)) {
+        const feeCheck = await checkWorkflowExecutionFeeSufficiency(userId);
+        if (!feeCheck.sufficient) {
+          // Same Part 2 §11 honesty as the execute route: reject the retry
+          // BEFORE anything re-runs — nothing is charged, nothing executed.
+          return {
+            success: false,
+            error:
+              `Insufficient credits to retry this workflow — the ${feeCheck.fee}-credit execution fee applies once the run actually starts, ` +
+              `and this account has ${feeCheck.balance}. Top up credits, then retry.`,
+          };
+        }
+        rechargeOnStart = true;
+      }
+    }
+
     // Re-execute from the failed step — resolved through the SAME shared
     // loader the engine uses so nodes-based definitions retry correctly.
     const workflow = await db.workflowDefinition.findUnique({
@@ -967,6 +1115,15 @@ export async function retryExecution(
       maxRetries: execution.maxRetries ?? defaultMaxRetries(),
       // Retry restarts the timeout budget for the re-run work.
       startedAtMs: Date.now(),
+      // The re-run starts at the execution's current step. If the retry
+      // itself fails before ANY step of the whole execution completes, the
+      // never-started release below fires again — the ledger idempotency
+      // key (`wfexec-neverstarted:<executionId>`) makes it a no-op when the
+      // refund was already applied, so repeated pre-start failures stay at
+      // a NET 0 cost, and an actual start re-charges exactly once.
+      startStepIndex: execution.currentStep,
+      neverStartedAutoRefund: true,
+      rechargeOnStart,
     });
 
     await logWorkflowEvent(userId, 'workflow_retried', {

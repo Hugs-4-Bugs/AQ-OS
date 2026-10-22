@@ -435,7 +435,11 @@ export async function executeAutopilotRun(
               niche,
               trigger,
             },
-            idempotencyKey
+            idempotencyKey,
+            // Part 2 §21 (amended): this lead's ONE charge covers this ONE
+            // execution — the engine releases the fee if the run terminates
+            // with ZERO steps completed (never actually started).
+            { neverStartedAutoRefund: true }
           );
           executionsCreated++;
           await db.autopilotLead.updateMany({

@@ -499,8 +499,10 @@ describe('POST /api/workflows/[id]/execute — legacy compatibility + honesty', 
     expect(json.status).toBe('completed');
     const call = mocks.executeWorkflow.mock.calls[0];
     expect(call[2]).toMatchObject({ leadId: 'lead_a' });
-    // Legacy = inline await (awaitCompletion not set → default true)
-    expect(call[4]).toBeUndefined();
+    // Legacy = inline await (awaitCompletion not set → default true), and
+    // Part 2 §21 (amended): the engine auto-releases the fee if the legacy
+    // run terminates with ZERO steps completed (never actually started).
+    expect(call[4]).toEqual({ neverStartedAutoRefund: true });
   });
 
   it('surfaces a synchronous legacy failure honestly (no fake success)', async () => {

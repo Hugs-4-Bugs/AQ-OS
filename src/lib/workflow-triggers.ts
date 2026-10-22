@@ -140,7 +140,11 @@ export async function evaluateTrigger(
           workflow.id,
           userId,
           { eventType, ...eventData },
-          idempotencyKey
+          idempotencyKey,
+          // Part 2 §21 (amended): this trigger's ONE charge covers this ONE
+          // execution — the engine releases the fee if the run terminates
+          // with ZERO steps completed (never actually started).
+          { neverStartedAutoRefund: true }
         );
 
         // Part 2 §21 — the run never actually started (no execution record
@@ -457,7 +461,11 @@ export async function processScheduledTriggers(): Promise<string[]> {
         workflow.id,
         workflow.userId,
         { eventType: 'scheduled', firedAt: now.toISOString() },
-        scheduledKey
+        scheduledKey,
+        // Part 2 §21 (amended): this firing's ONE charge covers this ONE
+        // execution — the engine releases the fee if the run terminates
+        // with ZERO steps completed (never actually started).
+        { neverStartedAutoRefund: true }
       );
 
       // Part 2 §21 — the firing never actually started (no execution

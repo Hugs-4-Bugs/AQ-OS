@@ -260,8 +260,12 @@ describe('Phase 6 — scalable batch execution', () => {
     expect(json.target.leadCount).toBe(3);
     expect(json.executions).toHaveLength(3);
     for (const e of json.executions) expect(e.status).toBe('running');
-    // No settle polling for large batches
-    expect(mocks.db.workflowExecution.findMany).not.toHaveBeenCalled();
+    // The response is immediate — no SYNCHRONOUS settle waiting (if the
+    // route polled inline, this test would hang for the settle timeout).
+    // Part 2 §21 (amended): a DETACHED background reconciliation may poll
+    // the executions afterwards to release the shared fee when the whole
+    // batch never actually started — it never blocks this response.
+    expect(json.message).toContain('background');
   });
 
   it('a small batch still settles and reports final per-lead outcomes (verified Task 1 behavior)', async () => {

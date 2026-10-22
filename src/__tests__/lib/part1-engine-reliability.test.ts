@@ -45,6 +45,13 @@ vi.mock('@/lib/workflow-credits', () => ({
   deductExecutionCredits: mocks.deductExecutionCredits,
   getActionCreditCost: vi.fn(async () => 1),
   checkExecutionLimit: vi.fn(async () => ({ allowed: true, current: 1, limit: 500 })),
+  // Part 2 §21 (amended) — never-started fee reconciliation helpers: these
+  // suites test engine mechanics, not billing; the dedicated billing suite
+  // (billing-never-started.test.ts) covers the real reconciliation paths.
+  refundNeverStartedWorkflowExecutionFee: vi.fn(async () => ({ refunded: true, newBalance: 0 })),
+  rechargeWorkflowExecutionFeeOnStart: vi.fn(async () => ({ ok: true, alreadyProcessed: false, newBalance: 0 })),
+  wasNeverStartedFeeRefunded: vi.fn(async () => false),
+  checkWorkflowExecutionFeeSufficiency: vi.fn(async () => ({ sufficient: true, balance: 100, fee: 5 })),
 }));
 vi.mock('@/lib/workflow-dead-letter', () => ({ sendToDeadLetter: mocks.sendToDeadLetter }));
 vi.mock('@/lib/workflow-audit', () => ({ logWorkflowEvent: vi.fn(async () => {}) }));

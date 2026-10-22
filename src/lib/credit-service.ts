@@ -107,6 +107,10 @@ export interface RefundCreditsParams {
   referenceId?: string;
   /** When provided, the refund is applied at most once for this key (idempotent retries). */
   idempotencyKey?: string;
+  /** Optional ledger description: business context for the reversal (why the
+   * refund happened — e.g. a never-started workflow execution). Falls back
+   * to the generic "Refund: N credits returned for failed ACTION" text. */
+  description?: string;
 }
 
 export interface RefundCreditsResult {
@@ -605,7 +609,7 @@ export async function checkCreditSufficiency(
  */
 export async function refundCredits(params: RefundCreditsParams): Promise<RefundCreditsResult> {
   try {
-    const { userId, amount, originalAction, referenceId, idempotencyKey } = params;
+    const { userId, amount, originalAction, referenceId, idempotencyKey, description } = params;
 
     if (amount <= 0) {
       return { success: false, newBalance: 0, error: 'Refund amount must be greater than 0' };
@@ -662,7 +666,7 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
           action: refundAction,
           credits: amount,
           balance: newBalance,
-          description: `Refund: ${amount} credits returned for failed ${originalAction}`,
+          description: description || `Refund: ${amount} credits returned for failed ${originalAction}`,
           referenceId: referenceId || null,
         },
       });

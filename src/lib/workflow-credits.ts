@@ -135,6 +135,143 @@ export async function refundWorkflowExecutionFee(params: {
   return { refunded: result.success && !result.alreadyProcessed, newBalance: result.newBalance };
 }
 
+// ===== NEVER-STARTED EXECUTION BILLING (Part 2 §21, amended) =====
+//
+// Product rule (billing-bug fix, Oct 2026): a workflow run that terminates
+// with ZERO steps completed never ACTUALLY started — no step ever executed,
+// the user received no work product (the canonical case: the first step's
+// webhook/network/provider call failed with "fetch failed" before anything
+// ran). Such a run must cost 0 credits: the acceptance-time fee (charged
+// before execution for idempotency) is atomically released.
+//
+// A run where at least ONE step completed IS an actually-started execution
+// and keeps the flat fee — the original Part 2 rule, preserved.
+//
+// Reconciliation keys (all ledger-idempotent, no double charge/refund):
+//   • never-started refund ....... `wfexec-neverstarted:<executionId>`
+//     (ledger row action `workflow_execution_refund_idempotent_wfexec-neverstarted:<executionId>`,
+//      referenceId = executionId — discoverable by the retry path)
+//   • actual-start re-charge ..... `wfexec-started:<executionId>`
+//     (a retry that finally completes its first step re-incurs the flat fee
+//      exactly ONCE per execution — never per retry attempt)
+
+/**
+ * Refund the flat execution fee for an execution that NEVER actually
+ * started — it terminated (failed/exhausted/invalid definition) with zero
+ * steps completed. Idempotent on the EXECUTION identity, so duplicate
+ * failure events, worker retries, and repeated code paths release the fee
+ * at most once. The ledger row carries the execution id as referenceId so
+ * a later retry can discover the refund and re-charge on actual start.
+ */
+export async function refundNeverStartedWorkflowExecutionFee(params: {
+  userId: string;
+  workflowId: string;
+  executionId: string;
+  /** Optional context: what killed the run before any step executed. */
+  reason?: string;
+}): Promise<{ refunded: boolean; newBalance: number }> {
+  const { userId, workflowId, executionId, reason } = params;
+  const result = await refundCredits({
+    userId,
+    amount: WORKFLOW_EXECUTION_FEE_CREDITS,
+    originalAction: 'workflow_execution',
+    referenceId: executionId,
+    idempotencyKey: `wfexec-neverstarted:${executionId}`,
+    description:
+      `Never-started workflow execution fee refunded (0 steps completed) — workflow ${workflowId}, execution ${executionId}` +
+      (reason ? ` — ${reason.slice(0, 200)}` : ''),
+  });
+  return { refunded: result.success && !result.alreadyProcessed, newBalance: result.newBalance };
+}
+
+/**
+ * Re-charge the flat execution fee when a previously-refunded execution is
+ * retried and ACTUALLY starts (its first step completes). Idempotent on the
+ * EXECUTION identity — one re-charge per execution no matter how many
+ * retry attempts happen; a balance that can no longer cover the fee is an
+ * honest INSUFFICIENT_CREDITS rejection, never a negative balance.
+ */
+export async function rechargeWorkflowExecutionFeeOnStart(params: {
+  userId: string;
+  workflowId: string;
+  executionId: string;
+}): Promise<ChargeWorkflowExecutionFeeResult> {
+  const { userId, workflowId, executionId } = params;
+
+  const result = await deductCredits({
+    userId,
+    action: 'workflow_execution',
+    cost: WORKFLOW_EXECUTION_FEE_CREDITS,
+    referenceId: executionId,
+    idempotencyKey: `wfexec-started:${executionId}`,
+    description:
+      `Workflow execution fee charged on actual start (retried execution) — workflow ${workflowId}, execution ${executionId}`,
+  });
+
+  if (!result.success) {
+    const balanceMatch = /have (\d+(?:\.\d+)?)/.exec(result.error || '');
+    const balance = balanceMatch ? Number(balanceMatch[1]) : 0;
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_CREDITS',
+      fee: WORKFLOW_EXECUTION_FEE_CREDITS,
+      balance,
+      shortfall: Math.max(0, WORKFLOW_EXECUTION_FEE_CREDITS - balance),
+    };
+  }
+
+  return {
+    ok: true,
+    alreadyProcessed: Boolean(result.alreadyProcessed),
+    newBalance: result.newBalance,
+  };
+}
+
+/**
+ * Did this execution's flat fee get refunded because the run never started?
+ * Looks for a workflow-execution refund ledger row referencing the given
+ * identifiers (the execution id, and — for multi-lead batch runs — the
+ * shared run batch id, whose refund is keyed on the run's charge identity).
+ */
+export async function wasNeverStartedFeeRefunded(
+  userId: string,
+  references: string[]
+): Promise<boolean> {
+  const refs = [...new Set(references.filter((r) => typeof r === 'string' && r.length > 0))];
+  if (refs.length === 0) return false;
+  try {
+    const row = await db.creditsLedger.findFirst({
+      where: {
+        userId,
+        action: { startsWith: 'workflow_execution_refund_idempotent_' },
+        referenceId: { in: refs },
+      },
+    });
+    return Boolean(row);
+  } catch (error) {
+    console.error('[WorkflowCredits] Failed to look up never-started fee refund:', error);
+    // Lookup failure must never trigger a surprise re-charge: treat as
+    // "no refund found" so the retried run stays free until verified.
+    return false;
+  }
+}
+
+/**
+ * Can this account cover the flat execution fee right now? Used by the
+ * retry path to reject an honestly-unaffordable retry BEFORE it starts
+ * (same Part 2 §11 philosophy as the execute route's 402).
+ */
+export async function checkWorkflowExecutionFeeSufficiency(
+  userId: string
+): Promise<{ sufficient: boolean; balance: number; fee: number }> {
+  const sufficiency = await checkCreditSufficiency(userId, WORKFLOW_EXECUTION_FEE_CREDITS);
+  return {
+    sufficient: sufficiency.sufficient,
+    balance: sufficiency.balance,
+    fee: WORKFLOW_EXECUTION_FEE_CREDITS,
+  };
+}
+
 // ===== PLAN LIMITS =====
 
 // Plan limits for concurrent/total workflows per user.

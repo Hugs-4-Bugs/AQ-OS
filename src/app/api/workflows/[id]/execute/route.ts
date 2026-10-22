@@ -302,6 +302,54 @@ async function waitForBatchSettle(executionIds: string[]): Promise<void> {
   }
 }
 
+/** ── Part 2 §21 (amended) — never-started BATCH fee release ──
+ *
+ * ONE flat fee covered the WHOLE multi-lead batch. The run actually
+ * started only if at least one kicked execution completed at least one
+ * step. When EVERY kicked execution terminated (failed/exhausted) with
+ * ZERO steps completed — the canonical case: the first step's webhook /
+ * network / provider call failed ("fetch failed") for every lead — the
+ * run never actually started and the shared fee is released: ONE refund,
+ * idempotent on the run's charge key (the same key the no-kick §21
+ * release uses, so the two can never double-refund). A batch where any
+ * execution completed a step, is still running, or is missing its final
+ * row keeps the fee — conservative by construction, never a wrong refund.
+ */
+async function refundBatchIfNeverStarted(
+  executionIds: string[],
+  params: { userId: string; workflowId: string; runKey: string }
+): Promise<boolean> {
+  if (executionIds.length === 0) return false;
+  try {
+    const rows = await db.workflowExecution.findMany({
+      where: { id: { in: executionIds } },
+      select: { id: true, status: true, currentStep: true },
+    });
+    if (rows.length !== executionIds.length) return false; // unsettled/unknown — never refund blindly
+    const allNeverStarted = rows.every(
+      (r) =>
+        (r.status === 'failed' || r.status === 'exhausted') &&
+        (r.currentStep ?? 0) === 0
+    );
+    if (!allNeverStarted) return false;
+    const refund = await refundWorkflowExecutionFee({
+      userId: params.userId,
+      workflowId: params.workflowId,
+      chargeKey: `wfexec-run:${params.runKey}`,
+      source: 'MANUAL_WORKFLOW' satisfies WorkflowChargeSource,
+      // The run batch id rides on the refund row so ANY of the batch's
+      // failed executions can discover it when retried (retry-time
+      // actual-start re-charge reconciliation).
+      referenceId: params.runKey,
+    });
+    return refund.refunded;
+  } catch {
+    // A reconciliation failure must not surface as a run error; the
+    // ledger's idempotency key makes a later retry safe.
+    return false;
+  }
+}
+
 // ===== ROUTE =====
 
 export async function POST(
@@ -658,7 +706,26 @@ export async function POST(
         // statuses (per-lead executions were already kicked in the
         // background); small batches keep the verified settle-and-aggregate
         // behavior so the response reports final per-lead outcomes.
+        const realIds = executions.filter((e) => e.executionId).map((e) => e.executionId);
         if (leads.length > batchSettleMaxLeads()) {
+          // ── Part 2 §21 (amended) — detached never-started reconciliation ──
+          // The response has already reported honestly; the fee's fate is
+          // decided AFTER the background batch settles. If EVERY execution
+          // terminates with zero steps completed, the shared fee is released
+          // (idempotently — the ledger key guards against any duplicate
+          // callback or retry of this reconciliation). A batch that started
+          // real work keeps its fee. Errors are swallowed: never break the
+          // already-accepted run over a reconciliation problem.
+          if (realIds.length > 0) {
+            void (async () => {
+              await waitForBatchSettle(realIds).catch(() => {});
+              await refundBatchIfNeverStarted(realIds, {
+                userId: user.id,
+                workflowId: id,
+                runKey,
+              });
+            })();
+          }
           return NextResponse.json(
             {
               executionId: executions[0]?.executionId,
@@ -677,12 +744,11 @@ export async function POST(
 
         // 5. Wait for the batch to settle, then aggregate the persisted
         //    final states — the response reports what ACTUALLY happened.
-        const realIds = executions.filter((e) => e.executionId).map((e) => e.executionId);
         if (realIds.length > 0) await waitForBatchSettle(realIds);
         const finalRows = realIds.length
           ? await db.workflowExecution.findMany({
               where: { id: { in: realIds } },
-              select: { id: true, status: true, error: true },
+              select: { id: true, status: true, error: true, currentStep: true },
             })
           : [];
         const byId = new Map(finalRows.map((r) => [r.id, r]));
@@ -702,13 +768,31 @@ export async function POST(
             ? 'failed'
             : 'partial';
 
+        // ── Part 2 §21 (amended) — never-started batch fee release ──
+        // Every kicked execution ended failed/exhausted with ZERO steps
+        // completed (and no kick ever failed to create its record): the
+        // run never actually started — the shared fee is released once,
+        // idempotently, and the response reports the reconciled state.
+        const neverStarted = realIds.length > 0 &&
+          executions.every((e) => {
+            if (!e.executionId) return true; // kick failure — nothing started for this lead
+            const row = byId.get(e.executionId);
+            return Boolean(row) &&
+              (row!.status === 'failed' || row!.status === 'exhausted') &&
+              (row!.currentStep ?? 0) === 0;
+          });
+        const batchFeeReleased = neverStarted
+          ? await refundBatchIfNeverStarted(realIds, { userId: user.id, workflowId: id, runKey })
+          : false;
+
         return NextResponse.json(
           {
             executionId: executions[0]?.executionId,
             status: overall,
             error: failed.length > 0 ? (failed[0].error || 'One or more targeted runs failed.') : undefined,
             target: { mode, leadCount: leads.length, runBatchId, runId: runKey },
-            creditsCharged: WORKFLOW_EXECUTION_FEE_CREDITS,
+            creditsCharged: batchFeeReleased ? 0 : WORKFLOW_EXECUTION_FEE_CREDITS,
+            ...(batchFeeReleased ? { creditsRefunded: true } : {}),
             executions: executions.map(({ leadId, leadName, executionId, status, error }) => ({
               leadId, leadName, executionId, status, error,
             })),
@@ -764,7 +848,12 @@ export async function POST(
         return insufficientCreditsResponse(id, legacyCharge);
       }
 
-      // Execute the workflow
+      // Execute the workflow. neverStartedAutoRefund: this legacy path's
+      // ONE charge covers this ONE execution — the engine itself releases
+      // the fee if the run terminates with ZERO steps completed (it never
+      // actually started). The route's §21 release below still covers the
+      // no-execution-record case; both use ledger idempotency, so they can
+      // never double-refund.
       const legacyTriggerData = (body.triggerData && typeof body.triggerData === 'object'
         ? body.triggerData
         : body) as Record<string, unknown>;
@@ -772,15 +861,17 @@ export async function POST(
         id,
         user.id,
         legacyTriggerData,
-        legacyRunKey
+        legacyRunKey,
+        { neverStartedAutoRefund: true }
       );
 
       // ── Part 2 §21 — refund when the run never actually started ──
-      // 'failed' with an executionId means a record exists and honestly
-      // says why nothing ran (still a started-and-failed run — fee stands
-      // per the explicit product rule). NO executionId at all (not found,
-      // monthly execution limit, engine preflight) means NOTHING started:
-      // the fee must be released, idempotently.
+      // NO executionId at all (not found, monthly execution limit, engine
+      // preflight) means NOTHING started: the fee is released, idempotently.
+      // An execution record that terminated with ZERO steps completed also
+      // never actually started (e.g. the first step's webhook/network call
+      // failed before any step executed): the ENGINE already released the
+      // fee (neverStartedAutoRefund above) — the response reports it.
       if (!result.executionId) {
         await refundWorkflowExecutionFee({
           userId: user.id,
@@ -801,13 +892,21 @@ export async function POST(
         );
       }
 
+      // Zero completed steps + terminal failure = never actually started:
+      // the engine released the fee (refund is idempotent + retry-safe, so
+      // the response honestly reflects the reconciled ledger state).
+      const legacyNeverStarted =
+        (result.status === 'failed' || result.status === 'exhausted') &&
+        result.stepsCompleted === 0;
+
       // Return 202 Accepted with execution ID
       return NextResponse.json(
         {
           executionId: result.executionId,
           status: result.status,
           error: result.error,
-          creditsCharged: WORKFLOW_EXECUTION_FEE_CREDITS,
+          creditsCharged: legacyNeverStarted ? 0 : WORKFLOW_EXECUTION_FEE_CREDITS,
+          ...(legacyNeverStarted ? { creditsRefunded: true } : {}),
         },
         { status: 202 }
       );

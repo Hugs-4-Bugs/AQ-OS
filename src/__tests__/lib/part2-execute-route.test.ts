@@ -291,3 +291,111 @@ describe('Part 2 — charge ordering: every free rejection happens BEFORE the fe
     expect(mocks.chargeWorkflowExecutionFee).not.toHaveBeenCalled();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// Part 2 §21 (amended) — never-started BATCH fee release
+//
+// ONE flat fee covers the whole multi-lead batch. If EVERY kicked
+// execution settles failed/exhausted at ZERO steps completed (the
+// billing bug: "Webhook call failed: fetch failed", 0/6 steps), the run
+// never actually started and the shared fee is released — ONE refund on
+// the run's charge key. A batch where any execution did real work keeps
+// its fee (original Part 2 rule preserved).
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Part 2 §21 (amended) — never-started batch fee release', () => {
+  it('ALL kicked executions fail at step 0 (webhook down) → ONE refund, response reports creditsCharged 0', async () => {
+    const ids = primeSelectedLeads(3);
+    // Every execution settles as a 0-step pre-start failure — the exact
+    // screenshot scenario ("Webhook call failed: fetch failed", 0/6 steps).
+    mocks.db.workflowExecution.findMany.mockImplementation(
+      async ({ where }: { where: { id: { in: string[] } } }) =>
+        (where.id.in ?? []).map((id) => ({
+          id,
+          status: 'failed',
+          error: 'Webhook call failed: fetch failed',
+          currentStep: 0,
+        })),
+    );
+
+    const { status, json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_never' } });
+
+    expect(status).toBe(202);
+    expect(json.status).toBe('failed');
+    // The run never actually started → fee released, honestly reported.
+    expect(json.creditsCharged).toBe(0);
+    expect(json.creditsRefunded).toBe(true);
+    expect(mocks.chargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mocks.refundWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mocks.refundWorkflowExecutionFee.mock.calls[0][0].chargeKey).toBe('wfexec-run:run_never');
+    expect(mocks.refundWorkflowExecutionFee.mock.calls[0][0].referenceId).toBe('run_never');
+  });
+
+  it('a MIXED batch (one execution completed real steps) keeps its fee — no refund', async () => {
+    const ids = primeSelectedLeads(2);
+    mocks.db.workflowExecution.findMany.mockImplementation(
+      async ({ where }: { where: { id: { in: string[] } } }) =>
+        (where.id.in ?? []).map((id, i) => ({
+          id,
+          status: i === 0 ? 'completed' : 'failed',
+          error: i === 0 ? null : 'Webhook call failed: fetch failed',
+          currentStep: i === 0 ? 2 : 0,
+        })),
+    );
+
+    const { status, json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_mixed' } });
+
+    expect(status).toBe(202);
+    expect(json.status).toBe('partial');
+    expect(json.creditsCharged).toBe(5); // the run actually started — fee stands
+    expect(json.creditsRefunded).toBeUndefined();
+    expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+
+  it('still-running executions are NEVER refunded (conservative — the batch may still start)', async () => {
+    const ids = primeSelectedLeads(2);
+    mocks.db.workflowExecution.findMany.mockImplementation(
+      async ({ where }: { where: { id: { in: string[] } } }) =>
+        (where.id.in ?? []).map((id) => ({ id, status: 'running', error: null, currentStep: 0 })),
+    );
+
+    const { json } = await run({ target: { mode: 'selected_leads', leadIds: ids, runId: 'run_pending' } });
+
+    expect(json.creditsCharged).toBe(5);
+    expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+
+  it('legacy run that failed with ZERO completed steps reports the engine-side refund (stepsCompleted contract)', async () => {
+    mocks.executeWorkflow.mockResolvedValue({
+      executionId: 'exec_ns',
+      status: 'failed',
+      error: 'Webhook call failed: fetch failed',
+      stepsCompleted: 0,
+    });
+
+    const { status, json } = await run({ idempotencyKey: 'run_legacy_ns' });
+
+    expect(status).toBe(202);
+    expect(json.creditsCharged).toBe(0);
+    expect(json.creditsRefunded).toBe(true);
+    // The ENGINE performed the release (neverStartedAutoRefund); the route
+    // must not issue a SECOND refund on top of it.
+    expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+
+  it('legacy started-and-failed run (stepsCompleted > 0) keeps its fee — Part 2 rule preserved', async () => {
+    mocks.executeWorkflow.mockResolvedValue({
+      executionId: 'exec_sf',
+      status: 'failed',
+      error: 'Second step exploded',
+      stepsCompleted: 1,
+    });
+
+    const { status, json } = await run({ idempotencyKey: 'run_legacy_sf' });
+
+    expect(status).toBe(202);
+    expect(json.creditsCharged).toBe(5);
+    expect(json.creditsRefunded).toBeUndefined();
+    expect(mocks.refundWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+});
