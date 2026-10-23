@@ -19,6 +19,11 @@ import {
   isAutopilotSchedule,
   type AutopilotStatus,
 } from './constants';
+import {
+  parseProfileMappings,
+  resolveNicheSelection,
+  validateProfileMappingsOwnership,
+} from '@/lib/niches';
 
 // ===== PLAN NORMALIZATION =====
 
@@ -167,6 +172,75 @@ export function parseAutopilotConfig(
   return { ok: true, value: { niches: cleaned, geography: geo } };
 }
 
+// ===== WORKFLOW ELIGIBILITY (Phase 19) =====
+
+/**
+ * A workflow the authenticated user may select for Autopilot. Derived
+ * LIVE from the workflow system (never a fixed list) so newly created
+ * active workflows appear automatically without code changes.
+ */
+export interface EligibleWorkflow {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  triggerType: string;
+  profileId: string | null;
+  stepCount: number;
+  updatedAt: string;
+}
+
+/**
+ * Canonical eligibility rule for Autopilot workflows — ONE definition,
+ * reused by the eligible-workflow listing, create/update validation,
+ * and (as the run-time authority) the runner's pre-execution check:
+ *   the workflow must exist AND belong to the user AND be active.
+ * (runAutopilot independently enforces the same rule before any charge.)
+ */
+export async function listEligibleWorkflows(userId: string): Promise<EligibleWorkflow[]> {
+  const rows = await db.workflowDefinition.findMany({
+    where: { userId, status: 'active' },
+    orderBy: { updatedAt: 'desc' },
+    take: 200,
+    include: { _count: { select: { workflowSteps: true } } },
+  });
+  return rows.map((w) => ({
+    id: w.id,
+    name: w.name,
+    description: w.description ?? null,
+    status: w.status,
+    triggerType: w.triggerType,
+    profileId: w.profileId ?? null,
+    stepCount: w._count?.workflowSteps ?? 0,
+    updatedAt: w.updatedAt instanceof Date ? w.updatedAt.toISOString() : String(w.updatedAt),
+  }));
+}
+
+export type WorkflowEligibility =
+  | { ok: true; workflow: { id: string; name: string; status: string; profileId: string | null } }
+  | { ok: false; code: 'NOT_FOUND' | 'INACTIVE'; workflowName?: string };
+
+/**
+ * Resolve ONE workflow's eligibility for Autopilot selection. A missing
+ * row and a foreign user's row are deliberately indistinguishable
+ * (NOT_FOUND) — no cross-user existence leak. INACTIVE carries the name
+ * so callers can surface a clear, actionable error.
+ */
+export async function resolveAutopilotWorkflow(
+  userId: string,
+  workflowId: string
+): Promise<WorkflowEligibility> {
+  const wf = await db.workflowDefinition.findFirst({
+    where: { id: workflowId, userId },
+    select: { id: true, name: true, status: true, profileId: true },
+  });
+  if (!wf) return { ok: false, code: 'NOT_FOUND' };
+  if (wf.status !== 'active') {
+    return { ok: false, code: 'INACTIVE', workflowName: wf.name };
+  }
+  return { ok: true, workflow: { id: wf.id, name: wf.name, status: wf.status, profileId: wf.profileId ?? null } };
+}
+
 // ===== CRUD =====
 
 export interface CreateAutopilotInput {
@@ -176,6 +250,8 @@ export interface CreateAutopilotInput {
   workflowId: string;
   schedule: string;
   activate: boolean;
+  /** Phase 20 — optional { [nicheKey]: businessProfileId } mapping. */
+  profileMappings?: unknown;
 }
 
 export interface AutopilotMutationResult {
@@ -190,15 +266,28 @@ export interface AutopilotMutationResult {
 }
 
 /**
- * Validate the linked workflow: must exist AND belong to the caller.
- * (executeWorkflow additionally requires status=active at run time.)
+ * Validate the linked workflow for SELECTION (Phase 19): must exist,
+ * belong to the caller, AND be active. Deleted (archived), paused and
+ * draft workflows are rejected with a clear error at selection time —
+ * never silently substituted, never charged. (executeWorkflow
+ * independently re-validates the same rule at run time — the runner
+ * stays the final authority.)
  */
-async function verifyWorkflowOwnership(userId: string, workflowId: string): Promise<boolean> {
-  const wf = await db.workflowDefinition.findFirst({
-    where: { id: workflowId, userId },
-    select: { id: true },
-  });
-  return !!wf;
+async function verifyWorkflowEligibility(
+  userId: string,
+  workflowId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const eligibility = await resolveAutopilotWorkflow(userId, workflowId);
+  if (!eligibility.ok) {
+    if (eligibility.code === 'INACTIVE') {
+      return {
+        ok: false,
+        error: `Workflow "${eligibility.workflowName}" is not active — activate it in Workflows first`,
+      };
+    }
+    return { ok: false, error: 'Workflow not found for this account' };
+  }
+  return { ok: true };
 }
 
 export async function createAutopilot(
@@ -214,9 +303,33 @@ export async function createAutopilot(
   if (!isAutopilotSchedule(input.schedule)) {
     return { success: false, error: 'Invalid schedule', code: 'VALIDATION' };
   }
-  const wfOk = await verifyWorkflowOwnership(userId, input.workflowId);
-  if (!wfOk) {
-    return { success: false, error: 'Workflow not found for this account', code: 'VALIDATION' };
+  const wfCheck = await verifyWorkflowEligibility(userId, input.workflowId);
+  if (!wfCheck.ok) {
+    return { success: false, error: wfCheck.error, code: 'VALIDATION' };
+  }
+
+  // ── Phase 20 — canonical niche resolution (server-side authority) ──
+  // Every entry must be a predefined niche or one of the caller's OWN
+  // saved custom niches (by name or `custom:<id>`). Foreign/unknown
+  // niches are rejected BEFORE any row exists — no discovery, no charge.
+  const shape = parseAutopilotConfig(input.niches, input.geography);
+  if (!shape.ok) {
+    return { success: false, error: shape.error, code: 'VALIDATION' };
+  }
+  const nicheSelection = await resolveNicheSelection(userId, shape.value.niches);
+  if (!nicheSelection.ok) {
+    return { success: false, error: nicheSelection.error, code: 'VALIDATION' };
+  }
+  const niches = nicheSelection.niches;
+
+  // ── Phase 20 — profile mapping validation (ownership + shape) ──
+  const mappings = parseProfileMappings(input.profileMappings, niches);
+  if (!mappings.ok) {
+    return { success: false, error: mappings.error, code: 'VALIDATION' };
+  }
+  const mappingOwnership = await validateProfileMappingsOwnership(userId, mappings.value);
+  if (!mappingOwnership.ok) {
+    return { success: false, error: mappingOwnership.error, code: 'VALIDATION' };
   }
 
   // Entitlement + slot limit — server-side, BEFORE any row is created.
@@ -241,8 +354,9 @@ export async function createAutopilot(
       orgId,
       name,
       status: desiredStatus,
-      niches: JSON.stringify(input.niches),
+      niches: JSON.stringify(niches),
       geography: JSON.stringify(input.geography),
+      profileMappings: JSON.stringify(mappings.value),
       workflowId: input.workflowId,
       schedule: input.schedule,
       nextRunAt: desiredStatus === 'ACTIVE' ? new Date(Date.now() + 60000) : null,
@@ -315,6 +429,9 @@ export interface UpdateAutopilotFields {
   geography?: unknown;
   workflowId?: string;
   schedule?: string;
+  /** Phase 20 — { [nicheKey]: businessProfileId } (validated against the
+   * effective niche selection — new niches when provided, else existing). */
+  profileMappings?: unknown;
 }
 
 /** Update editable fields (never status — use transitionAutopilot). */
@@ -333,6 +450,12 @@ export async function updateAutopilotFields(
     if (!name) return { success: false, error: 'Name cannot be empty', code: 'VALIDATION' };
     data.name = name;
   }
+
+  // ── Phase 20 — niche updates resolve through the canonical service ──
+  // (predefined or the caller's OWN custom niches; foreign/unknown
+  // rejected before any row changes). Legacy rows that never touch
+  // `niches` keep working unchanged.
+  let effectiveNiches: string[] | null = null;
   if (fields.niches !== undefined || fields.geography !== undefined) {
     const parsed = parseAutopilotConfig(
       fields.niches !== undefined ? fields.niches : JSON.parse(autopilot.niches),
@@ -341,14 +464,44 @@ export async function updateAutopilotFields(
     if (!parsed.ok) {
       return { success: false, error: parsed.error, code: 'VALIDATION' };
     }
-    data.niches = JSON.stringify(parsed.value.niches);
+    let niches = parsed.value.niches;
+    if (fields.niches !== undefined) {
+      const nicheSelection = await resolveNicheSelection(userId, parsed.value.niches);
+      if (!nicheSelection.ok) {
+        return { success: false, error: nicheSelection.error, code: 'VALIDATION' };
+      }
+      niches = nicheSelection.niches;
+    }
+    effectiveNiches = niches;
+    data.niches = JSON.stringify(niches);
     data.geography = JSON.stringify(parsed.value.geography);
   }
+
+  // ── Phase 20 — profile mapping updates (shape + ownership) ──
+  // Not provided → existing mappings are kept verbatim (non-destructive;
+  // the runner only reads mappings for niches that are actually selected,
+  // so an orphaned key after a niche removal is inert, never harmful).
+  if (fields.profileMappings !== undefined) {
+    const selected = effectiveNiches ?? parseJsonArray(autopilot.niches);
+    const mappings = parseProfileMappings(fields.profileMappings, selected);
+    if (!mappings.ok) {
+      return { success: false, error: mappings.error, code: 'VALIDATION' };
+    }
+    const ownership = await validateProfileMappingsOwnership(userId, mappings.value);
+    if (!ownership.ok) {
+      return { success: false, error: ownership.error, code: 'VALIDATION' };
+    }
+    data.profileMappings = JSON.stringify(mappings.value);
+  }
+
   if (fields.workflowId !== undefined) {
     const wfId = String(fields.workflowId).trim();
-    const ok = await verifyWorkflowOwnership(userId, wfId);
-    if (!ok) {
+    if (!wfId) {
       return { success: false, error: 'Workflow not found for this account', code: 'VALIDATION' };
+    }
+    const check = await verifyWorkflowEligibility(userId, wfId);
+    if (!check.ok) {
+      return { success: false, error: check.error, code: 'VALIDATION' };
     }
     data.workflowId = wfId;
   }
@@ -363,6 +516,11 @@ export async function updateAutopilotFields(
     data,
   });
   return { success: true, autopilot: { id: updated.id, status: updated.status, name: updated.name } };
+}
+
+/** Tolerant parse of a stored niches JSON array (legacy-safe). */
+function parseJsonArray(raw: string): string[] {
+  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch { return []; }
 }
 
 /** Delete an autopilot and (cascade-style, explicit) its runs + ledger rows. */
@@ -393,6 +551,14 @@ export interface AutopilotListItem {
   niches: string[];
   geography: AutopilotGeo;
   workflowId: string;
+  // Phase 19 — linked-workflow health for the UI: null when the workflow
+  // no longer exists (deleted); present-but-ineligible when paused/draft/
+  // archived. The autopilot config itself is NEVER auto-deleted — the
+  // user relinks a valid workflow to recover.
+  workflow: { id: string; name: string; status: string } | null;
+  workflowEligible: boolean;
+  // Phase 20 — persisted { [nicheKey]: businessProfileId } mapping.
+  profileMappings: Record<string, string>;
   schedule: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
@@ -405,28 +571,34 @@ export interface AutopilotListItem {
   createdAt: string;
 }
 
-function serializeAutopilot(a: {
-  id: string;
-  name: string;
-  status: string;
-  niches: string;
-  geography: string;
-  workflowId: string;
-  schedule: string;
-  lastRunAt: Date | null;
-  nextRunAt: Date | null;
-  lastError: string | null;
-  runCount: number;
-  totalDiscovered: number;
-  totalSaved: number;
-  totalProcessed: number;
-  totalExecutions: number;
-  createdAt: Date;
-}): AutopilotListItem {
+function serializeAutopilot(
+  a: {
+    id: string;
+    name: string;
+    status: string;
+    niches: string;
+    geography: string;
+    profileMappings: string;
+    workflowId: string;
+    schedule: string;
+    lastRunAt: Date | null;
+    nextRunAt: Date | null;
+    lastError: string | null;
+    runCount: number;
+    totalDiscovered: number;
+    totalSaved: number;
+    totalProcessed: number;
+    totalExecutions: number;
+    createdAt: Date;
+  },
+  workflow: { id: string; name: string; status: string } | null
+): AutopilotListItem {
   let niches: string[] = [];
   let geography: AutopilotGeo = {};
+  let profileMappings: Record<string, string> = {};
   try { niches = JSON.parse(a.niches); } catch { niches = []; }
   try { geography = JSON.parse(a.geography); } catch { geography = {}; }
+  try { profileMappings = JSON.parse(a.profileMappings); } catch { profileMappings = {}; }
   return {
     id: a.id,
     name: a.name,
@@ -434,6 +606,9 @@ function serializeAutopilot(a: {
     niches,
     geography,
     workflowId: a.workflowId,
+    workflow,
+    workflowEligible: !!workflow && workflow.status === 'active',
+    profileMappings,
     schedule: a.schedule,
     lastRunAt: a.lastRunAt ? a.lastRunAt.toISOString() : null,
     nextRunAt: a.nextRunAt ? a.nextRunAt.toISOString() : null,
@@ -447,11 +622,25 @@ function serializeAutopilot(a: {
   };
 }
 
+/**
+ * List the caller's autopilots with linked-workflow health (Phase 19):
+ * ONE extra batched query resolves every distinct workflowId — user-
+ * scoped, so a foreign or missing workflow resolves to null (eligible=false)
+ * without leaking anything. Derived live; no stored state to drift.
+ */
 export async function listAutopilots(userId: string): Promise<AutopilotListItem[]> {
   const rows = await db.autopilotWorkflow.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
     take: 100,
   });
-  return rows.map(serializeAutopilot);
+  const wfIds = [...new Set(rows.map((r) => r.workflowId).filter(Boolean))];
+  const workflows = wfIds.length
+    ? await db.workflowDefinition.findMany({
+        where: { userId, id: { in: wfIds } },
+        select: { id: true, name: true, status: true },
+      })
+    : [];
+  const wfById = new Map(workflows.map((w) => [w.id, w]));
+  return rows.map((r) => serializeAutopilot(r, wfById.get(r.workflowId) ?? null));
 }

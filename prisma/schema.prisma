@@ -3214,6 +3214,11 @@ model AutopilotWorkflow {
   niches     String    @default("[]")
   // JSON { country, city } — same shape as existing discovery geography config
   geography  String    @default("{}")
+  // Phase 20 — JSON { [nicheKey]: businessProfileId } mapping each selected
+  // niche to the saved Business Profile used for that niche's leads.
+  // Additive column: legacy rows read as "{}" (no mapping → existing
+  // workflow-profile/default precedence, behavior unchanged).
+  profileMappings String @default("{}")
   // Linked user-configured WorkflowDefinition (must be active at run time)
   workflowId String
   // hourly | every_6_hours | every_12_hours | daily | weekly
@@ -3293,4 +3298,33 @@ model AutopilotLead {
   @@unique([autopilotId, leadId])
   @@index([runId])
   @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 20 — Custom Niches (additive).
+//
+// A user-owned niche beyond the predefined NICHE_OPTIONS vocabulary
+// (e.g. "AI SaaS companies"). Canonical identity = (userId, nicheKey)
+// where nicheKey is the normalized form (trimmed, whitespace-collapsed,
+// lowercased) — "Dental Clinics", "dental clinics" and "DENTAL CLINICS"
+// are the SAME logical niche for one user, but never across users.
+// Saved custom niches are NEVER auto-deleted or auto-archived because
+// they are not currently selected; status exists for future lifecycle
+// phases only. Plain userId column (no Prisma relation) — same
+// convention as AutopilotWorkflow/AutopilotRun/AutopilotLead.
+// ═══════════════════════════════════════════════════════════════════
+model CustomNiche {
+  id        String   @id @default(cuid())
+  userId    String
+  // Display form exactly as the user saved it (their casing).
+  name      String
+  // Normalized identity: trim → collapse internal whitespace → lowercase.
+  nicheKey  String
+  // active | archived — only 'active' niches are listed/selectable.
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, nicheKey])
+  @@index([userId, status])
 }

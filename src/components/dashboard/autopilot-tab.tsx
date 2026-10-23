@@ -21,7 +21,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Rocket, Plus, Play, Pause, Trash2, RefreshCw, Pencil, ChevronDown,
-  Clock, CheckCircle2, XCircle, AlertTriangle, Layers, Globe2, Workflow as WorkflowIcon,
+  Clock, CheckCircle2, XCircle, AlertTriangle, Layers, Globe2, Workflow as WorkflowIcon, Link2,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,14 @@ interface AutopilotListItem {
   niches: string[];
   geography: { country?: string; city?: string };
   workflowId: string;
+  // Phase 19 — linked-workflow health from the API: null = deleted/
+  // unavailable; present-but-inactive = paused/draft/archived. Drives
+  // the clear recoverable state + Relink action (config is kept).
+  workflow: { id: string; name: string; status: string } | null;
+  workflowEligible: boolean;
+  // Phase 20 — persisted niche → Business Profile mapping (normalized
+  // niche key → profile id).
+  profileMappings?: Record<string, string>;
   schedule: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
@@ -61,7 +70,30 @@ interface AutopilotListItem {
 interface WorkflowOption {
   id: string;
   name: string;
+  description: string | null;
   status: string;
+  stepCount: number;
+}
+
+// Phase 20 — a saved custom niche from GET /api/autopilot/niches.
+interface CustomNicheOption {
+  id: string;
+  name: string;
+  nicheKey: string;
+}
+
+// Phase 20 — a saved Business Profile (for the niche → profile mapping).
+interface ProfileOption {
+  id: string;
+  name: string;
+  status: string;
+  isDefault?: boolean;
+}
+
+/** Client-side mirror of the server's niche normalization (display only —
+ * the server re-validates authoritatively on every submit). */
+function nicheKeyOf(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 interface AutopilotRun {
@@ -116,10 +148,28 @@ export default function AutopilotTab() {
   const [autopilots, setAutopilots] = useState<AutopilotListItem[]>([]);
   const [entitlement, setEntitlement] = useState<{ limit: number; used: number; allowed: boolean }>({ limit: 0, used: 0, allowed: false });
   const [workflows, setWorkflows] = useState<WorkflowOption[]>([]);
+  // Phase 19 — selector data lifecycle: loading | ready | error (an API
+  // failure is NOT silently shown as "no workflows" — it gets its own
+  // state + retry so the user can recover).
+  const [wfLoadState, setWfLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [runs, setRuns] = useState<Record<string, AutopilotRun[]>>({});
+  // Phase 19 — relink (recoverable state for deleted/disabled links).
+  const [relinkTarget, setRelinkTarget] = useState<AutopilotListItem | null>(null);
+  const [relinkWorkflowId, setRelinkWorkflowId] = useState('');
+  const [relinkSubmitting, setRelinkSubmitting] = useState(false);
+
+  // Phase 20 — saved custom niches + Business Profiles for the selector.
+  const [customNiches, setCustomNiches] = useState<CustomNicheOption[]>([]);
+  const [nichesLoadState, setNichesLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [customInput, setCustomInput] = useState('');
+  const [addingNiche, setAddingNiche] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  // Phase 20 — selected niche → profile mapping (nicheKey → profileId).
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
 
   // create form state
   const [name, setName] = useState('');
@@ -150,19 +200,113 @@ export default function AutopilotTab() {
     }
   }, [toast]);
 
+  // Phase 19 — eligible-workflow loader (server-side canonical rule:
+  // owned + active; derived live so new workflows appear automatically).
+  const fetchWorkflows = useCallback(async () => {
+    setWfLoadState('loading');
+    try {
+      const res = await fetch('/api/autopilot/workflows');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setWorkflows(data.workflows || []);
+      setWfLoadState('ready');
+    } catch {
+      setWorkflows([]);
+      setWfLoadState('error');
+    }
+  }, []);
+
+  // Phase 20 — saved custom-niche loader (server-side canonical list,
+  // user-scoped). Separate lifecycle states: an API failure is shown as
+  // an error with retry, never as "no custom niches".
+  const fetchCustomNiches = useCallback(async () => {
+    setNichesLoadState('loading');
+    try {
+      const res = await fetch('/api/autopilot/niches');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setCustomNiches(data.niches || []);
+      setNichesLoadState('ready');
+    } catch {
+      setCustomNiches([]);
+      setNichesLoadState('error');
+    }
+  }, []);
+
+  // Phase 20 — Business Profiles for the niche → profile mapping rows
+  // (active only; the mapping is optional per niche).
+  const fetchProfiles = useCallback(async () => {
+    try {
+      const res = await fetch('/api/business-profiles');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const list: ProfileOption[] = (data.profiles || []).filter(
+        (p: ProfileOption) => p.status === 'active'
+      );
+      setProfiles(list);
+    } catch {
+      // Mapping stays usable-less but the form still works — profile
+      // mapping is optional; a retry happens when the dialog reopens.
+      setProfiles([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchState();
-    // load the user's ACTIVE workflows for the selector
-    fetch('/api/workflows?status=active&limit=50')
-      .then((r) => (r.ok ? r.json() : { workflows: [] }))
-      .then((d) => setWorkflows(d.workflows || []))
-      .catch(() => setWorkflows([]));
-  }, [fetchState]);
+    fetchWorkflows();
+    fetchCustomNiches();
+    fetchProfiles();
+  }, [fetchState, fetchWorkflows, fetchCustomNiches, fetchProfiles]);
 
   const toggleNiche = (niche: string) => {
     setSelectedNiches((prev) =>
       prev.includes(niche) ? prev.filter((n) => n !== niche) : [...prev, niche]
     );
+  };
+
+  // Phase 20 — save a custom niche server-side, then auto-select it.
+  // Duplicate detection happens in the canonical niche service (any
+  // casing/whitespace variation of an existing save is the SAME niche);
+  // the warning is surfaced inline without losing the typed value.
+  const handleAddCustomNiche = async () => {
+    const typed = customInput.trim().replace(/\s+/g, ' ');
+    if (!typed) {
+      toast({ title: 'Type a niche name first', variant: 'destructive' });
+      return;
+    }
+    setDuplicateWarning(null);
+    setAddingNiche(true);
+    try {
+      const res = await fetch('/api/autopilot/niches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: typed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 || data.code === 'DUPLICATE' || data.code === 'PREDEFINED') {
+        setDuplicateWarning(data.error || 'You already saved this niche');
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || 'Failed to save custom niche');
+      setCustomNiches((prev) =>
+        [...prev, { id: data.id, name: data.name, nicheKey: data.nicheKey }].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+      );
+      setSelectedNiches((prev) =>
+        prev.includes(data.name) ? prev : [...prev, data.name]
+      );
+      setCustomInput('');
+      toast({ title: 'Custom niche saved', description: data.name });
+    } catch (e) {
+      toast({
+        title: 'Could not save custom niche',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setAddingNiche(false);
+    }
   };
 
   const resetForm = () => {
@@ -173,6 +317,9 @@ export default function AutopilotTab() {
     setWorkflowId('');
     setSchedule('daily');
     setActivateNow(true);
+    setCustomInput('');
+    setDuplicateWarning(null);
+    setProfileMap({});
   };
 
   const handleCreate = async () => {
@@ -190,6 +337,14 @@ export default function AutopilotTab() {
     }
     setSubmitting(true);
     try {
+      // Phase 20 — only non-empty mapping entries are submitted; the
+      // server re-validates every key (selected niche) and every value
+      // (caller-owned active profile) authoritatively.
+      const profileMappings: Record<string, string> = {};
+      for (const niche of selectedNiches) {
+        const mapped = profileMap[nicheKeyOf(niche)];
+        if (mapped) profileMappings[nicheKeyOf(niche)] = mapped;
+      }
       const res = await fetch('/api/autopilot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,6 +358,7 @@ export default function AutopilotTab() {
           workflowId,
           schedule,
           activate: activateNow,
+          ...(Object.keys(profileMappings).length > 0 ? { profileMappings } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -221,6 +377,43 @@ export default function AutopilotTab() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Phase 19 — open the relink dialog for an autopilot whose linked
+  // workflow is deleted/disabled (recoverable state: config preserved).
+  const openRelink = (ap: AutopilotListItem) => {
+    setRelinkTarget(ap);
+    setRelinkWorkflowId('');
+    if (wfLoadState !== 'ready') fetchWorkflows();
+  };
+
+  const handleRelink = async () => {
+    if (!relinkTarget || !relinkWorkflowId) return;
+    setRelinkSubmitting(true);
+    try {
+      const res = await fetch(`/api/autopilot/${relinkTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflowId: relinkWorkflowId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Relink failed');
+      toast({
+        title: 'Workflow relinked',
+        description: `${relinkTarget.name} now executes "${workflows.find((w) => w.id === relinkWorkflowId)?.name}"`,
+      });
+      setRelinkTarget(null);
+      setRelinkWorkflowId('');
+      fetchState();
+    } catch (e) {
+      toast({
+        title: 'Relink failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setRelinkSubmitting(false);
     }
   };
 
@@ -462,11 +655,30 @@ export default function AutopilotTab() {
                     <p className="text-lg font-semibold">{ap.runCount}</p>
                   </div>
                 </div>
-                {ap.workflowId && (
+                {ap.workflowEligible && ap.workflow ? (
                   <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
                     <WorkflowIcon className="h-3.5 w-3.5" />
-                    Executes: {workflows.find((w) => w.id === ap.workflowId)?.name || ap.workflowId}
+                    Executes: {ap.workflow.name}
                   </p>
+                ) : (
+                  <div className="flex items-start justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-500">
+                    <span className="inline-flex items-start gap-1.5 break-words">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      {ap.workflow
+                        ? `Linked workflow "${ap.workflow.name}" is ${ap.workflow.status} — reactivate it or relink to keep Autopilot running.`
+                        : 'Linked workflow is no longer available (deleted) — relink a valid workflow to keep Autopilot running.'}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0 border-amber-500/40 text-amber-500 hover:text-amber-400"
+                      disabled={busyId === ap.id}
+                      onClick={() => openRelink(ap)}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      <span className="ml-1">Relink</span>
+                    </Button>
+                  </div>
                 )}
                 {ap.lastError && (
                   <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/5 p-2.5 text-xs text-red-400">
@@ -537,6 +749,83 @@ export default function AutopilotTab() {
       )}
 
       {/* create dialog */}
+      {/* Phase 19 — Relink dialog: recoverable state for an autopilot whose
+          linked workflow was deleted/disabled. The configuration is preserved;
+          only the workflow link changes (PATCH /api/autopilot/[id]). */}
+      <Dialog open={!!relinkTarget} onOpenChange={(o) => !o && setRelinkTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Relink workflow</DialogTitle>
+            <DialogDescription>
+              Pick a new active workflow for “{relinkTarget?.name}”. Your Autopilot configuration
+              (niches, geography, schedule) is kept — only the linked workflow changes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {relinkTarget && !relinkTarget.workflowEligible && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-500">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span className="break-words">
+                  {relinkTarget.workflow
+                    ? `Current link “${relinkTarget.workflow.name}” is ${relinkTarget.workflow.status}.`
+                    : 'Current linked workflow was deleted.'}
+                </span>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>New workflow</Label>
+                {wfLoadState === 'error' && (
+                  <button
+                    type="button"
+                    onClick={fetchWorkflows}
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Retry
+                  </button>
+                )}
+              </div>
+              <Select value={relinkWorkflowId || undefined} onValueChange={setRelinkWorkflowId} disabled={wfLoadState === 'loading'}>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      wfLoadState === 'loading' ? 'Loading your workflows…'
+                      : wfLoadState === 'error' ? 'Could not load workflows'
+                      : 'Select an active workflow'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {wfLoadState === 'loading' && (
+                    <SelectItem value="rwf-loading" disabled>Loading your workflows…</SelectItem>
+                  )}
+                  {wfLoadState === 'error' && (
+                    <SelectItem value="rwf-error" disabled>
+                      Failed to load workflows — use Retry above
+                    </SelectItem>
+                  )}
+                  {wfLoadState === 'ready' && workflows.length === 0 && (
+                    <SelectItem value="rwf-none" disabled>
+                      No active workflows — create one in Workflows first
+                    </SelectItem>
+                  )}
+                  {workflows.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRelinkTarget(null)} disabled={relinkSubmitting}>Cancel</Button>
+            <Button onClick={handleRelink} disabled={relinkSubmitting || !relinkWorkflowId}>
+              {relinkSubmitting ? <RefreshCw className="h-4 w-4 animate-spin mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+              Save link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -574,8 +863,147 @@ export default function AutopilotTab() {
                   );
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">{selectedNiches.length} selected</p>
+              {/* Phase 20 — saved custom niches (user-scoped, persistent).
+                  Clicking toggles selection; deselecting NEVER deletes the
+                  saved niche. */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {nichesLoadState === 'loading' && (
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3 animate-spin" /> Loading your custom niches…
+                  </span>
+                )}
+                {nichesLoadState === 'error' && (
+                  <span className="text-xs text-amber-500 inline-flex items-center gap-1">
+                    Could not load custom niches.
+                    <button
+                      type="button"
+                      onClick={fetchCustomNiches}
+                      className="text-primary hover:underline"
+                    >
+                      Retry
+                    </button>
+                  </span>
+                )}
+                {nichesLoadState === 'ready' && customNiches.length === 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    No saved custom niches yet — add one below (e.g. “AI SaaS companies”).
+                  </span>
+                )}
+                {nichesLoadState === 'ready' && customNiches.map((nicheOpt) => {
+                  const active = selectedNiches.includes(nicheOpt.name);
+                  return (
+                    <button
+                      key={nicheOpt.id}
+                      type="button"
+                      onClick={() => toggleNiche(nicheOpt.name)}
+                      title="Toggle selection — deselecting never deletes the saved niche"
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs transition-colors inline-flex items-center gap-1',
+                        active
+                          ? 'bg-violet-500/20 text-violet-300 border-violet-500/50'
+                          : 'bg-transparent text-muted-foreground border-dashed hover:bg-muted'
+                      )}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      {nicheOpt.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Phase 20 — custom niche input + save. Duplicates (any
+                  casing/whitespace variation) are prevented server-side and
+                  surfaced as an inline warning. */}
+              <div className="flex gap-1.5 pt-1">
+                <Input
+                  value={customInput}
+                  onChange={(e) => {
+                    setCustomInput(e.target.value);
+                    setDuplicateWarning(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCustomNiche();
+                    }
+                  }}
+                  placeholder="Add a custom niche (e.g. Solar installation companies)"
+                  className="h-8 text-xs"
+                  maxLength={200}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0"
+                  onClick={handleAddCustomNiche}
+                  disabled={addingNiche || !customInput.trim()}
+                >
+                  {addingNiche ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Plus className="h-3 w-3" />
+                  )}
+                  Save
+                </Button>
+              </div>
+              {duplicateWarning && (
+                <p className="text-xs text-amber-500 inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> {duplicateWarning}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {selectedNiches.length} selected (max 10)
+              </p>
             </div>
+            {/* Phase 20 — per-niche Business Profile mapping (optional).
+                Each selected niche can use a specific saved profile;
+                unmapped niches use the workflow's profile or your default. */}
+            {selectedNiches.length > 0 && profiles.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Profile per niche (optional — defaults to the workflow's profile)
+                </Label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {selectedNiches.map((niche) => {
+                    const key = nicheKeyOf(niche);
+                    const mapped = profileMap[key] || 'auto';
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground truncate w-32 shrink-0">
+                          {niche}
+                        </span>
+                        <Select
+                          value={mapped}
+                          onValueChange={(v) =>
+                            setProfileMap((prev) => {
+                              const next = { ...prev };
+                              if (v === 'auto') delete next[key];
+                              else next[key] = v;
+                              return next;
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto" className="text-xs">
+                              Auto (workflow / default)
+                            </SelectItem>
+                            {profiles.map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">
+                                {p.name}
+                                {p.isDefault ? ' (default)' : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Country</Label>
@@ -595,23 +1023,61 @@ export default function AutopilotTab() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Workflow to execute</Label>
-              <Select value={workflowId || undefined} onValueChange={setWorkflowId}>
-                <SelectTrigger><SelectValue placeholder="Select an active workflow" /></SelectTrigger>
+              <div className="flex items-center justify-between">
+                <Label>Workflow to execute</Label>
+                {wfLoadState === 'error' && (
+                  <button
+                    type="button"
+                    onClick={fetchWorkflows}
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Retry
+                  </button>
+                )}
+              </div>
+              <Select value={workflowId || undefined} onValueChange={setWorkflowId} disabled={wfLoadState === 'loading'}>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      wfLoadState === 'loading' ? 'Loading your workflows…'
+                      : wfLoadState === 'error' ? 'Could not load workflows'
+                      : 'Select an active workflow'
+                    }
+                  />
+                </SelectTrigger>
                 <SelectContent>
-                  {workflows.length === 0 && (
+                  {wfLoadState === 'loading' && (
+                    <SelectItem value="wf-loading" disabled>Loading your workflows…</SelectItem>
+                  )}
+                  {wfLoadState === 'error' && (
+                    <SelectItem value="wf-error" disabled>
+                      Failed to load workflows — use Retry above
+                    </SelectItem>
+                  )}
+                  {wfLoadState === 'ready' && workflows.length === 0 && (
                     <SelectItem value="none-available" disabled>
                       No active workflows — create one in Workflows first
                     </SelectItem>
                   )}
                   {workflows.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    <SelectItem key={w.id} value={w.id}>
+                      <span className="flex flex-col">
+                        <span>{w.name}</span>
+                        {w.description && (
+                          <span className="text-[11px] leading-tight text-muted-foreground line-clamp-1">
+                            {w.description.length > 70 ? `${w.description.slice(0, 70)}…` : w.description}
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                The workflow runs against each NEW discovered lead with your saved configuration —
-                exactly as configured, nothing added or skipped.
+                Only your active workflows are eligible — the list updates automatically as you
+                create or activate workflows. The selected workflow runs against each NEW
+                discovered lead with your saved configuration — exactly as configured, nothing
+                added or skipped.
               </p>
             </div>
             <div className="space-y-1.5">

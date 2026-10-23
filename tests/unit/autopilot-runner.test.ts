@@ -669,3 +669,136 @@ describe('Phase 18: single-charge billing for the ONE parent execution', () => {
     expect((finalizeCall![0] as { data?: { runKey?: string } }).data?.runKey).toBe('rk-1');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 20 — Autopilot Niches: per-niche discovery attribution, niche →
+// Business Profile mapping resolution, per-lead profile map for the
+// batch engine, run-config snapshot, and unchanged billing for
+// multi-niche runs.
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Phase 20: niche attribution + profile mapping', () => {
+  const MAPPED_ROW = {
+    ...AUTOPILOT_ROW,
+    profileMappings: JSON.stringify({ dental: 'bp-dental', hospital: 'bp-hosp' }),
+  };
+
+  // Niche 1 (Dental) discovers bright; niche 2 (Hospital) discovers cityh —
+  // each lead keeps the attribution of the niche that produced it.
+  function setupRotatingDiscovery() {
+    mockPrisma.lead.findFirst.mockImplementation(async ({ where }: { where: { website?: string } }) => {
+      if (where?.website === 'https://bright.example') return { id: 'lead-bright', businessName: 'Bright Smiles', niche: 'Dental' };
+      if (where?.website === 'https://cityh.example') return { id: 'lead-cityh', businessName: 'City Hospital', niche: 'Hospital' };
+      return null;
+    });
+    mockPrisma.discoveryJob.findUnique.mockResolvedValue({
+      id: 'job-dental', status: 'completed', totalFound: 1, imported: 1, duplicates: 0, failed: 0, filteredOut: 0,
+      errorMessage: null,
+      resultData: JSON.stringify([
+        { businessName: 'Bright Smiles', website: 'https://bright.example', city: 'Mumbai', country: 'India' },
+      ]),
+    });
+    let call = 0;
+    mockStartDiscoveryJob.mockImplementation(async (_userId: string, params: { niche: string }) => {
+      call++;
+      if (call === 2) {
+        mockPrisma.discoveryJob.findUnique.mockResolvedValueOnce({
+          id: 'job-hospital', status: 'completed', totalFound: 1, imported: 1, duplicates: 0, failed: 0, filteredOut: 0,
+          errorMessage: null,
+          resultData: JSON.stringify([
+            { businessName: 'City Hospital', website: 'https://cityh.example', city: 'Mumbai', country: 'India' },
+          ]),
+        });
+      }
+      return { jobId: `job-${params.niche}`, status: 'started', message: 'ok' };
+    });
+  }
+
+  it('starts ONE discovery job PER niche with the exact niche value (per-niche attribution preserved)', async () => {
+    setupRotatingDiscovery();
+    const outcome = await executeAutopilotRun(MAPPED_ROW, 'run-p20a', 'manual');
+    expect(outcome.status).toBe('COMPLETED');
+    expect(mockStartDiscoveryJob).toHaveBeenCalledTimes(2);
+    const nicheArgs = mockStartDiscoveryJob.mock.calls.map((c: unknown[]) => (c[1] as { niche: string }).niche);
+    expect(nicheArgs).toEqual(['Dental', 'Hospital']);
+    // perNiche reporting keeps each niche's own numbers.
+    expect(outcome.perNiche.map((n: { niche: string }) => n.niche)).toEqual(['Dental', 'Hospital']);
+  });
+
+  it('resolves EACH niche\'s profile via the canonical chain (explicit mapping → workflow → default) and snapshots it', async () => {
+    setupRotatingDiscovery();
+    mockResolveBusinessProfileForUser.mockImplementation(async (_u: string, opts: { explicitProfileId?: string | null; workflowProfileId?: string | null }) => {
+      if (opts?.explicitProfileId === 'bp-dental') {
+        return { profile: { id: 'bp-dental', name: 'Dental Services Profile' }, source: 'execution-setting' };
+      }
+      if (opts?.explicitProfileId === 'bp-hosp') {
+        return { profile: { id: 'bp-hosp', name: 'Healthcare Profile' }, source: 'execution-setting' };
+      }
+      return { profile: { id: 'bp1', name: 'Workflow Profile' }, source: 'workflow' };
+    });
+    await executeAutopilotRun(MAPPED_ROW, 'run-p20b', 'manual');
+    // The canonical resolver was used for the run-level resolution AND
+    // once per DISTINCT mapped profile id.
+    expect(mockResolveBusinessProfileForUser).toHaveBeenCalledWith('u1', { workflowProfileId: 'bp1' });
+    expect(mockResolveBusinessProfileForUser).toHaveBeenCalledWith('u1', { explicitProfileId: 'bp-dental', workflowProfileId: 'bp1' });
+    expect(mockResolveBusinessProfileForUser).toHaveBeenCalledWith('u1', { explicitProfileId: 'bp-hosp', workflowProfileId: 'bp1' });
+    // Snapshot preserves the mapping + the per-niche resolutions.
+    const configUpdate = mockPrisma.autopilotRun.update.mock.calls.find(
+      (c: unknown[]) => typeof (c[0] as { data?: { config?: string } }).data?.config === 'string'
+    );
+    expect(configUpdate).toBeTruthy();
+    const config = JSON.parse((configUpdate![0] as { data: { config: string } }).data.config);
+    expect(config.profileMappings).toEqual({ dental: 'bp-dental', hospital: 'bp-hosp' });
+    expect(config.nicheProfiles).toEqual([
+      { niche: 'Dental', profileId: 'bp-dental', profileName: 'Dental Services Profile', profileSource: 'execution-setting' },
+      { niche: 'Hospital', profileId: 'bp-hosp', profileName: 'Healthcare Profile', profileSource: 'execution-setting' },
+    ]);
+  });
+
+  it('passes a per-lead profile resolution map to the batch engine — each lead gets its niche\'s profile', async () => {
+    setupRotatingDiscovery();
+    const dentalRes = { profile: { id: 'bp-dental', name: 'Dental Services Profile' }, source: 'execution-setting' as const };
+    const hospRes = { profile: { id: 'bp-hosp', name: 'Healthcare Profile' }, source: 'execution-setting' as const };
+    mockResolveBusinessProfileForUser.mockImplementation(async (_u: string, opts: { explicitProfileId?: string | null }) => {
+      if (opts?.explicitProfileId === 'bp-dental') return dentalRes;
+      if (opts?.explicitProfileId === 'bp-hosp') return hospRes;
+      return { profile: { id: 'bp1', name: 'Workflow Profile' }, source: 'workflow' as const };
+    });
+    await executeAutopilotRun(MAPPED_ROW, 'run-p20c', 'manual');
+    expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
+    const opts = mockExecuteWorkflowBatch.mock.calls[0][2];
+    expect(opts.profileResolutionsByLeadId).toEqual({
+      'lead-bright': dentalRes,
+      'lead-cityh': hospRes,
+    });
+  });
+
+  it('LEGACY rows without profileMappings pass NO per-lead map (byte-identical Phase 18 behavior)', async () => {
+    const legacyRow = { ...AUTOPILOT_ROW } as Record<string, unknown>;
+    delete legacyRow.profileMappings;
+    await executeAutopilotRun(legacyRow as typeof AUTOPILOT_ROW, 'run-p20d', 'manual');
+    const opts = mockExecuteWorkflowBatch.mock.calls[0][2];
+    expect(opts.profileResolutionsByLeadId).toBeUndefined();
+  });
+
+  it('an EMPTY mapping ({} stored) also passes NO per-lead map', async () => {
+    await executeAutopilotRun({ ...AUTOPILOT_ROW, profileMappings: '{}' }, 'run-p20e', 'manual');
+    const opts = mockExecuteWorkflowBatch.mock.calls[0][2];
+    expect(opts.profileResolutionsByLeadId).toBeUndefined();
+  });
+
+  it('a mapped-profile lookup failure degrades safely — the run continues unpersonalized for that niche', async () => {
+    setupRotatingDiscovery();
+    mockResolveBusinessProfileForUser.mockRejectedValue(new Error('db down'));
+    const outcome = await executeAutopilotRun(MAPPED_ROW, 'run-p20f', 'manual');
+    expect(outcome.status).toBe('COMPLETED');
+    expect(outcome.executionsCreated).toBe(1);
+  });
+
+  it('multi-niche WITH mappings still charges exactly ONE flat 5-credit fee (never per niche)', async () => {
+    setupRotatingDiscovery();
+    await executeAutopilotRun(MAPPED_ROW, 'run-p20g', 'manual');
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mockChargeWorkflowExecutionFee.mock.calls[0][0].leadCount).toBe(2);
+  });
+});
