@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/lib/lead-intelligence.ts",
+    "src/lib/personal-context.ts",
+    "src/lib/workflow-actions.ts",
+    "src/lib/workflow-batch.ts",
+    "src/lib/workflow-engine.ts",
+    "src/lib/workflow-validation.ts",
+    "src/lib/workflow-retry.ts",
+    "src/lib/workflow-credits.ts",
+    "src/lib/workflow-ai-retry.ts",
+    "src/lib/workflow-targeting.ts",
+    "src/lib/workflow-execution-leads.ts",
+    "src/lib/lead-discovery-service.ts",
+    "src/lib/lead-resolution.ts",
+    "src/lib/auth-middleware.ts",
+    "src/lib/db.ts",
+    "src/lib/entitlement-service.ts",
+    "src/lib/entitlement-middleware.ts",
+    "src/lib/prospecting/pipeline.ts",
+    "src/app/api/business-profiles/route.ts",
+    "src/app/api/business-profiles/[id]/route.ts",
+    "src/app/api/leads/discover/route.ts",
+    "src/app/api/workflows/[id]/execute/route.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}

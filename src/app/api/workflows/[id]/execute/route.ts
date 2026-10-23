@@ -319,6 +319,22 @@ export async function POST(
       if (mode) {
         const target = (body.target && typeof body.target === 'object' ? body.target : {}) as RunTarget;
 
+        // ── Phase 17 — explicitly supplied execution settings ─────────
+        // The HIGHEST precedence tier for personalization: they override
+        // workflow/campaign overrides, which override business-profile
+        // defaults. Accepted keys are whitelisted; everything else in the
+        // request body is ignored (no injection surface). profileId is
+        // validated owner-side inside the batch runner's profile resolver.
+        const rawSettings =
+          body.executionSettings && typeof body.executionSettings === 'object'
+            ? (body.executionSettings as Record<string, unknown>)
+            : {};
+        const executionSettings: Record<string, unknown> = {};
+        for (const key of ['profileId', 'tone', 'language', 'cta', 'channel', 'style'] as const) {
+          const v = rawSettings[key];
+          if (typeof v === 'string' && v.trim()) executionSettings[key] = v.trim().slice(0, 200);
+        }
+
         // 1. Resolve the lead set for the requested mode
         let leads: ResolvedLead[] = [];
         // Exact request-level target snapshot (Phase 6.9): what the user
@@ -589,6 +605,9 @@ export async function POST(
           // runner itself releases the fee when the run terminates with
           // zero steps completed (never actually started).
           neverStartedAutoRefund: true,
+          // Phase 17 — explicitly supplied execution settings (highest
+          // precedence tier for per-lead personalization).
+          executionSettings,
         }).catch((kickErr: unknown) => {
           batchKickError = kickErr;
           return { executionId: '', status: 'failed', leadCount: leads.length, stepsCompleted: 0 } as Awaited<ReturnType<typeof executeWorkflowBatch>>;

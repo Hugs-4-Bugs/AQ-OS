@@ -198,34 +198,33 @@ export async function POST(request: NextRequest) {
           contextInstructions = parts.length > 0 ? parts.join(' | ').substring(0, 500) : undefined;
           context = { mode: 'business', instructions: contextInstructions };
         } else if (mode === 'profile') {
+          // Phase 15 — profile override for discovery. profileId is now
+          // OPTIONAL: when omitted, the user's deterministic default
+          // profile (explicit isDefault flag, else earliest active) is
+          // used. A FULL snapshot of the profile's fields is persisted on
+          // the job row (contextJson.profileSnapshot) so later profile
+          // edits can never rewrite the historical discovery context.
           const profileId = typeof rawContext.profileId === 'string' ? rawContext.profileId.trim() : '';
-          if (!profileId) {
-            return NextResponse.json(
-              { error: 'context.profileId is required when context.mode is "profile"' },
-              { status: 400 }
-            );
-          }
-          const profile = await db.businessProfile.findFirst({
-            where: { id: profileId, userId: user.id },
-            select: {
-              id: true, name: true, status: true, industry: true, description: true,
-              productsServices: true, offers: true, valueProposition: true,
-              targetAudience: true, targetIndustries: true, geographicMarket: true,
-              painPoints: true, customInstructions: true,
-            },
+          const {
+            resolveBusinessProfileForUser,
+          } = await import('@/lib/lead-intelligence');
+          const resolution = await resolveBusinessProfileForUser(user.id, {
+            explicitProfileId: profileId || null,
           });
+          const profile = resolution.profile;
           if (!profile) {
             return NextResponse.json(
-              { error: 'Selected business profile not found for this account' },
+              {
+                error: profileId
+                  ? 'Selected business profile not found for this account'
+                  : 'No active business profile to use — create one under Settings → Business Profiles first',
+                code: 'PROFILE_NOT_FOUND',
+              },
               { status: 400 }
             );
           }
-          if (profile.status !== 'active') {
-            return NextResponse.json(
-              { error: 'Selected business profile is archived — activate it or choose another' },
-              { status: 400 }
-            );
-          }
+          // (The resolver only ever returns ACTIVE profiles — an archived
+          // selection falls through to the error above.)
           const bits: string[] = [];
           if (profile.description?.trim()) bits.push(`Business: ${profile.description.trim().substring(0, 200)}`);
           if (profile.industry?.trim()) bits.push(`Industry: ${profile.industry.trim().substring(0, 100)}`);
@@ -237,7 +236,32 @@ export async function POST(request: NextRequest) {
           if (profile.painPoints?.trim()) bits.push(`Pain points addressed: ${profile.painPoints.trim().substring(0, 150)}`);
           if (profile.customInstructions?.trim()) bits.push(`Instructions: ${profile.customInstructions.trim().substring(0, 200)}`);
           contextInstructions = bits.length > 0 ? bits.join(' | ').substring(0, 500) : undefined;
-          context = { mode: 'profile', profileId: profile.id, instructions: contextInstructions };
+          context = {
+            mode: 'profile',
+            profileId: profile.id,
+            instructions: contextInstructions,
+            // FULL point-in-time snapshot (Phase 15 requirement): the
+            // discovery operation's context is frozen here; editing the
+            // profile afterwards never rewrites this job's history.
+            profileSnapshot: {
+              snapshotAt: new Date().toISOString(),
+              id: profile.id,
+              name: profile.name,
+              industry: profile.industry ?? null,
+              description: profile.description ?? null,
+              productsServices: profile.productsServices ?? null,
+              offers: profile.offers ?? null,
+              valueProposition: profile.valueProposition ?? null,
+              targetAudience: profile.targetAudience ?? null,
+              targetIndustries: profile.targetIndustries ?? null,
+              geographicMarket: profile.geographicMarket ?? null,
+              painPoints: profile.painPoints ?? null,
+              customInstructions: profile.customInstructions ?? null,
+              preferredTone: profile.preferredTone ?? null,
+              preferredLanguage: profile.preferredLanguage ?? null,
+              cta: profile.cta ?? null,
+            },
+          } as DiscoveryJobContext;
         } else if (mode !== 'none' && mode !== undefined && mode !== null) {
           return NextResponse.json(
             { error: 'context.mode must be one of: none, campaign, business, profile' },

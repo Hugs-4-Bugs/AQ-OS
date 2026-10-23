@@ -117,6 +117,10 @@ export interface DiscoveryJobContext {
   profileId?: string;
   /** Instructions merged into the discovery requirements (≤500 chars). */
   instructions?: string;
+  /** Phase 15 — FULL point-in-time snapshot of the profile used by THIS
+   * discovery operation. Persisted on the job row; later profile edits
+   * never rewrite it (historical discovery context is immutable). */
+  profileSnapshot?: Record<string, unknown>;
 }
 
 export interface DiscoveredLead {

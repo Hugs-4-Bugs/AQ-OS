@@ -23,6 +23,7 @@ import {
   Pencil,
   Plus,
   Save,
+  Star,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ interface BusinessProfile {
   id: string;
   name: string;
   status: string;
+  isDefault?: boolean;
   [key: string]: unknown;
 }
 
@@ -121,6 +123,7 @@ export default function BusinessProfileSettings() {
   const [profiles, setProfiles] = useState<BusinessProfile[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [planLimit, setPlanLimit] = useState<number | null>(null);
+  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   /** null = list view; 'new' = creating; profile id = editing that profile */
@@ -135,6 +138,7 @@ export default function BusinessProfileSettings() {
       setProfiles(Array.isArray(data.profiles) ? data.profiles : []);
       setActiveCount(typeof data.activeCount === 'number' ? data.activeCount : 0);
       setPlanLimit(typeof data.planLimit === 'number' ? data.planLimit : null);
+      setDefaultProfileId(typeof data.defaultProfileId === 'string' ? data.defaultProfileId : null);
     } catch {
       toast.error('Could not load business profiles');
     } finally {
@@ -211,6 +215,29 @@ export default function BusinessProfileSettings() {
     }
   };
 
+  /** Phase 14 — explicit default selection: exactly one active profile is
+   * the default used by discovery/workflows when no override is supplied. */
+  const setDefault = async (p: BusinessProfile) => {
+    try {
+      const res = await fetch(`/api/business-profiles/${p.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDefault: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to set default profile');
+        return;
+      }
+      toast.success(`"${p.name}" is now your default profile`, {
+        description: 'Discovery and workflows use it when no profile override is selected.',
+      });
+      await load();
+    } catch {
+      toast.error('Failed to set default profile');
+    }
+  };
+
   const remove = async (p: BusinessProfile) => {
     if (!window.confirm(`Delete profile "${p.name}"? Workflows using it keep running without it.`)) return;
     try {
@@ -253,7 +280,8 @@ export default function BusinessProfileSettings() {
             </p>
             <p>
               Select a profile on the Discover page to drive discovery, and associate it with
-              workflows. {planLimit !== null && (
+              workflows. The <span className="font-medium text-foreground">default</span> profile
+              is used automatically when nothing is selected. {planLimit !== null && (
                 <>Active profiles: <span className="font-medium text-foreground">{activeCount}/{planLimit}</span> on your plan.</>
               )}
             </p>
@@ -294,11 +322,28 @@ export default function BusinessProfileSettings() {
                     >
                       {p.status}
                     </Badge>
+                    {(p.isDefault || p.id === defaultProfileId) && (
+                      <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-600 gap-1">
+                        <Star className="h-2.5 w-2.5" /> default
+                      </Badge>
+                    )}
                   </div>
                   {typeof p.industry === 'string' && p.industry && (
                     <p className="text-xs text-muted-foreground truncate">{p.industry}</p>
                   )}
                 </div>
+                {p.status === 'active' && !(p.isDefault || p.id === defaultProfileId) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-amber-500"
+                    aria-label={`Set ${p.name} as default`}
+                    title="Set as default profile"
+                    onClick={() => setDefault(p)}
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Edit ${p.name}`} onClick={() => startEdit(p)}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
