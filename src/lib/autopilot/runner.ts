@@ -1,13 +1,16 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Autopilot Runner
+// AcquisitionOS — Autopilot Runner (Phase 18: Autopilot Core)
 //
-// Executes one Autopilot run:
-//   claim run (atomic) → for each niche:
+// Executes one Autopilot run under the ONE-parent-execution model:
+//   claim run (atomic) → snapshot profile/context → for each niche:
 //     startDiscoveryJob (EXISTING production pipeline, ≈20/batch)
 //     → poll job to terminal state
 //     → resolve discovered payloads to persisted Lead rows
 //     → AutopilotLead ledger insert (DB-level unique guard)
-//     → executeWorkflow (EXISTING engine) with stable idempotency key
+//   → collect ALL eligible leads of the run
+//   → ONE parent WorkflowExecution for the whole run/batch
+//     (leads are child items under it — NEVER one execution per lead)
+//   → detached finalizer settles per-lead outcomes + run aggregates
 //   → honest counters + errors → schedule next run
 //
 // Concurrency story (layered):
@@ -16,8 +19,16 @@
 //   3. Per-user in-process async mutex (single Node runtime deployment)
 //   4. AutopilotLead @@unique([autopilotId, leadId]) — DB-level
 //      "one lead processed at most once per autopilot"
-//   5. WorkflowExecution.idempotencyKey (stable per autopilot+lead)
-//   6. Discovery credits: idempotency keys inside the pipeline itself
+//   5. WorkflowExecution.idempotencyKey (stable per autopilot RUN)
+//   6. AutopilotRun.runKey @@unique — duplicate invocation protection
+//      (a replayed scheduler slot / manual invocation converges on the
+//      SAME run row instead of creating a second run)
+//   7. Discovery credits: idempotency keys inside the pipeline itself
+//
+// Billing (unchanged semantics, single scope per run):
+//   ONE actual workflow execution = ONE flat 5-credit charge keyed
+//   `wfexec-run:autopilot-{id}-run-{runId}` — idempotent under replay;
+//   discovery alone charges 0; never-started runs auto-refund.
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
@@ -30,8 +41,11 @@ import {
   WORKFLOW_EXECUTION_FEE_CREDITS,
 } from '@/lib/workflow-credits';
 import { normalizeCountryName } from '@/lib/countries';
+import { resolveBusinessProfileForUser } from '@/lib/lead-intelligence';
 import {
   AUTOPILOT_DISCOVERY_BATCH,
+  AUTOPILOT_EXECUTION_SETTLE_POLL_MS,
+  AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS,
   AUTOPILOT_JOB_POLL_MS,
   AUTOPILOT_JOB_TIMEOUT_MS,
   AUTOPILOT_NICHE_PACING_MS,
@@ -190,11 +204,15 @@ async function resolvePersistedLead(
 
 export interface AutopilotRunOutcome {
   runId: string;
-  status: 'COMPLETED' | 'FAILED';
+  status: 'COMPLETED' | 'FAILED' | 'CANCELLED';
   discovered: number;
   saved: number;
   processed: number;
   executionsCreated: number;
+  /** Phase 18 — the run's ONE parent WorkflowExecution (null until created). */
+  executionId?: string | null;
+  /** Phase 18 — the run's idempotency/run key. */
+  runKey?: string | null;
   perNiche: Array<{
     niche: string;
     jobId: string | null;
@@ -241,6 +259,20 @@ export async function executeAutopilotRun(
   });
   if (claimed.count !== 1) {
     // Another worker already claimed this run — do not execute twice.
+    // A CANCELLED run reports cancellation honestly (Phase 18).
+    const current = await db.autopilotRun.findUnique({
+      where: { id: runId },
+      select: { status: true },
+    }).catch(() => null);
+    if (current?.status === 'CANCELLED') {
+      return {
+        runId,
+        status: 'CANCELLED' as const,
+        discovered: 0, saved: 0, processed: 0, executionsCreated: 0,
+        perNiche: [],
+        error: 'Run was cancelled before it started',
+      };
+    }
     return {
       runId,
       status: 'FAILED',
@@ -258,17 +290,21 @@ export async function executeAutopilotRun(
   let saved = 0;
   let processed = 0;
   let executionsCreated = 0;
+  let executionId: string | null = null;
   let hardFailures = 0;
   // Part 2 — set once the workflow execution fee can no longer be paid:
   // remaining leads are skipped honestly instead of the loop pointlessly
   // re-attempting a charge that will keep failing.
   let insufficientCredits = false;
+  // Phase 18 — every eligible lead of the WHOLE run (across all niches).
+  // ONE parent execution is created for this collection after discovery.
+  const runLeads: { id: string; businessName: string; niche: string | null }[] = [];
 
   try {
     // Linked workflow must exist, belong to the user, and be ACTIVE.
     const workflow = await db.workflowDefinition.findFirst({
       where: { id: autopilot.workflowId, userId: autopilot.userId },
-      select: { id: true, status: true, name: true },
+      select: { id: true, status: true, name: true, profileId: true },
     });
     if (!workflow) throw new Error('Linked workflow not found for this account');
     if (workflow.status !== 'active') {
@@ -300,6 +336,45 @@ export async function executeAutopilotRun(
       throw new Error(
         `Insufficient credits for workflow execution: each run costs ${WORKFLOW_EXECUTION_FEE_CREDITS}, available ${feeSufficiency.balance}. Top up credits and run again.`
       );
+    }
+
+    // ── Phase 18 — resolve + snapshot the run's profile/context ONCE at
+    // run start. Precedence is the Phase 11–17 chain (workflow's own
+    // profile → user default); the batch engine re-resolves with the
+    // SAME precedence and records its own intelligenceConfig snapshot,
+    // while this run-level snapshot preserves what the RUN was configured
+    // with (later profile edits never rewrite history). Personalization
+    // must never break the run — a lookup failure degrades to source
+    // 'none' and execution continues unpersonalized.
+    const profileResolution = await resolveBusinessProfileForUser(
+      autopilot.userId,
+      { workflowProfileId: workflow.profileId ?? null }
+    ).catch(() => ({ profile: null, source: 'none' as const }));
+    const runKeyRow = await db.autopilotRun.findUnique({
+      where: { id: runId },
+      select: { runKey: true, status: true },
+    }).catch(() => null);
+    if (runKeyRow?.status === 'RUNNING') {
+      await db.autopilotRun.update({
+        where: { id: runId },
+        data: {
+          config: JSON.stringify({
+            niches,
+            geography: geo,
+            profile: {
+              profileId: profileResolution.profile?.id ?? null,
+              profileName: profileResolution.profile?.name ?? null,
+              profileSource: profileResolution.source,
+              preferredTone: profileResolution.profile?.preferredTone ?? null,
+              preferredLanguage: profileResolution.profile?.preferredLanguage ?? null,
+              cta: profileResolution.profile?.cta ?? null,
+            },
+            workflow: { id: workflow.id, name: workflow.name, profileId: workflow.profileId ?? null },
+          }),
+        },
+      }).catch(() => {
+        // Snapshot persistence is best-effort — the run itself proceeds.
+      });
     }
 
     for (const niche of niches) {
@@ -359,15 +434,14 @@ export async function executeAutopilotRun(
           : undefined;
       if (job.status === 'failed') hardFailures++;
 
-      // ── 3. Resolve discovered payloads → persisted leads → ledger →
-      //     ONE grouped workflow execution per niche ──
-      // Multi-lead execution model: every eligible lead of this niche is
-      // part of ONE WorkflowExecution (child item rows carry the per-lead
-      // statuses), never one execution record per lead. The batch
-      // coordinator is the SAME engine the manual execute route uses —
-      // one execution infrastructure for Autopilot and normal runs.
+      // ── 3. Resolve discovered payloads → persisted leads → ledger ──
+      // Phase 18 ONE-parent-execution model: leads are COLLECTED here
+      // across all niches; after the niche loop the run creates exactly
+      // ONE parent WorkflowExecution for the whole batch (child item rows
+      // carry the per-lead statuses). Never one execution record per lead
+      // — and never one per niche. The batch coordinator is the SAME
+      // engine the manual execute route uses.
       const payloads = job.resultData ? parseJson<DiscoveredPayload[]>(job.resultData, []) : [];
-      const eligibleLeads: { id: string; businessName: string; niche: string | null }[] = [];
       for (const payload of payloads) {
         const lead = await resolvePersistedLead(autopilot.userId, payload);
         if (!lead) continue; // payload could not be matched — skip honestly (counted via job counters)
@@ -390,98 +464,111 @@ export async function executeAutopilotRun(
           // Unique constraint hit → already processed by a previous run.
           continue;
         }
-        eligibleLeads.push(lead);
+        runLeads.push(lead);
       }
 
-      if (eligibleLeads.length > 0 && !insufficientCredits) {
-        // ── ONE flat fee per niche GROUP (not per lead) ──
-        // The charge key is stable per (autopilot, run, niche), so
-        // scheduler replay, worker retry, or duplicate queue delivery can
-        // never double-charge the same grouped execution. On insufficient
-        // credits the niche's leads are marked EXEC_FAILED (nothing
-        // executed — no partial processing) and remaining niches are
-        // skipped with the same honest reason. Autopilot has NO separate
-        // billing loophole and NO per-lead charging.
-        const nicheSlug = niche.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'niche';
-        const idempotencyKey = `autopilot:${autopilot.id}:run:${runId}:niche:${nicheSlug}`;
-        const chargeKey = `wfexec-run:autopilot-${autopilot.id}-run-${runId}-niche-${nicheSlug}`;
-        const charge = await chargeWorkflowExecutionFee({
-          userId: autopilot.userId,
-          workflowId: autopilot.workflowId,
-          chargeKey,
-          source: 'AUTOPILOT',
-          referenceId: idempotencyKey,
-          leadCount: eligibleLeads.length,
+      perNiche.push({
+        niche,
+        jobId,
+        status: job.status.toUpperCase(),
+        discovered: job.totalFound,
+        imported: job.imported,
+        duplicates: job.duplicates,
+        ...(nicheError ? { error: nicheError } : {}),
+      });
+
+      // Pacing between niches.
+      await new Promise((r) => setTimeout(r, AUTOPILOT_NICHE_PACING_MS));
+    }
+
+    // ── Phase 18: ONE parent execution for the WHOLE run ──
+    // All eligible leads (every niche) ride ONE WorkflowExecution; the
+    // flat fee is charged ONCE for that execution (never per lead, never
+    // per niche). Stable keys make scheduler replay / worker retry /
+    // duplicate queue delivery converge on the SAME execution + charge.
+    if (runLeads.length > 0) {
+      // Cancellation check: a run cancelled mid-discovery creates NO
+      // execution and NO charge (nothing has been charged yet — the fee
+      // is charged below, immediately before execution creation).
+      const runNow = await db.autopilotRun.findUnique({
+        where: { id: runId },
+        select: { status: true, runKey: true },
+      }).catch(() => null);
+      if (runNow?.status === 'CANCELLED') {
+        return {
+          runId,
+          status: 'CANCELLED' as const,
+          discovered, saved, processed,
+          executionsCreated: 0,
+          runKey: runNow.runKey,
+          perNiche,
+          error: 'Run was cancelled during discovery — no execution was created',
+        };
+      }
+
+      const idempotencyKey = `autopilot:${autopilot.id}:run:${runId}`;
+      const chargeKey = `wfexec-run:autopilot-${autopilot.id}-run-${runId}`;
+      const charge = await chargeWorkflowExecutionFee({
+        userId: autopilot.userId,
+        workflowId: autopilot.workflowId,
+        chargeKey,
+        source: 'AUTOPILOT',
+        referenceId: idempotencyKey,
+        leadCount: runLeads.length,
+      });
+      if (!charge.ok) {
+        const insufficientError =
+          `Insufficient credits for workflow execution: need ${charge.fee}, available ${charge.balance}. Nothing was executed for this run.`;
+        await db.autopilotLead.updateMany({
+          where: { autopilotId: autopilot.id, runId, leadId: { in: runLeads.map((l) => l.id) } },
+          data: { status: 'EXEC_FAILED', error: insufficientError },
         });
-        if (!charge.ok) {
-          const insufficientError =
-            `Insufficient credits for workflow execution: need ${charge.fee}, available ${charge.balance}. Nothing was executed for this niche.`;
-          await db.autopilotLead.updateMany({
-            where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
-            data: { status: 'EXEC_FAILED', error: insufficientError },
-          });
-          hardFailures++;
-          insufficientCredits = true;
-        } else {
-          try {
-            const batchResult = await executeWorkflowBatch(
-              autopilot.workflowId,
-              autopilot.userId,
-              {
-                leads: eligibleLeads,
-                targetSnapshot: {
-                  mode: 'niche',
-                  source: 'autopilot',
-                  autopilotId: autopilot.id,
-                  runId,
-                  niche,
-                  trigger,
-                  runBatchId: `autopilot-${autopilot.id}-run-${runId}-niche-${nicheSlug}`,
-                  leadCount: eligibleLeads.length,
-                },
-                idempotencyKey,
-                // Background: the batch processes the niche's leads
-                // sequentially with provider-friendly pacing; the runner
-                // continues to the next niche and reports honest counters.
-                awaitCompletion: false,
-                // Part 2 §21 (amended): this niche group's ONE charge
-                // covers this ONE execution — the batch runner releases
-                // the fee if the run terminates with ZERO steps completed.
-                neverStartedAutoRefund: true,
-              }
-            );
-            if (batchResult.executionId) {
-              executionsCreated++;
-              await db.autopilotLead.updateMany({
-                where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
-                data: { status: 'EXEC_QUEUED', executionId: batchResult.executionId },
-              });
-            } else {
-              // The execution record could not be created — Part 2 §21:
-              // release the fee idempotently, then record the honest
-              // per-lead failure.
-              await refundWorkflowExecutionFee({
-                userId: autopilot.userId,
-                workflowId: autopilot.workflowId,
-                chargeKey,
-                source: 'AUTOPILOT',
-                referenceId: idempotencyKey,
-              }).catch(() => {
-                // Ledger idempotency makes a later retry safe.
-              });
-              await db.autopilotLead.updateMany({
-                where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
-                data: {
-                  status: 'EXEC_FAILED',
-                  error: batchResult.error || 'Execution failed to start',
-                },
-              });
-              hardFailures++;
+        hardFailures++;
+        insufficientCredits = true;
+      } else {
+        try {
+          const batchResult = await executeWorkflowBatch(
+            autopilot.workflowId,
+            autopilot.userId,
+            {
+              leads: runLeads,
+              targetSnapshot: {
+                mode: 'autopilot',
+                source: 'autopilot',
+                autopilotId: autopilot.id,
+                runId,
+                runKey: runNow?.runKey ?? null,
+                niches,
+                trigger,
+                leadCount: runLeads.length,
+              },
+              idempotencyKey,
+              // Background: the batch processes the run's leads sequentially
+              // with provider-friendly pacing; the detached finalizer below
+              // settles per-lead outcomes once the execution is terminal.
+              awaitCompletion: false,
+              // This run's ONE charge covers this ONE execution — the batch
+              // runner releases the fee if the run terminates with ZERO
+              // steps completed (never-started refund, same ledger keys).
+              neverStartedAutoRefund: true,
             }
-          } catch (execErr) {
-            // The execution never started (record could not be created) —
-            // Part 2 §21: release the fee idempotently, then record the
-            // honest per-lead failure.
+          );
+          if (batchResult.executionId) {
+            executionsCreated = 1;
+            executionId = batchResult.executionId;
+            await db.autopilotLead.updateMany({
+              where: { autopilotId: autopilot.id, runId, leadId: { in: runLeads.map((l) => l.id) } },
+              data: { status: 'EXEC_QUEUED', executionId },
+            });
+            // Detached settle: per-lead outcomes + run aggregates update
+            // when the parent execution reaches a terminal state. Never
+            // blocks the invocation; failures are logged, never thrown.
+            void settleRunExecutionOutcome(runId, executionId).catch((err) => {
+              console.error('[AutopilotRunner] Run outcome settle failed:', err);
+            });
+          } else {
+            // The execution record could not be created — release the fee
+            // idempotently, then record the honest per-lead failure.
             await refundWorkflowExecutionFee({
               userId: autopilot.userId,
               workflowId: autopilot.workflowId,
@@ -492,32 +579,38 @@ export async function executeAutopilotRun(
               // Ledger idempotency makes a later retry safe.
             });
             await db.autopilotLead.updateMany({
-              where: { autopilotId: autopilot.id, runId, leadId: { in: eligibleLeads.map((l) => l.id) } },
+              where: { autopilotId: autopilot.id, runId, leadId: { in: runLeads.map((l) => l.id) } },
               data: {
                 status: 'EXEC_FAILED',
-                error: execErr instanceof Error ? execErr.message : 'Execution failed',
+                error: batchResult.error || 'Execution failed to start',
               },
             });
             hardFailures++;
           }
+        } catch (execErr) {
+          // The execution never started (record could not be created) —
+          // release the fee idempotently, then record the honest
+          // per-lead failure.
+          await refundWorkflowExecutionFee({
+            userId: autopilot.userId,
+            workflowId: autopilot.workflowId,
+            chargeKey,
+            source: 'AUTOPILOT',
+            referenceId: idempotencyKey,
+          }).catch(() => {
+            // Ledger idempotency makes a later retry safe.
+          });
+          await db.autopilotLead.updateMany({
+            where: { autopilotId: autopilot.id, runId, leadId: { in: runLeads.map((l) => l.id) } },
+            data: {
+              status: 'EXEC_FAILED',
+              error: execErr instanceof Error ? execErr.message : 'Execution failed',
+            },
+          });
+          hardFailures++;
         }
       }
-
-      perNiche.push({
-        niche,
-        jobId,
-        status: job.status.toUpperCase(),
-        discovered: job.totalFound,
-        imported: job.imported,
-        duplicates: job.duplicates,
-        executions: eligibleLeads.length,
-        ...(nicheError ? { error: nicheError } : {}),
-      });
-
-      // Pacing between niches.
-      await new Promise((r) => setTimeout(r, AUTOPILOT_NICHE_PACING_MS));
     }
-
     // ── 4. Honest run finalization ──
     const status: 'COMPLETED' | 'FAILED' = hardFailures > 0 && saved === 0 && executionsCreated === 0
       ? 'FAILED'
@@ -527,17 +620,25 @@ export async function executeAutopilotRun(
       .map((n) => `${n.niche}: ${n.error}`)
       .join(' | ');
     const insufficientSummary = insufficientCredits
-      ? `Insufficient credits: workflow execution fee (${WORKFLOW_EXECUTION_FEE_CREDITS}) could not be paid after ${executionsCreated} execution${executionsCreated === 1 ? '' : 's'}; remaining discovered leads were not executed.`
+      ? `Insufficient credits: workflow execution fee (${WORKFLOW_EXECUTION_FEE_CREDITS}) could not be paid; discovered leads were not executed.`
       : '';
 
-    await db.autopilotRun.update({
-      where: { id: runId },
+    // Status-guarded finalize: only a still-RUNNING run transitions to
+    // COMPLETED/FAILED here — a run cancelled mid-discovery keeps its
+    // CANCELLED status (counters still update honestly).
+    const finalizeData = {
+      discovered,
+      saved,
+      processed,
+      executionsCreated,
+      ...(executionId ? { executionId } : {}),
+      ...(runKeyRow?.runKey ? { runKey: runKeyRow.runKey } : {}),
+    };
+    const finalized = await db.autopilotRun.updateMany({
+      where: { id: runId, status: 'RUNNING' },
       data: {
         status,
-        discovered,
-        saved,
-        processed,
-        executionsCreated,
+        ...finalizeData,
         completedAt: new Date(),
         ...((errorSummary || insufficientSummary)
           ? { error: [insufficientSummary, errorSummary].filter(Boolean).join(' | ').substring(0, 2000) }
@@ -547,26 +648,44 @@ export async function executeAutopilotRun(
           : {}),
       },
     });
+    if (finalized.count !== 1) {
+      // Run was cancelled (or claimed elsewhere) — counters stay honest.
+      await db.autopilotRun.update({
+        where: { id: runId },
+        data: finalizeData,
+      }).catch(() => {});
+    }
 
     return {
       runId, status, discovered, saved, processed, executionsCreated, perNiche,
+      executionId,
+      runKey: runKeyRow?.runKey ?? null,
       ...((errorSummary || insufficientSummary)
         ? { error: [insufficientSummary, errorSummary].filter(Boolean).join(' | ') }
         : {}),
     };
   } catch (fatal) {
     const message = fatal instanceof Error ? fatal.message : 'Autopilot run failed';
-    await db.autopilotRun.update({
-      where: { id: runId },
+    // Status-guarded: never overwrite a CANCELLED run with FAILED.
+    const failed = await db.autopilotRun.updateMany({
+      where: { id: runId, status: 'RUNNING' },
       data: {
         status: 'FAILED',
         error: message.substring(0, 2000),
         discovered, saved, processed, executionsCreated,
+        ...(executionId ? { executionId } : {}),
         completedAt: new Date(),
       },
     });
+    if (failed.count !== 1) {
+      await db.autopilotRun.update({
+        where: { id: runId },
+        data: { discovered, saved, processed, executionsCreated },
+      }).catch(() => {});
+    }
     return {
       runId, status: 'FAILED', discovered, saved, processed, executionsCreated,
+      executionId,
       perNiche, error: message,
     };
   }
@@ -574,14 +693,22 @@ export async function executeAutopilotRun(
 
 /**
  * Run an autopilot end-to-end under the per-user lock: create the run
- * row (QUEUED), execute it, then finalize autopilot counters + state.
- * `trigger` is 'manual' (API) or 'scheduler' (cron).
+ * row (QUEUED) with its idempotency runKey, execute it, then finalize
+ * autopilot counters + state. `trigger` is 'manual' (API) or 'scheduler'
+ * (cron) — BOTH paths converge on this core service (Phase 18 rule).
+ *
+ * runKey (Phase 18 duplicate-invocation protection):
+ *   scheduler → `scheduled:{autopilotId}:{slotEpoch}` — a replayed tick
+ *   for the same due slot converges on the SAME run row (unique index).
+ *   manual → `manual:{autopilotId}:{epochMs}` — unique per invocation;
+ *   concurrent double-clicks are still stopped by the open-run guard.
  */
 export async function runAutopilot(
   autopilotId: string,
   userId: string,
-  trigger: 'manual' | 'scheduler'
-): Promise<{ ok: boolean; runId?: string; error?: string; code?: string; outcome?: AutopilotRunOutcome }> {
+  trigger: 'manual' | 'scheduler',
+  options: { runKey?: string } = {}
+): Promise<{ ok: boolean; runId?: string; error?: string; code?: string; duplicate?: boolean; outcome?: AutopilotRunOutcome }> {
   return withUserLock(userId, async () => {
     const autopilot = await db.autopilotWorkflow.findFirst({
       where: { id: autopilotId, userId },
@@ -612,6 +739,22 @@ export async function runAutopilot(
       };
     }
 
+    // Phase 18 — runKey duplicate-invocation check: if this exact key
+    // already has a run row, the invocation is a REPLAY — return the
+    // existing run idempotently (no second run, no second execution).
+    const runKey =
+      options.runKey ??
+      (trigger === 'scheduler'
+        ? `scheduled:${autopilot.id}:${new Date().getTime()}`
+        : `manual:${autopilot.id}:${new Date().getTime()}`);
+    const existing = await db.autopilotRun.findUnique({
+      where: { runKey },
+      select: { id: true },
+    }).catch(() => null);
+    if (existing) {
+      return { ok: true, runId: existing.id, duplicate: true };
+    }
+
     // Atomic state claim: ACTIVE→RUNNING. The scheduler path already
     // flipped ACTIVE→RUNNING before calling (count==1 winner); the manual
     // path claims here. Either way exactly one claim succeeds.
@@ -635,12 +778,34 @@ export async function runAutopilot(
         userId,
         status: 'QUEUED',
         trigger,
+        runKey,
         config: JSON.stringify({
           niches: parseJson<string[]>(autopilot.niches, []),
           geography: parseJson<Record<string, string>>(autopilot.geography, {}),
         }),
       },
-    });
+    }).catch(async (createErr: unknown) => {
+      // runKey unique violation = duplicate invocation racing past the
+      // pre-check — converge on the existing run row (idempotent replay).
+      if (createErr && typeof createErr === 'object' && 'code' in createErr &&
+          (createErr as { code?: string }).code === 'P2002') {
+        const prior = await db.autopilotRun.findUnique({
+          where: { runKey },
+          select: { id: true },
+        }).catch(() => null);
+        if (prior) return { id: prior.id, duplicate: true };
+      }
+      throw createErr;
+    }) as { id: string; duplicate?: boolean };
+    if (run.duplicate) {
+      // Duplicate invocation — release the ACTIVE→RUNNING claim we took
+      // (the original run owns the autopilot state) and report honestly.
+      await db.autopilotWorkflow.updateMany({
+        where: { id: autopilot.id, status: 'RUNNING' },
+        data: { status: 'ACTIVE' },
+      }).catch(() => {});
+      return { ok: true, runId: run.id, duplicate: true };
+    }
 
     const outcome = await executeAutopilotRun(
       autopilot as unknown as AutopilotRow,
@@ -649,6 +814,8 @@ export async function runAutopilot(
     );
 
     // Finalize autopilot row: RUNNING → ACTIVE/FAILED + counters.
+    // A CANCELLED run returns the autopilot to ACTIVE (user-initiated
+    // stop — not a failure).
     const stillOurs = await db.autopilotWorkflow.updateMany({
       where: { id: autopilot.id, status: 'RUNNING' },
       data: {
@@ -677,6 +844,175 @@ export async function runAutopilot(
     }
     return { ok: true, runId: run.id, outcome };
   });
+}
+
+// ===== Phase 18: run outcome settlement (detached finalizer) =====
+
+/** Terminal WorkflowExecution statuses (same taxonomy as the batch engine). */
+const EXECUTION_TERMINAL_STATUSES = ['completed', 'failed', 'cancelled', 'exhausted', 'partial'];
+
+function isTerminalExecutionStatus(status: string): boolean {
+  return EXECUTION_TERMINAL_STATUSES.includes(status);
+}
+
+/**
+ * Phase 18 — settle the run's ONE parent execution outcome: poll (detached,
+ * never blocking the invocation) until the execution reaches a terminal
+ * state, then propagate per-lead results to the AutopilotLead ledger
+ * (EXEC_COMPLETED / EXEC_FAILED) and the run's aggregate counters
+ * (leadsCompleted / leadsFailed). Bounded by AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS.
+ *
+ * Failure isolation: a lead that failed only marks THAT lead — the run's
+ * own status is not rewritten here (the run already finalized honestly).
+ */
+export async function settleRunExecutionOutcome(
+  runId: string,
+  executionId: string
+): Promise<void> {
+  const deadline = Date.now() + AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS;
+  let status: string | null = null;
+  for (;;) {
+    const execution = await db.workflowExecution.findUnique({
+      where: { id: executionId },
+      select: { status: true },
+    }).catch(() => null);
+    if (!execution) {
+      // Execution row disappeared (deleted) — nothing to settle.
+      return;
+    }
+    status = execution.status;
+    if (isTerminalExecutionStatus(status)) break;
+    if (Date.now() > deadline) {
+      console.warn(
+        `[AutopilotRunner] Settle timeout for run ${runId}: execution ${executionId} still '${status}' after ${Math.round(AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS / 60000)} min — ledger stays EXEC_QUEUED (honest).`
+      );
+      return;
+    }
+    await new Promise((r) => setTimeout(r, AUTOPILOT_EXECUTION_SETTLE_POLL_MS));
+  }
+
+  // Terminal — per-lead outcomes from the execution's item ledger.
+  const items = await db.workflowExecutionLead.findMany({
+    where: { executionId },
+    select: { leadId: true, status: true, error: true },
+  });
+  const completedLeadIds = items
+    .filter((i) => i.status === 'completed' && i.leadId)
+    .map((i) => i.leadId as string);
+  const notCompleted = items.filter((i) => i.status !== 'completed' && i.leadId);
+
+  if (completedLeadIds.length > 0) {
+    await db.autopilotLead.updateMany({
+      where: { runId, executionId, leadId: { in: completedLeadIds } },
+      data: { status: 'EXEC_COMPLETED', error: null },
+    }).catch(() => {});
+  }
+  // Per-lead failures keep their own error text (item-level fidelity).
+  for (const item of notCompleted) {
+    await db.autopilotLead.updateMany({
+      where: { runId, executionId, leadId: item.leadId as string, status: 'EXEC_QUEUED' },
+      data: {
+        status: 'EXEC_FAILED',
+        error: (item.error || `Execution ${status} — lead not completed`).substring(0, 500),
+      },
+    }).catch(() => {});
+  }
+
+  // Run-level aggregates (idempotent under re-settle).
+  await db.autopilotRun.update({
+    where: { id: runId },
+    data: {
+      leadsCompleted: completedLeadIds.length,
+      leadsFailed: notCompleted.length,
+    },
+  }).catch(() => {});
+}
+
+// ===== Phase 18: run cancellation =====
+
+export interface CancelRunResult {
+  ok: boolean;
+  error?: string;
+  code?: string;
+  run?: { id: string; status: string };
+}
+
+/**
+ * Phase 18 — cancel a run (user-initiated stop).
+ *   QUEUED  → CANCELLED atomically (the runner's QUEUED→RUNNING claim
+ *             then loses; no discovery, no execution, no charge).
+ *   RUNNING → CANCELLED + its parent execution is set to 'cancelled',
+ *             which the batch engine honors at the next step boundary
+ *             (existing mid-run cancellation machinery — not new retry
+ *             logic). The detached settle finalizer then updates per-lead
+ *             ledger statuses + run aggregates honestly.
+ *   Terminal states are rejected — history is never rewritten.
+ * Ownership is enforced by the userId scope (cross-user = not found).
+ */
+export async function cancelAutopilotRun(
+  userId: string,
+  runId: string
+): Promise<CancelRunResult> {
+  const run = await db.autopilotRun.findFirst({
+    where: { id: runId, userId },
+    select: { id: true, status: true, executionId: true, autopilotId: true },
+  });
+  if (!run) {
+    return { ok: false, error: 'Run not found', code: 'NOT_FOUND' };
+  }
+  if (run.status !== 'QUEUED' && run.status !== 'RUNNING') {
+    return {
+      ok: false,
+      error: `Run is already ${run.status} — only QUEUED or RUNNING runs can be cancelled`,
+      code: 'INVALID_STATE',
+    };
+  }
+
+  if (run.status === 'QUEUED') {
+    // Atomic flip: only one winner (this call OR the runner's claim).
+    const flipped = await db.autopilotRun.updateMany({
+      where: { id: run.id, status: 'QUEUED' },
+      data: { status: 'CANCELLED', completedAt: new Date() },
+    });
+    if (flipped.count !== 1) {
+      // The runner claimed it in the race — re-read and report honestly.
+      const now = await db.autopilotRun.findUnique({
+        where: { id: run.id },
+        select: { status: true },
+      });
+      return {
+        ok: false,
+        error: `Run transitioned to ${now?.status ?? 'RUNNING'} before cancellation`,
+        code: 'STATE_CONFLICT',
+      };
+    }
+    return { ok: true, run: { id: run.id, status: 'CANCELLED' } };
+  }
+
+  // RUNNING — cancel the run + signal the parent execution to stop.
+  await db.autopilotRun.update({
+    where: { id: run.id },
+    data: { status: 'CANCELLED', completedAt: new Date() },
+  });
+  if (run.executionId) {
+    await db.workflowExecution.update({
+      where: { id: run.executionId },
+      data: { status: 'cancelled' },
+    }).catch(() => {
+      // Execution already terminal/deleted — settle already handled it.
+    });
+    // Ensure the settle finalizer wakes up for this run even if the
+    // runner's detached watcher already timed out earlier.
+    void settleRunExecutionOutcome(run.id, run.executionId).catch(() => {});
+  }
+  // The autopilot row itself is finalized by runAutopilot's own RUNNING→
+  // ACTIVE/FAILED updateMany (CANCELLED outcome → ACTIVE). If the runner
+  // already finished, flip a lingering RUNNING autopilot back to ACTIVE.
+  await db.autopilotWorkflow.updateMany({
+    where: { id: run.autopilotId, status: 'RUNNING' },
+    data: { status: 'ACTIVE' },
+  }).catch(() => {});
+  return { ok: true, run: { id: run.id, status: 'CANCELLED' } };
 }
 
 // ===== stuck-run recovery =====

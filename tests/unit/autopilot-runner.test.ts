@@ -12,6 +12,9 @@ vi.hoisted(() => {
   process.env.AUTOPILOT_EXECUTION_PACING_MS = '0';
   process.env.AUTOPILOT_NICHE_PACING_MS = '0';
   process.env.AUTOPILOT_JOB_POLL_MS = '10';
+  // Phase 18 — settle watcher must not hang the test worker.
+  process.env.AUTOPILOT_EXECUTION_SETTLE_POLL_MS = '1';
+  process.env.AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS = '150';
 });
 
 const mockPrisma = vi.hoisted(() => ({
@@ -20,7 +23,7 @@ const mockPrisma = vi.hoisted(() => ({
     create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), delete: vi.fn(), count: vi.fn(),
   },
   autopilotRun: {
-    findFirst: vi.fn(), findMany: vi.fn(),
+    findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(),
     create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn(),
   },
   autopilotLead: {
@@ -30,10 +33,22 @@ const mockPrisma = vi.hoisted(() => ({
   workflowDefinition: { findFirst: vi.fn() },
   discoveryJob: { findUnique: vi.fn(), create: vi.fn() },
   lead: { findFirst: vi.fn() },
+  // Phase 18 — parent execution + per-lead items + profile resolution.
+  workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
+  workflowExecutionLead: { findMany: vi.fn() },
+  businessProfile: { findFirst: vi.fn() },
   __ledger: new Set<string>(),
 }));
 
 vi.mock('@/lib/db', () => ({ db: mockPrisma }));
+
+// Phase 18 — the runner snapshots the run's profile via the Phase 11–17
+// resolution chain (workflow profile → user default). Mocked so tests can
+// assert the snapshot without hitting the (mocked) DB.
+const mockResolveBusinessProfileForUser = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/lead-intelligence', () => ({
+  resolveBusinessProfileForUser: mockResolveBusinessProfileForUser,
+}));
 
 // Mock the external execution layers — the runner must integrate with
 // (not reimplement) the discovery pipeline and the batch execution engine.
@@ -63,7 +78,7 @@ vi.mock('@/lib/workflow-credits', () => ({
   checkExecutionLimit: vi.fn(async () => ({ allowed: true, current: 0, limit: 500 })),
 }));
 
-import { executeAutopilotRun, runAutopilot, recoverStuckAutopilotRuns, withUserLock } from '@/lib/autopilot/runner';
+import { executeAutopilotRun, runAutopilot, recoverStuckAutopilotRuns, cancelAutopilotRun, settleRunExecutionOutcome, withUserLock } from '@/lib/autopilot/runner';
 
 const AUTOPILOT_ROW = {
   id: 'ap1',
@@ -98,11 +113,30 @@ beforeEach(() => {
   vi.clearAllMocks();
   (mockPrisma.__ledger as Set<string>).clear();
   mockCheckCreditSufficiency.mockResolvedValue({ sufficient: true, balance: 1000, shortfall: 0 });
-  mockPrisma.workflowDefinition.findFirst.mockResolvedValue({ id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF' });
+  mockPrisma.workflowDefinition.findFirst.mockResolvedValue({ id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF', profileId: 'bp1' });
   mockPrisma.autopilotRun.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotRun.update.mockResolvedValue({});
   mockPrisma.autopilotWorkflow.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});
+  // Phase 18 — findUnique by runKey → null (no replay); by id → the live
+  // run row the runner reads while executing.
+  mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
+    if (where && typeof where.runKey === 'string') return null;
+    return { id: where?.id || 'run1', status: 'RUNNING', runKey: 'rk-1', executionId: null };
+  });
+  // Phase 18 — parent execution is terminal by default so the detached
+  // settle watcher finishes instantly and never hangs the worker.
+  mockPrisma.workflowExecution.findUnique.mockResolvedValue({ status: 'completed' });
+  mockPrisma.workflowExecution.update.mockResolvedValue({});
+  mockPrisma.workflowExecutionLead.findMany.mockResolvedValue([
+    { leadId: 'lead-bright', status: 'completed', error: null },
+    { leadId: 'lead-cityh', status: 'failed', error: 'send failed' },
+  ]);
+  // Phase 18 — profile resolution: workflow's own profile wins (Tier 2).
+  mockResolveBusinessProfileForUser.mockResolvedValue({
+    profile: { id: 'bp1', name: 'Profile A', preferredTone: 'professional', preferredLanguage: 'English', cta: 'Book a call' },
+    source: 'workflow',
+  });
   mockPrisma.autopilotLead.create.mockImplementation(async ({ data }: { data: { autopilotId: string; leadId: string } }) => {
     // Simulate the DB-level @@unique([autopilotId, leadId]) constraint:
     // the same lead can only ever be inserted once per autopilot.
@@ -137,25 +171,43 @@ beforeEach(() => {
 });
 
 describe('executeAutopilotRun', () => {
-  it('executes ONE grouped workflow per niche with a stable idempotency key (multi-lead model)', async () => {
+  it('executes exactly ONE parent workflow execution for the WHOLE run (Phase 18 model)', async () => {
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('COMPLETED');
     // BOTH niches discover the SAME two leads; the AutopilotLead unique
-    // guard dedupes them across niches, so the FIRST niche's group runs
-    // and the second niche has nothing new left: ONE grouped execution
-    // covering both leads (never one execution record per lead).
+    // guard dedupes them across niches, and the run creates exactly ONE
+    // parent execution covering both — never one execution per lead and
+    // never one per niche.
     expect(outcome.executionsCreated).toBe(1);
     expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
     const [wfId, userId, opts] = mockExecuteWorkflowBatch.mock.calls[0];
     expect(wfId).toBe('wf1');
     expect(userId).toBe('u1');
     expect(opts.leads.map((l: { id: string }) => l.id)).toEqual(['lead-bright', 'lead-cityh']);
-    expect(opts.idempotencyKey).toBe('autopilot:ap1:run:run1:niche:dental');
+    expect(opts.idempotencyKey).toBe('autopilot:ap1:run:run1');
     expect(opts.targetSnapshot.source).toBe('autopilot');
-    expect(opts.targetSnapshot.niche).toBe('Dental');
-    // ONE flat fee per niche group — never per lead.
+    expect(opts.targetSnapshot.mode).toBe('autopilot');
+    // ONE flat fee for the ONE parent execution — never per lead, never
+    // per niche.
     expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mockChargeWorkflowExecutionFee.mock.calls[0][0].chargeKey).toBe('wfexec-run:autopilot-ap1-run-run1');
     expect(mockChargeWorkflowExecutionFee.mock.calls[0][0].leadCount).toBe(2);
+    // The run links to its parent execution + reports the runKey.
+    expect(outcome.executionId).toBe('exec1');
+  });
+
+  it('snapshots the resolved profile/context into the run config at run start', async () => {
+    await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
+    expect(mockResolveBusinessProfileForUser).toHaveBeenCalledWith('u1', { workflowProfileId: 'bp1' });
+    const configUpdate = mockPrisma.autopilotRun.update.mock.calls.find(
+      (c: unknown[]) => typeof (c[0] as { data?: { config?: string } }).data?.config === 'string'
+    );
+    expect(configUpdate).toBeTruthy();
+    const config = JSON.parse((configUpdate![0] as { data: { config: string } }).data.config);
+    expect(config.profile.profileId).toBe('bp1');
+    expect(config.profile.profileSource).toBe('workflow');
+    expect(config.workflow.id).toBe('wf1');
+    expect(config.niches).toEqual(['Dental', 'Hospital']);
   });
 
   it('never executes the same lead twice — ledger unique guard wins', async () => {
@@ -164,21 +216,19 @@ describe('executeAutopilotRun', () => {
     (mockPrisma.__ledger as Set<string>).add('ap1:lead-cityh');
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('COMPLETED');
-    // Only lead-bright remains in the niche group — it executes exactly
-    // once, even though BOTH niches discovered it.
+    // Only lead-bright remains — it executes exactly once, even though
+    // BOTH niches discovered it.
     expect(outcome.executionsCreated).toBe(1);
     expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
     const opts = mockExecuteWorkflowBatch.mock.calls[0][2];
     expect(opts.leads.map((l: { id: string }) => l.id)).toEqual(['lead-bright']);
-    expect(opts.idempotencyKey).toBe('autopilot:ap1:run:run1:niche:dental');
+    expect(opts.idempotencyKey).toBe('autopilot:ap1:run:run1');
   });
 
-  it('marks EXEC_FAILED honestly when the batch engine rejects the niche group', async () => {
+  it('marks EXEC_FAILED honestly when the batch engine rejects the run execution', async () => {
     mockExecuteWorkflowBatch.mockRejectedValueOnce(new Error('Workflow concurrency limit reached'));
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
-    expect(outcome.status).toBe('COMPLETED'); // a group failure doesn't kill the run
-    // The Dental group failed to start; the Hospital niche rediscovers the
-    // same two leads — already in the ledger — so nothing more executes.
+    expect(outcome.status).toBe('COMPLETED'); // an execution-start failure doesn't kill the run's own lifecycle
     expect(outcome.executionsCreated).toBe(0);
     expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -189,8 +239,36 @@ describe('executeAutopilotRun', () => {
         data: expect.objectContaining({ status: 'EXEC_FAILED' }),
       })
     );
-    // The rejected group's fee was released idempotently.
+    // The rejected run's fee was released idempotently.
     expect(mockRefundWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+  });
+
+  it('discovery-only run (no eligible leads) charges 0 execution fees', async () => {
+    // Every discovered lead is already in the ledger from earlier runs →
+    // runLeads is empty → no charge, no execution.
+    (mockPrisma.__ledger as Set<string>).add('ap1:lead-bright');
+    (mockPrisma.__ledger as Set<string>).add('ap1:lead-cityh');
+    const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
+    expect(outcome.status).toBe('COMPLETED');
+    expect(outcome.executionsCreated).toBe(0);
+    expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
+  });
+
+  it('insufficient credits at the single charge point → EXEC_FAILED, no execution, honest error', async () => {
+    mockChargeWorkflowExecutionFee.mockResolvedValueOnce({ ok: false, fee: 5, balance: 3 });
+    const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
+    expect(outcome.status).toBe('COMPLETED'); // discovery succeeded; the execution simply never started
+    expect(outcome.executionsCreated).toBe(0);
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
+    expect(outcome.error).toContain('Insufficient credits');
+    expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'EXEC_FAILED', error: expect.stringContaining('Insufficient credits') }),
+      })
+    );
+    // No refund — nothing was charged.
+    expect(mockRefundWorkflowExecutionFee).not.toHaveBeenCalled();
   });
 
   it('claims the run atomically — a second claim cannot execute', async () => {
@@ -234,8 +312,9 @@ describe('executeAutopilotRun', () => {
     mockStartDiscoveryJob.mockResolvedValue({ jobId: '', status: 'failed', message: 'provider down' });
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('FAILED');
-    expect(mockPrisma.autopilotRun.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'run1' }, data: expect.objectContaining({ status: 'FAILED' }) })
+    // Finalization is status-guarded (Phase 18): still-RUNNING → FAILED.
+    expect(mockPrisma.autopilotRun.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'run1', status: 'RUNNING' }, data: expect.objectContaining({ status: 'FAILED' }) })
     );
   });
 });
@@ -332,5 +411,261 @@ describe('recoverStuckAutopilotRuns', () => {
     expect(result.recoveredRuns).toBe(0);
     expect(result.recoveredAutopilots).toBe(0);
     expect(mockPrisma.autopilotRun.update).not.toHaveBeenCalled();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 18 — Autopilot Core: runKey idempotency, cancellation,
+// settle finalizer, single-charge billing, failure isolation.
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Phase 18: runKey idempotency (duplicate invocation protection)', () => {
+  it('a replayed runKey returns the EXISTING run — no second run, no second execution', async () => {
+    mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue({ ...AUTOPILOT_ROW, status: 'ACTIVE' });
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue(null); // no open run
+    mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { runKey?: string } }) => {
+      // The replayed key already has a run row.
+      if (where?.runKey === 'scheduled:ap1:1700000000000') {
+        return { id: 'run-original' };
+      }
+      return null;
+    });
+    const result = await runAutopilot('ap1', 'u1', 'scheduler', { runKey: 'scheduled:ap1:1700000000000' });
+    expect(result.ok).toBe(true);
+    expect(result.duplicate).toBe(true);
+    expect(result.runId).toBe('run-original');
+    // No new run row, no ACTIVE→RUNNING claim consumed, no execution.
+    expect(mockPrisma.autopilotRun.create).not.toHaveBeenCalled();
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
+    expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+
+  it('creates the run with the deterministic scheduler slot runKey', async () => {
+    mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue({ ...AUTOPILOT_ROW, status: 'ACTIVE' });
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
+    mockPrisma.autopilotRun.create.mockResolvedValue({ id: 'run-new' });
+    const result = await runAutopilot('ap1', 'u1', 'scheduler', { runKey: 'scheduled:ap1:1700000000000' });
+    expect(result.ok).toBe(true);
+    expect(result.duplicate).toBeUndefined();
+    expect(mockPrisma.autopilotRun.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ runKey: 'scheduled:ap1:1700000000000', trigger: 'scheduler' }),
+      })
+    );
+  });
+
+  it('P2002 on runKey create (racing duplicate) converges on the existing run', async () => {
+    mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue({ ...AUTOPILOT_ROW, status: 'ACTIVE' });
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
+    // Pre-check finds nothing; the create itself hits the unique index,
+    // and the post-P2002 lookup finds the winner's run row.
+    const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    mockPrisma.autopilotRun.create.mockRejectedValueOnce(p2002);
+    mockPrisma.autopilotRun.findUnique.mockResolvedValueOnce(null); // pre-check
+    mockPrisma.autopilotRun.findUnique.mockResolvedValueOnce({ id: 'run-winner' }); // post-P2002 lookup
+    const result = await runAutopilot('ap1', 'u1', 'scheduler', { runKey: 'scheduled:ap1:1700000000000' });
+    expect(result.ok).toBe(true);
+    expect(result.duplicate).toBe(true);
+    expect(result.runId).toBe('run-winner');
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase 18: run cancellation', () => {
+  it('cancels a QUEUED run atomically — the runner claim then loses honestly', async () => {
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue({ id: 'run-q', status: 'QUEUED', executionId: null, autopilotId: 'ap1' });
+    mockPrisma.autopilotRun.updateMany.mockResolvedValue({ count: 1 }); // flip wins
+    const result = await cancelAutopilotRun('u1', 'run-q');
+    expect(result.ok).toBe(true);
+    expect(result.run?.status).toBe('CANCELLED');
+    expect(mockPrisma.autopilotRun.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'run-q', status: 'QUEUED' }, data: expect.objectContaining({ status: 'CANCELLED' }) })
+    );
+  });
+
+  it('a CANCELLED run reports cancellation honestly when the runner claim loses', async () => {
+    // The run was cancelled BEFORE the runner's QUEUED→RUNNING claim.
+    mockPrisma.autopilotRun.updateMany.mockResolvedValue({ count: 0 }); // claim loses
+    mockPrisma.autopilotRun.findUnique.mockImplementation(async () => ({ status: 'CANCELLED' }));
+    const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run-c', 'manual');
+    expect(outcome.status).toBe('CANCELLED');
+    expect(outcome.error).toContain('cancelled');
+    expect(mockStartDiscoveryJob).not.toHaveBeenCalled();
+    expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
+  });
+
+  it('a run cancelled DURING discovery creates NO execution and NO charge', async () => {
+    // Discovery works, but the run row flips to CANCELLED before the
+    // post-loop execution phase.
+    mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
+      if (where && typeof where.runKey === 'string') return null;
+      return { id: where?.id || 'run1', status: 'CANCELLED', runKey: 'rk-1' };
+    });
+    const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run-x', 'manual');
+    expect(outcome.status).toBe('CANCELLED');
+    expect(outcome.executionsCreated).toBe(0);
+    expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
+    expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
+  });
+
+  it('cancels a RUNNING run and signals the parent execution to stop', async () => {
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue({ id: 'run-r', status: 'RUNNING', executionId: 'exec9', autopilotId: 'ap1' });
+    mockPrisma.autopilotRun.update.mockResolvedValue({});
+    const result = await cancelAutopilotRun('u1', 'run-r');
+    expect(result.ok).toBe(true);
+    expect(mockPrisma.autopilotRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'run-r' }, data: expect.objectContaining({ status: 'CANCELLED' }) })
+    );
+    expect(mockPrisma.workflowExecution.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'exec9' }, data: expect.objectContaining({ status: 'cancelled' }) })
+    );
+  });
+
+  it('rejects cancellation of terminal runs — history is never rewritten', async () => {
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue({ id: 'run-t', status: 'COMPLETED', executionId: 'e', autopilotId: 'ap1' });
+    const result = await cancelAutopilotRun('u1', 'run-t');
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('INVALID_STATE');
+  });
+
+  it('scopes run lookup by userId — cross-user cancel is NOT_FOUND', async () => {
+    mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
+    const result = await cancelAutopilotRun('u-attacker', 'run-q');
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('NOT_FOUND');
+    expect(mockPrisma.autopilotRun.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase 18: settleRunExecutionOutcome (per-lead tracking finalizer)', () => {
+  it('settles ledger + run aggregates from the execution lead items', async () => {
+    mockPrisma.workflowExecution.findUnique.mockResolvedValue({ status: 'partial' });
+    mockPrisma.workflowExecutionLead.findMany.mockResolvedValue([
+      { leadId: 'lead-bright', status: 'completed', error: null },
+      { leadId: 'lead-cityh', status: 'failed', error: 'send failed' },
+      { leadId: 'lead-third', status: 'pending', error: null },
+    ]);
+    await settleRunExecutionOutcome('run1', 'exec1');
+    // Completed lead → EXEC_COMPLETED.
+    expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ runId: 'run1', executionId: 'exec1', leadId: { in: ['lead-bright'] } }),
+        data: expect.objectContaining({ status: 'EXEC_COMPLETED' }),
+      })
+    );
+    // Failed lead → EXEC_FAILED with its own error.
+    expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ runId: 'run1', executionId: 'exec1', leadId: 'lead-cityh', status: 'EXEC_QUEUED' }),
+        data: expect.objectContaining({ status: 'EXEC_FAILED', error: 'send failed' }),
+      })
+    );
+    // Run aggregates.
+    expect(mockPrisma.autopilotRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'run1' }, data: expect.objectContaining({ leadsCompleted: 1, leadsFailed: 2 }) })
+    );
+  });
+
+  it('waits until the execution reaches a terminal state (non-terminal keeps polling)', async () => {
+    let polls = 0;
+    mockPrisma.workflowExecution.findUnique.mockImplementation(async () => {
+      polls++;
+      return { status: polls < 3 ? 'running' : 'completed' };
+    });
+    mockPrisma.workflowExecutionLead.findMany.mockResolvedValue([]);
+    await settleRunExecutionOutcome('run1', 'exec1');
+    expect(polls).toBe(3);
+    expect(mockPrisma.autopilotRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'run1' }, data: expect.objectContaining({ leadsCompleted: 0, leadsFailed: 0 }) })
+    );
+  });
+
+  it('gives up honestly after the settle timeout — ledger stays EXEC_QUEUED', async () => {
+    mockPrisma.workflowExecution.findUnique.mockResolvedValue({ status: 'running' }); // never terminal
+    mockPrisma.workflowExecutionLead.findMany.mockResolvedValue([]);
+    await settleRunExecutionOutcome('run1', 'exec1');
+    expect(mockPrisma.autopilotLead.updateMany).not.toHaveBeenCalled();
+    expect(mockPrisma.autopilotRun.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase 18: single-charge billing for the ONE parent execution', () => {
+  it('exactly ONE 5-credit charge for one run — regardless of lead count or niche count', async () => {
+    // Two niches, TWO DIFFERENT leads each (4 unique leads total).
+    mockPrisma.lead.findFirst.mockImplementation(async ({ where }: { where: { website?: string; businessName?: string } }) => {
+      const map: Record<string, { id: string; businessName: string; niche: string | null }> = {
+        'https://bright.example': { id: 'lead-bright', businessName: 'Bright Smiles', niche: 'Dental' },
+        'https://cityh.example': { id: 'lead-cityh', businessName: 'City Hospital', niche: 'Hospital' },
+        'https://a.example': { id: 'lead-a', businessName: 'A Clinic', niche: 'Dental' },
+        'https://b.example': { id: 'lead-b', businessName: 'B Care', niche: 'Hospital' },
+      };
+      if (where?.website && map[where.website]) return map[where.website];
+      if (where?.businessName) {
+        for (const v of Object.values(map)) if (v.businessName === where.businessName) return v;
+      }
+      return null;
+    });
+    // Niche 1 discovers bright + a; niche 2 discovers cityh + b.
+    mockPrisma.discoveryJob.findUnique.mockImplementation(async () => ({
+      id: 'job-rot',
+      status: 'completed',
+      totalFound: 2,
+      imported: 2,
+      duplicates: 0,
+      failed: 0,
+      filteredOut: 0,
+      errorMessage: null,
+      resultData: JSON.stringify([
+        { businessName: 'Bright Smiles', website: 'https://bright.example', city: 'Mumbai', country: 'India' },
+        { businessName: 'A Clinic', website: 'https://a.example', city: 'Mumbai', country: 'India' },
+      ]),
+    }));
+    let call = 0;
+    mockStartDiscoveryJob.mockImplementation(async () => {
+      call++;
+      if (call === 2) {
+        mockPrisma.discoveryJob.findUnique.mockResolvedValueOnce({
+          id: 'job2',
+          status: 'completed',
+          totalFound: 2,
+          imported: 2,
+          duplicates: 0,
+          failed: 0,
+          filteredOut: 0,
+          errorMessage: null,
+          resultData: JSON.stringify([
+            { businessName: 'City Hospital', website: 'https://cityh.example', city: 'Mumbai', country: 'India' },
+            { businessName: 'B Care', website: 'https://b.example', city: 'Mumbai', country: 'India' },
+          ]),
+        });
+      }
+      return { jobId: `job-${call}`, status: 'started', message: 'ok' };
+    });
+    const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run-multi', 'manual');
+    expect(outcome.status).toBe('COMPLETED');
+    expect(outcome.executionsCreated).toBe(1);
+    // 4 leads under ONE execution — but still exactly ONE charge of 5.
+    expect(mockExecuteWorkflowBatch).toHaveBeenCalledTimes(1);
+    expect(mockExecuteWorkflowBatch.mock.calls[0][2].leads).toHaveLength(4);
+    expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
+    expect(mockChargeWorkflowExecutionFee.mock.calls[0][0].leadCount).toBe(4);
+    // All 4 ledger rows link to the SAME parent execution.
+    const linkCall = mockPrisma.autopilotLead.updateMany.mock.calls.find(
+      (c: unknown[]) => (c[0] as { data?: { status?: string } }).data?.status === 'EXEC_QUEUED'
+    );
+    expect(linkCall).toBeTruthy();
+    expect((linkCall![0] as { data: { executionId: string } }).data.executionId).toBe('exec1');
+    expect((linkCall![0] as { where: { leadId: { in: string[] } } }).where.leadId.in).toHaveLength(4);
+  });
+
+  it('run finalization links executionId + runKey onto the run row', async () => {
+    const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run-link', 'manual');
+    expect(outcome.executionId).toBe('exec1');
+    const finalizeCall = mockPrisma.autopilotRun.updateMany.mock.calls.find(
+      (c: unknown[]) => (c[0] as { where?: { status?: string } }).where?.status === 'RUNNING'
+    );
+    expect(finalizeCall).toBeTruthy();
+    expect((finalizeCall![0] as { data?: { executionId?: string } }).data?.executionId).toBe('exec1');
+    expect((finalizeCall![0] as { data?: { runKey?: string } }).data?.runKey).toBe('rk-1');
   });
 });

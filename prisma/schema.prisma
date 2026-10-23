@@ -3240,17 +3240,31 @@ model AutopilotRun {
   id                String    @id @default(cuid())
   autopilotId       String
   userId            String
-  // QUEUED | RUNNING | COMPLETED | FAILED
+  // QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED (Phase 18)
   status            String    @default("QUEUED")
   // manual | scheduler
   trigger           String    @default("manual")
-  // JSON snapshot of { niches, geography } at run time
+  // JSON snapshot of { niches, geography, profile, workflow } at run time —
+  // Phase 18: the run preserves the profile/context snapshot it started
+  // with (later profile edits never rewrite history).
   config            String    @default("{}")
+  // Phase 18 idempotency/run key — deterministic identity for duplicate
+  // invocation protection. Scheduler: "scheduled:{autopilotId}:{slot}" —
+  // a replayed tick converges on the SAME run row. Manual: unique per
+  // invocation ("manual:{autopilotId}:{epochMs}"). NULL on legacy rows.
+  runKey            String?   @unique
+  // Phase 18: the run's ONE parent WorkflowExecution (the whole batch —
+  // leads are items under it, never per-lead top-level executions).
+  executionId       String?
   discovered        Int       @default(0)
   saved             Int       @default(0)
   skippedDupes      Int       @default(0)
   processed         Int       @default(0)
   executionsCreated Int       @default(0)
+  // Phase 18 lead-level outcome aggregates (settled by the run finalizer
+  // once the parent execution reaches a terminal state).
+  leadsCompleted    Int       @default(0)
+  leadsFailed       Int       @default(0)
   error             String?
   createdAt         DateTime  @default(now())
   startedAt         DateTime?
@@ -3260,6 +3274,7 @@ model AutopilotRun {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([executionId])
 }
 
 model AutopilotLead {
