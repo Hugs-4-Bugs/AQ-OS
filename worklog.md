@@ -1815,3 +1815,45 @@ Work Log:
 Stage Summary:
 - develop baseline SHA → implementation SHA → remote develop SHA: 7899fe237 → 9d89d2eee → 9d89d2eee (exact match, verified).
 - GitHub develop baseline preserved + Phases 11–17 verified implementation published; main branch untouched.
+
+---
+Task ID: resync-develop-d790c07d-r2
+Agent: Super Z (main agent)
+Task: Workspace restoration to GitHub develop@d790c07d after sandbox outage + platform auto-revert recurrence (pre-Phase-18; no Phase 18 work).
+
+Work Log:
+- Sandbox was unavailable for 2 prior turns (session_failed-class outage; reported honestly, nothing fabricated). Sandbox returned this turn.
+- Inspection: platform session-init had re-mirrored .git and force-reverted workspace to stale main@45ede5cdb AGAIN (82,008 dirty entries; local develop ref wiped). Remote verified live: origin/develop = d790c07d exactly (not advanced) — safe to proceed on authoritative baseline.
+- Live data found ON DISK: db/custom.db md5 bd1e376a (LIVE, survived); .env md5 9c8982e9 (NEW value — key-name set identical to prior live backup d8a637f4 per names-only diff; values/formatting changed, server booted with it at 04:56 → treated as current-live).
+- Fresh presync backup upload/presync-20261023-054336/: env.bak(9c8982e9) + env.bak.older(d8a637f4) + custom.db(bd1e376a) + db-backups/ + upload-tracked.tar. Killed running servers (watchdog 979 + next 1126).
+- ATOMIC restore (one command, proven pattern): checkout -f -B develop d790c07d + branch -f main d790c07d + mkdir db + restore .env/db/db-backups/upload from fresh backup. One more auto-revert strike landed mid-verification as a CONTENT NO-OP (main already = d790c07d); only the branch label flipped; label restored to develop.
+- Deps: rm -rf node_modules(68K stale) .next(411M stale); bun install --frozen-lockfile (1283 pkgs, no upgrades); prisma client present.
+- Watchdog relaunched as user z: Next dev Ready in 4.2s, DB CONFIGURED, HTTP 200 on 3000 (21s first-compile) + 3001.
+
+Stage Summary:
+- RESTORATION COMPLETE: branch develop, HEAD=d790c07d, remote develop=d790c07d, git diff d790c07d EMPTY, porcelain=0, untracked-unignored=0, tree hash 8a0a2ace (matches prior verified sync), tracked files 4,867.
+- LIVE DATA: .env=9c8982e9 (current-live, server-booted) restored; db/custom.db=bd1e376a (live) preserved byte-identical; db-backups/upload intact; NO db reset/seed/migration; NO commit; NO push; NO app-code changes; Phase 18 NOT started.
+- Enduring mitigation confirmed twice this session: local main must point at the develop baseline so platform auto-reverts become no-ops; presync backups under upload/ survive .git re-mirroring.
+
+---
+Task ID: phase18-autopilot-core
+Agent: Super Z (main agent)
+Task: Phase 18 ONLY — Autopilot Core: one-parent-execution run model, runKey idempotency, CANCELLED lifecycle, profile/context snapshot, per-lead outcome settlement, additive live-DB drift fix, tests + E2E. No Phase 19+ work.
+
+Work Log:
+- INVESTIGATION (log-first, no code first): verified develop@d790c07d clean + servers healthy; mapped existing autopilot domain (models/runner/scheduler/service/API/UI/entitlements), batch engine (executeWorkflowBatch multi-lead model), P11-17 personalization (resolveBusinessProfileForUser/buildLeadIntelligence/intelligenceConfig), canonical billing (chargeWorkflowExecutionFee, chargeKey-idempotent, flat 5), AI abstraction (ai-provider.ts; autopilot imports zero provider code).
+- CRITICAL FINDING: live DB schema drift — WorkflowExecutionLead + DailyOutreachUsage tables missing; BusinessProfile.isDefault, DiscoveryJob.outcome/targetingJson, Lead.discoveryJobId columns missing (develop code could not execute batches against live DB). Root cause: no _prisma_migrations on live DB; prior phases' E2Es ran on other paths.
+- P18-1/2 ADDITIVE MIGRATION: prisma migrate diff → reviewed SQL (purely additive + Prisma's data-preserving redefine) → timestamped backups (db-backups/custom-pre-p18-2026-10-23_06-06-.db + upload copy) → applied via bun:sqlite script → VERIFIED: 115→117 tables, 5412 rows preserved, 0 mismatches, integrity ok.
+- Schema: AutopilotRun += runKey @unique, executionId, leadsCompleted, leadsFailed (+index); status gains CANCELLED; AutopilotLead gains EXEC_COMPLETED; AUTOPILOT_JOB_POLL_MS env-tunable; new settle timeout/poll knobs.
+- runner.ts RESTRUCTURE: ONE parent execution per RUN (collect all niches' eligible leads → ONE executeWorkflowBatch, ONE charge key wfexec-run:autopilot-{ap}-run-{run}, ONE idempotencyKey autopilot:{ap}:run:{run}); profile/context snapshot at run start (resolveBusinessProfileForUser workflow-tier + config JSON update); detached settleRunExecutionOutcome finalizer (poll parent execution → terminal → ledger EXEC_COMPLETED/EXEC_FAILED + run leadsCompleted/leadsFailed); CANCELLED support (claim-loss detection, mid-discovery no-charge abort, status-guarded finalization); cancelAutopilotRun (QUEUED atomic flip; RUNNING → execution 'cancelled' via existing engine boundary).
+- runAutopilot: runKey param + duplicate-invocation convergence (pre-check + P2002 catch → same run row, duplicate flag); scheduler-runner CONVERGES on runAutopilot (same core service as manual path) with deterministic slot runKey scheduled:{ap}:{nextRunAt-epoch}; nextRunAt update unguarded (bugfix vs status-guarded).
+- API: NEW POST /api/autopilot/[id]/cancel-run (ownership: run userId + autopilot match); run route response += executionId/runKey/duplicate.
+- UI: autopilot-tab run history += leads completed/failed, one-parent-execution marker, CANCELLED badge/icon, cancel button (QUEUED/RUNNING only); run toast reflects parent-execution model + duplicate invocation.
+- INCIDENT + RECOVERY: first E2E run's cleanup pushed an undefined id into deleteMany → Prisma no-filter → deleted ALL 3 AutopilotWorkflow + 13 AutopilotRun + 134 AutopilotLead rows. Detected immediately via post-cleanup counts; RESTORED all 150 rows byte-identical from the pre-P18 backup (scripts/phase18-restore-autopilot-rows.mjs; verified vs backup: counts, names/status, run spot-check, ledger distribution, integrity+fk clean). E2E cleanup hardened with safeIds() guards. Executions/workflows/leads/ledger charges were never touched.
+- TESTS: 33/33 autopilot-runner (rewritten for one-per-run contract + new P18 suites: runKey idempotency/P2002 convergence, cancellation x6, settle x3, single-charge billing x2, profile snapshot, discovery-only-0-charge, insufficient-credits single point); autopilot service 30/30; focused regression ALL GREEN: workflows+timezone+credits+billing unit, 5 integration files (54), P11-17 tests (46), e2e workflow-flow (19), lead tests (17). Full unit pass: 11 failures ALL in documented pre-existing set (api-key-service 3 + discovery-volume-persistence 8 — discovery-volume verified byte-identical via stash-swap against pristine baseline). Scoped tsc: zero errors in Phase 18 files (5 pre-existing errors in untouched files).
+- E2E (real server + real discovery + real engine + real DB): 33/33 PASS — one parent execution for 20 real leads (idempotencyKey + charge exactly -5 once, never per lead/niche), run links executionId+runKey, profile snapshot on run + intelligenceConfig on execution, settle 20/20 EXEC_COMPLETED + leadsCompleted=20, mid-run cancel → CANCELLED + 0 executions + 0 charges + autopilot back ACTIVE, terminal cancel rejected 409, User B isolation (404/403/404, list clean), insufficient credits (QA pro user, 3 credits) refused BEFORE discovery with 0 charges/jobs, logs clean.
+
+Stage Summary:
+- PHASE 18 COMPLETE: Autopilot Core implemented as evolution of existing infra (orchestrates discovery + batch engine + personalization + billing; no engine duplication, provider-agnostic, billing semantics unchanged: 1 execution = 5 credits, discovery-only = 0, retry-safe via idempotency keys).
+- Live DB: additive drift fix applied + verified; live data preserved (incident fully recovered from backup; verified). QA side effects on User A: ~118 discovered leads (real data, kept per prior-phase convention) + their discovery/execution charges (real accounting).
+- Git: ONE commit on develop (schema + autopilot core + API + UI + tests + E2E scripts + scoped tsconfig). NO PUSH (per directive — push only after explicit authorization).

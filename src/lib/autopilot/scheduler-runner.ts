@@ -1,36 +1,25 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — Autopilot Scheduler Runner
 //
-// Shared by POST /api/cron/autopilot-scheduler (CRON_SECRET protected).
+// Shared by POST /api/cron/autopilot-scheduler (CRON_SECRET protected)
+// and the in-process 5-minute heartbeat (instrumentation.ts).
 // One tick:
 //   1. Recover stuck runs / stuck autopilots (honest FAILED states).
 //   2. Find ACTIVE autopilots whose nextRunAt is due.
 //   3. For each: ATOMICALLY claim ACTIVE→RUNNING (updateMany count==1 —
-//      two ticks can never start the same autopilot twice), run it,
-//      then set status + nextRunAt.
+//      two ticks can never start the same autopilot twice), then invoke
+//      the SAME core runAutopilot service the manual route uses with a
+//      deterministic slot runKey (Phase 18 convergence + replay
+//      protection), then set the next slot.
 //
 // A run is started exactly once: the run row is claimed QUEUED→RUNNING
-// inside executeAutopilotRun, and the AutopilotLead ledger unique
-// constraint prevents any duplicate lead processing even if a retry
-// ever raced past the claims.
+// inside executeAutopilotRun, the AutopilotLead ledger unique constraint
+// prevents any duplicate lead processing, and the runKey unique index
+// prevents any duplicate run for the same scheduled slot.
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
-import { computeNextRun, executeAutopilotRun, recoverStuckAutopilotRuns } from './runner';
-
-function safeParseArray(raw: string | null): string[] {
-  try {
-    const v = JSON.parse(raw || '[]');
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch { return []; }
-}
-
-function safeParseObject(raw: string | null): Record<string, string> {
-  try {
-    const v = JSON.parse(raw || '{}');
-    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-  } catch { return {}; }
-}
+import { computeNextRun, recoverStuckAutopilotRuns, runAutopilot } from './runner';
 
 export interface SchedulerTickResult {
   recoveredRuns: number;
@@ -41,7 +30,7 @@ export interface SchedulerTickResult {
   results: Array<{
     autopilotId: string;
     runId: string;
-    status: 'COMPLETED' | 'FAILED';
+    status: 'COMPLETED' | 'FAILED' | 'CANCELLED';
     nextRunAt: string;
     error?: string;
   }>;
@@ -87,46 +76,80 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
       continue;
     }
 
-    const run = await db.autopilotRun.create({
-      data: {
-        autopilotId: autopilot.id,
-        userId: autopilot.userId,
-        status: 'QUEUED',
-        trigger: 'scheduler',
-        config: JSON.stringify({
-          niches: safeParseArray(autopilot.niches),
-          geography: safeParseObject(autopilot.geography),
-        }),
-      },
+    // Phase 18 — deterministic runKey: the due slot's identity. A replayed
+    // tick (or a racing duplicate tick) for the SAME slot converges on the
+    // SAME run row via the runKey unique index — never a second run.
+    const slotRunKey = `scheduled:${autopilot.id}:${autopilot.nextRunAt ? autopilot.nextRunAt.getTime() : 'now'}`;
+    const existingSlotRun = await db.autopilotRun.findUnique({
+      where: { runKey: slotRunKey },
+      select: { id: true },
+    }).catch(() => null);
+    if (existingSlotRun) {
+      skippedInFlight++;
+      // Release the claim — the slot's run already exists.
+      await db.autopilotWorkflow.updateMany({
+        where: { id: autopilot.id, status: 'RUNNING' },
+        data: { status: 'ACTIVE' },
+      });
+      continue;
+    }
+
+    // Phase 18 — the scheduler and the manual route CONVERGE on the same
+    // core service (runAutopilot): claim, run-row creation with runKey,
+    // execution, and autopilot finalization all live in ONE place. The
+    // scheduler's pre-claimed ACTIVE→RUNNING state is accepted by
+    // runAutopilot's 'scheduler' trigger path; a duplicate slot racing
+    // past the pre-check above is caught by the runKey unique index
+    // inside runAutopilot (returned as duplicate: true).
+    const result = await runAutopilot(autopilot.id, autopilot.userId, 'scheduler', {
+      runKey: slotRunKey,
     });
+    if (!result.ok || !result.runId) {
+      // State conflict / in-flight guard — release the claim honestly.
+      skippedInFlight++;
+      await db.autopilotWorkflow.updateMany({
+        where: { id: autopilot.id, status: 'RUNNING' },
+        data: { status: 'ACTIVE' },
+      });
+      continue;
+    }
+    if (result.duplicate) {
+      // Replayed slot — already handled by an earlier tick.
+      skippedInFlight++;
+      continue;
+    }
 
     started++;
-    const outcome = await executeAutopilotRun(
-      autopilot as unknown as Parameters<typeof executeAutopilotRun>[0],
-      run.id,
-      'scheduler'
-    );
+    const outcome = result.outcome;
+    if (!outcome) {
+      // runAutopilot reported a run without an outcome (should not happen
+      // for non-duplicate runs) — fall back to the run row's own state.
+      const runRow = await db.autopilotRun.findUnique({
+        where: { id: result.runId },
+        select: { status: true, discovered: true, saved: true, processed: true, executionsCreated: true, error: true },
+      });
+      results.push({
+        autopilotId: autopilot.id,
+        runId: result.runId,
+        status: (runRow?.status as 'COMPLETED' | 'FAILED' | 'CANCELLED') || 'FAILED',
+        nextRunAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        ...(runRow?.error ? { error: runRow.error } : {}),
+      });
+      continue;
+    }
 
-    // Schedule the next run; autopilot returns to ACTIVE (or FAILED).
+    // Schedule the next run; the autopilot row itself was already
+    // finalized by runAutopilot (RUNNING → ACTIVE/FAILED), so this update
+    // is NOT status-guarded — nextRunAt must land either way.
     const nextRunAt = computeNextRun(autopilot.schedule) || new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await db.autopilotWorkflow.updateMany({
-      where: { id: autopilot.id, status: 'RUNNING' },
-      data: {
-        status: outcome.status === 'FAILED' ? 'FAILED' : 'ACTIVE',
-        lastRunAt: new Date(),
-        nextRunAt,
-        lastError: outcome.error ? outcome.error.substring(0, 2000) : null,
-        runCount: { increment: 1 },
-        totalDiscovered: { increment: outcome.discovered },
-        totalSaved: { increment: outcome.saved },
-        totalProcessed: { increment: outcome.processed },
-        totalExecutions: { increment: outcome.executionsCreated },
-      },
-    });
+    await db.autopilotWorkflow.update({
+      where: { id: autopilot.id },
+      data: { nextRunAt },
+    }).catch(() => {});
 
     results.push({
       autopilotId: autopilot.id,
-      runId: run.id,
+      runId: result.runId,
       status: outcome.status,
       nextRunAt: nextRunAt.toISOString(),
       ...(outcome.error ? { error: outcome.error } : {}),

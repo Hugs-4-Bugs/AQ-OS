@@ -47,6 +47,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
           saved: result.outcome?.saved ?? 0,
           processed: result.outcome?.processed ?? 0,
           executionsCreated: result.outcome?.executionsCreated ?? 0,
+          // Phase 18 — the run's ONE parent execution + idempotency key +
+          // duplicate-invocation flag.
+          executionId: result.outcome?.executionId ?? null,
+          runKey: result.outcome?.runKey ?? null,
+          duplicate: result.duplicate ?? false,
           perNiche: result.outcome?.perNiche ?? [],
           ...(result.outcome?.error ? { error: result.outcome.error } : {}),
         });

@@ -54,11 +54,27 @@ export function canTransitionAutopilot(from: string, to: string): boolean {
   return !!allowed && allowed.includes(to as AutopilotStatus);
 }
 
-/** AutopilotRun lifecycle states. */
-export type AutopilotRunStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+/** AutopilotRun lifecycle states (Phase 18 adds CANCELLED). */
+export type AutopilotRunStatus =
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
 
-/** AutopilotLead ledger statuses. */
-export type AutopilotLeadStatus = 'DISCOVERED' | 'EXEC_QUEUED' | 'EXEC_FAILED';
+/** Terminal AutopilotRun statuses (no further transitions). */
+export const AUTOPILOT_RUN_TERMINAL: readonly AutopilotRunStatus[] = [
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+];
+
+/** AutopilotLead ledger statuses (Phase 18 adds EXEC_COMPLETED). */
+export type AutopilotLeadStatus =
+  | 'DISCOVERED'
+  | 'EXEC_QUEUED'
+  | 'EXEC_COMPLETED'
+  | 'EXEC_FAILED';
 
 /**
  * Schedules accepted server-side (whitelist — no free-form cron).
@@ -112,10 +128,32 @@ export const AUTOPILOT_NICHE_PACING_MS = parseInt(
   10
 );
 
-/** Poll interval while waiting for an async discovery job to finish. */
-export const AUTOPILOT_JOB_POLL_MS = 3000;
+/** Poll interval while waiting for an async discovery job to finish.
+ * (Env-tunable like the other pacing knobs — tests set it to ~10ms.) */
+export const AUTOPILOT_JOB_POLL_MS = parseInt(
+  process.env.AUTOPILOT_JOB_POLL_MS || '3000',
+  10
+);
 /** Hard timeout for one discovery job inside an autopilot run. */
 export const AUTOPILOT_JOB_TIMEOUT_MS = 15 * 60 * 1000;
 
 /** Runs/autopilots stuck in RUNNING longer than this are recovered as failed. */
 export const AUTOPILOT_STUCK_MS = 60 * 60 * 1000; // 60 minutes
+
+/**
+ * Phase 18 — settle timeout for the run finalizer: how long it waits for the
+ * run's ONE parent WorkflowExecution to reach a terminal state (completed /
+ * failed / cancelled / partial / exhausted) before giving up honestly. The
+ * batch engine paces leads sequentially, so large runs take minutes — the
+ * finalizer polls in the background and never blocks the invocation.
+ */
+export const AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS = parseInt(
+  process.env.AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS || String(60 * 60 * 1000),
+  10
+);
+
+/** Phase 18 — poll interval for the run finalizer's execution watch. */
+export const AUTOPILOT_EXECUTION_SETTLE_POLL_MS = parseInt(
+  process.env.AUTOPILOT_EXECUTION_SETTLE_POLL_MS || '5000',
+  10
+);

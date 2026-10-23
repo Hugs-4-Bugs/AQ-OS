@@ -73,6 +73,11 @@ interface AutopilotRun {
   skippedDupes: number;
   processed: number;
   executionsCreated: number;
+  // Phase 18 — ONE parent execution per run + per-lead outcome aggregates.
+  executionId?: string | null;
+  runKey?: string | null;
+  leadsCompleted?: number;
+  leadsFailed?: number;
   error: string | null;
   createdAt: string;
 }
@@ -93,6 +98,8 @@ const STATUS_STYLES: Record<string, string> = {
   COMPLETED: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
   FAILED: 'bg-red-500/15 text-red-400 border-red-500/30',
   DISABLED: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+  CANCELLED: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  QUEUED: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -246,12 +253,20 @@ export default function AutopilotTab() {
       const res = await fetch(`/api/autopilot/${id}/run`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Run failed');
-      toast({
-        title: data.status === 'FAILED' ? 'Run finished with failures' : 'Run completed',
-        description: `Discovered ${data.discovered ?? 0} · imported ${data.saved ?? 0} · executions ${data.executionsCreated ?? 0}`,
-        variant: data.status === 'FAILED' ? 'destructive' : 'default',
-      });
+      if (data.duplicate) {
+        toast({
+          title: 'Run already in progress',
+          description: 'This invocation was already processed — no duplicate run created.',
+        });
+      } else {
+        toast({
+          title: data.status === 'FAILED' ? 'Run finished with failures' : data.status === 'CANCELLED' ? 'Run cancelled' : 'Run completed',
+          description: `Discovered ${data.discovered ?? 0} · imported ${data.saved ?? 0} · leads executed under ${data.executionsCreated ?? 0} parent workflow execution${(data.executionsCreated ?? 0) === 1 ? '' : 's'}`,
+          variant: data.status === 'FAILED' ? 'destructive' : 'default',
+        });
+      }
       fetchState();
+      if (expandedId === id) loadRuns(id);
     } catch (e) {
       toast({
         title: 'Run failed',
@@ -259,6 +274,32 @@ export default function AutopilotTab() {
         variant: 'destructive',
       });
       fetchState();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Phase 18 — cancel a QUEUED/RUNNING run (atomic for QUEUED; the parent
+  // execution stops at its next step boundary for RUNNING runs).
+  const handleCancelRun = async (autopilotId: string, runId: string) => {
+    setBusyId(runId);
+    try {
+      const res = await fetch(`/api/autopilot/${autopilotId}/cancel-run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Cancel failed');
+      toast({ title: 'Run cancelled', description: 'The run will stop; per-lead results are settled honestly.' });
+      loadRuns(autopilotId);
+      fetchState();
+    } catch (e) {
+      toast({
+        title: 'Cancel failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setBusyId(null);
     }
@@ -446,6 +487,10 @@ export default function AutopilotTab() {
                               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                             ) : run.status === 'FAILED' ? (
                               <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            ) : run.status === 'CANCELLED' ? (
+                              <XCircle className="h-3.5 w-3.5 text-orange-400" />
+                            ) : run.status === 'QUEUED' ? (
+                              <RefreshCw className="h-3.5 w-3.5 text-sky-400" />
                             ) : (
                               <RefreshCw className="h-3.5 w-3.5 text-blue-500 animate-spin" />
                             )}
@@ -457,7 +502,26 @@ export default function AutopilotTab() {
                           </span>
                           <span>
                             found {run.discovered} · imported {run.saved} · dupes {run.skippedDupes} · processed {run.processed} · executions {run.executionsCreated}
+                            {/* Phase 18 — ONE parent execution + per-lead outcomes */}
+                            {(run.leadsCompleted ?? 0) + (run.leadsFailed ?? 0) > 0 && (
+                              <span className="text-muted-foreground">
+                                {' '}· leads completed {run.leadsCompleted ?? 0} / failed {run.leadsFailed ?? 0}
+                              </span>
+                            )}
+                            {run.executionId && (
+                              <span className="text-muted-foreground">{' '}· one parent execution</span>
+                            )}
                           </span>
+                          {(run.status === 'QUEUED' || run.status === 'RUNNING') && (
+                            <button
+                              type="button"
+                              disabled={busyId === run.id}
+                              onClick={() => handleCancelRun(ap.id, run.id)}
+                              className="ml-auto rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-orange-400 transition-colors hover:bg-orange-500/20 disabled:opacity-50"
+                            >
+                              {busyId === run.id ? 'Cancelling…' : 'Cancel run'}
+                            </button>
+                          )}
                           {run.error && (
                             <span className="text-red-400 break-words min-w-0">{run.error}</span>
                           )}
