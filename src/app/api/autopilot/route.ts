@@ -81,6 +81,9 @@ export const POST = withMonitoring(async (request: NextRequest) => {
           workflowId,
           schedule,
           activate,
+          // Phase 20 — optional niche → Business Profile mapping
+          // (validated server-side: shape + selected-niche keys + ownership).
+          profileMappings: body.profileMappings,
         }
       );
 

@@ -39,6 +39,11 @@ const mockPrisma = vi.hoisted(() => ({
     deleteMany: vi.fn(), count: vi.fn(), findFirst: vi.fn(),
   },
   workflowDefinition: { findFirst: vi.fn(), findMany: vi.fn() },
+  // Phase 20 — canonical niche resolution queries (create/update path).
+  // Default: the caller has "Dentists" saved as a custom niche so the
+  // legacy test input keeps resolving end-to-end.
+  customNiche: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+  businessProfile: { findMany: vi.fn() },
   discoveryJob: { findUnique: vi.fn(), create: vi.fn() },
   user: { findUnique: vi.fn() },
 }));
@@ -100,6 +105,12 @@ function apRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Phase 20 — the test user's saved custom niche (keeps the legacy
+  // 'Dentists' input resolvable through the canonical service).
+  mockPrisma.customNiche.findMany.mockResolvedValue([
+    { id: 'cn-dentists', name: 'Dentists', nicheKey: 'dentists', status: 'active' },
+  ]);
+  mockPrisma.businessProfile.findMany.mockResolvedValue([]);
 });
 
 // ═══════════════════════════════════════════════════════════════════

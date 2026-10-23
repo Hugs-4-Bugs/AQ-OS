@@ -122,6 +122,13 @@ export interface ExecuteWorkflowBatchOptions {
    * language?, cta?, channel?, style? }. Overrides the workflow's own
    * profile and any business-profile defaults. */
   executionSettings?: Record<string, unknown>;
+  /** Phase 20 — per-lead profile resolutions (leadId → pre-resolved
+   * ProfileResolution). Autopilot passes the resolution of the niche that
+   * produced each lead so per-lead personalization honors the niche →
+   * Business Profile mapping. PURELY ADDITIVE: when absent (every existing
+   * caller), each lead uses the run-level resolvedProfile — behavior is
+   * byte-identical to pre-Phase-20. */
+  profileResolutionsByLeadId?: Record<string, ProfileResolution>;
 }
 
 export interface BatchExecutionResult {
@@ -148,6 +155,8 @@ interface BatchRunOptions {
    * and the explicit execution settings tier. */
   resolvedProfile?: ProfileResolution;
   executionSettings?: Record<string, unknown>;
+  /** Phase 20 — optional per-lead profile resolutions (leadId-keyed). */
+  profileResolutionsByLeadId?: Record<string, ProfileResolution>;
 }
 
 interface LeadStepOutcome {
@@ -396,6 +405,9 @@ export async function executeWorkflowBatch(
       startedAtMs: Date.now(),
       resolvedProfile: profileResolution,
       executionSettings: options.executionSettings,
+      // Phase 20 — per-lead resolutions pass through verbatim (absent for
+      // every pre-existing caller → identical behavior).
+      profileResolutionsByLeadId: options.profileResolutionsByLeadId,
     };
 
     try {
@@ -538,10 +550,13 @@ async function runBatchSteps(
       executionId, leadId: item.leadId, leadName: item.leadName,
     });
 
-    // ── Phase 16 — THIS lead's personalized intelligence, composed ONCE
+    // ── Phase 16/20 — THIS lead's personalized intelligence, composed ONCE
     // before its steps run and reused by every step of this lead. The
     // run-level resolved profile rides in via runOptions (precedence:
-    // execution setting > workflow > default). Null on lookup failure —
+    // execution setting > workflow > default); when the caller supplied a
+    // per-lead resolution (Phase 20 niche→profile mapping), THIS lead uses
+    // its own — same canonical ProfileResolution object type, so the
+    // personalization chain itself is unchanged. Null on lookup failure —
     // personalization must never break execution.
     const leadFacts = item.leadId
       ? await loadLeadFacts(userId, item.leadId).catch(() => null)
@@ -550,7 +565,11 @@ async function runBatchSteps(
       ? await buildLeadIntelligence(
           userId,
           { ...leadFacts, businessName: leadFacts.businessName || item.leadName || 'Unknown' },
-          { resolvedProfile: runOptions.resolvedProfile }
+          {
+            resolvedProfile:
+              (item.leadId ? runOptions.profileResolutionsByLeadId?.[item.leadId] : undefined) ??
+              runOptions.resolvedProfile,
+          }
         ).catch(() => null)
       : null;
 

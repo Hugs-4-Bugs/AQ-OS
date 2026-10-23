@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Rocket, Plus, Play, Pause, Trash2, RefreshCw, Pencil, ChevronDown,
   Clock, CheckCircle2, XCircle, AlertTriangle, Layers, Globe2, Workflow as WorkflowIcon, Link2,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,9 @@ interface AutopilotListItem {
   // the clear recoverable state + Relink action (config is kept).
   workflow: { id: string; name: string; status: string } | null;
   workflowEligible: boolean;
+  // Phase 20 — persisted niche → Business Profile mapping (normalized
+  // niche key → profile id).
+  profileMappings?: Record<string, string>;
   schedule: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
@@ -69,6 +73,27 @@ interface WorkflowOption {
   description: string | null;
   status: string;
   stepCount: number;
+}
+
+// Phase 20 — a saved custom niche from GET /api/autopilot/niches.
+interface CustomNicheOption {
+  id: string;
+  name: string;
+  nicheKey: string;
+}
+
+// Phase 20 — a saved Business Profile (for the niche → profile mapping).
+interface ProfileOption {
+  id: string;
+  name: string;
+  status: string;
+  isDefault?: boolean;
+}
+
+/** Client-side mirror of the server's niche normalization (display only —
+ * the server re-validates authoritatively on every submit). */
+function nicheKeyOf(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 interface AutopilotRun {
@@ -136,6 +161,16 @@ export default function AutopilotTab() {
   const [relinkWorkflowId, setRelinkWorkflowId] = useState('');
   const [relinkSubmitting, setRelinkSubmitting] = useState(false);
 
+  // Phase 20 — saved custom niches + Business Profiles for the selector.
+  const [customNiches, setCustomNiches] = useState<CustomNicheOption[]>([]);
+  const [nichesLoadState, setNichesLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [customInput, setCustomInput] = useState('');
+  const [addingNiche, setAddingNiche] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  // Phase 20 — selected niche → profile mapping (nicheKey → profileId).
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+
   // create form state
   const [name, setName] = useState('');
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
@@ -181,15 +216,97 @@ export default function AutopilotTab() {
     }
   }, []);
 
+  // Phase 20 — saved custom-niche loader (server-side canonical list,
+  // user-scoped). Separate lifecycle states: an API failure is shown as
+  // an error with retry, never as "no custom niches".
+  const fetchCustomNiches = useCallback(async () => {
+    setNichesLoadState('loading');
+    try {
+      const res = await fetch('/api/autopilot/niches');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setCustomNiches(data.niches || []);
+      setNichesLoadState('ready');
+    } catch {
+      setCustomNiches([]);
+      setNichesLoadState('error');
+    }
+  }, []);
+
+  // Phase 20 — Business Profiles for the niche → profile mapping rows
+  // (active only; the mapping is optional per niche).
+  const fetchProfiles = useCallback(async () => {
+    try {
+      const res = await fetch('/api/business-profiles');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const list: ProfileOption[] = (data.profiles || []).filter(
+        (p: ProfileOption) => p.status === 'active'
+      );
+      setProfiles(list);
+    } catch {
+      // Mapping stays usable-less but the form still works — profile
+      // mapping is optional; a retry happens when the dialog reopens.
+      setProfiles([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchState();
     fetchWorkflows();
-  }, [fetchState, fetchWorkflows]);
+    fetchCustomNiches();
+    fetchProfiles();
+  }, [fetchState, fetchWorkflows, fetchCustomNiches, fetchProfiles]);
 
   const toggleNiche = (niche: string) => {
     setSelectedNiches((prev) =>
       prev.includes(niche) ? prev.filter((n) => n !== niche) : [...prev, niche]
     );
+  };
+
+  // Phase 20 — save a custom niche server-side, then auto-select it.
+  // Duplicate detection happens in the canonical niche service (any
+  // casing/whitespace variation of an existing save is the SAME niche);
+  // the warning is surfaced inline without losing the typed value.
+  const handleAddCustomNiche = async () => {
+    const typed = customInput.trim().replace(/\s+/g, ' ');
+    if (!typed) {
+      toast({ title: 'Type a niche name first', variant: 'destructive' });
+      return;
+    }
+    setDuplicateWarning(null);
+    setAddingNiche(true);
+    try {
+      const res = await fetch('/api/autopilot/niches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: typed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 || data.code === 'DUPLICATE' || data.code === 'PREDEFINED') {
+        setDuplicateWarning(data.error || 'You already saved this niche');
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || 'Failed to save custom niche');
+      setCustomNiches((prev) =>
+        [...prev, { id: data.id, name: data.name, nicheKey: data.nicheKey }].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+      );
+      setSelectedNiches((prev) =>
+        prev.includes(data.name) ? prev : [...prev, data.name]
+      );
+      setCustomInput('');
+      toast({ title: 'Custom niche saved', description: data.name });
+    } catch (e) {
+      toast({
+        title: 'Could not save custom niche',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setAddingNiche(false);
+    }
   };
 
   const resetForm = () => {
@@ -200,6 +317,9 @@ export default function AutopilotTab() {
     setWorkflowId('');
     setSchedule('daily');
     setActivateNow(true);
+    setCustomInput('');
+    setDuplicateWarning(null);
+    setProfileMap({});
   };
 
   const handleCreate = async () => {
@@ -217,6 +337,14 @@ export default function AutopilotTab() {
     }
     setSubmitting(true);
     try {
+      // Phase 20 — only non-empty mapping entries are submitted; the
+      // server re-validates every key (selected niche) and every value
+      // (caller-owned active profile) authoritatively.
+      const profileMappings: Record<string, string> = {};
+      for (const niche of selectedNiches) {
+        const mapped = profileMap[nicheKeyOf(niche)];
+        if (mapped) profileMappings[nicheKeyOf(niche)] = mapped;
+      }
       const res = await fetch('/api/autopilot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -230,6 +358,7 @@ export default function AutopilotTab() {
           workflowId,
           schedule,
           activate: activateNow,
+          ...(Object.keys(profileMappings).length > 0 ? { profileMappings } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -734,8 +863,147 @@ export default function AutopilotTab() {
                   );
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">{selectedNiches.length} selected</p>
+              {/* Phase 20 — saved custom niches (user-scoped, persistent).
+                  Clicking toggles selection; deselecting NEVER deletes the
+                  saved niche. */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {nichesLoadState === 'loading' && (
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3 animate-spin" /> Loading your custom niches…
+                  </span>
+                )}
+                {nichesLoadState === 'error' && (
+                  <span className="text-xs text-amber-500 inline-flex items-center gap-1">
+                    Could not load custom niches.
+                    <button
+                      type="button"
+                      onClick={fetchCustomNiches}
+                      className="text-primary hover:underline"
+                    >
+                      Retry
+                    </button>
+                  </span>
+                )}
+                {nichesLoadState === 'ready' && customNiches.length === 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    No saved custom niches yet — add one below (e.g. “AI SaaS companies”).
+                  </span>
+                )}
+                {nichesLoadState === 'ready' && customNiches.map((nicheOpt) => {
+                  const active = selectedNiches.includes(nicheOpt.name);
+                  return (
+                    <button
+                      key={nicheOpt.id}
+                      type="button"
+                      onClick={() => toggleNiche(nicheOpt.name)}
+                      title="Toggle selection — deselecting never deletes the saved niche"
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs transition-colors inline-flex items-center gap-1',
+                        active
+                          ? 'bg-violet-500/20 text-violet-300 border-violet-500/50'
+                          : 'bg-transparent text-muted-foreground border-dashed hover:bg-muted'
+                      )}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      {nicheOpt.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Phase 20 — custom niche input + save. Duplicates (any
+                  casing/whitespace variation) are prevented server-side and
+                  surfaced as an inline warning. */}
+              <div className="flex gap-1.5 pt-1">
+                <Input
+                  value={customInput}
+                  onChange={(e) => {
+                    setCustomInput(e.target.value);
+                    setDuplicateWarning(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCustomNiche();
+                    }
+                  }}
+                  placeholder="Add a custom niche (e.g. Solar installation companies)"
+                  className="h-8 text-xs"
+                  maxLength={200}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0"
+                  onClick={handleAddCustomNiche}
+                  disabled={addingNiche || !customInput.trim()}
+                >
+                  {addingNiche ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Plus className="h-3 w-3" />
+                  )}
+                  Save
+                </Button>
+              </div>
+              {duplicateWarning && (
+                <p className="text-xs text-amber-500 inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> {duplicateWarning}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {selectedNiches.length} selected (max 10)
+              </p>
             </div>
+            {/* Phase 20 — per-niche Business Profile mapping (optional).
+                Each selected niche can use a specific saved profile;
+                unmapped niches use the workflow's profile or your default. */}
+            {selectedNiches.length > 0 && profiles.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">
+                  Profile per niche (optional — defaults to the workflow's profile)
+                </Label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {selectedNiches.map((niche) => {
+                    const key = nicheKeyOf(niche);
+                    const mapped = profileMap[key] || 'auto';
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground truncate w-32 shrink-0">
+                          {niche}
+                        </span>
+                        <Select
+                          value={mapped}
+                          onValueChange={(v) =>
+                            setProfileMap((prev) => {
+                              const next = { ...prev };
+                              if (v === 'auto') delete next[key];
+                              else next[key] = v;
+                              return next;
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto" className="text-xs">
+                              Auto (workflow / default)
+                            </SelectItem>
+                            {profiles.map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">
+                                {p.name}
+                                {p.isDefault ? ' (default)' : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Country</Label>

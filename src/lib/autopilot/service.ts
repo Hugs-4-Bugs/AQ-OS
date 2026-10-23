@@ -19,6 +19,11 @@ import {
   isAutopilotSchedule,
   type AutopilotStatus,
 } from './constants';
+import {
+  parseProfileMappings,
+  resolveNicheSelection,
+  validateProfileMappingsOwnership,
+} from '@/lib/niches';
 
 // ===== PLAN NORMALIZATION =====
 
@@ -245,6 +250,8 @@ export interface CreateAutopilotInput {
   workflowId: string;
   schedule: string;
   activate: boolean;
+  /** Phase 20 — optional { [nicheKey]: businessProfileId } mapping. */
+  profileMappings?: unknown;
 }
 
 export interface AutopilotMutationResult {
@@ -301,6 +308,30 @@ export async function createAutopilot(
     return { success: false, error: wfCheck.error, code: 'VALIDATION' };
   }
 
+  // ── Phase 20 — canonical niche resolution (server-side authority) ──
+  // Every entry must be a predefined niche or one of the caller's OWN
+  // saved custom niches (by name or `custom:<id>`). Foreign/unknown
+  // niches are rejected BEFORE any row exists — no discovery, no charge.
+  const shape = parseAutopilotConfig(input.niches, input.geography);
+  if (!shape.ok) {
+    return { success: false, error: shape.error, code: 'VALIDATION' };
+  }
+  const nicheSelection = await resolveNicheSelection(userId, shape.value.niches);
+  if (!nicheSelection.ok) {
+    return { success: false, error: nicheSelection.error, code: 'VALIDATION' };
+  }
+  const niches = nicheSelection.niches;
+
+  // ── Phase 20 — profile mapping validation (ownership + shape) ──
+  const mappings = parseProfileMappings(input.profileMappings, niches);
+  if (!mappings.ok) {
+    return { success: false, error: mappings.error, code: 'VALIDATION' };
+  }
+  const mappingOwnership = await validateProfileMappingsOwnership(userId, mappings.value);
+  if (!mappingOwnership.ok) {
+    return { success: false, error: mappingOwnership.error, code: 'VALIDATION' };
+  }
+
   // Entitlement + slot limit — server-side, BEFORE any row is created.
   const desiredStatus: AutopilotStatus = input.activate ? 'ACTIVE' : 'DRAFT';
   if (input.activate) {
@@ -323,8 +354,9 @@ export async function createAutopilot(
       orgId,
       name,
       status: desiredStatus,
-      niches: JSON.stringify(input.niches),
+      niches: JSON.stringify(niches),
       geography: JSON.stringify(input.geography),
+      profileMappings: JSON.stringify(mappings.value),
       workflowId: input.workflowId,
       schedule: input.schedule,
       nextRunAt: desiredStatus === 'ACTIVE' ? new Date(Date.now() + 60000) : null,
@@ -397,6 +429,9 @@ export interface UpdateAutopilotFields {
   geography?: unknown;
   workflowId?: string;
   schedule?: string;
+  /** Phase 20 — { [nicheKey]: businessProfileId } (validated against the
+   * effective niche selection — new niches when provided, else existing). */
+  profileMappings?: unknown;
 }
 
 /** Update editable fields (never status — use transitionAutopilot). */
@@ -415,6 +450,12 @@ export async function updateAutopilotFields(
     if (!name) return { success: false, error: 'Name cannot be empty', code: 'VALIDATION' };
     data.name = name;
   }
+
+  // ── Phase 20 — niche updates resolve through the canonical service ──
+  // (predefined or the caller's OWN custom niches; foreign/unknown
+  // rejected before any row changes). Legacy rows that never touch
+  // `niches` keep working unchanged.
+  let effectiveNiches: string[] | null = null;
   if (fields.niches !== undefined || fields.geography !== undefined) {
     const parsed = parseAutopilotConfig(
       fields.niches !== undefined ? fields.niches : JSON.parse(autopilot.niches),
@@ -423,9 +464,36 @@ export async function updateAutopilotFields(
     if (!parsed.ok) {
       return { success: false, error: parsed.error, code: 'VALIDATION' };
     }
-    data.niches = JSON.stringify(parsed.value.niches);
+    let niches = parsed.value.niches;
+    if (fields.niches !== undefined) {
+      const nicheSelection = await resolveNicheSelection(userId, parsed.value.niches);
+      if (!nicheSelection.ok) {
+        return { success: false, error: nicheSelection.error, code: 'VALIDATION' };
+      }
+      niches = nicheSelection.niches;
+    }
+    effectiveNiches = niches;
+    data.niches = JSON.stringify(niches);
     data.geography = JSON.stringify(parsed.value.geography);
   }
+
+  // ── Phase 20 — profile mapping updates (shape + ownership) ──
+  // Not provided → existing mappings are kept verbatim (non-destructive;
+  // the runner only reads mappings for niches that are actually selected,
+  // so an orphaned key after a niche removal is inert, never harmful).
+  if (fields.profileMappings !== undefined) {
+    const selected = effectiveNiches ?? parseJsonArray(autopilot.niches);
+    const mappings = parseProfileMappings(fields.profileMappings, selected);
+    if (!mappings.ok) {
+      return { success: false, error: mappings.error, code: 'VALIDATION' };
+    }
+    const ownership = await validateProfileMappingsOwnership(userId, mappings.value);
+    if (!ownership.ok) {
+      return { success: false, error: ownership.error, code: 'VALIDATION' };
+    }
+    data.profileMappings = JSON.stringify(mappings.value);
+  }
+
   if (fields.workflowId !== undefined) {
     const wfId = String(fields.workflowId).trim();
     if (!wfId) {
@@ -448,6 +516,11 @@ export async function updateAutopilotFields(
     data,
   });
   return { success: true, autopilot: { id: updated.id, status: updated.status, name: updated.name } };
+}
+
+/** Tolerant parse of a stored niches JSON array (legacy-safe). */
+function parseJsonArray(raw: string): string[] {
+  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch { return []; }
 }
 
 /** Delete an autopilot and (cascade-style, explicit) its runs + ledger rows. */
@@ -484,6 +557,8 @@ export interface AutopilotListItem {
   // user relinks a valid workflow to recover.
   workflow: { id: string; name: string; status: string } | null;
   workflowEligible: boolean;
+  // Phase 20 — persisted { [nicheKey]: businessProfileId } mapping.
+  profileMappings: Record<string, string>;
   schedule: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
@@ -503,6 +578,7 @@ function serializeAutopilot(
     status: string;
     niches: string;
     geography: string;
+    profileMappings: string;
     workflowId: string;
     schedule: string;
     lastRunAt: Date | null;
@@ -519,8 +595,10 @@ function serializeAutopilot(
 ): AutopilotListItem {
   let niches: string[] = [];
   let geography: AutopilotGeo = {};
+  let profileMappings: Record<string, string> = {};
   try { niches = JSON.parse(a.niches); } catch { niches = []; }
   try { geography = JSON.parse(a.geography); } catch { geography = {}; }
+  try { profileMappings = JSON.parse(a.profileMappings); } catch { profileMappings = {}; }
   return {
     id: a.id,
     name: a.name,
@@ -530,6 +608,7 @@ function serializeAutopilot(
     workflowId: a.workflowId,
     workflow,
     workflowEligible: !!workflow && workflow.status === 'active',
+    profileMappings,
     schedule: a.schedule,
     lastRunAt: a.lastRunAt ? a.lastRunAt.toISOString() : null,
     nextRunAt: a.nextRunAt ? a.nextRunAt.toISOString() : null,

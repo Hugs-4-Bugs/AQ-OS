@@ -42,6 +42,7 @@ import {
 } from '@/lib/workflow-credits';
 import { normalizeCountryName } from '@/lib/countries';
 import { resolveBusinessProfileForUser } from '@/lib/lead-intelligence';
+import { normalizeNicheKey } from '@/lib/niches';
 import {
   AUTOPILOT_DISCOVERY_BATCH,
   AUTOPILOT_EXECUTION_SETTLE_POLL_MS,
@@ -233,6 +234,7 @@ interface AutopilotRow {
   status: string;
   niches: string;
   geography: string;
+  profileMappings: string;
   workflowId: string;
   schedule: string;
 }
@@ -240,6 +242,9 @@ interface AutopilotRow {
 function parseJson<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
+
+/** Normalized niche key (Phase 20 mapping lookup — never case-sensitive). */
+const normalizeNicheKeyOf = (niche: string): string => normalizeNicheKey(niche);
 
 /**
  * Execute one run of an autopilot. The caller MUST have already set the
@@ -284,6 +289,9 @@ export async function executeAutopilotRun(
 
   const niches = parseJson<string[]>(autopilot.niches, []);
   const geo = parseJson<{ country?: string; city?: string }>(autopilot.geography, {});
+  // Phase 20 — { [nicheKey]: businessProfileId } mapping from the saved
+  // Autopilot configuration (legacy rows / unmapped niches → empty).
+  const profileMappings = parseJson<Record<string, string>>(autopilot.profileMappings ?? '{}', {});
 
   const perNiche: AutopilotRunOutcome['perNiche'] = [];
   let discovered = 0;
@@ -299,6 +307,10 @@ export async function executeAutopilotRun(
   // Phase 18 — every eligible lead of the WHOLE run (across all niches).
   // ONE parent execution is created for this collection after discovery.
   const runLeads: { id: string; businessName: string; niche: string | null }[] = [];
+  // Phase 20 — per-lead profile resolution (leadId → the resolution of the
+  // niche that produced it in THIS run). Passed to the batch engine so each
+  // lead is personalized with its niche's mapped Business Profile.
+  const profileResolutionsByLeadId = new Map<string, Awaited<ReturnType<typeof resolveBusinessProfileForUser>>>();
 
   try {
     // Linked workflow must exist, belong to the user, and be ACTIVE.
@@ -338,11 +350,12 @@ export async function executeAutopilotRun(
       );
     }
 
-    // ── Phase 18 — resolve + snapshot the run's profile/context ONCE at
-    // run start. Precedence is the Phase 11–17 chain (workflow's own
-    // profile → user default); the batch engine re-resolves with the
-    // SAME precedence and records its own intelligenceConfig snapshot,
-    // while this run-level snapshot preserves what the RUN was configured
+    // ── Phase 18/20 — resolve + snapshot the run's profile/context ONCE at
+    // run start. Per-niche resolution REUSES the same Phase 11–17 canonical
+    // chain (explicit niche mapping → workflow's own profile → user default);
+    // the batch engine receives a per-lead resolution map so every lead is
+    // personalized with the profile mapped to the niche that produced it.
+    // The run-level snapshot below preserves what the RUN was configured
     // with (later profile edits never rewrite history). Personalization
     // must never break the run — a lookup failure degrades to source
     // 'none' and execution continues unpersonalized.
@@ -350,6 +363,26 @@ export async function executeAutopilotRun(
       autopilot.userId,
       { workflowProfileId: workflow.profileId ?? null }
     ).catch(() => ({ profile: null, source: 'none' as const }));
+
+    // Phase 20 — per-niche resolutions (ONE query per DISTINCT mapped
+    // profile id via the canonical resolver; unmapped niches share the
+    // run-level resolution object — no extra queries).
+    const nicheProfileResolutions = new Map<string, Awaited<ReturnType<typeof resolveBusinessProfileForUser>>>();
+    const mappedProfileIds = [
+      ...new Set(niches.map((n) => profileMappings[normalizeNicheKeyOf(n)]).filter((v): v is string => !!v)),
+    ];
+    for (const profileId of mappedProfileIds) {
+      nicheProfileResolutions.set(
+        profileId,
+        await resolveBusinessProfileForUser(
+          autopilot.userId,
+          { explicitProfileId: profileId, workflowProfileId: workflow.profileId ?? null }
+        ).catch(() => ({ profile: null, source: 'none' as const }))
+      );
+    }
+    const resolutionForNiche = (niche: string) =>
+      nicheProfileResolutions.get(profileMappings[normalizeNicheKeyOf(niche)] ?? '') ?? profileResolution;
+
     const runKeyRow = await db.autopilotRun.findUnique({
       where: { id: runId },
       select: { runKey: true, status: true },
@@ -361,6 +394,16 @@ export async function executeAutopilotRun(
           config: JSON.stringify({
             niches,
             geography: geo,
+            profileMappings,
+            nicheProfiles: niches.map((niche) => {
+              const r = resolutionForNiche(niche);
+              return {
+                niche,
+                profileId: r.profile?.id ?? null,
+                profileName: r.profile?.name ?? null,
+                profileSource: r.source,
+              };
+            }),
             profile: {
               profileId: profileResolution.profile?.id ?? null,
               profileName: profileResolution.profile?.name ?? null,
@@ -441,6 +484,13 @@ export async function executeAutopilotRun(
       // carry the per-lead statuses). Never one execution record per lead
       // — and never one per niche. The batch coordinator is the SAME
       // engine the manual execute route uses.
+      // Phase 20 — when THIS niche has a profile mapping, its resolution is
+      // recorded per lead for per-lead personalization downstream (the
+      // canonical chain: mapped profile → workflow profile → default).
+      // Unmapped niches intentionally leave the map empty so the batch
+      // call stays byte-identical to Phase 18 for legacy configurations.
+      const nicheHasMapping = !!profileMappings[normalizeNicheKeyOf(niche)];
+      const nicheResolution = nicheHasMapping ? resolutionForNiche(niche) : null;
       const payloads = job.resultData ? parseJson<DiscoveredPayload[]>(job.resultData, []) : [];
       for (const payload of payloads) {
         const lead = await resolvePersistedLead(autopilot.userId, payload);
@@ -465,6 +515,7 @@ export async function executeAutopilotRun(
           continue;
         }
         runLeads.push(lead);
+        if (nicheResolution) profileResolutionsByLeadId.set(lead.id, nicheResolution);
       }
 
       perNiche.push({
@@ -543,6 +594,15 @@ export async function executeAutopilotRun(
                 leadCount: runLeads.length,
               },
               idempotencyKey,
+              // Phase 20 — per-lead profile resolutions keyed by leadId:
+              // each lead personalizes with the Business Profile mapped to
+              // the niche that produced it (falls back to the run-level
+              // resolution for unmapped niches). Reuses the batch engine's
+              // existing resolvedProfile pathway — no parallel system.
+              profileResolutionsByLeadId:
+                profileResolutionsByLeadId.size > 0
+                  ? Object.fromEntries(profileResolutionsByLeadId)
+                  : undefined,
               // Background: the batch processes the run's leads sequentially
               // with provider-friendly pacing; the detached finalizer below
               // settles per-lead outcomes once the execution is terminal.

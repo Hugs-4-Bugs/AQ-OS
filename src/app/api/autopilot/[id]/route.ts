@@ -41,13 +41,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
         });
         let niches: string[] = [];
         let geography: Record<string, string> = {};
+        let profileMappings: Record<string, string> = {};
         try { niches = JSON.parse(autopilot.niches); } catch { niches = []; }
         try { geography = JSON.parse(autopilot.geography); } catch { geography = {}; }
+        try { profileMappings = JSON.parse(autopilot.profileMappings ?? '{}'); } catch { profileMappings = {}; }
         return NextResponse.json({
           autopilot: {
             ...autopilot,
             niches,
             geography,
+            profileMappings,
             createdAt: autopilot.createdAt.toISOString(),
             updatedAt: autopilot.updatedAt.toISOString(),
             lastRunAt: autopilot.lastRunAt ? autopilot.lastRunAt.toISOString() : null,
@@ -103,13 +106,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           return NextResponse.json(result.autopilot);
         }
 
-        // Field-update branch (name/niches/geography/workflowId/schedule).
+        // Field-update branch (name/niches/geography/workflowId/schedule
+        // + Phase 20 profileMappings).
         const fields: Parameters<typeof updateAutopilotFields>[2] = {};
         if (body.name !== undefined) fields.name = String(body.name);
         if (body.niches !== undefined) fields.niches = body.niches;
         if (body.geography !== undefined) fields.geography = body.geography;
         if (body.workflowId !== undefined) fields.workflowId = String(body.workflowId);
         if (body.schedule !== undefined) fields.schedule = String(body.schedule);
+        if (body.profileMappings !== undefined) fields.profileMappings = body.profileMappings;
 
         const result = await updateAutopilotFields(user.id, id, fields);
         if (!result.success) {
