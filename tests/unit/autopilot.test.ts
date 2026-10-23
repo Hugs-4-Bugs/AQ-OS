@@ -20,7 +20,7 @@ const mockPrisma = vi.hoisted(() => ({
     create: vi.fn(), updateMany: vi.fn(),
     deleteMany: vi.fn(), count: vi.fn(), findFirst: vi.fn(),
   },
-  workflowDefinition: { findFirst: vi.fn() },
+  workflowDefinition: { findFirst: vi.fn(), findMany: vi.fn() },
   discoveryJob: { findUnique: vi.fn(), create: vi.fn() },
   user: { findUnique: vi.fn() },
 }));

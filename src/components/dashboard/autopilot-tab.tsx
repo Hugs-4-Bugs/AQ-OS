@@ -21,7 +21,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Rocket, Plus, Play, Pause, Trash2, RefreshCw, Pencil, ChevronDown,
-  Clock, CheckCircle2, XCircle, AlertTriangle, Layers, Globe2, Workflow as WorkflowIcon,
+  Clock, CheckCircle2, XCircle, AlertTriangle, Layers, Globe2, Workflow as WorkflowIcon, Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,11 @@ interface AutopilotListItem {
   niches: string[];
   geography: { country?: string; city?: string };
   workflowId: string;
+  // Phase 19 — linked-workflow health from the API: null = deleted/
+  // unavailable; present-but-inactive = paused/draft/archived. Drives
+  // the clear recoverable state + Relink action (config is kept).
+  workflow: { id: string; name: string; status: string } | null;
+  workflowEligible: boolean;
   schedule: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
@@ -61,7 +66,9 @@ interface AutopilotListItem {
 interface WorkflowOption {
   id: string;
   name: string;
+  description: string | null;
   status: string;
+  stepCount: number;
 }
 
 interface AutopilotRun {
@@ -116,10 +123,18 @@ export default function AutopilotTab() {
   const [autopilots, setAutopilots] = useState<AutopilotListItem[]>([]);
   const [entitlement, setEntitlement] = useState<{ limit: number; used: number; allowed: boolean }>({ limit: 0, used: 0, allowed: false });
   const [workflows, setWorkflows] = useState<WorkflowOption[]>([]);
+  // Phase 19 — selector data lifecycle: loading | ready | error (an API
+  // failure is NOT silently shown as "no workflows" — it gets its own
+  // state + retry so the user can recover).
+  const [wfLoadState, setWfLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [runs, setRuns] = useState<Record<string, AutopilotRun[]>>({});
+  // Phase 19 — relink (recoverable state for deleted/disabled links).
+  const [relinkTarget, setRelinkTarget] = useState<AutopilotListItem | null>(null);
+  const [relinkWorkflowId, setRelinkWorkflowId] = useState('');
+  const [relinkSubmitting, setRelinkSubmitting] = useState(false);
 
   // create form state
   const [name, setName] = useState('');
@@ -150,14 +165,26 @@ export default function AutopilotTab() {
     }
   }, [toast]);
 
+  // Phase 19 — eligible-workflow loader (server-side canonical rule:
+  // owned + active; derived live so new workflows appear automatically).
+  const fetchWorkflows = useCallback(async () => {
+    setWfLoadState('loading');
+    try {
+      const res = await fetch('/api/autopilot/workflows');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setWorkflows(data.workflows || []);
+      setWfLoadState('ready');
+    } catch {
+      setWorkflows([]);
+      setWfLoadState('error');
+    }
+  }, []);
+
   useEffect(() => {
     fetchState();
-    // load the user's ACTIVE workflows for the selector
-    fetch('/api/workflows?status=active&limit=50')
-      .then((r) => (r.ok ? r.json() : { workflows: [] }))
-      .then((d) => setWorkflows(d.workflows || []))
-      .catch(() => setWorkflows([]));
-  }, [fetchState]);
+    fetchWorkflows();
+  }, [fetchState, fetchWorkflows]);
 
   const toggleNiche = (niche: string) => {
     setSelectedNiches((prev) =>
@@ -221,6 +248,43 @@ export default function AutopilotTab() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Phase 19 — open the relink dialog for an autopilot whose linked
+  // workflow is deleted/disabled (recoverable state: config preserved).
+  const openRelink = (ap: AutopilotListItem) => {
+    setRelinkTarget(ap);
+    setRelinkWorkflowId('');
+    if (wfLoadState !== 'ready') fetchWorkflows();
+  };
+
+  const handleRelink = async () => {
+    if (!relinkTarget || !relinkWorkflowId) return;
+    setRelinkSubmitting(true);
+    try {
+      const res = await fetch(`/api/autopilot/${relinkTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflowId: relinkWorkflowId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Relink failed');
+      toast({
+        title: 'Workflow relinked',
+        description: `${relinkTarget.name} now executes "${workflows.find((w) => w.id === relinkWorkflowId)?.name}"`,
+      });
+      setRelinkTarget(null);
+      setRelinkWorkflowId('');
+      fetchState();
+    } catch (e) {
+      toast({
+        title: 'Relink failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setRelinkSubmitting(false);
     }
   };
 
@@ -462,11 +526,30 @@ export default function AutopilotTab() {
                     <p className="text-lg font-semibold">{ap.runCount}</p>
                   </div>
                 </div>
-                {ap.workflowId && (
+                {ap.workflowEligible && ap.workflow ? (
                   <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
                     <WorkflowIcon className="h-3.5 w-3.5" />
-                    Executes: {workflows.find((w) => w.id === ap.workflowId)?.name || ap.workflowId}
+                    Executes: {ap.workflow.name}
                   </p>
+                ) : (
+                  <div className="flex items-start justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-500">
+                    <span className="inline-flex items-start gap-1.5 break-words">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      {ap.workflow
+                        ? `Linked workflow "${ap.workflow.name}" is ${ap.workflow.status} — reactivate it or relink to keep Autopilot running.`
+                        : 'Linked workflow is no longer available (deleted) — relink a valid workflow to keep Autopilot running.'}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0 border-amber-500/40 text-amber-500 hover:text-amber-400"
+                      disabled={busyId === ap.id}
+                      onClick={() => openRelink(ap)}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      <span className="ml-1">Relink</span>
+                    </Button>
+                  </div>
                 )}
                 {ap.lastError && (
                   <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/5 p-2.5 text-xs text-red-400">
@@ -537,6 +620,83 @@ export default function AutopilotTab() {
       )}
 
       {/* create dialog */}
+      {/* Phase 19 — Relink dialog: recoverable state for an autopilot whose
+          linked workflow was deleted/disabled. The configuration is preserved;
+          only the workflow link changes (PATCH /api/autopilot/[id]). */}
+      <Dialog open={!!relinkTarget} onOpenChange={(o) => !o && setRelinkTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Relink workflow</DialogTitle>
+            <DialogDescription>
+              Pick a new active workflow for “{relinkTarget?.name}”. Your Autopilot configuration
+              (niches, geography, schedule) is kept — only the linked workflow changes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {relinkTarget && !relinkTarget.workflowEligible && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-500">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span className="break-words">
+                  {relinkTarget.workflow
+                    ? `Current link “${relinkTarget.workflow.name}” is ${relinkTarget.workflow.status}.`
+                    : 'Current linked workflow was deleted.'}
+                </span>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>New workflow</Label>
+                {wfLoadState === 'error' && (
+                  <button
+                    type="button"
+                    onClick={fetchWorkflows}
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Retry
+                  </button>
+                )}
+              </div>
+              <Select value={relinkWorkflowId || undefined} onValueChange={setRelinkWorkflowId} disabled={wfLoadState === 'loading'}>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      wfLoadState === 'loading' ? 'Loading your workflows…'
+                      : wfLoadState === 'error' ? 'Could not load workflows'
+                      : 'Select an active workflow'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {wfLoadState === 'loading' && (
+                    <SelectItem value="rwf-loading" disabled>Loading your workflows…</SelectItem>
+                  )}
+                  {wfLoadState === 'error' && (
+                    <SelectItem value="rwf-error" disabled>
+                      Failed to load workflows — use Retry above
+                    </SelectItem>
+                  )}
+                  {wfLoadState === 'ready' && workflows.length === 0 && (
+                    <SelectItem value="rwf-none" disabled>
+                      No active workflows — create one in Workflows first
+                    </SelectItem>
+                  )}
+                  {workflows.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRelinkTarget(null)} disabled={relinkSubmitting}>Cancel</Button>
+            <Button onClick={handleRelink} disabled={relinkSubmitting || !relinkWorkflowId}>
+              {relinkSubmitting ? <RefreshCw className="h-4 w-4 animate-spin mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+              Save link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -595,23 +755,61 @@ export default function AutopilotTab() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Workflow to execute</Label>
-              <Select value={workflowId || undefined} onValueChange={setWorkflowId}>
-                <SelectTrigger><SelectValue placeholder="Select an active workflow" /></SelectTrigger>
+              <div className="flex items-center justify-between">
+                <Label>Workflow to execute</Label>
+                {wfLoadState === 'error' && (
+                  <button
+                    type="button"
+                    onClick={fetchWorkflows}
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Retry
+                  </button>
+                )}
+              </div>
+              <Select value={workflowId || undefined} onValueChange={setWorkflowId} disabled={wfLoadState === 'loading'}>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      wfLoadState === 'loading' ? 'Loading your workflows…'
+                      : wfLoadState === 'error' ? 'Could not load workflows'
+                      : 'Select an active workflow'
+                    }
+                  />
+                </SelectTrigger>
                 <SelectContent>
-                  {workflows.length === 0 && (
+                  {wfLoadState === 'loading' && (
+                    <SelectItem value="wf-loading" disabled>Loading your workflows…</SelectItem>
+                  )}
+                  {wfLoadState === 'error' && (
+                    <SelectItem value="wf-error" disabled>
+                      Failed to load workflows — use Retry above
+                    </SelectItem>
+                  )}
+                  {wfLoadState === 'ready' && workflows.length === 0 && (
                     <SelectItem value="none-available" disabled>
                       No active workflows — create one in Workflows first
                     </SelectItem>
                   )}
                   {workflows.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    <SelectItem key={w.id} value={w.id}>
+                      <span className="flex flex-col">
+                        <span>{w.name}</span>
+                        {w.description && (
+                          <span className="text-[11px] leading-tight text-muted-foreground line-clamp-1">
+                            {w.description.length > 70 ? `${w.description.slice(0, 70)}…` : w.description}
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                The workflow runs against each NEW discovered lead with your saved configuration —
-                exactly as configured, nothing added or skipped.
+                Only your active workflows are eligible — the list updates automatically as you
+                create or activate workflows. The selected workflow runs against each NEW
+                discovered lead with your saved configuration — exactly as configured, nothing
+                added or skipped.
               </p>
             </div>
             <div className="space-y-1.5">

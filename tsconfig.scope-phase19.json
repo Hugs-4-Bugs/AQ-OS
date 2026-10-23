@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/lib/autopilot/constants.ts",
+    "src/lib/autopilot/runner.ts",
+    "src/lib/autopilot/scheduler-runner.ts",
+    "src/lib/autopilot/service.ts",
+    "src/lib/lead-intelligence.ts",
+    "src/lib/lead-discovery-service.ts",
+    "src/lib/workflow-batch.ts",
+    "src/lib/workflow-credits.ts",
+    "src/lib/credit-service.ts",
+    "src/lib/countries.ts",
+    "src/lib/db.ts",
+    "src/lib/auth-middleware.ts",
+    "src/lib/entitlement-service.ts",
+    "src/lib/entitlement-middleware.ts",
+    "src/lib/observability/middleware.ts",
+    "src/app/api/autopilot/route.ts",
+    "src/app/api/autopilot/[id]/route.ts",
+    "src/app/api/autopilot/[id]/run/route.ts",
+    "src/app/api/autopilot/[id]/cancel-run/route.ts",
+    "src/app/api/autopilot/workflows/route.ts",
+    "src/components/dashboard/autopilot-tab.tsx"
+  ],
+  "exclude": ["node_modules", ".next"]
+}
