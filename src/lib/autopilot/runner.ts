@@ -59,6 +59,7 @@ import {
 } from './constants';
 import { computeNextRunAt, parsePersistedSchedule } from './schedule';
 import { isAutopilotPlanEligible, resolveUserPlan } from '@/lib/entitlement-service';
+import { logExecutionActivity } from '@/lib/execution-activity';
 
 // ===== per-user in-process mutex =====
 
@@ -314,6 +315,10 @@ export async function executeAutopilotRun(
     where: { id: runId, status: 'QUEUED' },
     data: { status: 'RUNNING', startedAt: new Date() },
   });
+  // Phase 25 — log run started event (best-effort, non-blocking)
+  if (claimed.count === 1) {
+    void logExecutionActivity({ runId, eventType: 'RUN_STARTED', fromStatus: 'QUEUED', toStatus: 'RUNNING', userId: autopilot.userId }).catch(() => {});
+  }
   if (claimed.count !== 1) {
     // Another worker already claimed this run — do not execute twice.
     // A CANCELLED run reports cancellation honestly (Phase 18).
@@ -836,6 +841,9 @@ export async function executeAutopilotRun(
       }).catch(() => {});
     }
 
+    // Phase 25 — log run final status (best-effort, non-blocking)
+    void logExecutionActivity({ runId, eventType: status === 'FAILED' ? 'RUN_FAILED' : 'RUN_COMPLETED', fromStatus: 'RUNNING', toStatus: status, userId: autopilot.userId }).catch(() => {});
+
     return {
       runId, status, discovered, saved, processed, executionsCreated, perNiche,
       executionId,
@@ -1025,6 +1033,9 @@ export async function runAutopilot(
       return { ok: true, runId: run.id, duplicate: true };
     }
 
+    // Phase 25 — log run queued event (best-effort, non-blocking)
+    void logExecutionActivity({ runId: run.id, eventType: 'RUN_QUEUED', toStatus: 'QUEUED', userId }).catch(() => {});
+
     const outcome = await executeAutopilotRun(
       autopilot as unknown as AutopilotRow,
       run.id,
@@ -1212,6 +1223,8 @@ export async function cancelAutopilotRun(
     where: { id: run.id },
     data: { status: 'CANCELLED', completedAt: new Date() },
   });
+  // Phase 25 — log cancellation event (best-effort, non-blocking)
+  void logExecutionActivity({ runId: run.id, eventType: 'RUN_CANCELLED', fromStatus: 'RUNNING', toStatus: 'CANCELLED', userId }).catch(() => {});
   if (run.executionId) {
     await db.workflowExecution.update({
       where: { id: run.executionId },
@@ -1384,6 +1397,8 @@ export async function retryAutopilotRun(
   }
 
   const batchResult = await retryBatchExecution(run.executionId, userId);
+  // Phase 25 — log retry initiated (best-effort, non-blocking)
+  void logExecutionActivity({ runId: run.id, executionId: run.executionId, eventType: 'RETRY_INITIATED', fromStatus: run.status, toStatus: 'RUNNING', userId }).catch(() => {});
   if (!batchResult.success) {
     return {
       ok: false,
@@ -1466,6 +1481,8 @@ export async function resumeAutopilotRun(
   }
 
   const batchResult = await resumeBatchExecution(run.executionId, userId);
+  // Phase 25 — log resume initiated (best-effort, non-blocking)
+  void logExecutionActivity({ runId: run.id, executionId: run.executionId, eventType: 'RESUME_INITIATED', userId }).catch(() => {});
   if (!batchResult.success) {
     return {
       ok: false,

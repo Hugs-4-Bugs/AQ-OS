@@ -3328,3 +3328,32 @@ model CustomNiche {
   @@unique([userId, nicheKey])
   @@index([userId, status])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 25 — Execution Activity Tracking
+//
+// Unified event log that records discrete execution events (status
+// transitions, retry events, cancellations, per-lead outcomes) for
+// the Phase 24 execution engine.
+//
+// BEST-EFFORT logging: if a write fails, execution continues normally.
+// Ownership-scoped: every record carries a userId for cross-user isolation.
+// ═══════════════════════════════════════════════════════════════════
+
+model ExecutionActivity {
+  id           String   @id @default(cuid())
+  runId        String?  // AutopilotRun id (nullable for non-autopilot executions)
+  executionId  String?  // WorkflowExecution id
+  leadId       String?  // Lead id (for per-lead events)
+  eventType    String   // RUN_QUEUED | RUN_STARTED | RUN_COMPLETED | RUN_FAILED | RUN_CANCELLED | RETRY_INITIATED | RESUME_INITIATED | EXECUTION_CREATED | EXECUTION_CHARGED | LEAD_COMPLETED | LEAD_FAILED | LEAD_DISCOVERED | SETTLE_FINALIZED
+  fromStatus   String?  // previous status (for transitions)
+  toStatus     String?  // new status (for transitions)
+  detail       String?  // JSON blob with additional context (error reason, retry attempt, etc.)
+  userId       String   // ownership scoping — User B can never see User A's activities
+  createdAt    DateTime @default(now())
+
+  @@index([runId])
+  @@index([executionId])
+  @@index([userId])
+  @@index([createdAt])
+}
