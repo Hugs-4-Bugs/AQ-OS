@@ -16,10 +16,18 @@
 // inside executeAutopilotRun, the AutopilotLead ledger unique constraint
 // prevents any duplicate lead processing, and the runKey unique index
 // prevents any duplicate run for the same scheduled slot.
+//
+// Phase 22 — the next slot is computed by the canonical, timezone-aware
+// schedule engine (anchored wall-clock grids, DST-safe; interval mode
+// preserves the legacy Phase 18 arithmetic). A DISABLED schedule
+// (schedule.enabled=false) is never fired even if a stale nextRunAt
+// somehow remains.
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
 import { computeNextRun, recoverStuckAutopilotRuns, runAutopilot } from './runner';
+import { computeNextRunAt, parsePersistedSchedule } from './schedule';
+import { isAutopilotPlanEligible, resolveUserPlan, type PlanType } from '@/lib/entitlement-service';
 
 export interface SchedulerTickResult {
   recoveredRuns: number;
@@ -27,6 +35,15 @@ export interface SchedulerTickResult {
   dueCount: number;
   started: number;
   skippedInFlight: number;
+  /**
+   * Phase 23 — count of ACTIVE autopilots that were DUE but whose user's
+   * current plan is NOT Autopilot-eligible (free / starter). These are
+   * skipped without claiming, without deleting, without disabling — the
+   * configuration is preserved for a future upgrade. nextRunAt is
+   * advanced past the due slot so the same slot doesn't re-fire on the
+   * next tick; the autopilot row stays ACTIVE.
+   */
+  skippedIneligible: number;
   results: Array<{
     autopilotId: string;
     runId: string;
@@ -49,8 +66,70 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
   const results: SchedulerTickResult['results'] = [];
   let started = 0;
   let skippedInFlight = 0;
+  let skippedIneligible = 0;
+
+  // Phase 23 — per-tick cache of userId → PlanType to avoid re-querying the
+  // same user's plan when multiple autopilots belong to one user. The plan
+  // is the live snapshot from the DB (active subscription → user.plan →
+  // 'free'); a downgrade between ticks is reflected immediately because
+  // the cache is per-tick (no cross-tick leakage).
+  const planCache = new Map<string, PlanType>();
 
   for (const autopilot of due) {
+    // ── Phase 22 — disabled schedules are never fired (defense in
+    // depth: the due query already requires a non-null nextRunAt, which
+    // a disabled schedule does not have; this guard also covers a
+    // stale nextRunAt left by an interrupted disable). ──
+    const scheduleConfig = parsePersistedSchedule(autopilot.schedule);
+    if (!scheduleConfig.enabled) {
+      skippedInFlight++;
+      continue;
+    }
+
+    // ── Phase 23 — ENTITLEMENT GATE (the canonical server-side check).
+    //
+    // The ACTIVE state of an autopilot was granted at create/activate
+    // time when the user WAS on a Pro/Elite plan. If the user has since
+    // DOWNGRADED to free/starter, the autopilot row stays ACTIVE (we
+    // never delete configurations on downgrade) but the scheduler MUST
+    // NOT fire autonomous work for a plan that no longer includes
+    // Autopilot. The gate is here — at the canonical scheduler tick
+    // boundary — so neither the manual route nor the cron route nor
+    // the in-process heartbeat can bypass it.
+    //
+    // On skip:
+    //   · DO NOT claim ACTIVE→RUNNING (preserve the autopilot as-is).
+    //   · DO NOT disable / delete the autopilot (preserved for upgrade).
+    //   · Advance nextRunAt PAST the due slot so the same slot doesn't
+    //     re-fire on every tick (the runKey guard wouldn't fire because
+    //     no run row exists; the schedule would spin forever otherwise).
+    //   · Increment skippedIneligible for observability.
+    // ──
+    let plan = planCache.get(autopilot.userId);
+    if (plan === undefined) {
+      const resolved = await resolveUserPlan(autopilot.userId);
+      plan = resolved.plan;
+      planCache.set(autopilot.userId, plan);
+    }
+    if (!isAutopilotPlanEligible(plan)) {
+      skippedIneligible++;
+      // Advance past the due slot — preserves the schedule grid (anchored
+      // grids stay on the wall clock); a future upgrade re-arms the
+      // next occurrence naturally.
+      const ineligibleNextRunAt =
+        computeNextRunAt(scheduleConfig, autopilot.nextRunAt ?? new Date()) ||
+        computeNextRun(autopilot.schedule) ||
+        new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await db.autopilotWorkflow.update({
+        where: { id: autopilot.id },
+        data: { nextRunAt: ineligibleNextRunAt },
+      }).catch(() => {});
+      console.warn(
+        `[autopilot-scheduler] skipped ineligible plan: autopilot=${autopilot.id} user=${autopilot.userId} plan=${plan} — Autopilot is Pro/Elite only; configuration preserved`
+      );
+      continue;
+    }
+
     // ── Atomic claim: only one tick can flip ACTIVE→RUNNING. ──
     const claimed = await db.autopilotWorkflow.updateMany({
       where: { id: autopilot.id, status: 'ACTIVE' },
@@ -91,6 +170,18 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
         where: { id: autopilot.id, status: 'RUNNING' },
         data: { status: 'ACTIVE' },
       });
+      // Phase 22 — self-healing recovery: advance nextRunAt PAST the
+      // already-handled slot. Without this, a crashed-then-recovered run
+      // (claim taken, run row created, process died before the post-run
+      // nextRunAt update) would reappear as due on EVERY tick forever —
+      // the runKey check prevents duplicate runs, but the schedule would
+      // never advance again. Advancing from the slot instant keeps the
+      // occurrence grid exact (anchored grids stay on the wall clock).
+      const replayNextRunAt = computeNextRunAt(scheduleConfig, autopilot.nextRunAt ?? new Date());
+      await db.autopilotWorkflow.update({
+        where: { id: autopilot.id },
+        data: { nextRunAt: replayNextRunAt },
+      }).catch(() => {});
       continue;
     }
 
@@ -120,6 +211,9 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
     }
 
     started++;
+    console.warn(
+      `[autopilot-scheduler] started scheduled run: autopilot=${autopilot.id} run=${result.runId} slot=${slotRunKey}`
+    );
     const outcome = result.outcome;
     if (!outcome) {
       // runAutopilot reported a run without an outcome (should not happen
@@ -141,11 +235,18 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
     // Schedule the next run; the autopilot row itself was already
     // finalized by runAutopilot (RUNNING → ACTIVE/FAILED), so this update
     // is NOT status-guarded — nextRunAt must land either way.
-    const nextRunAt = computeNextRun(autopilot.schedule) || new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Phase 22 — canonical, timezone-aware computation from the persisted
+    // schedule config (anchored wall-clock grids / legacy interval mode).
+    // A run failure therefore NEVER destroys the schedule: the next
+    // occurrence is always computed and persisted.
+    const nextRunAt = computeNextRunAt(scheduleConfig) || computeNextRun(autopilot.schedule) || new Date(Date.now() + 24 * 60 * 60 * 1000);
     await db.autopilotWorkflow.update({
       where: { id: autopilot.id },
       data: { nextRunAt },
     }).catch(() => {});
+    console.warn(
+      `[autopilot-scheduler] next run scheduled: autopilot=${autopilot.id} at ${nextRunAt.toISOString()} (${scheduleConfig.timezone}) status=${outcome.status}`
+    );
 
     results.push({
       autopilotId: autopilot.id,
@@ -162,6 +263,7 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
     dueCount: due.length,
     started,
     skippedInFlight,
+    skippedIneligible,
     results,
   };
 }

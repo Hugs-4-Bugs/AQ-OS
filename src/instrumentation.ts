@@ -269,6 +269,10 @@ export async function register() {
     // autopilot or lead twice. AUTOPILOT_SCHEDULER_DISABLED=1 opts out.
     if (process.env.AUTOPILOT_SCHEDULER_DISABLED !== '1') {
       const intervalMs = Number(process.env.AUTOPILOT_SCHEDULER_INTERVAL_MS || 300000); // 5 min
+      console.warn(
+        `[autopilot-scheduler] heartbeat enabled: interval=${Math.round(intervalMs / 1000)}s, first tick in 20s` +
+        ` (Phase 22: timezone-aware schedules, atomic claims, runKey idempotency)`
+      );
       let ticking = false; // per-process re-entrancy guard (claims are the real guard)
       const heartbeatTick = async (): Promise<void> => {
         if (ticking) return;

@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withMonitoring } from '@/lib/observability/middleware';
 import { withDualAuthPermission } from '@/lib/auth-middleware';
 import { checkPlanEntitlement } from '@/lib/entitlement-middleware';
+import { getUserEntitlements } from '@/lib/entitlement-service';
 import {
   createAutopilot,
   listAutopilots,
@@ -28,15 +29,31 @@ export const GET = withMonitoring(async (request: NextRequest) => {
       const plan = normalizePlan(user.plan);
       const entitlement = await checkPlanEntitlement(user.id, user.plan, 'autopilot_access');
       const items = entitlement.allowed ? await listAutopilots(user.id) : [];
+      // Phase 23 — canonical user-resolved entitlement snapshot (the
+      // plan resolution here reads the LIVE active subscription, so a
+      // downgrade between two GET requests is reflected immediately).
+      // The `overLimit` flag is the canonical signal that the user has
+      // MORE active autopilots than the current plan permits — only
+      // possible after a downgrade; configurations are PRESERVED.
+      const snapshot = await getUserEntitlements(user.id);
       return NextResponse.json({
         autopilots: items,
-        plan,
-        entitlement: entitlement.allowed
-          ? await (async () => {
-              const slot = await checkAutopilotSlot(user.id, user.plan);
-              return { limit: slot.limit, used: slot.used, allowed: true };
-            })()
-          : { limit: 0, used: 0, allowed: false },
+        // Canonical resolved plan (active sub → user.plan → 'free'); the
+        // UI uses this to label the user's CURRENT plan, not the stale
+        // user.plan column value.
+        plan: snapshot.plan,
+        entitlement: {
+          limit: snapshot.autopilot.limit,
+          used: snapshot.autopilot.used,
+          allowed: snapshot.autopilot.allowed,
+          // Phase 23 — true when the user has more active autopilots than
+          // the current plan allows (downgrade scenario). The UI surfaces
+          // this as a "blocked / upgrade required" banner.
+          overLimit: snapshot.autopilot.overLimit,
+          // Profile limits (informational — the authoritative check
+          // happens at /api/business-profiles POST).
+          profiles: { limit: snapshot.profiles.limit, used: snapshot.profiles.used, overLimit: snapshot.profiles.overLimit },
+        },
       });
     } catch (error) {
       console.error('[AutopilotAPI] GET error:', error);
@@ -56,7 +73,10 @@ export const POST = withMonitoring(async (request: NextRequest) => {
       const body = await request.json() as Record<string, unknown>;
       const name = typeof body.name === 'string' ? body.name : '';
       const workflowId = typeof body.workflowId === 'string' ? body.workflowId.trim() : '';
-      const schedule = typeof body.schedule === 'string' ? body.schedule : 'daily';
+      // Phase 22 — schedule may be a legacy whitelist string OR a
+      // canonical {every, unit, timezone, startAt?, enabled?} object;
+      // validated server-side by the canonical schedule module.
+      const schedule = body.schedule === undefined ? 'daily' : body.schedule;
       const activate = body.activate === true;
 
       const parsed = parseAutopilotConfig(body.niches, body.geography);

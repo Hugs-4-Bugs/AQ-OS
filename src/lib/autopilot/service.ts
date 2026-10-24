@@ -16,7 +16,6 @@ import {
   AUTOPILOT_MAX_NICHES,
   AUTOPILOT_NICHE_MAX_LEN,
   canTransitionAutopilot,
-  isAutopilotSchedule,
   type AutopilotStatus,
 } from './constants';
 import {
@@ -24,6 +23,20 @@ import {
   resolveNicheSelection,
   validateProfileMappingsOwnership,
 } from '@/lib/niches';
+import {
+  resolveCountrySelection,
+  buildPersistedGeography,
+  type AutopilotGeoSelection,
+} from './country-selection';
+import {
+  computeInitialRunAt,
+  computeNextRunAt,
+  parsePersistedSchedule,
+  parseScheduleInput,
+  scheduleLabel,
+  serializeSchedule,
+  type ScheduleConfig,
+} from './schedule';
 
 // ===== PLAN NORMALIZATION =====
 
@@ -107,21 +120,27 @@ export async function checkAutopilotSlot(
 
 // ===== INPUT VALIDATION =====
 
-export interface AutopilotGeo {
-  country?: string;
-  city?: string;
-}
+export interface AutopilotGeo extends AutopilotGeoSelection {}
 
 export interface ParsedAutopilotConfig {
   niches: string[];
   geography: AutopilotGeo;
+  /** Phase 21 — validated country selection (countries in catalog
+   * order; worldwide=true means global discovery). */
+  countrySelection: { countries: string[]; worldwide: boolean };
 }
 
 /**
  * Validate + sanitize the multi-niche selection and geography.
  * Niches: non-empty array of 1..AUTOPILOT_MAX_NICHES trimmed strings,
- * deduplicated case-insensitively. Geography: { country?, city? } with
- * the same bounding the discovery route applies.
+ * deduplicated case-insensitively. Geography: { country?, city?,
+ * countries? } — Phase 21 validates the multi-country selection through
+ * the canonical country-selection service (catalog names/aliases/ISO
+ * codes accepted, duplicates collapse, ordering canonicalized,
+ * unknown entries REJECTED, Worldwide exclusive, bounded by
+ * AUTOPILOT_MAX_COUNTRIES). The legacy single `country` string keeps
+ * its historical shape-only bounding (≤100 chars) so existing rows and
+ * callers continue to work unchanged.
  */
 export function parseAutopilotConfig(
   niches: unknown,
@@ -153,15 +172,41 @@ export function parseAutopilotConfig(
   }
 
   const geo: AutopilotGeo = {};
+  let countrySelection: { countries: string[]; worldwide: boolean } = { countries: [], worldwide: true };
   if (geography !== undefined && geography !== null) {
     if (typeof geography !== 'object' || Array.isArray(geography)) {
-      return { ok: false, error: 'geography must be an object { country?, city? }' };
+      return { ok: false, error: 'geography must be an object { country?, city?, countries? }' };
     }
     const g = geography as Record<string, unknown>;
-    if (g.country !== undefined && g.country !== null) {
-      const c = String(g.country).trim().substring(0, 100);
-      if (!c) return { ok: false, error: 'geography.country must be a non-empty string when provided' };
-      geo.country = c;
+    // ── Phase 21 — canonical multi-country selection ──
+    // Present (even empty) ⇒ authoritative; absent ⇒ Worldwide for new
+    // configs (legacy single `country` still honored below for callers
+    // that only send that field).
+    if (g.countries !== undefined && g.countries !== null) {
+      const selection = resolveCountrySelection(g.countries);
+      if (!selection.ok) {
+        return { ok: false, error: selection.error };
+      }
+      countrySelection = { countries: selection.countries, worldwide: selection.worldwide };
+    } else if (g.country !== undefined && g.country !== null) {
+      // Legacy single-country shape: validate it as a 0-or-1 selection
+      // through the same canonical service (aliases/codes resolve;
+      // unknown values rejected deterministically — no more silent
+      // acceptance of arbitrary strings).
+      const c = String(g.country).trim();
+      if (!c) {
+        return { ok: false, error: 'geography.country must be a non-empty string when provided' };
+      }
+      if (isWorldwideSelection(c)) {
+        countrySelection = { countries: [], worldwide: true };
+      } else {
+        const selection = resolveCountrySelection([c]);
+        if (!selection.ok) {
+          return { ok: false, error: selection.error };
+        }
+        countrySelection = { countries: selection.countries, worldwide: selection.worldwide };
+        geo.country = selection.countries[0];
+      }
     }
     if (g.city !== undefined && g.city !== null) {
       const ci = String(g.city).trim().substring(0, 100);
@@ -169,7 +214,22 @@ export function parseAutopilotConfig(
       geo.city = ci;
     }
   }
-  return { ok: true, value: { niches: cleaned, geography: geo } };
+  // Phase 21 — persist the canonical selection shape (countries key
+  // only for individual countries; Worldwide keeps the legacy shape).
+  const persisted = buildPersistedGeography(countrySelection, geo.city);
+  return {
+    ok: true,
+    value: {
+      niches: cleaned,
+      geography: Object.keys(persisted).length > 0 ? persisted : {},
+      countrySelection,
+    },
+  };
+}
+
+/** Case-insensitive Worldwide test for the legacy single-country field. */
+function isWorldwideSelection(value: string): boolean {
+  return value.trim().toLowerCase() === 'worldwide';
 }
 
 // ===== WORKFLOW ELIGIBILITY (Phase 19) =====
@@ -248,7 +308,10 @@ export interface CreateAutopilotInput {
   niches: string[];
   geography: AutopilotGeo;
   workflowId: string;
-  schedule: string;
+  /** Phase 22 — legacy whitelist string OR canonical
+   * {every, unit, timezone, startAt?, enabled?} object (validated
+   * server-side through the canonical schedule module). */
+  schedule: unknown;
   activate: boolean;
   /** Phase 20 — optional { [nicheKey]: businessProfileId } mapping. */
   profileMappings?: unknown;
@@ -300,9 +363,14 @@ export async function createAutopilot(
   if (!name) {
     return { success: false, error: 'Name is required', code: 'VALIDATION' };
   }
-  if (!isAutopilotSchedule(input.schedule)) {
-    return { success: false, error: 'Invalid schedule', code: 'VALIDATION' };
+  // ── Phase 22 — canonical schedule validation (legacy string OR
+  // configurable object; timezone/interval/start validated here,
+  // server-side only — never trusted from the client). ──
+  const scheduleParsed = parseScheduleInput(input.schedule);
+  if (!scheduleParsed.ok) {
+    return { success: false, error: scheduleParsed.error, code: 'VALIDATION' };
   }
+  const scheduleConfig = scheduleParsed.config;
   const wfCheck = await verifyWorkflowEligibility(userId, input.workflowId);
   if (!wfCheck.ok) {
     return { success: false, error: wfCheck.error, code: 'VALIDATION' };
@@ -355,11 +423,23 @@ export async function createAutopilot(
       name,
       status: desiredStatus,
       niches: JSON.stringify(niches),
-      geography: JSON.stringify(input.geography),
+      // Phase 21 — the canonical geography (validated + normalized
+      // country selection; Worldwide keeps the legacy JSON shape).
+      geography: JSON.stringify(shape.value.geography),
       profileMappings: JSON.stringify(mappings.value),
       workflowId: input.workflowId,
-      schedule: input.schedule,
-      nextRunAt: desiredStatus === 'ACTIVE' ? new Date(Date.now() + 60000) : null,
+      // Phase 22 — canonical schedule JSON (additive semantics on the
+      // existing String column; legacy whitelist strings still parse).
+      schedule: serializeSchedule(scheduleConfig),
+      // Phase 22 — first run: anchored schedules → next wall-clock
+      // occurrence in the schedule timezone; interval schedules keep
+      // the Phase 18 ~60s activation grace. Disabled → not scheduled.
+      nextRunAt:
+        desiredStatus === 'ACTIVE'
+          ? scheduleConfig.enabled
+            ? computeInitialRunAt(scheduleConfig)
+            : null
+          : null,
     },
   });
   return { success: true, autopilot: { id: autopilot.id, status: autopilot.status, name: autopilot.name } };
@@ -405,6 +485,17 @@ export async function transitionAutopilot(
       };
     }
   }
+  // Phase 22 — canonical next-run recalculation on (re)activation:
+  // a still-future nextRunAt survives; a stale/absent one is
+  // recomputed from the persisted schedule config (timezone-aware).
+  // A disabled schedule is never given a next run.
+  const scheduleConfig = parsePersistedSchedule(autopilot.schedule);
+  const resumeNextRunAt =
+    !scheduleConfig.enabled
+      ? null
+      : autopilot.nextRunAt && autopilot.nextRunAt > new Date()
+        ? autopilot.nextRunAt
+        : computeNextRunAt(scheduleConfig);
   const updated = await db.autopilotWorkflow.update({
     where: { id: autopilot.id },
     data: {
@@ -412,9 +503,7 @@ export async function transitionAutopilot(
       lastError: to === 'ACTIVE' ? null : autopilot.lastError,
       nextRunAt:
         to === 'ACTIVE'
-          ? autopilot.nextRunAt && autopilot.nextRunAt > new Date()
-            ? autopilot.nextRunAt
-            : new Date(Date.now() + 60000)
+          ? resumeNextRunAt
           : to === 'PAUSED' || to === 'COMPLETED' || to === 'DISABLED'
             ? null
             : autopilot.nextRunAt,
@@ -428,7 +517,10 @@ export interface UpdateAutopilotFields {
   niches?: unknown;
   geography?: unknown;
   workflowId?: string;
-  schedule?: string;
+  /** Phase 22 — legacy whitelist string OR canonical schedule object.
+   * Only revalidated/rewritten when EXPLICITLY provided (a niches-only
+   * update never touches the stored schedule). */
+  schedule?: unknown;
   /** Phase 20 — { [nicheKey]: businessProfileId } (validated against the
    * effective niche selection — new niches when provided, else existing). */
   profileMappings?: unknown;
@@ -455,11 +547,14 @@ export async function updateAutopilotFields(
   // (predefined or the caller's OWN custom niches; foreign/unknown
   // rejected before any row changes). Legacy rows that never touch
   // `niches` keep working unchanged.
+  // ── Phase 21 — geography is only revalidated/rewritten when the
+  // caller EXPLICITLY sends it: a niches-only update must never be
+  // blocked by (nor silently rewrite) a pre-Phase-21 stored geography. ──
   let effectiveNiches: string[] | null = null;
   if (fields.niches !== undefined || fields.geography !== undefined) {
     const parsed = parseAutopilotConfig(
       fields.niches !== undefined ? fields.niches : JSON.parse(autopilot.niches),
-      fields.geography !== undefined ? fields.geography : JSON.parse(autopilot.geography)
+      fields.geography !== undefined ? fields.geography : undefined
     );
     if (!parsed.ok) {
       return { success: false, error: parsed.error, code: 'VALIDATION' };
@@ -473,8 +568,12 @@ export async function updateAutopilotFields(
       niches = nicheSelection.niches;
     }
     effectiveNiches = niches;
-    data.niches = JSON.stringify(niches);
-    data.geography = JSON.stringify(parsed.value.geography);
+    if (fields.niches !== undefined) {
+      data.niches = JSON.stringify(niches);
+    }
+    if (fields.geography !== undefined) {
+      data.geography = JSON.stringify(parsed.value.geography);
+    }
   }
 
   // ── Phase 20 — profile mapping updates (shape + ownership) ──
@@ -506,10 +605,21 @@ export async function updateAutopilotFields(
     data.workflowId = wfId;
   }
   if (fields.schedule !== undefined) {
-    if (!isAutopilotSchedule(fields.schedule)) {
-      return { success: false, error: 'Invalid schedule', code: 'VALIDATION' };
+    // ── Phase 22 — canonical schedule update (validate → persist →
+    // recompute nextRunAt). An ACTIVE autopilot's next run follows the
+    // NEW config immediately (anchored → next wall-clock occurrence;
+    // interval → now + interval). A disabled schedule clears the next
+    // run. Non-ACTIVE rows keep nextRunAt null (set on activation). ──
+    const scheduleParsed = parseScheduleInput(fields.schedule);
+    if (!scheduleParsed.ok) {
+      return { success: false, error: scheduleParsed.error, code: 'VALIDATION' };
     }
-    data.schedule = fields.schedule;
+    data.schedule = serializeSchedule(scheduleParsed.config);
+    if (autopilot.status === 'ACTIVE') {
+      data.nextRunAt = scheduleParsed.config.enabled
+        ? computeNextRunAt(scheduleParsed.config)
+        : null;
+    }
   }
   const updated = await db.autopilotWorkflow.update({
     where: { id: autopilot.id },
@@ -560,6 +670,11 @@ export interface AutopilotListItem {
   // Phase 20 — persisted { [nicheKey]: businessProfileId } mapping.
   profileMappings: Record<string, string>;
   schedule: string;
+  // Phase 22 — canonical schedule config (parsed from the schedule
+  // column) + human label for the UI. `schedule` stays the raw stored
+  // string for backward compatibility.
+  scheduleConfig: ScheduleConfig;
+  scheduleLabel: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
   lastError: string | null;
@@ -610,6 +725,10 @@ function serializeAutopilot(
     workflowEligible: !!workflow && workflow.status === 'active',
     profileMappings,
     schedule: a.schedule,
+    // Phase 22 — canonical schedule config (tolerant parse: legacy
+    // whitelist strings resolve to equivalent configs) + human label.
+    scheduleConfig: parsePersistedSchedule(a.schedule),
+    scheduleLabel: scheduleLabel(a.schedule),
     lastRunAt: a.lastRunAt ? a.lastRunAt.toISOString() : null,
     nextRunAt: a.nextRunAt ? a.nextRunAt.toISOString() : null,
     lastError: a.lastError,

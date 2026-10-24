@@ -31,7 +31,7 @@ const mockPrisma = vi.hoisted(() => ({
     create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), delete: vi.fn(), count: vi.fn(),
   },
   autopilotRun: {
-    findFirst: vi.fn(), findMany: vi.fn(),
+    findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(),
     create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn(),
   },
   autopilotLead: {
@@ -41,6 +41,9 @@ const mockPrisma = vi.hoisted(() => ({
   workflowDefinition: { findFirst: vi.fn() },
   discoveryJob: { findUnique: vi.fn(), create: vi.fn() },
   lead: { findFirst: vi.fn() },
+  // Phase 18 — the detached settle watcher polls the parent execution.
+  workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
+  workflowExecutionLead: { findMany: vi.fn() },
   __ledger: new Set<string>(),
 }));
 
@@ -104,6 +107,12 @@ beforeEach(() => {
   mockPrisma.workflowDefinition.findFirst.mockResolvedValue({ id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF' });
   mockPrisma.autopilotRun.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotRun.update.mockResolvedValue({});
+  // Phase 21 test repair — the runner reads the live run row (runKey/
+  // status) while executing; this mock predated Phase 18 and lacked it.
+  mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
+    if (where && typeof where.runKey === 'string') return null;
+    return { id: where?.id || 'run1', status: 'RUNNING', runKey: 'rk-1', executionId: null };
+  });
   mockPrisma.autopilotWorkflow.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});
   mockPrisma.autopilotLead.create.mockImplementation(async ({ data }: { data: { autopilotId: string; leadId: string } }) => {
@@ -116,6 +125,9 @@ beforeEach(() => {
     return {};
   });
   mockPrisma.autopilotLead.updateMany.mockResolvedValue({ count: 1 });
+  mockPrisma.workflowExecution.findUnique.mockResolvedValue({ status: 'completed' });
+  mockPrisma.workflowExecution.update.mockResolvedValue({});
+  mockPrisma.workflowExecutionLead.findMany.mockResolvedValue([]);
   mockPrisma.discoveryJob.findUnique.mockResolvedValue(completedJob());
   mockStartDiscoveryJob.mockResolvedValue({ jobId: 'job1', status: 'started', message: 'ok' });
   mockExecuteWorkflowBatch.mockImplementation(
@@ -157,7 +169,9 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
       source: 'AUTOPILOT',
       leadCount: 2,
     });
-    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-run-run1-niche-dental']);
+    // Phase 18+ — ONE flat charge for the WHOLE run (keyed by run id;
+    // the country/niche fan-out never multiplies it).
+    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-run-run1']);
   });
 
   it('duplicate scheduler execution cannot double-charge — the AutopilotLead unique guard stops re-execution', async () => {
@@ -202,7 +216,9 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
     expect(mockExecuteWorkflowBatch).not.toHaveBeenCalled();
     // Exactly ONE charge ATTEMPT (the niche group).
     expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
-    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-run-run1-niche-dental']);
+    // Phase 18+ — ONE flat charge for the WHOLE run (keyed by run id;
+    // the country/niche fan-out never multiplies it).
+    expect(chargeKeys()).toEqual(['wfexec-run:autopilot-ap1-run-run1']);
     // BOTH lead rows record the refusal reason.
     expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -229,7 +245,7 @@ describe('Test N — Autopilot uses the SAME central fee path', () => {
     expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
     expect(mockRefundWorkflowExecutionFee).toHaveBeenCalledTimes(1);
     expect(mockRefundWorkflowExecutionFee.mock.calls[0][0].chargeKey).toBe(
-      'wfexec-run:autopilot-ap1-run-run1-niche-dental'
+      'wfexec-run:autopilot-ap1-run-run1'
     );
     // BOTH of the group's leads are honestly EXEC_FAILED.
     expect(mockPrisma.autopilotLead.updateMany).toHaveBeenCalledWith(

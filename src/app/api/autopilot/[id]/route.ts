@@ -18,6 +18,7 @@ import {
   updateAutopilotFields,
 } from '@/lib/autopilot/service';
 import { AUTOPILOT_STATUSES, type AutopilotStatus } from '@/lib/autopilot/constants';
+import { parsePersistedSchedule, scheduleLabel } from '@/lib/autopilot/schedule';
 import { db } from '@/lib/db';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -51,6 +52,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
             niches,
             geography,
             profileMappings,
+            // Phase 22 — canonical schedule config + label (tolerant
+            // parse: legacy whitelist strings resolve to equivalents).
+            scheduleConfig: parsePersistedSchedule(autopilot.schedule),
+            scheduleLabel: scheduleLabel(autopilot.schedule),
             createdAt: autopilot.createdAt.toISOString(),
             updatedAt: autopilot.updatedAt.toISOString(),
             lastRunAt: autopilot.lastRunAt ? autopilot.lastRunAt.toISOString() : null,
@@ -107,13 +112,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         }
 
         // Field-update branch (name/niches/geography/workflowId/schedule
-        // + Phase 20 profileMappings).
+        // + Phase 20 profileMappings). Phase 22: schedule may be a legacy
+        // string OR a canonical object — validated server-side.
         const fields: Parameters<typeof updateAutopilotFields>[2] = {};
         if (body.name !== undefined) fields.name = String(body.name);
         if (body.niches !== undefined) fields.niches = body.niches;
         if (body.geography !== undefined) fields.geography = body.geography;
         if (body.workflowId !== undefined) fields.workflowId = String(body.workflowId);
-        if (body.schedule !== undefined) fields.schedule = String(body.schedule);
+        if (body.schedule !== undefined) fields.schedule = body.schedule;
         if (body.profileMappings !== undefined) fields.profileMappings = body.profileMappings;
 
         const result = await updateAutopilotFields(user.id, id, fields);

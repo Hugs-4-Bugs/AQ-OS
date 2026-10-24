@@ -111,8 +111,31 @@ const RAW_COUNTRIES: Array<[string, string]> = [
 
 export const COUNTRIES: CountryEntry[] = RAW_COUNTRIES.map(([code, name]) => ({ code, name }));
 
+/**
+ * Phase 21 — the WORLDWIDE sentinel. Selecting it means GLOBAL discovery
+ * (no country constraint), semantically distinct from any individual
+ * country: it is the only "country" value that may never be combined
+ * with another selection.
+ */
+export const WORLDWIDE_SENTINEL = 'Worldwide';
+
 /** Canonical name lookup set (lower-cased). */
 const NAME_SET = new Set(COUNTRIES.map((c) => c.name.toLowerCase()));
+
+/** ISO alpha-2 code → entry index (codes are unique per the ISO dataset). */
+const CODE_MAP = new Map(COUNTRIES.map((c) => [c.code.toUpperCase(), c]));
+
+/**
+ * Resolve an ISO 3166-1 alpha-2 code ("IN", "ae") to its catalog entry.
+ * Returns null for anything that is not a catalog code. Phase 21: the
+ * selection API accepts codes as stable identifiers alongside names.
+ */
+export function countryByCode(input?: string | null): CountryEntry | null {
+  if (!input || typeof input !== 'string') return null;
+  const key = input.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(key)) return null;
+  return CODE_MAP.get(key) ?? null;
+}
 
 /**
  * Common aliases → canonical ISO name. Handles legacy values already
