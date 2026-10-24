@@ -56,7 +56,10 @@ export const POST = withMonitoring(async (request: NextRequest) => {
       const body = await request.json() as Record<string, unknown>;
       const name = typeof body.name === 'string' ? body.name : '';
       const workflowId = typeof body.workflowId === 'string' ? body.workflowId.trim() : '';
-      const schedule = typeof body.schedule === 'string' ? body.schedule : 'daily';
+      // Phase 22 — schedule may be a legacy whitelist string OR a
+      // canonical {every, unit, timezone, startAt?, enabled?} object;
+      // validated server-side by the canonical schedule module.
+      const schedule = body.schedule === undefined ? 'daily' : body.schedule;
       const activate = body.activate === true;
 
       const parsed = parseAutopilotConfig(body.niches, body.geography);

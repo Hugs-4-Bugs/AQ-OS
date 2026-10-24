@@ -57,6 +57,7 @@ import {
   isAutopilotSchedule,
   type AutopilotSchedule,
 } from './constants';
+import { computeNextRunAt, parsePersistedSchedule } from './schedule';
 
 // ===== per-user in-process mutex =====
 
@@ -87,9 +88,24 @@ export async function withUserLock<T>(userId: string, fn: () => Promise<T>): Pro
 
 // ===== scheduling helpers =====
 
+/**
+ * Legacy-compatible next-run helper (Phase 18 API surface, kept for
+ * backward compatibility with existing callers/tests).
+ * Phase 22: whitelist strings keep their EXACT legacy absolute-interval
+ * behavior; canonical JSON schedule strings compute through the
+ * timezone-aware engine; anything else → null (legacy contract).
+ */
 export function computeNextRun(schedule: string, from: Date = new Date()): Date | null {
-  if (!isAutopilotSchedule(schedule)) return null;
-  return new Date(from.getTime() + SCHEDULE_INTERVAL_MS[schedule as AutopilotSchedule]);
+  if (typeof schedule !== 'string') return null;
+  const trimmed = schedule.trim();
+  if (!trimmed) return null;
+  if (isAutopilotSchedule(trimmed)) {
+    return new Date(from.getTime() + SCHEDULE_INTERVAL_MS[trimmed]);
+  }
+  if (trimmed.startsWith('{')) {
+    return computeNextRunAt(parsePersistedSchedule(trimmed), from);
+  }
+  return null;
 }
 
 // ===== discovery job helpers =====
@@ -443,6 +459,10 @@ export async function executeAutopilotRun(
             // Phase 21 — the run's immutable country snapshot ([] = Worldwide).
             countries: runCountries,
             worldwide: runWorldwide,
+            // Phase 22 — immutable schedule snapshot: the schedule config
+            // that fired this run (interval/timezone/anchor at run start;
+            // later schedule edits never rewrite history).
+            schedule: parsePersistedSchedule(autopilot.schedule),
             profileMappings,
             nicheProfiles: niches.map((niche) => {
               const r = resolutionForNiche(niche);
@@ -941,6 +961,10 @@ export async function runAutopilot(
         config: JSON.stringify({
           niches: parseJson<string[]>(autopilot.niches, []),
           geography: parseJson<Record<string, string>>(autopilot.geography, {}),
+          // Phase 22 — immutable schedule snapshot: which schedule
+          // config fired this run (interval/timezone/anchor at run
+          // start; later schedule edits never rewrite history).
+          schedule: parsePersistedSchedule(autopilot.schedule),
         }),
       },
     }).catch(async (createErr: unknown) => {

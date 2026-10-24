@@ -102,6 +102,44 @@ export function isAutopilotSchedule(v: unknown): v is AutopilotSchedule {
   return typeof v === 'string' && (AUTOPILOT_SCHEDULES as readonly string[]).includes(v);
 }
 
+// ── Phase 22 — configurable scheduling (canonical representation) ──
+
+/**
+ * Phase 22 — interval units accepted by the canonical schedule config.
+ * Hourly granularity is the floor: there is deliberately no sub-hour
+ * unit (a 1-HOUR interval is the tightest schedule allowed).
+ */
+export const AUTOPILOT_SCHEDULE_UNITS = ['HOURS', 'DAYS', 'WEEKS'] as const;
+export type AutopilotScheduleUnit = (typeof AUTOPILOT_SCHEDULE_UNITS)[number];
+
+/** Minimum interval multiplier (every: 1 = "every hour / day / week"). */
+export const AUTOPILOT_SCHEDULE_EVERY_MIN = 1;
+
+/**
+ * Server-enforced upper bound for `every` per unit. Deterministic and
+ * explicit — a larger interval is REJECTED with a clear error (never a
+ * silent clamp): HOURS ≤ 168 (1 week), DAYS ≤ 365 (1 year),
+ * WEEKS ≤ 52 (1 year).
+ */
+export const AUTOPILOT_SCHEDULE_EVERY_MAX: Record<AutopilotScheduleUnit, number> = {
+  HOURS: 168,
+  DAYS: 365,
+  WEEKS: 52,
+};
+
+/**
+ * Phase 22 — maps each legacy whitelist schedule onto the equivalent
+ * canonical config parameters (unit + every). Used for backward
+ * compatibility: legacy rows/callers keep working unchanged.
+ */
+export const LEGACY_SCHEDULE_TO_UNIT_EVERY: Record<AutopilotSchedule, { unit: AutopilotScheduleUnit; every: number }> = {
+  hourly: { unit: 'HOURS', every: 1 },
+  every_6_hours: { unit: 'HOURS', every: 6 },
+  every_12_hours: { unit: 'HOURS', every: 12 },
+  daily: { unit: 'DAYS', every: 1 },
+  weekly: { unit: 'WEEKS', every: 1 },
+};
+
 /** Max niches selectable per autopilot (multi-select, bounded). */
 export const AUTOPILOT_MAX_NICHES = 10;
 /** Max niche string length (matches discovery route sanitization). */

@@ -39,6 +39,15 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { NICHE_OPTIONS } from '@/lib/types';
+// Phase 22 — canonical schedule display helpers (pure module — the
+// server remains the authoritative validator/computer; these mirror it
+// for presentation only).
+import {
+  parsePersistedSchedule,
+  scheduleLabel,
+  formatNextRunInScheduleTz,
+  type ScheduleConfig,
+} from '@/lib/autopilot/schedule';
 
 interface AutopilotListItem {
   id: string;
@@ -56,6 +65,9 @@ interface AutopilotListItem {
   // niche key → profile id).
   profileMappings?: Record<string, string>;
   schedule: string;
+  // Phase 22 — canonical schedule config + human label from the API.
+  scheduleConfig?: ScheduleConfig;
+  scheduleLabel?: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
   lastError: string | null;
@@ -135,13 +147,37 @@ interface AutopilotRun {
   createdAt: string;
 }
 
-const SCHEDULES: Array<{ value: string; label: string }> = [
-  { value: 'hourly', label: 'Every hour' },
-  { value: 'every_6_hours', label: 'Every 6 hours' },
-  { value: 'every_12_hours', label: 'Every 12 hours' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-];
+// Phase 22 — configurable scheduling UI state (create dialog + per-row
+// editor). One shared datalist serves both timezone inputs; the server
+// re-validates everything authoritatively.
+interface ScheduleFormState {
+  every: string;
+  unit: 'HOURS' | 'DAYS' | 'WEEKS';
+  startAt: string;
+  timezone: string;
+}
+
+const TIMEZONES: string[] = (() => {
+  try {
+    const intl = Intl as unknown as { supportedValuesOf?: (key: string) => string[] };
+    return intl.supportedValuesOf?.('timeZone') ?? ['UTC'];
+  } catch {
+    return ['UTC'];
+  }
+})();
+
+const DEFAULT_TIMEZONE = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+})();
+
+/** Effective schedule config of a list row (API value, tolerant fallback). */
+function effectiveScheduleConfig(ap: AutopilotListItem): ScheduleConfig {
+  return ap.scheduleConfig ?? parsePersistedSchedule(ap.schedule);
+}
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
@@ -206,9 +242,18 @@ export default function AutopilotTab() {
   const [maxCountrySelection, setMaxCountrySelection] = useState(30);
   const [city, setCity] = useState('');
   const [workflowId, setWorkflowId] = useState('');
-  const [schedule, setSchedule] = useState('daily');
+  // Phase 22 — configurable schedule (replaces the fixed 5-option
+  // select): interval count + unit + optional anchored start time +
+  // IANA timezone. The server validates/computes authoritatively.
+  const [schedEvery, setSchedEvery] = useState('1');
+  const [schedUnit, setSchedUnit] = useState<'HOURS' | 'DAYS' | 'WEEKS'>('DAYS');
+  const [schedStartAt, setSchedStartAt] = useState('');
+  const [schedTimezone, setSchedTimezone] = useState(DEFAULT_TIMEZONE);
   const [activateNow, setActivateNow] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Phase 22 — per-autopilot schedule editor state (keyed by id) + saving flag.
+  const [editSched, setEditSched] = useState<Record<string, ScheduleFormState>>({});
+  const [schedSavingId, setSchedSavingId] = useState<string | null>(null);
 
   const fetchState = useCallback(async () => {
     setLoading(true);
@@ -426,7 +471,10 @@ export default function AutopilotTab() {
     setCountryQuery('');
     setCity('');
     setWorkflowId('');
-    setSchedule('daily');
+    setSchedEvery('1');
+    setSchedUnit('DAYS');
+    setSchedStartAt('');
+    setSchedTimezone(DEFAULT_TIMEZONE);
     setActivateNow(true);
     setCustomInput('');
     setDuplicateWarning(null);
@@ -469,7 +517,14 @@ export default function AutopilotTab() {
             ...(city.trim() ? { city: city.trim() } : {}),
           },
           workflowId,
-          schedule,
+          // Phase 22 — canonical schedule object (server-validated:
+          // interval bounds, unit whitelist, IANA timezone, HH:mm anchor).
+          schedule: {
+            every: Number(schedEvery),
+            unit: schedUnit,
+            timezone: schedTimezone.trim() || 'UTC',
+            startAt: schedStartAt || null,
+          },
           activate: activateNow,
           ...(Object.keys(profileMappings).length > 0 ? { profileMappings } : {}),
         }),
@@ -645,17 +700,97 @@ export default function AutopilotTab() {
     }
   };
 
-  const toggleExpand = (id: string) => {
-    if (expandedId === id) {
+  const toggleExpand = (ap: AutopilotListItem) => {
+    if (expandedId === ap.id) {
       setExpandedId(null);
     } else {
-      setExpandedId(id);
-      if (!runs[id]) loadRuns(id);
+      setExpandedId(ap.id);
+      if (!runs[ap.id]) loadRuns(ap.id);
+      // Phase 22 — seed the schedule editor from the persisted config
+      // (API-provided, tolerant fallback to a client-side parse).
+      const cfg = effectiveScheduleConfig(ap);
+      setEditSched((prev) => ({
+        ...prev,
+        [ap.id]: {
+          every: String(cfg.every),
+          unit: cfg.unit,
+          startAt: cfg.startAt ?? '',
+          timezone: cfg.timezone,
+        },
+      }));
+    }
+  };
+
+  // Phase 22 — save a schedule edit (PATCH /api/autopilot/[id] with a
+  // canonical schedule object) and/or flip the scheduling on/off switch
+  // (`enabled`). Ownership is enforced server-side; a 400 surfaces the
+  // server's validation message verbatim.
+  const saveSchedule = async (ap: AutopilotListItem, enabledOverride?: boolean) => {
+    const form = editSched[ap.id];
+    if (!form) return;
+    const every = Number(form.every);
+    if (!Number.isInteger(every) || every < 1) {
+      toast({
+        title: 'Invalid interval',
+        description: 'The interval count must be a whole number of 1 or more.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!form.timezone.trim()) {
+      toast({
+        title: 'Timezone required',
+        description: 'Pick a timezone (e.g. Asia/Kolkata, America/New_York, UTC).',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSchedSavingId(ap.id);
+    try {
+      const res = await fetch(`/api/autopilot/${ap.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schedule: {
+            every,
+            unit: form.unit,
+            timezone: form.timezone.trim(),
+            startAt: form.startAt || null,
+            enabled: enabledOverride ?? effectiveScheduleConfig(ap).enabled,
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to save schedule');
+      toast({
+        title:
+          enabledOverride === false ? 'Schedule disabled' :
+          enabledOverride === true ? 'Schedule enabled' :
+          'Schedule updated',
+        description:
+          'Niches, geography, profiles and workflow are untouched — only the schedule changed. Scheduling itself costs 0 credits.',
+      });
+      fetchState();
+    } catch (e) {
+      toast({
+        title: 'Schedule save failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setSchedSavingId(null);
     }
   };
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      {/* Phase 22 — one shared timezone datalist for the create dialog +
+          per-row schedule editors (native datalist; server validates). */}
+      <datalist id="autopilot-timezones">
+        {TIMEZONES.map((tz) => (
+          <option key={tz} value={tz} />
+        ))}
+      </datalist>
       {/* header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -717,8 +852,14 @@ export default function AutopilotTab() {
                         {geographyLabelOf(ap.geography)}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" /> {SCHEDULES.find((s) => s.value === ap.schedule)?.label || ap.schedule}
-                        {ap.nextRunAt ? ` · next ${new Date(ap.nextRunAt).toLocaleString()}` : ''}
+                        <Clock className="h-3.5 w-3.5" /> {ap.scheduleLabel || scheduleLabel(ap.schedule)}
+                        {ap.status === 'ACTIVE'
+                          ? (ap.scheduleConfig?.enabled ?? true) && ap.nextRunAt
+                            ? ` · next ${formatNextRunInScheduleTz(ap.nextRunAt, effectiveScheduleConfig(ap))}`
+                            : (ap.scheduleConfig?.enabled ?? true)
+                              ? ''
+                              : ' · scheduling off'
+                          : ''}
                       </span>
                     </div>
                   </div>
@@ -743,7 +884,7 @@ export default function AutopilotTab() {
                     <Button size="sm" variant="ghost" disabled={busyId === ap.id} onClick={() => handleDelete(ap.id)}>
                       <Trash2 className="h-4 w-4 text-red-400" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => toggleExpand(ap.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => toggleExpand(ap)}>
                       <ChevronDown className={cn('h-4 w-4 transition-transform', expandedId === ap.id && 'rotate-180')} />
                     </Button>
                   </div>
@@ -797,6 +938,127 @@ export default function AutopilotTab() {
                   <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/5 p-2.5 text-xs text-red-400">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <span className="break-words">{ap.lastError}</span>
+                  </div>
+                )}
+
+                {/* ── Phase 22 — schedule editor (expanded row) ── */}
+                {expandedId === ap.id && (
+                  <div className="rounded-lg border p-3 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-medium inline-flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" /> Schedule
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {(effectiveScheduleConfig(ap).enabled) ? (
+                          <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/15">Scheduling on</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-zinc-400 border-zinc-500/30 bg-zinc-500/15">Scheduling off</Badge>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={schedSavingId === ap.id}
+                          onClick={() => saveSchedule(ap, !effectiveScheduleConfig(ap).enabled)}
+                        >
+                          {schedSavingId === ap.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+                          <span className="ml-1">{effectiveScheduleConfig(ap).enabled ? 'Disable' : 'Enable'}</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      {ap.status === 'RUNNING'
+                        ? 'A run is in progress — the next run is scheduled after it completes.'
+                        : ap.status === 'ACTIVE'
+                          ? effectiveScheduleConfig(ap).enabled
+                            ? ap.nextRunAt
+                              ? `Next run: ${formatNextRunInScheduleTz(ap.nextRunAt, effectiveScheduleConfig(ap))} (${effectiveScheduleConfig(ap).timezone})`
+                              : 'Next run: being calculated on the next scheduler tick.'
+                            : 'Scheduling is disabled — no scheduled runs. Manual "Run now" still works.'
+                          : ap.status === 'PAUSED'
+                            ? 'Paused — schedule configuration kept; resuming recalculates the next run.'
+                            : ap.status === 'FAILED'
+                              ? 'Last run failed — schedule configuration kept; re-activating recalculates the next run.'
+                              : `Status ${ap.status} — schedule configuration kept.`}
+                    </p>
+
+                    {editSched[ap.id] && (
+                      <>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Every</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={editSched[ap.id].every}
+                              onChange={(e) =>
+                                setEditSched((prev) => ({
+                                  ...prev,
+                                  [ap.id]: { ...prev[ap.id], every: e.target.value },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Unit</Label>
+                            <Select
+                              value={editSched[ap.id].unit}
+                              onValueChange={(v) =>
+                                setEditSched((prev) => ({
+                                  ...prev,
+                                  [ap.id]: { ...prev[ap.id], unit: v as ScheduleFormState['unit'] },
+                                }))
+                              }
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="HOURS">hours</SelectItem>
+                                <SelectItem value="DAYS">days</SelectItem>
+                                <SelectItem value="WEEKS">weeks</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Start at (optional)</Label>
+                            <Input
+                              type="time"
+                              value={editSched[ap.id].startAt}
+                              onChange={(e) =>
+                                setEditSched((prev) => ({
+                                  ...prev,
+                                  [ap.id]: { ...prev[ap.id], startAt: e.target.value },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Timezone</Label>
+                            <Input
+                              list="autopilot-timezones"
+                              value={editSched[ap.id].timezone}
+                              placeholder="Asia/Kolkata"
+                              onChange={(e) =>
+                                setEditSched((prev) => ({
+                                  ...prev,
+                                  [ap.id]: { ...prev[ap.id], timezone: e.target.value },
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[11px] text-muted-foreground max-w-md">
+                            Anchored schedules fire at the start time in the chosen timezone (DST-safe).
+                            The server validates the interval, timezone and start time — scheduling itself
+                            costs 0 credits; each actual run bills the standard flat execution fee.
+                          </p>
+                          <Button size="sm" disabled={schedSavingId === ap.id} onClick={() => saveSchedule(ap)}>
+                            {schedSavingId === ap.id ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : null}
+                            Save schedule
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1337,14 +1599,56 @@ export default function AutopilotTab() {
             </div>
             <div className="space-y-1.5">
               <Label>Schedule</Label>
-              <Select value={schedule} onValueChange={setSchedule}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SCHEDULES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Phase 22 — configurable schedule: interval count + unit +
+                  optional anchored start time + IANA timezone (replaces the
+                  fixed 5-option select). Server validates + computes the
+                  next run authoritatively. */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground shrink-0">Every</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={schedEvery}
+                    onChange={(e) => setSchedEvery(e.target.value)}
+                    aria-label="Interval count"
+                  />
+                </div>
+                <Select value={schedUnit} onValueChange={(v) => setSchedUnit(v as ScheduleFormState['unit'])}>
+                  <SelectTrigger aria-label="Interval unit"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="HOURS">hours</SelectItem>
+                    <SelectItem value="DAYS">days</SelectItem>
+                    <SelectItem value="WEEKS">weeks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Start at (optional)</Label>
+                  <Input
+                    type="time"
+                    value={schedStartAt}
+                    onChange={(e) => setSchedStartAt(e.target.value)}
+                    aria-label="Start time"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Timezone</Label>
+                  <Input
+                    list="autopilot-timezones"
+                    value={schedTimezone}
+                    placeholder="Asia/Kolkata"
+                    onChange={(e) => setSchedTimezone(e.target.value)}
+                    aria-label="Schedule timezone"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                With a start time, runs fire at that local time in the chosen timezone (DST-safe);
+                without one, the interval runs from activation. The server validates the interval,
+                timezone and start time — scheduling itself costs 0 credits.
+              </p>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox checked={activateNow} onCheckedChange={(v) => setActivateNow(v === true)} />

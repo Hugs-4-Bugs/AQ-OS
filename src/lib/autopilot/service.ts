@@ -16,7 +16,6 @@ import {
   AUTOPILOT_MAX_NICHES,
   AUTOPILOT_NICHE_MAX_LEN,
   canTransitionAutopilot,
-  isAutopilotSchedule,
   type AutopilotStatus,
 } from './constants';
 import {
@@ -29,6 +28,15 @@ import {
   buildPersistedGeography,
   type AutopilotGeoSelection,
 } from './country-selection';
+import {
+  computeInitialRunAt,
+  computeNextRunAt,
+  parsePersistedSchedule,
+  parseScheduleInput,
+  scheduleLabel,
+  serializeSchedule,
+  type ScheduleConfig,
+} from './schedule';
 
 // ===== PLAN NORMALIZATION =====
 
@@ -300,7 +308,10 @@ export interface CreateAutopilotInput {
   niches: string[];
   geography: AutopilotGeo;
   workflowId: string;
-  schedule: string;
+  /** Phase 22 — legacy whitelist string OR canonical
+   * {every, unit, timezone, startAt?, enabled?} object (validated
+   * server-side through the canonical schedule module). */
+  schedule: unknown;
   activate: boolean;
   /** Phase 20 — optional { [nicheKey]: businessProfileId } mapping. */
   profileMappings?: unknown;
@@ -352,9 +363,14 @@ export async function createAutopilot(
   if (!name) {
     return { success: false, error: 'Name is required', code: 'VALIDATION' };
   }
-  if (!isAutopilotSchedule(input.schedule)) {
-    return { success: false, error: 'Invalid schedule', code: 'VALIDATION' };
+  // ── Phase 22 — canonical schedule validation (legacy string OR
+  // configurable object; timezone/interval/start validated here,
+  // server-side only — never trusted from the client). ──
+  const scheduleParsed = parseScheduleInput(input.schedule);
+  if (!scheduleParsed.ok) {
+    return { success: false, error: scheduleParsed.error, code: 'VALIDATION' };
   }
+  const scheduleConfig = scheduleParsed.config;
   const wfCheck = await verifyWorkflowEligibility(userId, input.workflowId);
   if (!wfCheck.ok) {
     return { success: false, error: wfCheck.error, code: 'VALIDATION' };
@@ -412,8 +428,18 @@ export async function createAutopilot(
       geography: JSON.stringify(shape.value.geography),
       profileMappings: JSON.stringify(mappings.value),
       workflowId: input.workflowId,
-      schedule: input.schedule,
-      nextRunAt: desiredStatus === 'ACTIVE' ? new Date(Date.now() + 60000) : null,
+      // Phase 22 — canonical schedule JSON (additive semantics on the
+      // existing String column; legacy whitelist strings still parse).
+      schedule: serializeSchedule(scheduleConfig),
+      // Phase 22 — first run: anchored schedules → next wall-clock
+      // occurrence in the schedule timezone; interval schedules keep
+      // the Phase 18 ~60s activation grace. Disabled → not scheduled.
+      nextRunAt:
+        desiredStatus === 'ACTIVE'
+          ? scheduleConfig.enabled
+            ? computeInitialRunAt(scheduleConfig)
+            : null
+          : null,
     },
   });
   return { success: true, autopilot: { id: autopilot.id, status: autopilot.status, name: autopilot.name } };
@@ -459,6 +485,17 @@ export async function transitionAutopilot(
       };
     }
   }
+  // Phase 22 — canonical next-run recalculation on (re)activation:
+  // a still-future nextRunAt survives; a stale/absent one is
+  // recomputed from the persisted schedule config (timezone-aware).
+  // A disabled schedule is never given a next run.
+  const scheduleConfig = parsePersistedSchedule(autopilot.schedule);
+  const resumeNextRunAt =
+    !scheduleConfig.enabled
+      ? null
+      : autopilot.nextRunAt && autopilot.nextRunAt > new Date()
+        ? autopilot.nextRunAt
+        : computeNextRunAt(scheduleConfig);
   const updated = await db.autopilotWorkflow.update({
     where: { id: autopilot.id },
     data: {
@@ -466,9 +503,7 @@ export async function transitionAutopilot(
       lastError: to === 'ACTIVE' ? null : autopilot.lastError,
       nextRunAt:
         to === 'ACTIVE'
-          ? autopilot.nextRunAt && autopilot.nextRunAt > new Date()
-            ? autopilot.nextRunAt
-            : new Date(Date.now() + 60000)
+          ? resumeNextRunAt
           : to === 'PAUSED' || to === 'COMPLETED' || to === 'DISABLED'
             ? null
             : autopilot.nextRunAt,
@@ -482,7 +517,10 @@ export interface UpdateAutopilotFields {
   niches?: unknown;
   geography?: unknown;
   workflowId?: string;
-  schedule?: string;
+  /** Phase 22 — legacy whitelist string OR canonical schedule object.
+   * Only revalidated/rewritten when EXPLICITLY provided (a niches-only
+   * update never touches the stored schedule). */
+  schedule?: unknown;
   /** Phase 20 — { [nicheKey]: businessProfileId } (validated against the
    * effective niche selection — new niches when provided, else existing). */
   profileMappings?: unknown;
@@ -567,10 +605,21 @@ export async function updateAutopilotFields(
     data.workflowId = wfId;
   }
   if (fields.schedule !== undefined) {
-    if (!isAutopilotSchedule(fields.schedule)) {
-      return { success: false, error: 'Invalid schedule', code: 'VALIDATION' };
+    // ── Phase 22 — canonical schedule update (validate → persist →
+    // recompute nextRunAt). An ACTIVE autopilot's next run follows the
+    // NEW config immediately (anchored → next wall-clock occurrence;
+    // interval → now + interval). A disabled schedule clears the next
+    // run. Non-ACTIVE rows keep nextRunAt null (set on activation). ──
+    const scheduleParsed = parseScheduleInput(fields.schedule);
+    if (!scheduleParsed.ok) {
+      return { success: false, error: scheduleParsed.error, code: 'VALIDATION' };
     }
-    data.schedule = fields.schedule;
+    data.schedule = serializeSchedule(scheduleParsed.config);
+    if (autopilot.status === 'ACTIVE') {
+      data.nextRunAt = scheduleParsed.config.enabled
+        ? computeNextRunAt(scheduleParsed.config)
+        : null;
+    }
   }
   const updated = await db.autopilotWorkflow.update({
     where: { id: autopilot.id },
@@ -621,6 +670,11 @@ export interface AutopilotListItem {
   // Phase 20 — persisted { [nicheKey]: businessProfileId } mapping.
   profileMappings: Record<string, string>;
   schedule: string;
+  // Phase 22 — canonical schedule config (parsed from the schedule
+  // column) + human label for the UI. `schedule` stays the raw stored
+  // string for backward compatibility.
+  scheduleConfig: ScheduleConfig;
+  scheduleLabel: string;
   lastRunAt: string | null;
   nextRunAt: string | null;
   lastError: string | null;
@@ -671,6 +725,10 @@ function serializeAutopilot(
     workflowEligible: !!workflow && workflow.status === 'active',
     profileMappings,
     schedule: a.schedule,
+    // Phase 22 — canonical schedule config (tolerant parse: legacy
+    // whitelist strings resolve to equivalent configs) + human label.
+    scheduleConfig: parsePersistedSchedule(a.schedule),
+    scheduleLabel: scheduleLabel(a.schedule),
     lastRunAt: a.lastRunAt ? a.lastRunAt.toISOString() : null,
     nextRunAt: a.nextRunAt ? a.nextRunAt.toISOString() : null,
     lastError: a.lastError,
