@@ -108,6 +108,18 @@ export const AUTOPILOT_MAX_NICHES = 10;
 export const AUTOPILOT_NICHE_MAX_LEN = 200;
 
 /**
+ * Phase 21 — max individual countries selectable per autopilot. A
+ * deterministic, server-enforced bound (never a silent truncation): a
+ * larger selection is REJECTED with a clear error before any row is
+ * created. Worldwide (the sentinel) is the intended way to target the
+ * whole globe and is NOT subject to this cap. The runner fans the
+ * selection out to discovery jobs in MAX_COUNTRIES_PER_JOB chunks, so
+ * this cap also bounds run duration to the same order as the legacy
+ * multi-niche worst case.
+ */
+export const AUTOPILOT_MAX_COUNTRIES = 30;
+
+/**
  * Discovery batch size per niche — Autopilot REUSES the existing
  * production discovery pipeline at the same ≈20-leads/batch scale as
  * the Discover page defaults. Deliberately NOT increased.

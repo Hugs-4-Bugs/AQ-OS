@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Rocket, Plus, Play, Pause, Trash2, RefreshCw, Pencil, ChevronDown,
   Clock, CheckCircle2, XCircle, AlertTriangle, Layers, Globe2, Workflow as WorkflowIcon, Link2,
-  Sparkles,
+  Sparkles, Search, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,14 +38,14 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { NICHE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/types';
+import { NICHE_OPTIONS } from '@/lib/types';
 
 interface AutopilotListItem {
   id: string;
   name: string;
   status: string;
   niches: string[];
-  geography: { country?: string; city?: string };
+  geography: { country?: string; city?: string; countries?: string[] };
   workflowId: string;
   // Phase 19 — linked-workflow health from the API: null = deleted/
   // unavailable; present-but-inactive = paused/draft/archived. Drives
@@ -88,6 +88,27 @@ interface ProfileOption {
   name: string;
   status: string;
   isDefault?: boolean;
+}
+
+// Phase 21 — one catalog country from GET /api/autopilot/countries
+// (ISO 3166-1 alpha-2 code + canonical name, deterministic catalog order).
+interface CountryCatalogItem {
+  code: string;
+  name: string;
+}
+
+/** Phase 21 — human label for a persisted geography (list rows):
+ * Worldwide · "India" · "Mumbai, India + 2 more" · legacy single-country. */
+function geographyLabelOf(geo: { country?: string; city?: string; countries?: string[] } | undefined): string {
+  if (!geo) return 'Worldwide';
+  const countries = Array.isArray(geo.countries) ? geo.countries.filter((c) => !!c && !!c.trim()) : [];
+  const city = typeof geo.city === 'string' ? geo.city.trim() : '';
+  if (countries.length > 0) {
+    const head = [city, countries[0]].filter(Boolean).join(', ');
+    return countries.length > 1 ? `${head} + ${countries.length - 1} more` : head;
+  }
+  if (geo.country && geo.country.trim()) return [city, geo.country.trim()].filter(Boolean).join(', ');
+  return city || 'Worldwide';
 }
 
 /** Client-side mirror of the server's niche normalization (display only —
@@ -174,7 +195,15 @@ export default function AutopilotTab() {
   // create form state
   const [name, setName] = useState('');
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
-  const [country, setCountry] = useState<string>('none');
+  // Phase 21 — multi-country selection: Worldwide (default) or up to
+  // maxCountrySelection individual countries. The catalog itself loads
+  // from the canonical server route (never a hard-coded country list).
+  const [worldwide, setWorldwide] = useState(true);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [countryQuery, setCountryQuery] = useState('');
+  const [countryCatalog, setCountryCatalog] = useState<CountryCatalogItem[]>([]);
+  const [countriesLoadState, setCountriesLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [maxCountrySelection, setMaxCountrySelection] = useState(30);
   const [city, setCity] = useState('');
   const [workflowId, setWorkflowId] = useState('');
   const [schedule, setSchedule] = useState('daily');
@@ -251,18 +280,98 @@ export default function AutopilotTab() {
     }
   }, []);
 
+  // Phase 21 — canonical country-catalog loader (server-served ISO
+  // dataset + the server-enforced selection bound). Separate lifecycle
+  // states: an API failure is shown as an error with retry, never as
+  // "no countries".
+  const fetchCountryCatalog = useCallback(async () => {
+    setCountriesLoadState('loading');
+    try {
+      const res = await fetch('/api/autopilot/countries');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setCountryCatalog(data.countries || []);
+      if (typeof data.maxSelection === 'number' && data.maxSelection > 0) {
+        setMaxCountrySelection(data.maxSelection);
+      }
+      setCountriesLoadState('ready');
+    } catch {
+      setCountryCatalog([]);
+      setCountriesLoadState('error');
+    }
+  }, []);
+
   useEffect(() => {
     fetchState();
     fetchWorkflows();
     fetchCustomNiches();
     fetchProfiles();
-  }, [fetchState, fetchWorkflows, fetchCustomNiches, fetchProfiles]);
+    fetchCountryCatalog();
+  }, [fetchState, fetchWorkflows, fetchCustomNiches, fetchProfiles, fetchCountryCatalog]);
 
   const toggleNiche = (niche: string) => {
     setSelectedNiches((prev) =>
       prev.includes(niche) ? prev.filter((n) => n !== niche) : [...prev, niche]
     );
   };
+
+  // ── Phase 21 — country selection handlers (server re-validates all
+  // of this authoritatively on submit; these mirror the same rules).
+  const toggleCountry = (name: string) => {
+    setSelectedCountries((prev) =>
+      prev.includes(name)
+        ? prev.filter((c) => c !== name)
+        : prev.length >= maxCountrySelection
+          ? prev
+          : [...prev, name]
+    );
+    setWorldwide(false);
+  };
+
+  const selectWorldwide = () => {
+    setSelectedCountries([]);
+    setWorldwide(true);
+  };
+
+  const clearAllCountries = () => {
+    setSelectedCountries([]);
+    setWorldwide(true);
+  };
+
+  // Select every country in the CURRENT filtered view (merged with the
+  // already-selected ones), bounded by the server cap — an explicit
+  // toast when the cap truncates the selection (never silent loss).
+  const selectAllFiltered = () => {
+    const q = countryQuery.trim().toLowerCase();
+    const visible = q
+      ? countryCatalog.filter(
+          (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q
+        )
+      : countryCatalog;
+    setSelectedCountries((prev) => {
+      const merged = Array.from(new Set([...prev, ...visible.map((c) => c.name)]));
+      if (merged.length > maxCountrySelection) {
+        toast({
+          title: 'Country selection capped',
+          description: `Only the first ${maxCountrySelection} countries were selected (from ${merged.length}) — use Worldwide for global discovery.`,
+        });
+        return merged.slice(0, maxCountrySelection);
+      }
+      return merged;
+    });
+    setWorldwide(false);
+  };
+
+  // Phase 21 — the visible (search-filtered) country list. Selected
+  // countries that fall outside the current filter REMAIN selected
+  // (visible as chips below) — filtering never loses a selection.
+  const visibleCountries: CountryCatalogItem[] = (() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return countryCatalog;
+    return countryCatalog.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q
+    );
+  })();
 
   // Phase 20 — save a custom niche server-side, then auto-select it.
   // Duplicate detection happens in the canonical niche service (any
@@ -312,7 +421,9 @@ export default function AutopilotTab() {
   const resetForm = () => {
     setName('');
     setSelectedNiches([]);
-    setCountry('none');
+    setWorldwide(true);
+    setSelectedCountries([]);
+    setCountryQuery('');
     setCity('');
     setWorkflowId('');
     setSchedule('daily');
@@ -352,7 +463,9 @@ export default function AutopilotTab() {
           name: name.trim(),
           niches: selectedNiches,
           geography: {
-            ...(country !== 'none' ? { country } : {}),
+            // Phase 21 — multi-country selection (canonical names;
+            // Worldwide = no countries key, identical to the legacy shape).
+            ...(worldwide ? {} : { countries: selectedCountries }),
             ...(city.trim() ? { city: city.trim() } : {}),
           },
           workflowId,
@@ -601,7 +714,7 @@ export default function AutopilotTab() {
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Globe2 className="h-3.5 w-3.5" />
-                        {[ap.geography?.city, ap.geography?.country].filter(Boolean).join(', ') || 'Worldwide'}
+                        {geographyLabelOf(ap.geography)}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" /> {SCHEDULES.find((s) => s.value === ap.schedule)?.label || ap.schedule}
@@ -1004,23 +1117,165 @@ export default function AutopilotTab() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Country</Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger><SelectValue placeholder="Worldwide" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Worldwide</SelectItem>
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Phase 21 — multi-country selector: Worldwide (special,
+                visually distinct) OR a searchable, multi-selectable
+                country list with Select All / Clear All, count, and
+                catalog loading/error/retry states. */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Target countries</Label>
+                <span className="text-xs text-muted-foreground">
+                  {worldwide
+                    ? 'Worldwide — global discovery'
+                    : `${selectedCountries.length} of ${maxCountrySelection} selected`}
+                </span>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ap-city">City (optional)</Label>
-                <Input id="ap-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Mumbai" />
+
+              {/* Worldwide — the special global selection */}
+              <button
+                type="button"
+                onClick={selectWorldwide}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-lg border p-3 text-left transition-colors',
+                  worldwide
+                    ? 'border-emerald-500/50 bg-emerald-500/10'
+                    : 'border-border hover:border-emerald-500/30'
+                )}
+              >
+                <Globe2 className={cn('h-4 w-4 shrink-0', worldwide ? 'text-emerald-400' : 'text-muted-foreground')} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Worldwide</p>
+                  <p className="text-xs text-muted-foreground">Global discovery — no country constraint</p>
+                </div>
+                {worldwide && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />}
+              </button>
+
+              {/* Individual countries — searchable checkbox list */}
+              <div className="rounded-lg border">
+                <div className="flex items-center gap-2 border-b p-2">
+                  <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <Input
+                    value={countryQuery}
+                    onChange={(e) => setCountryQuery(e.target.value)}
+                    placeholder={`Search ${countryCatalog.length || '…'} countries…`}
+                    className="h-7 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs"
+                  />
+                </div>
+                {countriesLoadState === 'loading' ? (
+                  <div className="flex items-center justify-center gap-2 p-4 text-xs text-muted-foreground">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Loading country catalog…
+                  </div>
+                ) : countriesLoadState === 'error' ? (
+                  <div className="space-y-2 p-4 text-center">
+                    <p className="inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      Could not load the country catalog
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={fetchCountryCatalog}
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                    </Button>
+                  </div>
+                ) : visibleCountries.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No countries match “{countryQuery}”
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between border-b px-3 py-1.5">
+                      <span className="text-xs text-muted-foreground">
+                        {visibleCountries.length} of {countryCatalog.length} shown
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={selectAllFiltered}
+                        >
+                          Select all
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={clearAllCountries}
+                          disabled={selectedCountries.length === 0}
+                        >
+                          Clear all
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-1">
+                      {visibleCountries.map((c) => {
+                        const checked = selectedCountries.includes(c.name);
+                        const atCap =
+                          !worldwide &&
+                          !checked &&
+                          selectedCountries.length >= maxCountrySelection;
+                        return (
+                          <label
+                            key={c.code}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm',
+                              atCap ? 'cursor-not-allowed opacity-50' : 'hover:bg-accent'
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              disabled={atCap}
+                              onCheckedChange={() => toggleCountry(c.name)}
+                            />
+                            <span className="flex-1 truncate">{c.name}</span>
+                            <span className="font-mono text-xs text-muted-foreground">{c.code}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* Selected-country chips (persisted verbatim on submit) */}
+              {!worldwide && selectedCountries.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCountries.map((name) => (
+                    <Badge key={name} variant="outline" className="gap-1 pr-1">
+                      {name}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${name}`}
+                        onClick={() => toggleCountry(name)}
+                        className="rounded-full p-0.5 hover:bg-accent"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {!worldwide && selectedCountries.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No individual countries selected — this run will target Worldwide.
+                </p>
+              )}
+              {!worldwide && selectedCountries.length >= maxCountrySelection && (
+                <p className="inline-flex items-center gap-1 text-xs text-amber-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Maximum {maxCountrySelection} countries — use Worldwide for global discovery.
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ap-city">City (optional — applied to every selected country)</Label>
+              <Input id="ap-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Mumbai" />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">

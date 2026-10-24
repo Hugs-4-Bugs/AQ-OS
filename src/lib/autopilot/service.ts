@@ -24,6 +24,11 @@ import {
   resolveNicheSelection,
   validateProfileMappingsOwnership,
 } from '@/lib/niches';
+import {
+  resolveCountrySelection,
+  buildPersistedGeography,
+  type AutopilotGeoSelection,
+} from './country-selection';
 
 // ===== PLAN NORMALIZATION =====
 
@@ -107,21 +112,27 @@ export async function checkAutopilotSlot(
 
 // ===== INPUT VALIDATION =====
 
-export interface AutopilotGeo {
-  country?: string;
-  city?: string;
-}
+export interface AutopilotGeo extends AutopilotGeoSelection {}
 
 export interface ParsedAutopilotConfig {
   niches: string[];
   geography: AutopilotGeo;
+  /** Phase 21 — validated country selection (countries in catalog
+   * order; worldwide=true means global discovery). */
+  countrySelection: { countries: string[]; worldwide: boolean };
 }
 
 /**
  * Validate + sanitize the multi-niche selection and geography.
  * Niches: non-empty array of 1..AUTOPILOT_MAX_NICHES trimmed strings,
- * deduplicated case-insensitively. Geography: { country?, city? } with
- * the same bounding the discovery route applies.
+ * deduplicated case-insensitively. Geography: { country?, city?,
+ * countries? } — Phase 21 validates the multi-country selection through
+ * the canonical country-selection service (catalog names/aliases/ISO
+ * codes accepted, duplicates collapse, ordering canonicalized,
+ * unknown entries REJECTED, Worldwide exclusive, bounded by
+ * AUTOPILOT_MAX_COUNTRIES). The legacy single `country` string keeps
+ * its historical shape-only bounding (≤100 chars) so existing rows and
+ * callers continue to work unchanged.
  */
 export function parseAutopilotConfig(
   niches: unknown,
@@ -153,15 +164,41 @@ export function parseAutopilotConfig(
   }
 
   const geo: AutopilotGeo = {};
+  let countrySelection: { countries: string[]; worldwide: boolean } = { countries: [], worldwide: true };
   if (geography !== undefined && geography !== null) {
     if (typeof geography !== 'object' || Array.isArray(geography)) {
-      return { ok: false, error: 'geography must be an object { country?, city? }' };
+      return { ok: false, error: 'geography must be an object { country?, city?, countries? }' };
     }
     const g = geography as Record<string, unknown>;
-    if (g.country !== undefined && g.country !== null) {
-      const c = String(g.country).trim().substring(0, 100);
-      if (!c) return { ok: false, error: 'geography.country must be a non-empty string when provided' };
-      geo.country = c;
+    // ── Phase 21 — canonical multi-country selection ──
+    // Present (even empty) ⇒ authoritative; absent ⇒ Worldwide for new
+    // configs (legacy single `country` still honored below for callers
+    // that only send that field).
+    if (g.countries !== undefined && g.countries !== null) {
+      const selection = resolveCountrySelection(g.countries);
+      if (!selection.ok) {
+        return { ok: false, error: selection.error };
+      }
+      countrySelection = { countries: selection.countries, worldwide: selection.worldwide };
+    } else if (g.country !== undefined && g.country !== null) {
+      // Legacy single-country shape: validate it as a 0-or-1 selection
+      // through the same canonical service (aliases/codes resolve;
+      // unknown values rejected deterministically — no more silent
+      // acceptance of arbitrary strings).
+      const c = String(g.country).trim();
+      if (!c) {
+        return { ok: false, error: 'geography.country must be a non-empty string when provided' };
+      }
+      if (isWorldwideSelection(c)) {
+        countrySelection = { countries: [], worldwide: true };
+      } else {
+        const selection = resolveCountrySelection([c]);
+        if (!selection.ok) {
+          return { ok: false, error: selection.error };
+        }
+        countrySelection = { countries: selection.countries, worldwide: selection.worldwide };
+        geo.country = selection.countries[0];
+      }
     }
     if (g.city !== undefined && g.city !== null) {
       const ci = String(g.city).trim().substring(0, 100);
@@ -169,7 +206,22 @@ export function parseAutopilotConfig(
       geo.city = ci;
     }
   }
-  return { ok: true, value: { niches: cleaned, geography: geo } };
+  // Phase 21 — persist the canonical selection shape (countries key
+  // only for individual countries; Worldwide keeps the legacy shape).
+  const persisted = buildPersistedGeography(countrySelection, geo.city);
+  return {
+    ok: true,
+    value: {
+      niches: cleaned,
+      geography: Object.keys(persisted).length > 0 ? persisted : {},
+      countrySelection,
+    },
+  };
+}
+
+/** Case-insensitive Worldwide test for the legacy single-country field. */
+function isWorldwideSelection(value: string): boolean {
+  return value.trim().toLowerCase() === 'worldwide';
 }
 
 // ===== WORKFLOW ELIGIBILITY (Phase 19) =====
@@ -355,7 +407,9 @@ export async function createAutopilot(
       name,
       status: desiredStatus,
       niches: JSON.stringify(niches),
-      geography: JSON.stringify(input.geography),
+      // Phase 21 — the canonical geography (validated + normalized
+      // country selection; Worldwide keeps the legacy JSON shape).
+      geography: JSON.stringify(shape.value.geography),
       profileMappings: JSON.stringify(mappings.value),
       workflowId: input.workflowId,
       schedule: input.schedule,
@@ -455,11 +509,14 @@ export async function updateAutopilotFields(
   // (predefined or the caller's OWN custom niches; foreign/unknown
   // rejected before any row changes). Legacy rows that never touch
   // `niches` keep working unchanged.
+  // ── Phase 21 — geography is only revalidated/rewritten when the
+  // caller EXPLICITLY sends it: a niches-only update must never be
+  // blocked by (nor silently rewrite) a pre-Phase-21 stored geography. ──
   let effectiveNiches: string[] | null = null;
   if (fields.niches !== undefined || fields.geography !== undefined) {
     const parsed = parseAutopilotConfig(
       fields.niches !== undefined ? fields.niches : JSON.parse(autopilot.niches),
-      fields.geography !== undefined ? fields.geography : JSON.parse(autopilot.geography)
+      fields.geography !== undefined ? fields.geography : undefined
     );
     if (!parsed.ok) {
       return { success: false, error: parsed.error, code: 'VALIDATION' };
@@ -473,8 +530,12 @@ export async function updateAutopilotFields(
       niches = nicheSelection.niches;
     }
     effectiveNiches = niches;
-    data.niches = JSON.stringify(niches);
-    data.geography = JSON.stringify(parsed.value.geography);
+    if (fields.niches !== undefined) {
+      data.niches = JSON.stringify(niches);
+    }
+    if (fields.geography !== undefined) {
+      data.geography = JSON.stringify(parsed.value.geography);
+    }
   }
 
   // ── Phase 20 — profile mapping updates (shape + ownership) ──

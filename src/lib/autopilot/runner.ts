@@ -41,6 +41,8 @@ import {
   WORKFLOW_EXECUTION_FEE_CREDITS,
 } from '@/lib/workflow-credits';
 import { normalizeCountryName } from '@/lib/countries';
+import { MAX_COUNTRIES_PER_JOB } from '@/lib/lead-discovery/normalization';
+import { runCountriesFromGeography } from './country-selection';
 import { resolveBusinessProfileForUser } from '@/lib/lead-intelligence';
 import { normalizeNicheKey } from '@/lib/niches';
 import {
@@ -217,6 +219,14 @@ export interface AutopilotRunOutcome {
   perNiche: Array<{
     niche: string;
     jobId: string | null;
+    /** Phase 21 — every discovery job id of this niche's fan-out
+     * (single-element = legacy/Worldwide/single-country shape). */
+    jobs?: string[];
+    /** Phase 21 — the countries this niche's jobs targeted
+     * ([] = Worldwide). */
+    countries?: string[];
+    /** Phase 21 — true when this niche ran with global targeting. */
+    worldwide?: boolean;
     status: string;
     discovered: number;
     imported: number;
@@ -241,6 +251,31 @@ interface AutopilotRow {
 
 function parseJson<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
+// ═══ Phase 21 — multi-country discovery fan-out ═══
+//
+// The run's country selection resolves ONCE at run start (from the
+// SAME in-memory autopilot row the whole run executes against — a
+// config update after start can never mutate an in-flight run). The
+// resolved list is snapshotted into AutopilotRun.config and fanned out
+// to discovery jobs in MAX_COUNTRIES_PER_JOB chunks (the discovery
+// pipeline's own per-job country bound):
+//   • Worldwide        → ONE job per niche with NO country constraint
+//   • ≤10 countries    → ONE job per niche carrying the full selection
+//   • >10 countries    → one job per (niche × ≤10-country chunk)
+// Every chunk job builds its own niche×country targeting combos inside
+// the EXISTING Phase 8/9 discovery machinery — each discovered lead is
+// attributed to the combo (niche/country/city) that produced it, and
+// cross-combo/cross-country dedup happens inside the pipeline exactly
+// as it already does for multi-niche runs.
+function countryJobGroups(countries: string[]): (string[] | undefined)[] {
+  if (countries.length === 0) return [undefined]; // Worldwide
+  const groups: string[][] = [];
+  for (let i = 0; i < countries.length; i += MAX_COUNTRIES_PER_JOB) {
+    groups.push(countries.slice(i, i + MAX_COUNTRIES_PER_JOB));
+  }
+  return groups;
 }
 
 /** Normalized niche key (Phase 20 mapping lookup — never case-sensitive). */
@@ -288,7 +323,14 @@ export async function executeAutopilotRun(
   }
 
   const niches = parseJson<string[]>(autopilot.niches, []);
-  const geo = parseJson<{ country?: string; city?: string }>(autopilot.geography, {});
+  const geo = parseJson<{ country?: string; city?: string; countries?: string[] }>(autopilot.geography, {});
+  // Phase 21 — the run's IMMUTABLE country snapshot: resolved from the
+  // row loaded at invocation start (Phase 21 `countries` key wins;
+  // legacy single `country` falls back; neither → Worldwide). A config
+  // change after this point cannot affect the executing run.
+  const runCountries = runCountriesFromGeography(geo);
+  const runWorldwide = runCountries.length === 0;
+  const geoGroups = countryJobGroups(runCountries);
   // Phase 20 — { [nicheKey]: businessProfileId } mapping from the saved
   // Autopilot configuration (legacy rows / unmapped niches → empty).
   const profileMappings = parseJson<Record<string, string>>(autopilot.profileMappings ?? '{}', {});
@@ -326,7 +368,11 @@ export async function executeAutopilotRun(
     // Pre-flight credit check for the discovery phase (honest refusal
     // BEFORE any work instead of mid-run starvation). Workflow action
     // credits are enforced by the execution engine per step.
-    const planCredits = niches.length * AUTOPILOT_DISCOVERY_BATCH * CREDIT_COSTS.lead_discovery;
+    // Phase 21 — the estimate scales with the number of discovery jobs
+    // (niches × country-chunks); Worldwide and single-country runs keep
+    // the EXACT legacy estimate (one job per niche).
+    const discoveryJobs = niches.length * geoGroups.length;
+    const planCredits = discoveryJobs * AUTOPILOT_DISCOVERY_BATCH * CREDIT_COSTS.lead_discovery;
     const sufficiency = await checkCreditSufficiency(autopilot.userId, planCredits);
     if (!sufficiency.sufficient) {
       throw new Error(
@@ -394,6 +440,9 @@ export async function executeAutopilotRun(
           config: JSON.stringify({
             niches,
             geography: geo,
+            // Phase 21 — the run's immutable country snapshot ([] = Worldwide).
+            countries: runCountries,
+            worldwide: runWorldwide,
             profileMappings,
             nicheProfiles: niches.map((niche) => {
               const r = resolutionForNiche(niche);
@@ -421,111 +470,161 @@ export async function executeAutopilotRun(
     }
 
     for (const niche of niches) {
-      // ── 1. Start discovery via the EXISTING production pipeline ──
-      let jobId: string | null = null;
-      try {
-        const job = await startDiscoveryJob(
-          autopilot.userId,
-          {
-            niche,
-            country: geo.country,
-            city: geo.city,
-            source: 'ai_search',
-            maxResults: AUTOPILOT_DISCOVERY_BATCH,
-          },
-          autopilot.orgId || undefined
-        );
-        if (job.status === 'failed' || !job.jobId) {
-          hardFailures++;
-          perNiche.push({
-            niche, jobId: null, status: 'FAILED',
-            discovered: 0, imported: 0, duplicates: 0,
-            error: job.message || 'Discovery job failed to start',
-          });
-          continue;
-        }
-        jobId = job.jobId;
-      } catch (startErr) {
-        hardFailures++;
-        perNiche.push({
-          niche, jobId: null, status: 'FAILED',
-          discovered: 0, imported: 0, duplicates: 0,
-          error: startErr instanceof Error ? startErr.message : 'Discovery start error',
-        });
-        continue;
-      }
+      // ── Phase 21 — per-niche aggregation across the country fan-out ──
+      // One discovery job per (niche × country-group). Worldwide = ONE
+      // job with no country constraint. Legacy single-country rows and
+      // ≤MAX_COUNTRIES_PER_JOB selections fan out to exactly ONE job —
+      // byte-identical call shape to Phase 18/20 for those configs.
+      const nicheJobIds: string[] = [];
+      const nicheJobErrors: string[] = [];
+      let nicheDiscovered = 0;
+      let nicheImported = 0;
+      let nicheDuplicates = 0;
+      let jobsCompleted = 0;
+      let jobsFailed = 0;
 
-      // ── 2. Wait for the job to reach a terminal state ──
-      let job: DiscoveryJobRow;
-      try {
-        job = await pollDiscoveryJob(jobId);
-      } catch (pollErr) {
-        hardFailures++;
-        perNiche.push({
-          niche, jobId, status: 'FAILED',
-          discovered: 0, imported: 0, duplicates: 0,
-          error: pollErr instanceof Error ? pollErr.message : 'Discovery poll error',
-        });
-        continue;
-      }
-
-      discovered += job.totalFound;
-      saved += job.imported;
-      const nicheError =
-        job.status === 'failed'
-          ? (job.errorMessage || 'Discovery job failed')
-          : undefined;
-      if (job.status === 'failed') hardFailures++;
-
-      // ── 3. Resolve discovered payloads → persisted leads → ledger ──
-      // Phase 18 ONE-parent-execution model: leads are COLLECTED here
-      // across all niches; after the niche loop the run creates exactly
-      // ONE parent WorkflowExecution for the whole batch (child item rows
-      // carry the per-lead statuses). Never one execution record per lead
-      // — and never one per niche. The batch coordinator is the SAME
-      // engine the manual execute route uses.
-      // Phase 20 — when THIS niche has a profile mapping, its resolution is
-      // recorded per lead for per-lead personalization downstream (the
-      // canonical chain: mapped profile → workflow profile → default).
-      // Unmapped niches intentionally leave the map empty so the batch
-      // call stays byte-identical to Phase 18 for legacy configurations.
+      // ── Phase 20 — when THIS niche has a profile mapping, its
+      // resolution is recorded per lead for per-lead personalization
+      // downstream (the canonical chain: mapped profile → workflow
+      // profile → default). Unmapped niches intentionally leave the map
+      // empty so the batch call stays byte-identical to Phase 18 for
+      // legacy configurations. Applies identically to every country
+      // group of this niche.
       const nicheHasMapping = !!profileMappings[normalizeNicheKeyOf(niche)];
       const nicheResolution = nicheHasMapping ? resolutionForNiche(niche) : null;
-      const payloads = job.resultData ? parseJson<DiscoveredPayload[]>(job.resultData, []) : [];
-      for (const payload of payloads) {
-        const lead = await resolvePersistedLead(autopilot.userId, payload);
-        if (!lead) continue; // payload could not be matched — skip honestly (counted via job counters)
-        processed++;
+
+      for (let gi = 0; gi < geoGroups.length; gi++) {
+        const group = geoGroups[gi];
+
+        // ── 1. Start discovery via the EXISTING production pipeline ──
+        // Phase 21: the group's countries ride the pipeline's own
+        // multi-country input (countries[]) — the Phase 8/9 targeting
+        // machinery turns them into per-country combos with per-combo
+        // attribution and cross-country dedup INSIDE the job.
+        let jobId: string | null = null;
         try {
-          // DB-level idempotency: unique(autopilotId, leadId). If this
-          // lead was already processed by ANY earlier run of this
-          // autopilot, the insert loses and we skip — a lead can never
-          // be executed twice.
-          await db.autopilotLead.create({
-            data: {
-              autopilotId: autopilot.id,
-              runId,
-              leadId: lead.id,
-              userId: autopilot.userId,
-              status: 'DISCOVERED',
+          const job = await startDiscoveryJob(
+            autopilot.userId,
+            {
+              niche,
+              ...(group ? { countries: group } : {}),
+              city: geo.city,
+              source: 'ai_search',
+              maxResults: AUTOPILOT_DISCOVERY_BATCH,
             },
-          });
-        } catch {
-          // Unique constraint hit → already processed by a previous run.
+            autopilot.orgId || undefined
+          );
+          if (job.status === 'failed' || !job.jobId) {
+            hardFailures++;
+            jobsFailed++;
+            nicheJobErrors.push(
+              (group ? `[${group.join(', ')}] ` : '') + (job.message || 'Discovery job failed to start')
+            );
+            continue;
+          }
+          jobId = job.jobId;
+          nicheJobIds.push(jobId);
+        } catch (startErr) {
+          hardFailures++;
+          jobsFailed++;
+          nicheJobErrors.push(
+            (group ? `[${group.join(', ')}] ` : '') +
+            (startErr instanceof Error ? startErr.message : 'Discovery start error')
+          );
           continue;
         }
-        runLeads.push(lead);
-        if (nicheResolution) profileResolutionsByLeadId.set(lead.id, nicheResolution);
+
+        // ── 2. Wait for the job to reach a terminal state ──
+        let job: DiscoveryJobRow;
+        try {
+          job = await pollDiscoveryJob(jobId);
+        } catch (pollErr) {
+          hardFailures++;
+          jobsFailed++;
+          nicheJobErrors.push(
+            (group ? `[${group.join(', ')}] ` : '') +
+            (pollErr instanceof Error ? pollErr.message : 'Discovery poll error')
+          );
+          continue;
+        }
+
+        discovered += job.totalFound;
+        saved += job.imported;
+        nicheDiscovered += job.totalFound;
+        nicheImported += job.imported;
+        nicheDuplicates += job.duplicates;
+        if (job.status === 'failed') {
+          hardFailures++;
+          jobsFailed++;
+          nicheJobErrors.push(
+            (group ? `[${group.join(', ')}] ` : '') + (job.errorMessage || 'Discovery job failed')
+          );
+        } else {
+          jobsCompleted++;
+        }
+
+        // ── 3. Resolve discovered payloads → persisted leads → ledger ──
+        // Phase 18 ONE-parent-execution model: leads are COLLECTED here
+        // across all niches AND all country groups; after the loops the
+        // run creates exactly ONE parent WorkflowExecution for the whole
+        // batch (child item rows carry the per-lead statuses). Never one
+        // execution record per lead — and never one per niche or per
+        // country. The batch coordinator is the SAME engine the manual
+        // execute route uses.
+        const payloads = job.resultData ? parseJson<DiscoveredPayload[]>(job.resultData, []) : [];
+        for (const payload of payloads) {
+          const lead = await resolvePersistedLead(autopilot.userId, payload);
+          if (!lead) continue; // payload could not be matched — skip honestly (counted via job counters)
+          processed++;
+          try {
+            // DB-level idempotency: unique(autopilotId, leadId). If this
+            // lead was already processed by ANY earlier run of this
+            // autopilot (or surfaced by another country group of THIS
+            // run), the insert loses and we skip — a lead can never be
+            // executed twice.
+            await db.autopilotLead.create({
+              data: {
+                autopilotId: autopilot.id,
+                runId,
+                leadId: lead.id,
+                userId: autopilot.userId,
+                status: 'DISCOVERED',
+              },
+            });
+          } catch {
+            // Unique constraint hit → already processed by a previous
+            // run (or another group of this run's cross-country dedup).
+            continue;
+          }
+          runLeads.push(lead);
+          if (nicheResolution) profileResolutionsByLeadId.set(lead.id, nicheResolution);
+        }
+
+        // Pacing between discovery jobs (niche × country groups).
+        if (gi < geoGroups.length - 1) {
+          await new Promise((r) => setTimeout(r, AUTOPILOT_NICHE_PACING_MS));
+        }
       }
 
       perNiche.push({
         niche,
-        jobId,
-        status: job.status.toUpperCase(),
-        discovered: job.totalFound,
-        imported: job.imported,
-        duplicates: job.duplicates,
-        ...(nicheError ? { error: nicheError } : {}),
+        // Phase 21 — every discovery job id of this niche's fan-out
+        // (single-element array = legacy/Worldwide shape).
+        jobId: nicheJobIds[0] ?? null,
+        jobs: nicheJobIds,
+        // Phase 21 — the countries this niche's jobs targeted ([] = Worldwide).
+        countries: runCountries,
+        worldwide: runWorldwide,
+        status:
+          jobsFailed === 0 && jobsCompleted > 0
+            ? 'COMPLETED'
+            : jobsCompleted > 0
+              ? 'PARTIAL'
+              : 'FAILED',
+        discovered: nicheDiscovered,
+        imported: nicheImported,
+        duplicates: nicheDuplicates,
+        ...(nicheJobErrors.length > 0 ? { error: nicheJobErrors.join(' | ') } : {}),
       });
 
       // Pacing between niches.
