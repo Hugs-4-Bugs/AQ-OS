@@ -33,7 +33,7 @@
 
 import { db } from '@/lib/db';
 import { startDiscoveryJob } from '@/lib/lead-discovery-service';
-import { executeWorkflowBatch } from '@/lib/workflow-batch';
+import { executeWorkflowBatch, retryBatchExecution, resumeBatchExecution } from '@/lib/workflow-batch';
 import { checkCreditSufficiency, CREDIT_COSTS } from '@/lib/credit-service';
 import {
   chargeWorkflowExecutionFee,
@@ -1279,4 +1279,208 @@ export async function recoverStuckAutopilotRuns(): Promise<RecoveryResult> {
   }
 
   return { recoveredRuns: stuckRuns.length, recoveredAutopilots: stuckAutopilots.length };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 24 — AutopilotRun-level retry + resume.
+//
+// The underlying batch engine (workflow-batch.ts) already implements:
+//   · retryBatchExecution(executionId, userId) — resets ONLY failed lead
+//     items to 'pending' (completed leads NEVER re-run → no duplicate
+//     outreach); re-charges the flat 5-credit fee exactly once via
+//     `wfexec-started:<executionId>` IF the prior run was a never-started
+//     refund; otherwise the existing fee is kept (no double-charge).
+//   · resumeBatchExecution(executionId, userId) — resets only 'skipped'
+//     items (those skipped because the execution was paused mid-batch);
+//     the interrupted-in-flight lead resumes from its persisted
+//     stepSummary at the next-completed-step + 1.
+//
+// Phase 24 surfaces these at the AutopilotRun level:
+//   · retryAutopilotRun(userId, runId) — defense-in-depth entitlement
+//     gate (Pro/Elite only) + ownership scoping + state check (only
+//     FAILED/CANCELLED/COMPLETED runs with an underlying execution can
+//     be retried — the underlying batch engine handles "nothing to
+//     retry" honestly).
+//   · resumeAutopilotRun(userId, runId) — same gate + ownership + state
+//     check (only runs whose underlying execution is 'paused' can be
+//     resumed; for autopilot runs, this means a run that was paused
+//     mid-execution — typically via a future admin/pause API or by the
+//     existing workflow-execution pause route).
+//
+// Billing invariant preserved:
+//   · The flat 5-credit fee is per-WorkflowExecution (one parent execution
+//     per AutopilotRun). Retrying the run does NOT create a new execution
+//     — it resets the existing one. The fee was charged once on the
+//     original run; retry/resume never re-charges unless the original
+//     was a never-started refund (in which case re-charge happens
+//     exactly once via the existing rechargeWorkflowExecutionFeeOnStart).
+//   · The Phase 23 entitlement gate remains authoritative: a user who
+//     downgraded to Free/Standard cannot retry or resume even if they
+//     have a previously-eligible run (returns PLAN_INELIGIBLE).
+// ═══════════════════════════════════════════════════════════════════
+
+export interface RetryRunResult {
+  ok: boolean;
+  run?: { id: string; status: string; executionId?: string };
+  error?: string;
+  code?: 'NOT_FOUND' | 'INVALID_STATE' | 'PLAN_INELIGIBLE' | 'BATCH_ERROR';
+}
+
+/**
+ * Phase 24 — retry the failed/cancelled leads of an AutopilotRun.
+ *
+ * Wraps the existing workflow-batch retryBatchExecution: only failed lead
+ * items are reset to 'pending'; completed leads NEVER re-execute (no
+ * duplicate outreach). The run's underlying WorkflowExecution is reused
+ * — no new execution, no new flat fee, no double-billing.
+ *
+ * Entitlement gate (defense-in-depth): the user's CURRENT plan must be
+ * Pro/Elite (Phase 23 contract). A user who downgraded cannot retry a
+ * previously-eligible run.
+ */
+export async function retryAutopilotRun(
+  userId: string,
+  runId: string
+): Promise<RetryRunResult> {
+  // Phase 23 — defense-in-depth entitlement gate.
+  const { plan: livePlan } = await resolveUserPlan(userId);
+  if (!isAutopilotPlanEligible(livePlan)) {
+    return {
+      ok: false,
+      error:
+        'Autopilot is Pro/Elite only — your current plan is not eligible. Upgrade to Pro or Elite to retry Autopilot runs.',
+      code: 'PLAN_INELIGIBLE',
+    };
+  }
+
+  // Ownership-scoped lookup (cross-user = NOT_FOUND, no IDOR leak).
+  const run = await db.autopilotRun.findFirst({
+    where: { id: runId, userId },
+    select: { id: true, status: true, executionId: true, autopilotId: true },
+  });
+  if (!run) {
+    return { ok: false, error: 'Run not found', code: 'NOT_FOUND' };
+  }
+  // Only runs with a parent execution can be retried (the underlying
+  // batch engine handles "no failed items to retry" honestly). A run
+  // with no executionId means discovery failed before any execution was
+  // created — the user should trigger a fresh run via /run.
+  if (!run.executionId) {
+    return {
+      ok: false,
+      error:
+        'Run has no parent execution to retry — discovery likely failed before execution. Trigger a fresh run via POST /api/autopilot/[id]/run instead.',
+      code: 'INVALID_STATE',
+    };
+  }
+  // A RUNNING run cannot be retried (it's still executing). The user
+  // must cancel it first, then retry.
+  if (run.status === 'RUNNING' || run.status === 'QUEUED') {
+    return {
+      ok: false,
+      error: `Run is ${run.status} — cancel it first, then retry.`,
+      code: 'INVALID_STATE',
+    };
+  }
+
+  const batchResult = await retryBatchExecution(run.executionId, userId);
+  if (!batchResult.success) {
+    return {
+      ok: false,
+      error: batchResult.error || 'Retry failed at the batch execution layer',
+      code: 'BATCH_ERROR',
+    };
+  }
+  // Mark the AutopilotRun itself as RUNNING again (the underlying
+  // execution was just flipped to 'running' by retryBatchExecution).
+  await db.autopilotRun.update({
+    where: { id: run.id },
+    data: { status: 'RUNNING', error: null, completedAt: null },
+  }).catch(() => {
+    // Best-effort — the underlying execution is the source of truth.
+  });
+  // Re-arm the settle finalizer for this run so per-lead outcomes are
+  // propagated to AutopilotLead rows when the retry terminates.
+  void settleRunExecutionOutcome(run.id, run.executionId).catch(() => {});
+  return { ok: true, run: { id: run.id, status: 'RUNNING', executionId: run.executionId } };
+}
+
+export interface ResumeRunResult {
+  ok: boolean;
+  run?: { id: string; status: string; executionId?: string };
+  error?: string;
+  code?: 'NOT_FOUND' | 'INVALID_STATE' | 'PLAN_INELIGIBLE' | 'BATCH_ERROR';
+}
+
+/**
+ * Phase 24 — resume a paused AutopilotRun.
+ *
+ * Wraps the existing workflow-batch resumeBatchExecution: only 'skipped'
+ * items are reset to 'pending'; the interrupted-in-flight lead resumes
+ * from its persisted stepSummary. No new execution, no new charge.
+ *
+ * Entitlement gate (defense-in-depth): the user's CURRENT plan must be
+ * Pro/Elite.
+ */
+export async function resumeAutopilotRun(
+  userId: string,
+  runId: string
+): Promise<ResumeRunResult> {
+  // Phase 23 — defense-in-depth entitlement gate.
+  const { plan: livePlan } = await resolveUserPlan(userId);
+  if (!isAutopilotPlanEligible(livePlan)) {
+    return {
+      ok: false,
+      error:
+        'Autopilot is Pro/Elite only — your current plan is not eligible. Upgrade to Pro or Elite to resume Autopilot runs.',
+      code: 'PLAN_INELIGIBLE',
+    };
+  }
+
+  const run = await db.autopilotRun.findFirst({
+    where: { id: runId, userId },
+    select: { id: true, status: true, executionId: true, autopilotId: true },
+  });
+  if (!run) {
+    return { ok: false, error: 'Run not found', code: 'NOT_FOUND' };
+  }
+  if (!run.executionId) {
+    return {
+      ok: false,
+      error:
+        'Run has no parent execution to resume — discovery likely failed before execution. Trigger a fresh run via POST /api/autopilot/[id]/run instead.',
+      code: 'INVALID_STATE',
+    };
+  }
+  // Only a run whose underlying execution is 'paused' can be resumed.
+  // The AutopilotRun itself may show as 'RUNNING' (the run never went
+  // terminal — pause is a sub-run state). We delegate the state check
+  // to the underlying batch engine (it returns INVALID_STATE if the
+  // execution is not paused).
+  if (run.status === 'COMPLETED' || run.status === 'FAILED' || run.status === 'CANCELLED') {
+    return {
+      ok: false,
+      error: `Run is ${run.status} — only a paused run can be resumed.`,
+      code: 'INVALID_STATE',
+    };
+  }
+
+  const batchResult = await resumeBatchExecution(run.executionId, userId);
+  if (!batchResult.success) {
+    return {
+      ok: false,
+      error: batchResult.error || 'Resume failed at the batch execution layer',
+      code: 'BATCH_ERROR',
+    };
+  }
+  // Mark the AutopilotRun as RUNNING (it was likely already RUNNING
+  // because pause doesn't terminate the run; this is idempotent).
+  await db.autopilotRun.update({
+    where: { id: run.id },
+    data: { status: 'RUNNING', error: null },
+  }).catch(() => {
+    // Best-effort.
+  });
+  void settleRunExecutionOutcome(run.id, run.executionId).catch(() => {});
+  return { ok: true, run: { id: run.id, status: 'RUNNING', executionId: run.executionId } };
 }

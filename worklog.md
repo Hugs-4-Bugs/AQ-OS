@@ -2153,3 +2153,28 @@ Stage Summary:
 - No migration applied — Phase 23 is pure code; the schema is unchanged.
 - scripts/sync-develop-2ac6ff9a.sh remains untracked (per STEP 19, NOT committed).
 - READY for one Phase 23 commit on top of 2ac6ff9a + push to develop.
+
+---
+Task ID: phase24-reimplementation
+Agent: Super Z (main agent)
+Task: Phase 24 — Autopilot Execution Engine CLEAN REIMPLEMENTATION from GitHub Phase 23 baseline (after prior Phase 24 commit f95507153 was lost in a sandbox reprovision — explicitly authorized by user as a fresh implementation, not a recovery)
+
+Work Log:
+- STEP 1 (sync to Phase 23 baseline): verified GitHub develop HEAD = 2d2a837f614d0464bcf6ef1da666e79bb893b786 (Phase 23). Pre-sync snapshot: .env sha=4faeb13e..., db/custom.db sha=4dd04268..., upload/=154. Fetched origin/develop tracking ref. Safe sync via reset --mixed 2d2a837f + checkout HEAD -- . (preserves .env/db/uploads/untracked files — develop doesn't track them per .gitignore). Verified: HEAD=2d2a837f, .env preserved, db preserved, upload/=154, Phase 23 code present (getUserEntitlements + isAutopilotPlanEligible exported, scheduler-runner has 5 skippedIneligible refs, Phase 23 test files present).
+- STEP 2.1 (additive DB migration): wrote scripts/phase24-db-migration.py — pure additive (ALTER TABLE ADD COLUMN, CREATE TABLE IF NOT EXISTS, CREATE UNIQUE INDEX IF NOT EXISTS). Backed up db/custom.db → db/custom.db.phase24-pre-migration.bak. Applied: 4 new AutopilotRun columns (runKey, executionId, leadsCompleted, leadsFailed), AutopilotRun_runKey_key unique index, WorkflowExecutionLead table + 3 indexes, Lead.discoveryJobId column + index. Verified: ALL existing row counts preserved (43 users, 536 leads, 13 runs, 134 autopilot leads, 147 executions, 613 ledger rows, etc.); PRAGMA foreign_key_check OK; PRAGMA integrity_check = ok.
+- STEP 2.2 (Phase 24 helpers): added retryAutopilotRun(userId, runId) + resumeAutopilotRun(userId, runId) to src/lib/autopilot/runner.ts. Both: defense-in-depth Phase 23 entitlement gate (resolveUserPlan + isAutopilotPlanEligible — Pro/Elite only); ownership-scoped findFirst (cross-user = NOT_FOUND, no IDOR leak); state checks (retry rejects RUNNING/QUEUED; resume rejects COMPLETED/FAILED/CANCELLED); delegates to existing workflow-batch.retryBatchExecution / resumeBatchExecution which reset ONLY failed/skipped lead items (completed leads NEVER re-execute). Reuses the existing WorkflowExecution (no new execution row, no new flat fee, no double-billing). Re-arms settleRunExecutionOutcome for per-lead outcome propagation.
+- STEP 2.3 (API routes): added POST /api/autopilot/[id]/retry-run + POST /api/autopilot/[id]/resume-run (mirror cancel-run route structure: withMonitoring + withDualAuthPermission('pipeline:write') + ownership double-scoping). Maps error codes: NOT_FOUND→404, PLAN_INELIGIBLE→403, INVALID_STATE→409, BATCH_ERROR→422.
+- STEP 2.4 (tests): wrote tests/unit/autopilot-phase24-execution.test.ts — 35 tests covering: retry/resume entitlement gate (Free/Starter blocked with PLAN_INELIGIBLE, Pro/Elite pass, active-sub overrides, malformed plans safe-deny), ownership + state checks (cross-user NOT_FOUND, no-executionId INVALID_STATE, RUNNING/QUEUED rejected for retry, terminal states rejected for resume, FAILED/CANCELLED/COMPLETED happy paths for retry, RUNNING happy path for resume, BATCH_ERROR propagation), billing invariant (retry/resume NEVER call charge/refund — the existing flat fee is kept), settle finalizer re-arm, Phase 18-23 contract preservation.
+- STEP 5 (verification): ran 15 test files. 458/458 tests pass (35 new Phase 24 + 423 existing Phase 18-23 + billing + profile). ZERO regression. Target met.
+- STEP 5 (runtime): dev server healthy (status=healthy, db=healthy, mem=healthy). All 3 routes (retry-run, resume-run, cancel-run) return HTTP 403 for unauth — auth middleware consistent.
+- STEP 5 (data safety): .env sha256 UNCHANGED (4faeb13e...). db/custom.db schema aligned (all 12 baseline row counts preserved verbatim). upload/ = 154 (unchanged). Backup at db/custom.db.phase24-pre-migration.bak. No reset/reseed/truncate.
+- STEP 5 (security scan): scanned src/, tests/, scripts/ for github_pat/sk-/api_key/password/secret/token/AKIA/private-key — ZERO actual secrets in any Phase 24 file. .env untouched.
+
+Stage Summary:
+- Phase 24 CLEAN REIMPLEMENTATION complete from GitHub Phase 23 baseline (2d2a837f). Additive DB migration (aligns SQLite with Prisma schema) + AutopilotRun-level retry/resume helpers (with Phase 23 defense-in-depth entitlement gate + ownership scoping + state checks) + 2 new API routes (retry-run + resume-run) + 35 new Phase 24 tests.
+- All Phase 18-23 behavior preserved (458/458 tests pass). ZERO regression.
+- DB/Data fully preserved (all baseline row counts match; .env + uploads untouched; backup at db/custom.db.phase24-pre-migration.bak).
+- Billing invariant preserved: retry/resume reuse the existing WorkflowExecution (no new execution row, no new flat 5-credit fee, no double-billing).
+- Phase 23 entitlement gate remains authoritative: a user who downgraded to Free/Standard cannot retry or resume even with a previously-eligible run (returns PLAN_INELIGIBLE).
+- Phase 25 NOT IMPLEMENTED — no Phase 25 surface added.
+- READY for ONE Phase 24 implementation commit on top of 2d2a837f. NO push (per user instruction).
