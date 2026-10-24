@@ -27,6 +27,7 @@
 import { db } from '@/lib/db';
 import { computeNextRun, recoverStuckAutopilotRuns, runAutopilot } from './runner';
 import { computeNextRunAt, parsePersistedSchedule } from './schedule';
+import { isAutopilotPlanEligible, resolveUserPlan, type PlanType } from '@/lib/entitlement-service';
 
 export interface SchedulerTickResult {
   recoveredRuns: number;
@@ -34,6 +35,15 @@ export interface SchedulerTickResult {
   dueCount: number;
   started: number;
   skippedInFlight: number;
+  /**
+   * Phase 23 — count of ACTIVE autopilots that were DUE but whose user's
+   * current plan is NOT Autopilot-eligible (free / starter). These are
+   * skipped without claiming, without deleting, without disabling — the
+   * configuration is preserved for a future upgrade. nextRunAt is
+   * advanced past the due slot so the same slot doesn't re-fire on the
+   * next tick; the autopilot row stays ACTIVE.
+   */
+  skippedIneligible: number;
   results: Array<{
     autopilotId: string;
     runId: string;
@@ -56,6 +66,14 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
   const results: SchedulerTickResult['results'] = [];
   let started = 0;
   let skippedInFlight = 0;
+  let skippedIneligible = 0;
+
+  // Phase 23 — per-tick cache of userId → PlanType to avoid re-querying the
+  // same user's plan when multiple autopilots belong to one user. The plan
+  // is the live snapshot from the DB (active subscription → user.plan →
+  // 'free'); a downgrade between ticks is reflected immediately because
+  // the cache is per-tick (no cross-tick leakage).
+  const planCache = new Map<string, PlanType>();
 
   for (const autopilot of due) {
     // ── Phase 22 — disabled schedules are never fired (defense in
@@ -65,6 +83,50 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
     const scheduleConfig = parsePersistedSchedule(autopilot.schedule);
     if (!scheduleConfig.enabled) {
       skippedInFlight++;
+      continue;
+    }
+
+    // ── Phase 23 — ENTITLEMENT GATE (the canonical server-side check).
+    //
+    // The ACTIVE state of an autopilot was granted at create/activate
+    // time when the user WAS on a Pro/Elite plan. If the user has since
+    // DOWNGRADED to free/starter, the autopilot row stays ACTIVE (we
+    // never delete configurations on downgrade) but the scheduler MUST
+    // NOT fire autonomous work for a plan that no longer includes
+    // Autopilot. The gate is here — at the canonical scheduler tick
+    // boundary — so neither the manual route nor the cron route nor
+    // the in-process heartbeat can bypass it.
+    //
+    // On skip:
+    //   · DO NOT claim ACTIVE→RUNNING (preserve the autopilot as-is).
+    //   · DO NOT disable / delete the autopilot (preserved for upgrade).
+    //   · Advance nextRunAt PAST the due slot so the same slot doesn't
+    //     re-fire on every tick (the runKey guard wouldn't fire because
+    //     no run row exists; the schedule would spin forever otherwise).
+    //   · Increment skippedIneligible for observability.
+    // ──
+    let plan = planCache.get(autopilot.userId);
+    if (plan === undefined) {
+      const resolved = await resolveUserPlan(autopilot.userId);
+      plan = resolved.plan;
+      planCache.set(autopilot.userId, plan);
+    }
+    if (!isAutopilotPlanEligible(plan)) {
+      skippedIneligible++;
+      // Advance past the due slot — preserves the schedule grid (anchored
+      // grids stay on the wall clock); a future upgrade re-arms the
+      // next occurrence naturally.
+      const ineligibleNextRunAt =
+        computeNextRunAt(scheduleConfig, autopilot.nextRunAt ?? new Date()) ||
+        computeNextRun(autopilot.schedule) ||
+        new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await db.autopilotWorkflow.update({
+        where: { id: autopilot.id },
+        data: { nextRunAt: ineligibleNextRunAt },
+      }).catch(() => {});
+      console.warn(
+        `[autopilot-scheduler] skipped ineligible plan: autopilot=${autopilot.id} user=${autopilot.userId} plan=${plan} — Autopilot is Pro/Elite only; configuration preserved`
+      );
       continue;
     }
 
@@ -201,6 +263,7 @@ export async function runAutopilotSchedulerTick(): Promise<SchedulerTickResult> 
     dueCount: due.length,
     started,
     skippedInFlight,
+    skippedIneligible,
     results,
   };
 }

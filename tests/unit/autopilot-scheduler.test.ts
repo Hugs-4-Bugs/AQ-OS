@@ -22,6 +22,8 @@ const mockPrisma = vi.hoisted(() => ({
     findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(),
     create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn(),
   },
+  // Phase 23 — resolveUserPlan() looks up the user's plan at tick time.
+  user: { findUnique: vi.fn() },
 }));
 
 vi.mock('@/lib/db', () => ({ db: mockPrisma }));
@@ -77,6 +79,11 @@ beforeEach(() => {
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});
   mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
   mockPrisma.autopilotRun.findUnique.mockResolvedValue(null);
+  // Phase 23 — default to a Pro plan so existing Phase 22 tick tests pass
+  // through the new entitlement gate (Pro/Elite are eligible; Free/Starter
+  // are tested separately in autopilot-entitlements.test.ts). Per-test
+  // overrides for the eligibility scenarios are set inside those tests.
+  mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'pro', subscriptions: [] });
   mockRunAutopilot.mockResolvedValue({
     ok: true,
     runId: 'run_1',

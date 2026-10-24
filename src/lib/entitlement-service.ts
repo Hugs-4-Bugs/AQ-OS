@@ -466,3 +466,209 @@ export async function getEntitlementsFromDB(plan: PlanType): Promise<Entitlement
     return getEntitlements(plan);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 23 — Canonical user-resolved entitlement contract.
+//
+// getUserEntitlements(userId) is the single server-side entry point that
+// resolves a user's CURRENT plan (mirroring the auth.ts:824-827 plan
+// resolution: active subscription's plan → user.plan → 'free') and
+// returns the structured entitlement summary that every Autopilot /
+// profile / workflow gate consumes.
+//
+// The function is intentionally side-effect-free (no logging, no writes)
+// so it is safe to call from the scheduler tick, the manual-run path,
+// and any API route that needs a one-shot snapshot.
+//
+// It DOES count current usage (ACTIVE+RUNNING autopilots, ACTIVE
+// business profiles) in parallel — that count is read-only and bounded
+// by the user's own rows. If a downstream caller needs the count too,
+// reusing the snapshot avoids an extra round-trip.
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Normalize a raw plan string from the DB (User.plan or Subscription.plan)
+ * to a canonical PlanType. Unknown / missing plans map to 'free' — this is
+ * a SAFE-DENY: an unrecognized plan value (e.g. legacy 'enterprise') never
+ * gains Autopilot access. Mirrors autopilot/service.ts:normalizePlan — the
+ * function is duplicated here to keep entitlement-service.ts free of
+ * circular imports (service.ts imports FROM entitlement-service).
+ */
+function normalizePlan(plan?: string | null): PlanType {
+  const p = (plan || 'free').toLowerCase();
+  if (p === 'free' || p === 'starter' || p === 'pro' || p === 'elite') return p;
+  return 'free';
+}
+
+export interface UserEntitlementAutopilot {
+  /** True iff plan is pro or elite (the only plans with autopilot_access.enabled). */
+  allowed: boolean;
+  /** Plan-defined max ACTIVE+RUNNING autopilots. 0 when not allowed. */
+  limit: number;
+  /** CURRENT count of ACTIVE+RUNNING autopilots for this user (live). */
+  used: number;
+  /** True iff the user has more active autopilots than the current plan
+   *  allows — only possible after a downgrade; configurations are PRESERVED
+   *  (never auto-deleted) but the scheduler will not fire the surplus. */
+  overLimit: boolean;
+}
+
+export interface UserEntitlementProfiles {
+  /** Plan-defined max ACTIVE business profiles. */
+  limit: number;
+  /** CURRENT count of ACTIVE business profiles for this user (live). */
+  used: number;
+  /** True iff the user has more active profiles than the current plan
+   *  allows — only possible after a downgrade; profiles are PRESERVED
+   *  (never auto-deleted) but new creation/activation is blocked. */
+  overLimit: boolean;
+}
+
+export interface UserEntitlementSummary {
+  userId: string;
+  /** Canonical resolved plan (active subscription's plan → user.plan → 'free'). */
+  plan: PlanType;
+  /** Numeric plan level (free=0, starter=1, pro=2, elite=3) for ordering. */
+  planLevel: number;
+  /** Whether Autopilot autonomous functionality is allowed for this plan. */
+  autopilot: UserEntitlementAutopilot;
+  /** Business Profile limits + current usage. */
+  profiles: UserEntitlementProfiles;
+  /** Whether the user's plan may use WorkflowDefinition (workflow_access feature). */
+  workflow: { eligible: boolean; limit: number | null };
+  /** Monthly credit allocation for the user's plan (informational). */
+  credits: { monthlyAllocation: number };
+  /**
+   * 'db' — user row was found and the plan was resolved from DB.
+   * 'fallback' — user row not found; returned a safe-deny 'free' summary
+   *              so unknown userIds can never gain access.
+   */
+  source: 'db' | 'fallback';
+}
+
+/**
+ * Resolve the canonical entitlement summary for a user. This is the
+ * single server-side authority that every Autopilot / profile / workflow
+ * gate should consult — never trust a client-supplied plan or a stale
+ * cached value.
+ *
+ * Resolution order (mirrors auth.ts mapUserToAuthUser):
+ *   1. active/trialing subscription's plan
+ *   2. user.plan column
+ *   3. 'free' (safe-deny)
+ *
+ * Usage counts (autopilots + profiles) are queried IN PARALLEL — the
+ * snapshot is a consistent read of "what is the user's plan + how many
+ * active things do they have RIGHT NOW".
+ */
+export async function getUserEntitlements(
+  userId: string
+): Promise<UserEntitlementSummary> {
+  // Load user + their active subscription in one query (the same shape
+  // auth.ts uses to resolve AuthUser.plan at request time).
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      plan: true,
+      subscriptions: {
+        where: { status: { in: ['active', 'trialing'] } },
+        select: { plan: true, status: true },
+        // take:1 + orderBy:updatedAt desc — if more than one sub is
+        // somehow active, the most recently updated wins (matches auth.ts).
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+      },
+    },
+  });
+
+  if (!user) {
+    // Unknown user — safe-deny to a 'free' summary with zero usage.
+    return {
+      userId,
+      plan: 'free',
+      planLevel: PLAN_LEVELS.free,
+      autopilot: { allowed: false, limit: 0, used: 0, overLimit: false },
+      profiles: { limit: ENTITLEMENTS.free.business_profiles.limit ?? 0, used: 0, overLimit: false },
+      workflow: { eligible: false, limit: 0 },
+      credits: { monthlyAllocation: PLAN_CREDITS.free },
+      source: 'fallback',
+    };
+  }
+
+  const activeSub = user.subscriptions[0];
+  const resolvedPlan = normalizePlan(activeSub?.plan || user.plan || 'free');
+  const ent = getEntitlements(resolvedPlan);
+
+  // Parallel usage counts — bounded, scoped to this user's rows only.
+  const [autopilotUsed, profileUsed] = await Promise.all([
+    db.autopilotWorkflow.count({
+      where: { userId, status: { in: ['ACTIVE', 'RUNNING'] } },
+    }),
+    db.businessProfile.count({
+      where: { userId, status: 'active' },
+    }),
+  ]);
+
+  const autopilotLimit = ent.autopilot_access.limit ?? 0;
+  const profileLimit = ent.business_profiles.limit ?? 0;
+
+  return {
+    userId,
+    plan: resolvedPlan,
+    planLevel: PLAN_LEVELS[resolvedPlan] ?? 0,
+    autopilot: {
+      allowed: !!ent.autopilot_access.enabled && autopilotLimit > 0,
+      limit: autopilotLimit,
+      used: autopilotUsed,
+      overLimit: autopilotUsed > autopilotLimit,
+    },
+    profiles: {
+      limit: profileLimit,
+      used: profileUsed,
+      overLimit: profileUsed > profileLimit,
+    },
+    workflow: {
+      eligible: !!ent.workflow_access.enabled,
+      limit: ent.workflow_access.limit,
+    },
+    credits: { monthlyAllocation: PLAN_CREDITS[resolvedPlan] ?? 0 },
+    source: 'db',
+  };
+}
+
+/**
+ * Phase 23 — quick boolean: is the given plan eligible for Autopilot?
+ * Used by the scheduler tick (where the full summary is overkill — the
+ * scheduler only needs a yes/no before claiming ACTIVE→RUNNING).
+ */
+export function isAutopilotPlanEligible(plan: PlanType): boolean {
+  const ent = ENTITLEMENTS[plan]?.autopilot_access;
+  return !!ent?.enabled && (ent.limit ?? 0) > 0;
+}
+
+/**
+ * Phase 23 — resolve a user's plan via the canonical resolution chain
+ * (active sub → user.plan → 'free') WITHOUT counting usage. Used by
+ * code paths that only need the plan (e.g. the scheduler's per-tick
+ * user-plan cache) and want to avoid the two count queries.
+ */
+export async function resolveUserPlan(
+  userId: string
+): Promise<{ plan: PlanType; source: 'db' | 'fallback' }> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      plan: true,
+      subscriptions: {
+        where: { status: { in: ['active', 'trialing'] } },
+        select: { plan: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+      },
+    },
+  });
+  if (!user) return { plan: 'free', source: 'fallback' };
+  const activeSub = user.subscriptions[0];
+  return { plan: normalizePlan(activeSub?.plan || user.plan || 'free'), source: 'db' };
+}

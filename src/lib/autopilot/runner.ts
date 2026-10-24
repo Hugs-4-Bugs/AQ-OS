@@ -58,6 +58,7 @@ import {
   type AutopilotSchedule,
 } from './constants';
 import { computeNextRunAt, parsePersistedSchedule } from './schedule';
+import { isAutopilotPlanEligible, resolveUserPlan } from '@/lib/entitlement-service';
 
 // ===== per-user in-process mutex =====
 
@@ -894,6 +895,40 @@ export async function runAutopilot(
     });
     if (!autopilot) {
       return { ok: false, error: 'Autopilot not found', code: 'NOT_FOUND' };
+    }
+    // ── Phase 23 — DEFENSE-IN-DEPTH ENTITLEMENT GATE.
+    //
+    // The manual route (`/api/autopilot/[id]/run`) and the scheduler tick
+    // (`scheduler-runner.ts`) BOTH re-check the user's plan BEFORE calling
+    // runAutopilot. This third check lives INSIDE runAutopilot — the
+    // deepest boundary — so any code path that bypasses the route-level
+    // gate (a future cron route, a test fixture, a stray direct call)
+    // STILL cannot fire autonomous work for an ineligible plan.
+    //
+    // The check is:
+    //   · read-only (resolves the plan from the DB live, never cached
+    //     across invocations — a downgrade that happened since the
+    //     route-level check is honored here)
+    //   · non-mutating (the autopilot row stays ACTIVE / RUNNING / etc.
+    //     as it was — no disable, no delete — the scheduler path which
+    //     pre-claimed ACTIVE→RUNNING is unaffected because we return
+    //     BEFORE the state-machine claim)
+    //   · zero-credit (no ledger row is written; the actual 5-credit
+    //     charge happens later inside executeAutopilotRun, AFTER this
+    //     gate, so a blocked run never bills anything)
+    //
+    // The 'scheduler' trigger should never reach this branch in practice
+    // (the scheduler's own entitlement gate at scheduler-runner.ts:114
+    // already skipped the call). The branch is here as defense-in-depth.
+    // ──
+    const { plan: livePlan } = await resolveUserPlan(userId);
+    if (!isAutopilotPlanEligible(livePlan)) {
+      return {
+        ok: false,
+        error:
+          'Autopilot is Pro/Elite only — your current plan is not eligible. Upgrade to Pro or Elite to run Autopilot.',
+        code: 'PLAN_INELIGIBLE',
+      };
     }
     // Manual runs require ACTIVE. The scheduler path claims ACTIVE→RUNNING
     // before calling, so RUNNING is also acceptable there.

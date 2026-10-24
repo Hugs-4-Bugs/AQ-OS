@@ -203,7 +203,7 @@ export default function AutopilotTab() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [autopilots, setAutopilots] = useState<AutopilotListItem[]>([]);
-  const [entitlement, setEntitlement] = useState<{ limit: number; used: number; allowed: boolean }>({ limit: 0, used: 0, allowed: false });
+  const [entitlement, setEntitlement] = useState<{ limit: number; used: number; allowed: boolean; overLimit?: boolean }>({ limit: 0, used: 0, allowed: false });
   const [workflows, setWorkflows] = useState<WorkflowOption[]>([]);
   // Phase 19 — selector data lifecycle: loading | ready | error (an API
   // failure is NOT silently shown as "no workflows" — it gets its own
@@ -815,6 +815,39 @@ export default function AutopilotTab() {
           </Button>
         </div>
       </div>
+
+      {/* Phase 23 — entitlement / downgrade clarity banner.
+          Server enforcement is authoritative (the scheduler + manual-run
+          gates block ineligible plans regardless of UI state). This banner
+          only surfaces the canonical state to the user: either Autopilot is
+          not in their plan at all (Free/Standard) or a downgrade left them
+          with more configurations than the new plan permits. Configurations
+          are PRESERVED — never auto-deleted — and re-activate naturally on
+          upgrade. */}
+      {!entitlement.allowed && autopilots.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 px-4 py-3 text-sm">
+          <p className="font-medium text-amber-900 dark:text-amber-100">
+            Your current plan no longer includes Autopilot
+          </p>
+          <p className="text-amber-800 dark:text-amber-200/80 mt-0.5">
+            Your {autopilots.length} Autopilot configuration{autopilots.length === 1 ? '' : 's'} {autopilots.length === 1 ? 'is' : 'are'} preserved — the scheduler will not fire
+            them on this plan. Upgrade to <strong>Pro</strong> or <strong>Elite</strong> to resume scheduled execution.
+            No data is deleted; re-activation is automatic on upgrade.
+          </p>
+        </div>
+      )}
+      {entitlement.allowed && entitlement.overLimit && (
+        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 px-4 py-3 text-sm">
+          <p className="font-medium text-amber-900 dark:text-amber-100">
+            Active Autopilot count exceeds your plan limit
+          </p>
+          <p className="text-amber-800 dark:text-amber-200/80 mt-0.5">
+            You have {entitlement.used} active Autopilot{entitlement.used === 1 ? '' : 's'}; your plan allows {entitlement.limit}.
+            Existing configurations are preserved (never deleted), but you cannot create or activate more until you
+            pause some or upgrade. Scheduled execution continues for the slots your plan permits.
+          </p>
+        </div>
+      )}
 
       {/* list */}
       {loading ? (

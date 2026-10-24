@@ -39,6 +39,9 @@ const mockPrisma = vi.hoisted(() => ({
   workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
   workflowExecutionLead: { findMany: vi.fn() },
   businessProfile: { findFirst: vi.fn() },
+  // Phase 23 — defense-in-depth entitlement gate inside runAutopilot
+  // calls resolveUserPlan(userId) → db.user.findUnique.
+  user: { findUnique: vi.fn() },
   __ledger: new Set<string>(),
 }));
 
@@ -114,6 +117,9 @@ beforeEach(() => {
   (mockPrisma.__ledger as Set<string>).clear();
   mockCheckCreditSufficiency.mockResolvedValue({ sufficient: true, balance: 1000, shortfall: 0 });
   mockPrisma.workflowDefinition.findFirst.mockResolvedValue({ id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF', profileId: 'bp1' });
+  // Phase 23 — default Pro plan so the runAutopilot defense-in-depth gate
+  // passes; ineligible plans are exercised in autopilot-entitlements.test.ts.
+  mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'pro', subscriptions: [] });
   mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue(autopilotRow());
   mockPrisma.autopilotWorkflow.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});

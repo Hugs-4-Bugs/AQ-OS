@@ -37,6 +37,9 @@ const mockPrisma = vi.hoisted(() => ({
   workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
   workflowExecutionLead: { findMany: vi.fn() },
   businessProfile: { findFirst: vi.fn() },
+  // Phase 23 — defense-in-depth entitlement gate inside runAutopilot
+  // calls resolveUserPlan(userId) → db.user.findUnique.
+  user: { findUnique: vi.fn() },
   __ledger: new Set<string>(),
 }));
 
@@ -118,6 +121,11 @@ beforeEach(() => {
   mockPrisma.autopilotRun.update.mockResolvedValue({});
   mockPrisma.autopilotWorkflow.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});
+  // Phase 23 — default Pro plan so the runAutopilot defense-in-depth
+  // entitlement gate passes and the existing Phase 18 run tests stay
+  // focused on the run pipeline. Ineligible-plan scenarios are exercised
+  // in tests/unit/autopilot-entitlements.test.ts.
+  mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'pro', subscriptions: [] });
   // Phase 18 — findUnique by runKey → null (no replay); by id → the live
   // run row the runner reads while executing.
   mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
