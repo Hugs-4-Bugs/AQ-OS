@@ -3480,3 +3480,170 @@ model Task {
   @@index([status])
   @@index([dueAt])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 26 v3 — User-level AI Provider Credentials (additive)
+//
+// Per-user encrypted storage for AI provider API keys.
+// Resolution order at execution time:
+//   1. UserAIProvider row (encrypted) — user's own key
+//   2. process.env (platform-provided key)
+//   3. Explicit error (no silent fallback to Z-AI)
+//
+// Encryption: AES-256-GCM. Master key from process.env.USER_AI_PROVIDER_ENCRYPTION_KEY
+// (64-char hex string = 32 bytes). Encrypted payload stored as
+// "v1:<iv_hex>:<auth_tag_hex>:<ciphertext_hex>" — versioned for forward
+// compatibility with future key rotation.
+//
+// One row per (userId, provider) — UNIQUE constraint enforces no duplicates.
+// Never expose decrypted credentials to the browser.
+// ═══════════════════════════════════════════════════════════════════
+
+model UserAIProvider {
+  id                  String   @id @default(cuid())
+  userId              String
+  provider            String   // openai | anthropic | gemini | deepseek | openrouter | z-ai
+  encryptedCredential String   // AES-256-GCM encrypted API key
+  credentialHint      String   // masked prefix for display (e.g. "sk-***...X4f2")
+  modelPreferences    String   @default("{}") // JSON: { defaultModel: "gpt-4o", allowedModels: [...] }
+  status              String   @default("active") // active | inactive | invalid
+  lastValidatedAt     DateTime?
+  lastValidationError  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([provider])
+  @@index([status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 26 v3 — AI Agent System (Decisions 5+6+7+8+9+10+12+13)
+//
+// Persistent autonomous AI agents that reason + call approved tools +
+// maintain state/memory + respect per-tool permissions. Distinct from
+// Workflow (deterministic process) and Autopilot (scheduler).
+//
+// Per Decision 11: Autopilot remains the scheduler. Autopilot schedules
+// workflows; workflows can invoke agents as steps. Agents are NOT a
+// scheduler themselves — they run when triggered manually, by schedule
+// (via Autopilot or AgentSchedule), or by event triggers.
+//
+// Per Decision 12: Agent uses a SINGLE provider+model as the reasoning
+// brain. Multi-model orchestration belongs to workflow steps only.
+//
+// Per Decision 8: Per-tool permissions (not one global level). Persisted
+// as JSON in toolPermissions.
+// ═══════════════════════════════════════════════════════════════════
+
+model Agent {
+  id              String   @id @default(cuid())
+  userId          String
+  orgId           String?
+  name            String
+  description     String?
+  // AI Brain (Decision 12) — single provider+model for reasoning
+  provider        String   @default("z-ai")
+  model           String   @default("glm-4.6")
+  // Per-tool permissions (Decision 8) — JSON: { "email.send": "send_with_approval", "lead.update": "read-write", ... }
+  // Value semantics: for email tools, matches ToolContext.emailPermission (read|draft|send_with_approval|autonomous).
+  // For non-email tools: "read" (lookup only) | "read-write" (create/update) | "disabled" (tool not available).
+  toolPermissions String   @default("{}")
+  // Schedule (Decision 10A) — JSON: { type: "cron"|"interval"|"none", cron?: "...", intervalSeconds?: N, nextRunAt?: "..." }
+  schedule        String   @default("{\"type\":\"none\"}")
+  // Triggers (Decision 10B) — JSON array: [{ event: "lead_reply"|"lead_created"|"score_change", condition: {...} }]
+  triggers        String   @default("[]")
+  // Approval policy (Decision 9) — "autonomous" (run without human approval) | "approval_required" (pause on actions needing approval)
+  approvalPolicy  String   @default("approval_required")
+  // Retry policy — JSON: { maxRetries: N, backoffMs: N }
+  retryPolicy     String   @default("{\"maxRetries\":2,\"backoffMs\":1000}")
+  // Memory configuration (Decision 13-H) — JSON: { windowSize: N (last N messages retained), maxTokens: N }
+  memoryConfig    String   @default("{\"windowSize\":20,\"maxTokens\":4000}")
+  // Status: draft | active | paused | disabled
+  status          String   @default("draft")
+  // Execution safety (Decision 6) — hard limits
+  maxIterations   Int      @default(25)  // max reasoning steps per run
+  timeoutMs       Int      @default(300000)  // 5 minutes default
+  // Cumulative counters (honest, like AutopilotWorkflow)
+  totalRuns       Int      @default(0)
+  totalTokensUsed Int      @default(0)
+  lastRunAt       DateTime?
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([provider])
+}
+
+model AgentRun {
+  id              String   @id @default(cuid())
+  agentId         String
+  userId          String
+  orgId           String?
+  // Trigger source: "manual" | "schedule" | "trigger:<event>" | "workflow:<executionId>"
+  triggerSource   String
+  status          String   @default("pending")  // pending | running | completed | failed | cancelled | paused_awaiting_approval
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  durationMs      Int?
+  // Final result summary (JSON): { iterationsUsed, toolsCalled, tokensUsed, output }
+  result          String?
+  error           String?
+  // Usage/cost metadata (Decision 19)
+  tokensUsed      Int      @default(0)
+  iterationsUsed  Int      @default(0)
+  toolsCalled     Int      @default(0)
+  // Approval state (Decision 9) — "none" | "requested" | "approved" | "rejected"
+  approvalState   String   @default("none")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([status])
+  @@index([triggerSource])
+  @@index([createdAt])
+}
+
+model AgentMemory {
+  id              String   @id @default(cuid())
+  agentId         String
+  // Role: "system" | "user" | "assistant" | "tool_result" | "reasoning"
+  role            String
+  content         String
+  tokensUsed      Int      @default(0)
+  // Optional: link to the run that produced this memory
+  runId           String?
+  createdAt       DateTime @default(now())
+
+  @@index([agentId])
+  @@index([runId])
+  @@index([createdAt])
+}
+
+model AgentApproval {
+  id              String   @id @default(cuid())
+  agentId         String
+  runId           String
+  // The tool invocation that needs approval (e.g. "email.send")
+  toolName        String
+  // The input that was about to be passed to the tool (JSON)
+  input           String
+  // Status: "requested" | "approved" | "rejected" | "expired"
+  status          String   @default("requested")
+  requestedAt     DateTime @default(now())
+  decidedAt       DateTime?
+  decidedBy       String?  // userId of the human who decided
+  // The deciding user's note (optional)
+  decisionNote    String?
+  // After decision, the tool invocation result (JSON) — for audit
+  invocationResult String?
+
+  @@index([agentId])
+  @@index([runId])
+  @@index([status])
+  @@index([requestedAt])
+}

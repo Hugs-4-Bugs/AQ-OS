@@ -286,6 +286,24 @@ export async function register() {
               `recoveredRuns=${result.recoveredRuns} recoveredAutopilots=${result.recoveredAutopilots}`
             );
           }
+          // Phase 26 v3 — Decision 10A: also tick the agent scheduler.
+          // Runs in the same heartbeat (every 5 min) — does NOT create a
+          // competing scheduler loop. Agent runs are fire-and-forget
+          // (do NOT block the heartbeat).
+          try {
+            const { runAgentSchedulerTick } = await import('@/lib/ai/agent-scheduler');
+            const agentResult = await runAgentSchedulerTick();
+            if (agentResult.triggeredCount > 0 || agentResult.skippedInFlight > 0) {
+              console.warn(
+                `[agent-scheduler] tick: checked=${agentResult.checkedCount} triggered=${agentResult.triggeredCount} skippedInFlight=${agentResult.skippedInFlight}`
+              );
+            }
+          } catch (agentErr) {
+            console.error(
+              '[agent-scheduler] tick failed (non-fatal):',
+              agentErr instanceof Error ? agentErr.message : agentErr
+            );
+          }
         } catch (err) {
           console.error(
             '[autopilot-heartbeat] tick failed (non-fatal):',

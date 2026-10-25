@@ -64,6 +64,7 @@ const CompetitorTab = React.lazy(() => import('./competitor-tab'));
 const SettingsShell = React.lazy(() => import('./settings-shell'));
 const WorkflowsTab = React.lazy(() => import('./workflows-tab'));
 const AutopilotTab = React.lazy(() => import('./autopilot-tab'));
+const AgentsTab = React.lazy(() => import('./agents-tab'));
 const NotificationsTab = React.lazy(() => import('./notifications-tab'));
 import PlanGate from './plan-gate';
 import CreditGate from './credit-gate';
@@ -108,6 +109,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'outreach', label: 'Outreach', icon: Send },
   { id: 'workflows', label: 'Workflows', icon: GitBranch, shortLabel: 'Flows' },
   { id: 'autopilot', label: 'Autopilot', icon: Rocket, shortLabel: 'Auto' },
+  { id: 'agents', label: 'Agents', icon: Bot, shortLabel: 'Agents' },
   { id: 'messaging', label: 'Messaging', icon: MessageSquare, shortLabel: 'Msgs' },
   { id: 'assistant', label: 'Assistant', icon: Bot, shortLabel: 'AI' },
   { id: 'insights', label: 'Insights', icon: BarChart3 },
@@ -479,6 +481,7 @@ export default function DashboardLayout({
             case 'outreach': return <CreditGate action="outreach_message" onUpgrade={() => setUpgradeModalOpen(true)}><OutreachTab /></CreditGate>;
             case 'workflows': return <PlanGate requiredPlan="pro" featureName="Workflows" onUpgrade={() => setUpgradeModalOpen(true)}><WorkflowsTab /></PlanGate>;
             case 'autopilot': return <PlanGate requiredPlan="pro" featureName="Autopilot" onUpgrade={() => setUpgradeModalOpen(true)}><AutopilotTab /></PlanGate>;
+            case 'agents': return <PlanGate requiredPlan="pro" featureName="AI Agents" onUpgrade={() => setUpgradeModalOpen(true)}><AgentsTab /></PlanGate>;
             case 'messaging': return <MessagingTab />;
             case 'assistant': return <CreditGate action="sales_coaching" onUpgrade={() => setUpgradeModalOpen(true)}><AssistantTab /></CreditGate>;
             case 'insights': return <InsightsTab />;

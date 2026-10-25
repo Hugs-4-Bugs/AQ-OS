@@ -59,6 +59,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import PlanGate from './plan-gate';
+import { WorkflowAIStepConfig, type AIStepConfig } from './workflow-ai-step-config';
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -289,6 +290,15 @@ function NodeConfigPanel({
   const [conditionOperator, setConditionOperator] = useState(node?.config?.operator || '==');
   const [conditionValue, setConditionValue] = useState(node?.config?.value || '');
   const [noteContent, setNoteContent] = useState((node?.config?.content as string) || '');
+  // Phase 26 v3 — AI step config state (for AI-capable actions).
+  // Initialized from the node's persisted aiConfig (JSON-stringified
+  // inside config.aiConfig because WorkflowNode.config is Record<string,string>).
+  const [aiConfig, setAiConfig] = useState<AIStepConfig>(() => {
+    try {
+      const raw = node?.config?.aiConfig as string | undefined;
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -315,6 +325,13 @@ function NodeConfigPanel({
         channel: actionType.includes('send') ? actionType.replace('send_', '') : '',
         action: actionType,
         ...(actionType === 'add_note' ? { content: noteContent.trim() } : {}),
+        // Phase 26 v3 — persist AI step config when the action is AI-capable.
+        // JSON-stringified because WorkflowNode.config is Record<string,string>.
+        // The orchestrator (src/lib/ai/orchestrator.ts) reads these fields via
+        // buildModelCallSpecs + parseOrchestrationMode + parseConcurrencyLimit.
+        ...(actionType === 'generate_ai_message' || actionType.startsWith('ai_') || actionType === 'score_lead'
+          ? { aiConfig: JSON.stringify(aiConfig) }
+          : {}),
       };
     } else if (type === 'delay') {
       config = { ...config, duration: delayDuration, unit: delayUnit };
@@ -436,6 +453,24 @@ function NodeConfigPanel({
             className="min-h-[80px]"
           />
         </div>
+      )}
+
+      {/* Phase 26 v3 — AI step config (Decision 3+4).
+          Appears for AI-capable actions: generate_ai_message, ai_analysis,
+          ai_outreach, score_lead. Lets the user pick provider, model,
+          execution strategy (single/sequential/parallel), multi-model
+          selection, concurrency, fallback, temperature. The persisted
+          aiConfig is consumed by the existing orchestrator
+          (src/lib/ai/orchestrator.ts) — NO backend change needed. */}
+      {type === 'action' && (
+        actionType === 'generate_ai_message' ||
+        actionType.startsWith('ai_') ||
+        actionType === 'score_lead'
+      ) && (
+        <WorkflowAIStepConfig
+          config={aiConfig}
+          onChange={setAiConfig}
+        />
       )}
 
       {/* Condition config */}

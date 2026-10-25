@@ -602,10 +602,32 @@ export async function orchestrateAIAction(params: {
   };
   isCancelled?: () => Promise<boolean>;
 }): Promise<OrchestrationResult> {
+  // Phase 26 v3 — Decision 4: connect the Workflow Builder UI to the
+  // existing orchestrator. The UI saves the AI step config as a JSON
+  // string in config.aiConfig (because WorkflowNode.config is
+  // Record<string,string>). Parse it here and merge its fields into
+  // the config so buildModelCallSpecs + parseOrchestrationMode +
+  // parseConcurrencyLimit see them. The aiConfig fields OVERRIDE any
+  // flat config fields (the UI is the source of truth for AI routing).
+  const mergedConfig: Record<string, unknown> = { ...params.config };
+  const aiConfigRaw = params.config?.aiConfig;
+  if (typeof aiConfigRaw === 'string' && aiConfigRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(aiConfigRaw);
+      if (parsed && typeof parsed === 'object') {
+        // Spread the aiConfig fields — overrides any flat config values.
+        // The orchestrator reads: provider, model, models, orchestration,
+        // concurrency, fallback, temperature.
+        Object.assign(mergedConfig, parsed);
+      }
+    } catch (err) {
+      console.warn('[orchestrateAIAction] failed to parse config.aiConfig:', err instanceof Error ? err.message : String(err));
+    }
+  }
   return orchestrateModelCalls({
-    specs: buildModelCallSpecs(params.config),
-    mode: parseOrchestrationMode(params.config),
-    concurrencyLimit: parseConcurrencyLimit(params.config),
+    specs: buildModelCallSpecs(mergedConfig),
+    mode: parseOrchestrationMode(mergedConfig),
+    concurrencyLimit: parseConcurrencyLimit(mergedConfig),
     basePrompt: params.basePrompt,
     context: {
       executionId: params.context.executionId,

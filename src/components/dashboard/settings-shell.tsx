@@ -74,6 +74,7 @@ import { useTheme } from 'next-themes';
 import { useSettingsStore } from '@/lib/settings-store';
 import { toast } from 'sonner';
 import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
+import { AIProvidersPanel } from '@/components/dashboard/ai-providers-panel';
 import OfferProfileSettings from '@/components/dashboard/offer-profile-settings';
 import PersonalContextSettings from '@/components/dashboard/personal-context-settings';
 import BusinessProfileSettings from '@/components/dashboard/business-profile-settings';
@@ -2388,6 +2389,15 @@ useEffect(() => {
                   </div>
                 </div>
               )}
+              {/* ═══ AI PROVIDERS (Phase 26 v3 — Decision 2) ═══ */}
+              {/* Subsection inside Integrations: user-connected AI provider
+                  API keys. Per-user encrypted storage; never exposes the
+                  decrypted key to the browser. */}
+              <Card>
+                <CardContent className="pt-6">
+                  <AIProvidersPanel />
+                </CardContent>
+              </Card>
             </div>
           )}
 

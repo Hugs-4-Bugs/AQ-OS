@@ -117,6 +117,12 @@ export async function executeAction(
         return await executeNotifyLowCredits(config, context);
       case 'notify_trial_ending':
         return await executeNotifyTrialEnding(config, context);
+      case 'agent.run':
+        // Phase 26 v3 — Decision K: workflow → agent integration.
+        // A workflow step can invoke an AI agent to perform autonomous
+        // reasoning + tool calls. The agent runs to completion (or pause/
+        // timeout) before the workflow continues to the next step.
+        return await executeAgentRun(config, context);
       default:
         return { success: false, error: `Unknown action type: ${actionType}` };
     }
@@ -1297,8 +1303,80 @@ function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// NOTE (Phase 26): the legacy createZaiChat() local adapter was RETIRED —
-// all three workflow AI actions (ai_analysis, ai_outreach, score_lead) now
-// route through the canonical multi-model orchestrator
-// (src/lib/ai/orchestrator.ts), which delegates to executeAICompletion's
-// provider abstraction. There is no second, disconnected AI path.
+// ═══════════════════════════════════════════════════════════════════
+// Phase 26 v3 — Decision K: Workflow → Agent integration.
+//
+// A workflow step with actionType='agent.run' invokes an AI agent to
+// perform autonomous reasoning + tool calls. The agent runs to
+// completion (or pause/timeout) before the workflow continues to the
+// next step.
+//
+// Config fields:
+//   - agentId: string (required) — the Agent.id to invoke
+//   - initialPrompt: string (optional) — task description for this run
+//   - leadId: string (optional) — scoped to a lead (passed via context)
+// ═══════════════════════════════════════════════════════════════════
+
+async function executeAgentRun(
+  config: Record<string, unknown>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const agentId = config.agentId as string | undefined;
+  if (!agentId) {
+    return { success: false, error: 'agentId is required for agent.run action' };
+  }
+  const initialPrompt = config.initialPrompt as string | undefined;
+  const leadId = (config.leadId as string | undefined) || context.leadId || null;
+
+  // Dynamically import to avoid circular deps with the orchestrator.
+  const { runAgent } = await import('@/lib/ai/agent-runtime');
+
+  const result = await runAgent({
+    agentId,
+    userId: context.userId,
+    triggerSource: `workflow:${context.executionId || 'unknown'}`,
+    initialPrompt,
+    executionId: context.executionId,
+    runId: context.runId,
+    leadId: leadId || undefined,
+    isCancelled: async () => {
+      // Probe the workflow execution status — if it's been cancelled,
+      // the agent should stop. The runtime checks this between iterations.
+      if (!context.executionId) return false;
+      try {
+        const { db } = await import('@/lib/db');
+        const exec = await db.workflowExecution.findUnique({
+          where: { id: context.executionId },
+          select: { status: true },
+        });
+        return exec?.status === 'cancelled' || exec?.status === 'paused';
+      } catch { return false; }
+    },
+  });
+
+  if (result.status === 'completed') {
+    return {
+      success: true,
+      message: `Agent run ${result.runId} completed: ${result.iterationsUsed} iterations, ${result.toolsCalled} tool calls, ${result.tokensUsed} tokens`,
+      output: {
+        agentRunId: result.runId,
+        iterationsUsed: result.iterationsUsed,
+        toolsCalled: result.toolsCalled,
+        tokensUsed: result.tokensUsed,
+        finalAnswer: result.finalAnswer,
+      },
+    };
+  }
+  if (result.status === 'paused_awaiting_approval') {
+    return {
+      success: true, // not a failure — the workflow step completed by pausing
+      message: `Agent run ${result.runId} paused awaiting approval: ${result.error}`,
+      output: { agentRunId: result.runId, status: result.status },
+    };
+  }
+  return {
+    success: false,
+    error: `Agent run ${result.runId} ${result.status}: ${result.error || 'no error detail'}`,
+    output: { agentRunId: result.runId, status: result.status },
+  };
+}
