@@ -2178,3 +2178,23 @@ Stage Summary:
 - Phase 23 entitlement gate remains authoritative: a user who downgraded to Free/Standard cannot retry or resume even with a previously-eligible run (returns PLAN_INELIGIBLE).
 - Phase 25 NOT IMPLEMENTED — no Phase 25 surface added.
 - READY for ONE Phase 24 implementation commit on top of 2d2a837f. NO push (per user instruction).
+
+---
+Task ID: fresh-prephase-verify-sync-2
+Agent: main-agent (Z.ai)
+Task: Fresh pre-Phase-26 check (3rd) — verify live GitHub develop vs GLM workspace; sync if reset; ZERO push.
+
+Work Log:
+- Fresh fetch + ls-remote: live develop = 63dbddfde68c521df3b6db9d60554fc900f73335 (unchanged).
+- Sandbox reset AGAIN: main @ 45ede5cdb clone state, Phase 24/25 files missing, 82,014 dirty entries. Runtime data survived reset: .env (rotated, byte-verified != main tracked) + db/custom.db (6,311,936B live, != main's 5.3MB) + node_modules (841) + upload (123).
+- Insurance snapshots taken; all bun/next respawned workers killed.
+- Safe sync (proven pattern): git reset --mixed FETCH_HEAD + git checkout HEAD -- . ; .env/db restored from snapshots.
+- Result: HEAD = 63dbddfde, status = 0, diff = 0, 4921/4921 tracked files, zero untracked non-ignored, all 13 Phase 23/24/25 files present, content greps all positive (P23: 4+5, P24: 12+20, P25: 4+7+1+2 hits).
+- Stability: HEAD held 20+ seconds (no platform revert).
+- Tests: 110/110 Phase 23/24/25 PASS (4 files, 4.13s, local vitest 4.1.6).
+- DB integrity: ok; 115 tables; 43 Users / 13 AutopilotRuns / 147 WorkflowExecutions.
+- App: /api/health 200 healthy (database 27.93ms, memory 109.56MB/155.1MB, 0 errors).
+- NO PUSH: reflog zero push entries; remote develop SHA identical at start and end. Snapshots cleaned up.
+
+Stage Summary:
+- VERDICT: READY — current GitHub develop (63dbddfde) present in GLM workspace and fully verified.
