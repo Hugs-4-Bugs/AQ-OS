@@ -3357,3 +3357,49 @@ model ExecutionActivity {
   @@index([userId])
   @@index([createdAt])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 26 — Model Invocation (multi-model orchestration)
+//
+// One row per LOGICAL invocation slot:
+//   (execution, lead, step, configured provider, configured model)
+//
+// · invocationKey is UNIQUE → DB-level duplicate-invocation protection
+//   (same pattern as AutopilotRun.runKey).
+// · status COMPLETED = durable output: retry/resume REUSES it instead of
+//   re-invoking the provider (no duplicate generation / token spend).
+// · status FAILED retried IN PLACE: attempt counter increments on the same
+//   row — full retry history audit trail.
+// · provider/model record the ACTUAL serving values (post-fallback);
+//   the invocationKey encodes the CONFIGURED slot identity.
+// ═══════════════════════════════════════════════════════════════════
+
+model ModelInvocation {
+  id            String    @id @default(cuid())
+  invocationKey String    @unique
+  executionId   String?   // WorkflowExecution id
+  runId         String?   // AutopilotRun id (when orchestrated by autopilot)
+  leadId        String?   // Lead id (per-lead slots)
+  stepName      String?   // executing workflow step's name
+  actionType    String?   // ai_analysis | ai_outreach | score_lead | ...
+  provider      String    // ACTUAL serving provider (post-fallback)
+  model         String    // ACTUAL serving model reported by provider
+  role          String?   // logical slot role (e.g. 'analyst', 'critic')
+  status        String    @default("RUNNING") // RUNNING | COMPLETED | FAILED | CANCELLED
+  attempt       Int       @default(0)
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  durationMs    Int?
+  result        String?   // JSON: { content, tokensUsed, retries }
+  error         String?
+  tokensUsed    Int?
+  userId        String    // ownership scoping — cross-user isolation
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([executionId])
+  @@index([runId])
+  @@index([leadId])
+  @@index([userId])
+  @@index([status])
+}

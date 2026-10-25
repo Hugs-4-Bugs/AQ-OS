@@ -34,7 +34,13 @@ export type ExecutionEventType =
   | 'LEAD_COMPLETED'
   | 'LEAD_FAILED'
   | 'LEAD_DISCOVERED'
-  | 'SETTLE_FINALIZED';
+  | 'SETTLE_FINALIZED'
+  // Phase 26 — model-level events (detail carries provider/model/
+  // invocationKey/durationMs/error; best-effort, same as all events).
+  | 'MODEL_STARTED'
+  | 'MODEL_COMPLETED'
+  | 'MODEL_FAILED'
+  | 'MODEL_CANCELLED';
 
 export interface LogActivityParams {
   runId?: string;

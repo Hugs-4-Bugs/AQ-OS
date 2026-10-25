@@ -8,7 +8,7 @@ import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { sendEmail } from '@/lib/email';
 import { reserveDailyOutreachSend, DAILY_OUTREACH_LIMIT_EXCEEDED } from '@/lib/daily-outreach-quota';
 import { moveLeadToStage } from '@/lib/pipeline-service';
-import { withAiRateLimitRetry } from '@/lib/workflow-ai-retry';
+import { orchestrateAIAction } from '@/lib/ai/orchestrator';
 import {
   buildSenderSignatureBlock,
   applySenderSignature,
@@ -37,6 +37,11 @@ export interface ActionContext {
   workflowId: string;
   executionId: string;
   leadId?: string;
+  /** Phase 26 — the executing step's name. Feeds the model-invocation
+   *  idempotency key (execution + lead + step + provider + model) so
+   *  retry/resume can reuse durably completed invocations. Optional and
+   *  additive: legacy callers without it fall back to the action type. */
+  stepName?: string;
   triggerData?: Record<string, unknown>;
   previousOutputs?: Record<string, unknown>;
   /** Workflow-level human-approval gate: send actions create a draft +
@@ -402,15 +407,13 @@ async function executeAiAnalysis(
   config: Record<string, unknown>,
   context: ActionContext
 ): Promise<ActionResult> {
-  const { prompt, model } = config;
+  const { prompt } = config;
 
   if (!context.leadId) {
     return { success: false, error: 'AI analysis requires a lead context' };
   }
 
   try {
-    const chat = await createZaiChat();
-
     const resolution = await resolveLeadForExecution(context.userId, context.leadId, {
       include: { leadAnalysis: true },
     });
@@ -437,19 +440,42 @@ async function executeAiAnalysis(
          Conversion score: ${lead.conversionScore}. Urgency: ${lead.urgencyScore}.
          Provide a brief analysis and recommendations.`;
 
-    // Rate-limit reliability: 429s from the provider are retried INSIDE
-    // the call with bounded backoff honoring Retry-After (the error that
-    // finally escapes keeps its 429 token for downstream classifiers).
-    const response = await withAiRateLimitRetry(() =>
-      chat.sendMessage(`${analysisPrompt}${intelligenceBlock}`)
-    );
+    // ── Phase 26 — multi-model orchestration ──
+    // Replaces the hardcoded single Z-AI chat call. The step's model
+    // configuration (model / provider / models[] / orchestration /
+    // concurrency) now actually routes the invocation, with invocation-level
+    // idempotency, failure isolation, and model-level tracking.
+    const orchestration = await orchestrateAIAction({
+      actionType: 'ai_analysis',
+      basePrompt: `${analysisPrompt}${intelligenceBlock}`,
+      config,
+      context: {
+        executionId: context.executionId,
+        workflowId: context.workflowId,
+        leadId: context.leadId,
+        stepName: context.stepName,
+        userId: context.userId,
+      },
+    });
+
+    if (!orchestration.success) {
+      return {
+        success: false,
+        error: `AI analysis failed: ${orchestration.error ?? 'no model produced output'}`,
+      };
+    }
 
     return {
       success: true,
       output: {
-        analysis: response.text || response.content || '',
+        analysis: orchestration.primaryContent,
         leadId: context.leadId,
-        model: model || 'default',
+        // The ACTUAL serving model (Phase 26: no longer a decorative echo
+        // of the configured value).
+        model: orchestration.primaryModel ?? 'default',
+        provider: orchestration.primaryProvider,
+        models: orchestration.models,
+        orchestration: orchestration.summary,
       },
       creditsUsed: 5,
     };
@@ -472,8 +498,6 @@ async function executeAiOutreach(
   }
 
   try {
-    const chat = await createZaiChat();
-
     const resolution = await resolveLeadForExecution(context.userId, context.leadId);
     if (!resolution.ok) {
       return { success: false, error: 'Lead not found for AI outreach' };
@@ -538,12 +562,32 @@ async function executeAiOutreach(
 
 ${senderBlock}${intelligenceBlock}${personalContextBlock}`;
 
-    // Rate-limit reliability: bounded retry honoring Retry-After (same
-    // wrapper as AI analysis). The message row is only created AFTER the
-    // generation succeeds — a retried generation never duplicates outreach.
-    const response = await withAiRateLimitRetry(() => chat.sendMessage(prompt));
+    // ── Phase 26 — multi-model orchestration ──
+    // Replaces the hardcoded single Z-AI chat call (same rationale as AI
+    // analysis above). The FIRST successful model slot's output becomes
+    // the generated message; partial success is preserved.
+    const orchestration = await orchestrateAIAction({
+      actionType: 'ai_outreach',
+      basePrompt: prompt,
+      config,
+      context: {
+        executionId: context.executionId,
+        workflowId: context.workflowId,
+        leadId: context.leadId,
+        stepName: context.stepName,
+        userId: context.userId,
+      },
+    });
+
+    if (!orchestration.success) {
+      return {
+        success: false,
+        error: `AI outreach failed: ${orchestration.error ?? 'no model produced output'}`,
+      };
+    }
+
     const generatedMessage = applySenderSignature(
-      response.text || response.content || '',
+      orchestration.primaryContent,
       senderProfile
     );
 
@@ -567,6 +611,9 @@ ${senderBlock}${intelligenceBlock}${personalContextBlock}`;
         messageId: message.id,
         channel: outreachChannel,
         generatedMessage,
+        model: orchestration.primaryModel ?? 'default',
+        provider: orchestration.primaryProvider,
+        orchestration: orchestration.summary,
         personalization: intelligence
           ? {
               profileId: intelligence.businessProfile?.id ?? null,
@@ -959,8 +1006,6 @@ async function executeScoreLead(
   }
 
   try {
-    const chat = await createZaiChat();
-
     const resolution = await resolveLeadForExecution(context.userId, context.leadId);
     if (!resolution.ok) {
       return { success: false, error: 'Lead not found' };
@@ -976,9 +1021,28 @@ async function executeScoreLead(
       
       Return ONLY a number between 0-100.`;
 
-    // Rate-limit reliability: bounded retry honoring Retry-After.
-    const response = await withAiRateLimitRetry(() => chat.sendMessage(prompt));
-    const scoreText = (response.text || response.content || '0').trim();
+    // ── Phase 26 — multi-model orchestration (replaces hardcoded Z-AI chat) ──
+    const orchestration = await orchestrateAIAction({
+      actionType: 'score_lead',
+      basePrompt: prompt,
+      config,
+      context: {
+        executionId: context.executionId,
+        workflowId: context.workflowId,
+        leadId: context.leadId,
+        stepName: context.stepName,
+        userId: context.userId,
+      },
+    });
+
+    if (!orchestration.success) {
+      return {
+        success: false,
+        error: `Score lead failed: ${orchestration.error ?? 'no model produced output'}`,
+      };
+    }
+
+    const scoreText = (orchestration.primaryContent || '0').trim();
     const score = Math.min(100, Math.max(0, parseInt(scoreText.replace(/[^0-9]/g, ''), 10) || 0));
 
     // Update lead scores
@@ -999,7 +1063,14 @@ async function executeScoreLead(
 
     return {
       success: true,
-      output: { leadId: context.leadId, score, explanation: scoreText },
+      output: {
+        leadId: context.leadId,
+        score,
+        explanation: scoreText,
+        model: orchestration.primaryModel ?? 'default',
+        provider: orchestration.primaryProvider,
+        orchestration: orchestration.summary,
+      },
       creditsUsed: 5,
     };
   } catch (error) {
@@ -1226,22 +1297,8 @@ function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// ── Local adapter ─────────────────────────────────────────────────
-// The z-ai-web-dev-sdk package does not export `createChat`; emulate the
-// chat.sendMessage() interface used above via ZAI.create().
-
-async function createZaiChat(): Promise<{
-  sendMessage: (prompt: string) => Promise<{ text?: string; content?: string }>;
-}> {
-  const { default: ZAI } = await import('z-ai-web-dev-sdk');
-  const zai = await ZAI.create();
-  return {
-    sendMessage: async (prompt: string) => {
-      const completion = (await zai.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-      })) as { choices?: Array<{ message?: { content?: string } }> };
-      const text = completion.choices?.[0]?.message?.content ?? '';
-      return { text, content: text };
-    },
-  };
-}
+// NOTE (Phase 26): the legacy createZaiChat() local adapter was RETIRED —
+// all three workflow AI actions (ai_analysis, ai_outreach, score_lead) now
+// route through the canonical multi-model orchestrator
+// (src/lib/ai/orchestrator.ts), which delegates to executeAICompletion's
+// provider abstraction. There is no second, disconnected AI path.

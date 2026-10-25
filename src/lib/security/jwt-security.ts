@@ -404,7 +404,11 @@ export function generateSecureAccessToken(user: {
       isTrial: user.isTrial,
       trialEndsAt: user.trialEndsAt?.toISOString() || null,
       type: 'access',
-      jti,
+      // NOTE (Phase 26 auth fix): jti is intentionally NOT duplicated here —
+      // the options.jwtid below injects the jti claim into the payload.
+      // Passing BOTH made jsonwebtoken throw
+      // `Bad "options.jwtid" option. The payload already has an "jti" property`
+      // on every call (pre-existing defect surfaced by jwt-security tests).
     },
     JWT_SECRET,
     {

@@ -629,6 +629,8 @@ async function runBatchSteps(
           workflowId,
           executionId,
           leadId: item.leadId ?? undefined,
+          // Phase 26 — step identity for model-invocation idempotency keys.
+          stepName: step.name,
           triggerData: { leadId: item.leadId, leadName: item.leadName },
           previousOutputs,
           requiresApproval,

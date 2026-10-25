@@ -2198,3 +2198,37 @@ Work Log:
 
 Stage Summary:
 - VERDICT: READY — current GitHub develop (63dbddfde) present in GLM workspace and fully verified.
+
+---
+Task ID: phase26-implementation
+Agent: main-agent (Z.ai)
+Task: PHASE 26 — Multi-Model Orchestration + Authentication Recovery + E2E Verification (authorized push at end).
+
+Work Log:
+- PHASE 26 START. Baseline verified: live develop = 63dbddfde; workspace HEAD = 5345ac626 (platform auto-commit on top of 63dbddfde, only worklog.md +20 lines — source parity intact).
+- AUTH DIAGNOSIS: .env had OLD pre-rotation credentials (both SMTP_PASSWORD and GOOGLE_CLIENT_SECRET were the pre-rotation versions, identified by value-prefix comparison without printing values). Sandbox reset restored stale .env. Updated via self-deleting script (scripts/update_env_phase26.py, deleted after run): SMTP_USER/SMTP_PASSWORD/SMTP_PASS/GMAIL_USER/GMAIL_APP_PASSWORD/EMAIL_FROM/GOOGLE_CLIENT_SECRET now carry the user-provided rotated values (verified by masked prefix match only).
+- Architecture inspected (targeted): ActionContext (has executionId, needs stepName); executeAiAnalysis/AiOutreach/ScoreLead hardcode createZaiChat() (model field decorative); executeAICompletion ignores config.provider (always env chain); ai-provider-fallback.ts has ZERO importers (safe retirement); context build sites: workflow-engine.ts:497, workflow-batch.ts:627.
+
+Stage Summary:
+- In progress: implementing orchestrator + model-invocation layer + provider routing fix + action rewiring.
+- MODEL INVOCATION LAYER: src/lib/model-invocation.ts created (findInvocationByKey/createRunningInvocation/reopenInvocationForRetry/completeInvocation/failInvocation/cancelInvocation + ownership-scoped read models + stats).
+- ORCHESTRATOR: src/lib/ai/orchestrator.ts created — buildModelCallSpecs (models[] array | single model/provider, dedup), computeInvocationKey (execution+lead+step+provider+model), orchestrateModelCalls (SEQUENTIAL with output chaining / PARALLEL bounded worker pool capped at 4, default 3), executeOneModelCall (idempotency read → durable row → routed executeAICompletion → best-effort MODEL_* events), failure isolation per slot, cancellation probe (workflowExecution status), aggregate (primary = first successful slot; success = any durable output).
+- PROVIDER ROUTING FIX: ai-provider.ts executeAICompletion now honors config.provider (configured provider = head of chain, env chain deduped behind it; UNKNOWN provider returns explicit error — no silent fallback). callZAI passes config.model to the gateway create call (undefined → SDK default, back-compat preserved).
+- ACTION REWIRING: workflow-actions.ts executeAiAnalysis/executeAiOutreach/executeScoreLead now route through orchestrateAIAction; output.model = ACTUAL serving model (was decorative echo); models[] + orchestration summary added to outputs; creditsUsed unchanged (flat-fee policy preserved). Legacy createZaiChat retired. ActionContext gains optional stepName.
+- CONTEXT WIRING: workflow-engine.ts + workflow-batch.ts context literals now pass stepName: step.name.
+- EVENT TYPES: execution-activity.ts gains MODEL_STARTED/MODEL_COMPLETED/MODEL_FAILED/MODEL_CANCELLED.
+- SCHEMA: prisma/schema.prisma gains ModelInvocation model (invocationKey @unique, status/attempt/timing/result/error/tokensUsed, 5 indexes + unique key).
+- MIGRATION: scripts/phase26-db-migration.py created (additive; backups first; includes Phase 25 ExecutionActivity catch-up if missing; regression check + rollback).
+- DEAD CODE RETIRED: src/lib/ai-provider-fallback.ts deleted (zero production/test importers — verified; was a contradictory second provider-routing system).
+- MIGRATIONS RUN (additive, backup-first): phase26-db-migration.py (ModelInvocation + unique invocationKey + 5 indexes; Phase 25 ExecutionActivity catch-up) + phase24-db-migration.py (WorkflowExecutionLead catch-up — was missing from live DB). All data preserved: 43 Users / 13 AutopilotRuns / 134 AutopilotLeads / 147 WorkflowExecutions / 359 WorkflowLogs / 536 Leads / 613 CreditsLedger. integrity_check ok. Backups: db/custom.db.phase26-pre-migration.bak + phase24 backup.
+- Prisma client regenerated (v6.19.2) for ModelInvocation.
+- PHASE 26 TESTS: tests/unit/phase26-multi-model-orchestration.test.ts — 44/44 PASS (routing, sequential+propagation, parallel+bounded, isolation, idempotency, cancellation, tracking, billing invariants, aggregation, action entry point).
+- REGRESSION: full suite 1992 passed / 54 failed (2046). PROVEN pre-existing: identical 54 failures (9 files) reproduce on PRISTINE baseline 63dbddfde (stash-verified, changes restored). Phase 23/24/25 subset: 110/110 PASS with Phase 26 changes.
+- Pre-existing failure triage (log-first): email.test (sandbox network ENOTFOUND smtp.test.com + message-text drift), auth-routes (test-vs-route shape drift), jwt-security (REAL code defect: generateSecureAccessToken passed jti in BOTH payload and jwtid option — threw on every call), subscription-store/api-key/discovery/onboarding/auth-api/health-credits (env-dependent drifts, pre-existing).
+- AUTH FIX (real defect): jwt-security.ts generateSecureAccessToken no longer duplicates jti in payload (options.jwtid injects the claim). Zero production callers were affected at runtime (test-only surface today) but the blacklisting-capable token path is now actually usable.
+- RUNTIME AUTH E2E (dev server, real providers): /api/auth/config → googleAvailable:true, googleConfigured:true, emailConfigured:true. OTP request → Gmail SMTP 250 2.0.0 OK (messageId logged, 200). OTP E2E script (scripts/phase26-otp-e2e.cjs, code never printed): wrong-code → 401 rejected; right-code → 200 'Signed in successfully via OTP'; session cookie issued; /api/auth/me → 200 authenticated. Normal signin route: proper validation response. Google OAuth initiation → 307 to accounts.google.com with real client_id + state-encoded redirect_uri; callback route live with dynamic origin detection + token exchange; full Google round-trip requires human Google sign-in (provider-side restriction — reported honestly, not fabricated).
+- JWT FIX verified: jwt-security tests 24/24 PASS (was 20/24 with the throwing generateSecureAccessToken).
+- FINAL REGRESSION (with all Phase 26 changes): 2046 tests total, 2011 PASS, 35 FAIL — ALL 35 proven pre-existing (identical-or-subset failures reproduce on pristine baseline 63dbddfde; categories: sandbox network ENOTFOUND for smtp.test.com, test-vs-route shape drift, env-dependent expectations). Phase 23/24/25: 110/110 PASS. Phase 26: 44/44 PASS.
+- TYPECHECK: tsc --noEmit → 0 errors project-wide.
+- SECRETS AUDIT: full-diff credential-pattern scan = 0 value hits in my changes (provider-secret, mail-password, and PAT value patterns all absent); worklog diagnosis line scrubbed to prefix-free wording; .env NOT tracked (gitignored at develop); untracked new files all scan clean; db backups gitignored.
+- Phase 26 file set: NEW src/lib/ai/orchestrator.ts, src/lib/model-invocation.ts, scripts/phase26-db-migration.py, scripts/phase26-otp-e2e.cjs, tests/unit/phase26-multi-model-orchestration.test.ts; MODIFIED src/lib/ai/ai-provider.ts, src/lib/workflow-actions.ts, src/lib/workflow-engine.ts, src/lib/workflow-batch.ts, src/lib/execution-activity.ts, src/lib/security/jwt-security.ts, prisma/schema.prisma, worklog.md; DELETED src/lib/ai-provider-fallback.ts (dead code, zero importers).

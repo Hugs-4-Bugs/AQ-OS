@@ -233,14 +233,22 @@ async function callZAI(
       content: m.content,
     }));
 
-    const completion = await zai.chat.completions.create({
+    // Phase 26 — model routing: a configured model id is passed through to
+    // the gateway (undefined → SDK default, unchanged legacy behavior for
+    // every existing caller that does not set config.model).
+    const createParams: Record<string, unknown> = {
       messages: zaiMessages,
       thinking: { type: 'disabled' },
-    });
+    };
+    if (config.model) {
+      createParams.model = config.model;
+    }
+
+    const completion = await zai.chat.completions.create(createParams);
 
     const content = completion.choices?.[0]?.message?.content || '';
     const tokensUsed = completion.usage?.total_tokens || Math.ceil(content.length / 4);
-    const model = completion.model || 'z-ai-default';
+    const model = completion.model || config.model || 'z-ai-default';
 
     return { content, tokensUsed, model };
   } catch (error) {
@@ -475,7 +483,32 @@ export async function executeAICompletion(
   action: string
 ): Promise<AICompletionResult> {
   const config = { ...DEFAULT_CONFIG, ...request.config };
-  const chain = getFallbackChain();
+
+  // ── Phase 26 — provider routing ──
+  // A CONFIGURED provider is honored: it becomes the head of the chain
+  // (deterministic fallback onto the env-driven chain remains available
+  // behind it, deduplicated). An UNKNOWN configured provider is a
+  // misconfiguration that must SURFACE — never a silent fallback.
+  const envChain = getFallbackChain();
+  const configured = config.provider;
+  let chain: ProviderType[];
+  if (configured) {
+    if (!PROVIDER_CALL_MAP[configured]) {
+      return {
+        success: false,
+        content: '',
+        provider: configured,
+        model: config.model || 'unknown',
+        tokensUsed: 0,
+        latencyMs: 0,
+        retries: 0,
+        error: `Unknown AI provider "${configured}" — supported: ${Object.keys(PROVIDER_CALL_MAP).join(', ')}`,
+      };
+    }
+    chain = [configured, ...envChain.filter((p) => p !== configured)];
+  } else {
+    chain = envChain;
+  }
   const maxRetries = config.retries || AI_CONFIG.maxRetries;
   let lastError: string = '';
   let totalRetries = 0;

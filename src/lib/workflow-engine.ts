@@ -499,6 +499,8 @@ async function runSteps(
           workflowId,
           executionId,
           leadId: triggerData?.leadId as string | undefined,
+          // Phase 26 — step identity for model-invocation idempotency keys.
+          stepName: step.name,
           triggerData,
           previousOutputs,
           requiresApproval,
