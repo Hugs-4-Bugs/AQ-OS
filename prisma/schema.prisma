@@ -3403,3 +3403,80 @@ model ModelInvocation {
   @@index([userId])
   @@index([status])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 26 v2 — Agentic Tool Layer schema (additive)
+//
+// Three new tables backing the agent tool layer (src/lib/ai/agent-tools/):
+//   AgentActivity — audit log for every tool invocation
+//   MessageDraft  — drafts created by message.draft tool
+//   Task          — generic tasks created by task.create tool
+//
+// All tables are ownership-scoped (userId) and additive — no existing
+// table is modified. Following the Phase 25/26 v1 pattern, userId is a
+// plain String column (no Prisma relation), so no back-relation field
+// is required on the User model.
+// ═══════════════════════════════════════════════════════════════════
+
+model AgentActivity {
+  id              String   @id
+  userId          String
+  orgId           String?
+  toolName        String
+  invocationId    String?  // ModelInvocation id (when invoked by an AI agent)
+  executionId     String?  // WorkflowExecution id
+  runId           String?  // AutopilotRun id
+  leadId          String?  // Lead id (when scoped to a lead)
+  input           String   // JSON-serialized validated input
+  status          String   // success | error | unauthorized | not_found | validation_error
+  durationMs      Int      @default(0)
+  output          String?  // JSON-serialized output (when status=success)
+  error           String?
+  fromCache       Int      @default(0) // 1 if served from idempotency cache
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([toolName])
+  @@index([invocationId])
+  @@index([executionId])
+  @@index([runId])
+  @@index([leadId])
+  @@index([createdAt])
+}
+
+model MessageDraft {
+  id        String   @id @default(cuid())
+  userId    String
+  orgId     String?
+  leadId    String?
+  subject   String
+  body      String
+  channel   String   @default("email") // email | whatsapp | telegram | linkedin
+  status    String   @default("draft") // draft | approved | sent | rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  orgId       String?
+  leadId      String?
+  title       String
+  priority    String    @default("medium") // low | medium | high | urgent
+  status      String    @default("open")    // open | in_progress | completed | cancelled
+  dueAt       DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([status])
+  @@index([dueAt])
+}

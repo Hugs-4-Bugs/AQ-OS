@@ -18,7 +18,7 @@ import { readZaiGatewayConfigStatus } from './zai-gateway-config';
 
 // ===== TYPES =====
 
-export type ProviderType = 'z-ai' | 'openai' | 'anthropic' | 'openrouter' | 'local';
+export type ProviderType = 'z-ai' | 'openai' | 'anthropic' | 'openrouter' | 'gemini' | 'deepseek' | 'local';
 
 export interface AIProviderConfig {
   provider: ProviderType;
@@ -111,6 +111,7 @@ function getFallbackChain(): ProviderType[] {
   const chain: ProviderType[] = ['z-ai'];
 
   // Add providers based on available env keys — only add if key is actually set
+  // Phase 26 v2: added Gemini + DeepSeek to the auto-fallback chain.
   if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 0) {
     chain.push('openai');
   }
@@ -119,6 +120,14 @@ function getFallbackChain(): ProviderType[] {
   }
   if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim().length > 0) {
     chain.push('openrouter');
+  }
+  // Google Gemini (Generative Language API) — uses GEMINI_API_KEY.
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0) {
+    chain.push('gemini');
+  }
+  // DeepSeek — uses DEEPSEEK_API_KEY (OpenAI-compatible API).
+  if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim().length > 0) {
+    chain.push('deepseek');
   }
   // Local provider uses a local LLM endpoint
   if (process.env.AI_LOCAL_ENDPOINT && process.env.AI_LOCAL_ENDPOINT.trim().length > 0) {
@@ -276,9 +285,12 @@ async function callOpenAI(
   config: AIProviderConfig
 ): Promise<{ content: string; tokensUsed: number; model: string }> {
   const apiKey = process.env.OPENAI_API_KEY;
+  // Phase 26 v2: explicit error instead of silent Z-AI fallback — the
+  // selected provider must determine the real API invocation (per user
+  // spec Part 3). The orchestrator's failover chain handles fallback;
+  // an individual callOpenAI must NOT silently swap providers.
   if (!apiKey || apiKey.trim().length === 0) {
-    // No API key — fall back to ZAI
-    return callZAI(messages, config);
+    throw new Error('OpenAI provider selected but OPENAI_API_KEY is not set. Configure the key in environment or select a different provider.');
   }
 
   const model = config.model || process.env.OPENAI_MODEL || 'gpt-4o';
@@ -324,8 +336,9 @@ async function callAnthropic(
   config: AIProviderConfig
 ): Promise<{ content: string; tokensUsed: number; model: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Phase 26 v2: explicit error instead of silent Z-AI fallback.
   if (!apiKey || apiKey.trim().length === 0) {
-    return callZAI(messages, config);
+    throw new Error('Anthropic provider selected but ANTHROPIC_API_KEY is not set. Configure the key in environment or select a different provider.');
   }
 
   const model = config.model || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
@@ -376,8 +389,9 @@ async function callOpenRouter(
   config: AIProviderConfig
 ): Promise<{ content: string; tokensUsed: number; model: string }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
+  // Phase 26 v2: explicit error instead of silent Z-AI fallback.
   if (!apiKey || apiKey.trim().length === 0) {
-    return callZAI(messages, config);
+    throw new Error('OpenRouter provider selected but OPENROUTER_API_KEY is not set. Configure the key in environment or select a different provider.');
   }
 
   const model = config.model || process.env.OPENROUTER_MODEL || 'openai/gpt-4o';
@@ -425,8 +439,9 @@ async function callLocal(
   config: AIProviderConfig
 ): Promise<{ content: string; tokensUsed: number; model: string }> {
   const endpoint = process.env.AI_LOCAL_ENDPOINT;
+  // Phase 26 v2: explicit error instead of silent Z-AI fallback.
   if (!endpoint || endpoint.trim().length === 0) {
-    return callZAI(messages, config);
+    throw new Error('Local LLM provider selected but AI_LOCAL_ENDPOINT is not set. Configure the endpoint URL in environment or select a different provider.');
   }
 
   const model = config.model || process.env.AI_LOCAL_MODEL || 'local-default';
@@ -459,11 +474,115 @@ async function callLocal(
   return { content, tokensUsed, model };
 }
 
+/**
+ * Google Gemini provider — uses fetch against the Generative Language API.
+ * Requires process.env.GEMINI_API_KEY to be set.
+ * Phase 26 v2: explicit error instead of silent Z-AI fallback.
+ */
+async function callGemini(
+  messages: AIMessage[],
+  config: AIProviderConfig
+): Promise<{ content: string; tokensUsed: number; model: string }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error('Gemini provider selected but GEMINI_API_KEY is not set. Configure the key in environment or select a different provider.');
+  }
+
+  const model = config.model || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const baseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
+
+  // Gemini uses a different message shape: a single `contents` array,
+  // with each entry having a `role` ('user' | 'model') and `parts` (text
+  // segments). System messages become `systemInstruction`.
+  const systemMessage = messages.find((m) => m.role === 'system')?.content || '';
+  const contents = messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+  const url = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents,
+      ...(systemMessage ? { systemInstruction: { parts: [{ text: systemMessage }] } } : {}),
+      generationConfig: {
+        maxOutputTokens: config.maxTokens || AI_CONFIG.maxTokens,
+        temperature: config.temperature ?? AI_CONFIG.defaultTemperature,
+      },
+    }),
+    signal: AbortSignal.timeout(config.timeout || AI_CONFIG.defaultTimeout),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+  const tokensUsed = (data.usageMetadata?.promptTokenCount || 0) + (data.usageMetadata?.candidatesTokenCount || 0) || Math.ceil(content.length / 4);
+
+  return { content, tokensUsed, model: data.modelVersion || model };
+}
+
+/**
+ * DeepSeek provider — uses fetch against the DeepSeek API (OpenAI-compatible).
+ * Requires process.env.DEEPSEEK_API_KEY to be set.
+ * Phase 26 v2: explicit error instead of silent Z-AI fallback.
+ */
+async function callDeepSeek(
+  messages: AIMessage[],
+  config: AIProviderConfig
+): Promise<{ content: string; tokensUsed: number; model: string }> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error('DeepSeek provider selected but DEEPSEEK_API_KEY is not set. Configure the key in environment or select a different provider.');
+  }
+
+  const model = config.model || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+  const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      max_tokens: config.maxTokens || AI_CONFIG.maxTokens,
+      temperature: config.temperature ?? AI_CONFIG.defaultTemperature,
+    }),
+    signal: AbortSignal.timeout(config.timeout || AI_CONFIG.defaultTimeout),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`DeepSeek API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  const tokensUsed = data.usage?.total_tokens || Math.ceil(content.length / 4);
+
+  return { content, tokensUsed, model: data.model || model };
+}
+
 const PROVIDER_CALL_MAP: Record<ProviderType, typeof callZAI> = {
   'z-ai': callZAI,
   openai: callOpenAI,
   anthropic: callAnthropic,
   openrouter: callOpenRouter,
+  gemini: callGemini,
+  deepseek: callDeepSeek,
   local: callLocal,
 };
 
@@ -484,11 +603,20 @@ export async function executeAICompletion(
 ): Promise<AICompletionResult> {
   const config = { ...DEFAULT_CONFIG, ...request.config };
 
-  // ── Phase 26 — provider routing ──
-  // A CONFIGURED provider is honored: it becomes the head of the chain
-  // (deterministic fallback onto the env-driven chain remains available
-  // behind it, deduplicated). An UNKNOWN configured provider is a
-  // misconfiguration that must SURFACE — never a silent fallback.
+  // ── Phase 26 v2 — provider routing (strict) ──
+  // When a provider is EXPLICITLY configured, it is the ONLY provider
+  // attempted. No silent fallback to Z-AI (per user spec Part 3:
+  //   "If a workflow says GPT → it must actually call GPT."
+  //   "The selected model must determine the real API invocation."
+  //   "Do NOT merely echo the selected model in response metadata."
+  // ). If the configured provider fails due to a missing API key, the
+  // call surfaces the explicit error so the operator can fix the
+  // configuration.
+  //
+  // When NO provider is configured (legacy callers that pass
+  // `config.provider = undefined`), the env-driven fallback chain
+  // remains available — this preserves backwards compatibility for
+  // callers that just want "best available provider".
   const envChain = getFallbackChain();
   const configured = config.provider;
   let chain: ProviderType[];
@@ -505,7 +633,9 @@ export async function executeAICompletion(
         error: `Unknown AI provider "${configured}" — supported: ${Object.keys(PROVIDER_CALL_MAP).join(', ')}`,
       };
     }
-    chain = [configured, ...envChain.filter((p) => p !== configured)];
+    // Phase 26 v2 STRICT mode: explicit provider = single-provider chain.
+    // chain = [configured, ...envChain.filter((p) => p !== configured)];  // OLD (silent fallback)
+    chain = [configured];
   } else {
     chain = envChain;
   }
