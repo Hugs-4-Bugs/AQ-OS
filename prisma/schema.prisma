@@ -3543,9 +3543,35 @@ model Agent {
   orgId           String?
   name            String
   description     String?
+  // ── Workstream C §2 — first-class Agent abstraction ──
+  // Long-form objective (what this agent exists to accomplish).
+  objective       String?
+  // Classification: 'system' (canonical, seeded) | 'custom' (user-created).
+  // System agents are reusable across workflows and Autopilot.
+  classification  String   @default("custom")
+  // Stable system identifier for system agents ('DISCOVERY'|'RESEARCH'|
+  // 'ENRICHMENT'|'QUALIFICATION'|'GAP_ANALYSIS'|'OPPORTUNITY'|
+  // 'SOLUTION_MAPPING'|'LEAD_SCORING'|'OUTREACH'|'REPLY_ANALYSIS'|
+  // 'FOLLOW_UP'|'CRM'|'REPORTING'). NULL for custom agents.
+  // UNIQUE per (userId, systemKey) — at most one instance of each system
+  // agent per user. NULL systemKey values are exempt (custom agents).
+  systemKey       String?
   // AI Brain (Decision 12) — single provider+model for reasoning
   provider        String   @default("z-ai")
   model           String   @default("glm-4.6")
+  // Model strategy (Workstream C §5) — JSON: { strategy: 'single' |
+  // 'sequential' | 'parallel' | 'fallback', models?: [{provider,model,role}],
+  // concurrency?: 1-4, fallback?: boolean }
+  // Default 'single' — preserves Phase 26 v3 single-brain behavior.
+  modelStrategy   String   @default("{\"strategy\":\"single\"}")
+  // Memory scopes (Workstream C §7) — JSON array of scopes this agent
+  // can read/write: ['user','business','lead','agent','execution','evidence'].
+  // Default ['agent'] — only its own agent-scoped memory (Phase 26 v3 behavior).
+  memoryScopes    String   @default("[\"agent\"]")
+  // Current execution state (Workstream C §8) — granular state:
+  // idle | running | reasoning | awaiting_tool | awaiting_approval |
+  // paused | completed | failed | cancelled
+  executionState  String   @default("idle")
   // Per-tool permissions (Decision 8) — JSON: { "email.send": "send_with_approval", "lead.update": "read-write", ... }
   // Value semantics: for email tools, matches ToolContext.emailPermission (read|draft|send_with_approval|autonomous).
   // For non-email tools: "read" (lookup only) | "read-write" (create/update) | "disabled" (tool not available).
@@ -3573,9 +3599,11 @@ model Agent {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@unique([userId, systemKey])
   @@index([userId])
   @@index([status])
   @@index([provider])
+  @@index([classification])
 }
 
 model AgentRun {
@@ -3586,6 +3614,14 @@ model AgentRun {
   // Trigger source: "manual" | "schedule" | "trigger:<event>" | "workflow:<executionId>"
   triggerSource   String
   status          String   @default("pending")  // pending | running | completed | failed | cancelled | paused_awaiting_approval
+  // Workstream C §8 — granular execution state for observability:
+  // idle | running | reasoning | awaiting_tool | awaiting_approval |
+  // paused | completed | failed | cancelled | timeout
+  executionState  String   @default("idle")
+  // Checkpoint (Workstream C §8) — JSON: { iteration, memoryLength,
+  // lastToolName, lastToolStatus } for resume after pause/timeout.
+  // NULL when no checkpoint has been persisted.
+  checkpoint      String?
   startedAt       DateTime?
   finishedAt      DateTime?
   durationMs      Int?
@@ -3604,6 +3640,7 @@ model AgentRun {
   @@index([agentId])
   @@index([userId])
   @@index([status])
+  @@index([executionState])
   @@index([triggerSource])
   @@index([createdAt])
 }
@@ -3617,10 +3654,33 @@ model AgentMemory {
   tokensUsed      Int      @default(0)
   // Optional: link to the run that produced this memory
   runId           String?
+  // ── Workstream C §7 — provenance + scope + access policy ──
+  // Memory scope: 'user' | 'business' | 'lead' | 'agent' | 'execution' | 'evidence'
+  // Default 'agent' — preserves Phase 26 v3 behavior (per-agent memory).
+  scope           String   @default("agent")
+  // Provenance — what produced this memory. Examples:
+  //   'agent:reasoning' | 'tool:lead.lookup' | 'provider:openai:gpt-4o' |
+  //   'user:manual' | 'workflow:executeWorkflow' | 'autopilot:tick'
+  source          String?
+  // Freshness label — 'real-time' | 'recent' | 'stale' | 'unknown'
+  freshness       String?
+  // Confidence in the memory's accuracy (0.0 to 1.0)
+  confidence      Float?
+  // Version — bumped when memory is updated (optimistic concurrency)
+  version         Int      @default(1)
+  // Access policy — who can read this memory item
+  // 'owner' (only the agent's owner) | 'org' (org members) | 'tenant' | 'global'
+  // Default 'owner' — strictest. Prevents cross-user leakage.
+  accessPolicy    String   @default("owner")
+  // Optional: link to the lead this memory is about (when scope='lead')
+  leadId          String?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([agentId])
   @@index([runId])
+  @@index([scope])
+  @@index([leadId])
   @@index([createdAt])
 }
 
@@ -3634,6 +3694,13 @@ model AgentApproval {
   input           String
   // Status: "requested" | "approved" | "rejected" | "expired"
   status          String   @default("requested")
+  // ── Workstream C §9 — human-readable reason + context ──
+  // Reason: why the agent is requesting approval (free-form text the
+  // agent writes when it pauses — explains its plan + risk assessment).
+  reason          String?
+  // Context: JSON snapshot of the execution state at request time
+  // { executionId, leadId, runState, iteration, lastToolName, ... }
+  context         String?
   requestedAt     DateTime @default(now())
   decidedAt       DateTime?
   decidedBy       String?  // userId of the human who decided

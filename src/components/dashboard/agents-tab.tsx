@@ -47,6 +47,12 @@ interface Agent {
   id: string;
   name: string;
   description: string | null;
+  objective: string | null;
+  classification: 'system' | 'custom';
+  systemKey: string | null;
+  modelStrategy: { strategy: string; models?: Array<{ provider?: string; model?: string; role?: string }>; concurrency?: number };
+  memoryScopes: string[];
+  executionState: string;
   provider: string;
   model: string;
   toolPermissions: Record<string, string>;
@@ -174,7 +180,28 @@ export function AgentsTab() {
                       <StatusBadge status={a.status} />
                     </div>
                     <div className="text-xs text-muted-foreground space-y-0.5">
-                      <div>Brain: <code className="text-foreground">{a.provider}/{a.model}</code></div>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {a.classification === 'system' && (
+                          <Badge variant="secondary" className="text-[10px] bg-cyan-100 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-200">System</Badge>
+                        )}
+                        {a.classification === 'custom' && (
+                          <Badge variant="outline" className="text-[10px]">Custom</Badge>
+                        )}
+                        {a.systemKey && (
+                          <span className="text-[10px] text-muted-foreground font-mono">[{a.systemKey}]</span>
+                        )}
+                        {a.executionState && a.executionState !== 'idle' && (
+                          <Badge variant="outline" className="text-[10px]">{a.executionState}</Badge>
+                        )}
+                      </div>
+                      <div>Brain: <code className="text-foreground">{a.provider}/{a.model}</code>
+                        {a.modelStrategy?.strategy && a.modelStrategy.strategy !== 'single' && (
+                          <span className="text-[10px] text-cyan-700 dark:text-cyan-300 ml-1">({a.modelStrategy.strategy})</span>
+                        )}
+                      </div>
+                      {a.objective && (
+                        <div className="text-[10px] italic line-clamp-2 mt-0.5" title={a.objective}>{a.objective}</div>
+                      )}
                       <div>Runs: {a.totalRuns} · Tokens: {a.totalTokensUsed.toLocaleString()}</div>
                       {a.lastRunAt && <div>Last run: {new Date(a.lastRunAt).toLocaleString()}</div>}
                       {a.lastError && <div className="text-red-600 dark:text-red-400">⚠ {a.lastError.slice(0, 80)}</div>}
