@@ -1,11 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Agent Service (Phase 26 v3 — Decisions 5+8+12)
+// AcquisitionOS — Agent Service (Phase 26 v3 + Workstream C §2)
 //
 // CRUD for AI agents + per-tool permissions enforcement.
+// Workstream C additions:
+//   · objective, classification (system|custom), systemKey
+//   · modelStrategy (single|sequential|parallel|fallback)
+//   · memoryScopes (user|business|lead|agent|execution|evidence)
+//   · executionState (idle|running|reasoning|awaiting_tool|...)
+//   · System agent seeding (idempotent upsert on userId+systemKey)
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
 import { isProviderAvailable } from '@/lib/ai/user-ai-provider-service';
+import {
+  ensureSystemAgentsSeeded,
+  type SystemAgentKey,
+} from '@/lib/ai/system-agents';
 
 export interface AgentRow {
   id: string;
@@ -13,6 +23,14 @@ export interface AgentRow {
   orgId: string | null;
   name: string;
   description: string | null;
+  // ── Workstream C §2 additions ──
+  objective: string | null;
+  classification: 'system' | 'custom';
+  systemKey: string | null;
+  modelStrategy: { strategy: 'single' | 'sequential' | 'parallel' | 'fallback'; models?: Array<{ provider?: string; model?: string; role?: string }>; concurrency?: number };
+  memoryScopes: string[];
+  executionState: string;
+  // ── Phase 26 v3 fields ──
   provider: string;
   model: string;
   toolPermissions: Record<string, string>; // { "email.send": "send_with_approval", ... }
@@ -35,8 +53,13 @@ export interface AgentRow {
 export interface CreateAgentInput {
   name: string;
   description?: string;
+  objective?: string;
+  classification?: 'system' | 'custom';
+  systemKey?: string | null;
   provider?: string;
   model?: string;
+  modelStrategy?: AgentRow['modelStrategy'];
+  memoryScopes?: string[];
   toolPermissions?: Record<string, string>;
   schedule?: AgentRow['schedule'];
   triggers?: AgentRow['triggers'];
@@ -58,14 +81,30 @@ export async function createAgent(userId: string, orgId: string | null, input: C
       throw new Error(`Provider "${input.provider}" is not available. Connect it in Settings → Integrations → AI Providers first.`);
     }
   }
+  // Workstream C §2 — systemKey UNIQUE enforcement
+  if (input.classification === 'system' && input.systemKey) {
+    const existing = await db.agent.findUnique({
+      where: { userId_systemKey: { userId, systemKey: input.systemKey } },
+    });
+    if (existing) {
+      throw new Error(`System agent "${input.systemKey}" already exists for this user. Use updateAgent to modify it.`);
+    }
+  }
+
   const row = await db.agent.create({
     data: {
       userId,
       orgId: orgId || null,
       name: input.name.trim(),
       description: input.description?.trim() || null,
+      objective: input.objective?.trim() || null,
+      classification: input.classification || 'custom',
+      systemKey: input.systemKey || null,
       provider: input.provider || 'z-ai',
       model: input.model || 'glm-4.6',
+      modelStrategy: JSON.stringify(input.modelStrategy || { strategy: 'single' }),
+      memoryScopes: JSON.stringify(input.memoryScopes || ['agent']),
+      executionState: 'idle',
       toolPermissions: JSON.stringify(input.toolPermissions || {}),
       schedule: JSON.stringify(input.schedule || { type: 'none' }),
       triggers: JSON.stringify(input.triggers || []),
@@ -88,18 +127,29 @@ export async function getAgent(userId: string, agentId: string): Promise<AgentRo
 }
 
 export async function listAgents(userId: string): Promise<AgentRow[]> {
+  // Workstream C §3 — auto-seed system agents on first list call.
+  // ensureSystemAgentsSeeded is idempotent.
+  await ensureSystemAgentsSeeded(userId).catch(err => {
+    // Non-fatal — system agents may not seed if DB is temporarily
+    // unavailable. The user can still see their custom agents.
+    console.warn('[agent-service] system agent seeding failed (non-fatal):',
+      err instanceof Error ? err.message : String(err));
+  });
   const rows = await db.agent.findMany({
     where: { userId },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ classification: 'asc' }, { createdAt: 'desc' }],
   });
   return rows.map(toApiShape);
 }
 
-export async function updateAgent(userId: string, agentId: string, patch: Partial<CreateAgentInput> & { status?: AgentRow['status'] }): Promise<AgentRow> {
+export async function updateAgent(userId: string, agentId: string, patch: Partial<CreateAgentInput> & { status?: AgentRow['status']; executionState?: AgentRow['executionState'] }): Promise<AgentRow> {
   // Ownership-checked update
   const data: Record<string, unknown> = {};
   if (patch.name !== undefined) data.name = patch.name.trim();
   if (patch.description !== undefined) data.description = patch.description?.trim() || null;
+  if (patch.objective !== undefined) data.objective = patch.objective?.trim() || null;
+  if (patch.classification !== undefined) data.classification = patch.classification;
+  if (patch.systemKey !== undefined) data.systemKey = patch.systemKey;
   if (patch.provider !== undefined) {
     const avail = await isProviderAvailable(userId, patch.provider);
     if (!avail.available) {
@@ -108,6 +158,9 @@ export async function updateAgent(userId: string, agentId: string, patch: Partia
     data.provider = patch.provider;
   }
   if (patch.model !== undefined) data.model = patch.model;
+  if (patch.modelStrategy !== undefined) data.modelStrategy = JSON.stringify(patch.modelStrategy);
+  if (patch.memoryScopes !== undefined) data.memoryScopes = JSON.stringify(patch.memoryScopes);
+  if (patch.executionState !== undefined) data.executionState = patch.executionState;
   if (patch.toolPermissions !== undefined) data.toolPermissions = JSON.stringify(patch.toolPermissions);
   if (patch.schedule !== undefined) data.schedule = JSON.stringify(patch.schedule);
   if (patch.triggers !== undefined) data.triggers = JSON.stringify(patch.triggers);
@@ -141,6 +194,72 @@ export async function deleteAgent(userId: string, agentId: string): Promise<{ de
   return { deleted: result.count > 0 };
 }
 
+// ─── Workstream C §3 — System agent helpers ──────────────────────────
+
+/**
+ * Get the user's instance of a system agent by systemKey.
+ * Auto-seeds system agents if not yet present (idempotent).
+ */
+export async function getSystemAgentByKey(userId: string, systemKey: SystemAgentKey): Promise<AgentRow | null> {
+  await ensureSystemAgentsSeeded(userId).catch(() => { /* non-fatal */ });
+  const row = await db.agent.findUnique({
+    where: { userId_systemKey: { userId, systemKey } },
+  });
+  return row ? toApiShape(row) : null;
+}
+
+/**
+ * List only the system agents (classification='system') for a user.
+ */
+export async function listSystemAgents(userId: string): Promise<AgentRow[]> {
+  await ensureSystemAgentsSeeded(userId).catch(() => { /* non-fatal */ });
+  const rows = await db.agent.findMany({
+    where: { userId, classification: 'system' },
+    orderBy: { systemKey: 'asc' },
+  });
+  return rows.map(toApiShape);
+}
+
+/**
+ * List only the custom agents (classification='custom') for a user.
+ */
+export async function listCustomAgents(userId: string): Promise<AgentRow[]> {
+  const rows = await db.agent.findMany({
+    where: { userId, classification: 'custom' },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map(toApiShape);
+}
+
+/**
+ * Clone a system agent as a custom agent for the user. The cloned agent
+ * has classification='custom', systemKey=null, status='draft', and the
+ * user can freely modify it without affecting the canonical system agent.
+ */
+export async function cloneSystemAgentAsCustom(userId: string, systemKey: SystemAgentKey, newName?: string): Promise<AgentRow> {
+  const systemAgent = await getSystemAgentByKey(userId, systemKey);
+  if (!systemAgent) {
+    throw new Error(`System agent "${systemKey}" not found`);
+  }
+  return createAgent(userId, systemAgent.orgId, {
+    name: newName || `${systemAgent.name} (custom)`,
+    description: systemAgent.description || undefined,
+    objective: systemAgent.objective || undefined,
+    classification: 'custom',
+    systemKey: null,
+    provider: systemAgent.provider,
+    model: systemAgent.model,
+    modelStrategy: systemAgent.modelStrategy,
+    memoryScopes: systemAgent.memoryScopes,
+    toolPermissions: systemAgent.toolPermissions,
+    approvalPolicy: systemAgent.approvalPolicy,
+    retryPolicy: systemAgent.retryPolicy,
+    memoryConfig: systemAgent.memoryConfig,
+    maxIterations: systemAgent.maxIterations,
+    timeoutMs: systemAgent.timeoutMs,
+  });
+}
+
 // ─── Permission helpers (Decision 8) ────────────────────────────────────
 
 export function getToolPermission(agent: AgentRow, toolName: string): string | null {
@@ -160,7 +279,10 @@ export function isToolAllowed(agent: AgentRow, toolName: string): boolean {
 
 function toApiShape(row: {
   id: string; userId: string; orgId: string | null; name: string; description: string | null;
-  provider: string; model: string; toolPermissions: string; schedule: string; triggers: string;
+  objective: string | null; classification: string; systemKey: string | null;
+  provider: string; model: string;
+  modelStrategy: string; memoryScopes: string; executionState: string;
+  toolPermissions: string; schedule: string; triggers: string;
   approvalPolicy: string; retryPolicy: string; memoryConfig: string;
   status: string; maxIterations: number; timeoutMs: number;
   totalRuns: number; totalTokensUsed: number;
@@ -172,15 +294,25 @@ function toApiShape(row: {
   let triggers: AgentRow['triggers'] = [];
   let retryPolicy: AgentRow['retryPolicy'] = { maxRetries: 2, backoffMs: 1000 };
   let memoryConfig: AgentRow['memoryConfig'] = { windowSize: 20, maxTokens: 4000 };
+  let modelStrategy: AgentRow['modelStrategy'] = { strategy: 'single' };
+  let memoryScopes: string[] = ['agent'];
   try { toolPerms = JSON.parse(row.toolPermissions || '{}'); } catch { /* keep default */ }
   try { schedule = JSON.parse(row.schedule || '{"type":"none"}'); } catch { /* keep default */ }
   try { triggers = JSON.parse(row.triggers || '[]'); } catch { /* keep default */ }
   try { retryPolicy = JSON.parse(row.retryPolicy || '{"maxRetries":2,"backoffMs":1000}'); } catch { /* keep default */ }
   try { memoryConfig = JSON.parse(row.memoryConfig || '{"windowSize":20,"maxTokens":4000}'); } catch { /* keep default */ }
+  try { modelStrategy = JSON.parse(row.modelStrategy || '{"strategy":"single"}'); } catch { /* keep default */ }
+  try { memoryScopes = JSON.parse(row.memoryScopes || '["agent"]'); } catch { /* keep default */ }
   return {
     id: row.id, userId: row.userId, orgId: row.orgId,
     name: row.name, description: row.description,
+    objective: row.objective,
+    classification: row.classification as 'system' | 'custom',
+    systemKey: row.systemKey,
     provider: row.provider, model: row.model,
+    modelStrategy,
+    memoryScopes,
+    executionState: row.executionState || 'idle',
     toolPermissions: toolPerms,
     schedule, triggers,
     approvalPolicy: row.approvalPolicy as AgentRow['approvalPolicy'],
