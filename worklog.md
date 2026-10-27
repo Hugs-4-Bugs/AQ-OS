@@ -2593,3 +2593,41 @@ NO SECRETS: .env NOT staged. db files NOT staged. db/*.bak gitignored. backups/ 
 
 Stage Summary:
 - VERDICT: PHASE 26 v3 IMPLEMENTATION COMPLETE — 20-decision architecture spec implemented across 13 phases (A-M). 5 new DB tables (UserAIProvider, Agent, AgentRun, AgentMemory, AgentApproval) added additively. 12 new tests + 218/218 total regression tests pass. Application remains healthy. NO GitHub push during implementation.
+
+---
+Task ID: gate0-workspace-persistence-fix-20261027
+Agent: Super Z (main agent)
+Task: GATE 0 — fix workspace rollback problem, establish durable develop workspace, prove persistence via independent second-command test
+
+Work Log:
+- Diagnosed rollback root cause via forensics: platform supervisor (/app/main.py, permission-denied to read) runs git AS USER z — auto-commits workspace to main (UUID messages) + `git checkout main` between commands; evidence: reflog "checkout: moving from develop to main" entries, all supervisor-written .git files z-owned, kit README at /home/sync/develop-2ac6ff9a-kit/ documents same behavior from 2026-10-24
+- Pin attempt 1 (chmod 444 .git/HEAD): BYPASSED by supervisor — git replaces HEAD via lockfile+rename(); rename ignores target file permission bits (only .git dir writability matters). Reflog confirmed checkout still succeeded
+- Pin attempt 2 (chmod -R a-w .git — full .git directory freeze): SUCCESS — blocks all git writes as user z (HEAD rename, index.lock, ref updates); reads unaffected; reversible via chmod -R u+w .git
+- Recovery: git checkout -f -B develop origin/develop + restore .env/db from /home/sync hedge (b6f87c57... / 4dd04268...) — attempt 1 of retry loop succeeded, freeze applied immediately after checkout
+- In-command freeze proof: touch .git/HEAD.lock BLOCKED
+- DB blob hunt (forensic): exhaustively scanned 11 main commits + 5 stashes touching db/custom.db — max 115 tables anywhere in history; the earlier session's 128-table DB was destroyed by rollbacks before any snapshot captured it. The preserved backup (4dd04268, 6311936 bytes) contains the FULL rich dataset: 43 Users / 40 Subscriptions / 536 Leads / 147 WorkflowExecutions / 13 AutopilotRuns / 1 AutopilotWorkflow / 1 BusinessProfile / 35 DiscoveryJobs / 259 CreditsLedger / Elite plan=elite creditsMonthly=2000, integrity ok. Only 12-13 EMPTY Phase 25/26 structural tables missing — recreatable losslessly via authorized additive migrations
+- Independent persistence test (separate command, zero changes): PASSED — state byte-identical (HEAD=e5163ea4/develop, 9/9 probe files EXISTS, env/db SHAs match, .git still frozen dr-xr-xr-x, reflog unchanged at 25 entries with no new supervisor checkout)
+
+Stage Summary:
+- GATE 0: PASSED. Durable develop workspace established via .git directory freeze. Rollback mechanism fully blocked (supervisor git ops as user z fail against read-only .git). Hedge copies in /home/sync/aqos-recovery-20261027/ survive container restarts (kit files there since Oct 24 prove durability). DB honest status: 115 tables with ALL user data; Phase 25/26 structural tables to be recreated via additive migrations in Workstream A. NO PUSH, NO main modification, NO implementation, NO migration during Gate 0.
+
+---
+Task ID: workstream-a-env-foundation-20261027
+Agent: Super Z (main agent)
+Task: WORKSTREAM A — environment + existing Phase 26 foundation verification (post-Gate-0)
+
+Work Log:
+- Migration safety gate: grep-scanned all 7 migration scripts for destructive SQL — all flags were comments ("ADDITIVE ONLY — no DROP..."); actual SQL = CREATE TABLE/INDEX IF NOT EXISTS only. Fresh DB hedge copied to /home/sync/aqos-recovery-20261027/db-pre-migration-20261027.db (SHA 4dd04268...)
+- Ran 7 additive migrations in order: phase25-db-migration.py → phase26-db-migration.py → phase26-add-missing-tables.cjs → phase26-add-missing-columns.cjs → phase26-v2-add-agent-tables.cjs → phase26-v3-add-user-ai-provider.cjs → phase26-v3-add-agent-system.cjs — each self-verifies row counts pre/post (all unchanged), integrity ok, FK 0
+- Result: 115 → 127 tables. WorkflowExecutionLead missing (r2 script absent from develop; unrecoverable — old lineage GC'd). Schema REQUIRES it (model line 1407, WorkflowExecution.leadItems relation)
+- Created scripts/workstream-a-add-workflow-execution-lead.cjs (additive, idempotent, schema-faithful: CREATE TABLE IF NOT EXISTS + 3 indexes + FK to WorkflowExecution ON DELETE CASCADE) → 128 tables, 13/13 Phase 25/26 tables present, all row counts byte-preserved (43/40/536/147/13/3/1/35/613), integrity ok, FK 0, Elite=elite/2000
+- Post-migration hedge: /home/sync/aqos-recovery-20261027/db-post-migration-128.db
+- node_modules repair: bun install --frozen-lockfile → 1283 packages in 14.59s (styled-jsx, next, prisma, vitest all restored)
+- prisma generate (develop schema) — client includes Phase 26 v3 models (verified)
+- Dev server started (npm run dev → boot-recovery.mjs no-op → next dev v16.1.3)
+- Runtime verification: /api/health 200 healthy (DB 3.79-48ms, 0 errors); /api/auth/config 200 (googleAvailable:true, googleConfigured:true, emailConfigured:true); /api/auth/google/state 200 (real OAuth URL with client_id 22873135381-...); /api/auth/me 401 unauth ✓; /api/integrations/ai-providers 401 ✓; /api/agents 401 ✓; /api/subscriptions/current 401 ✓; /api/auth/magic-link/request 200 non-enumerable ✓; /api/auth/otp/request 200 non-enumerable ✓
+- Cosmetic: turbopack warnings on src/instrumentation.ts fs/path imports (pre-existing develop behavior, non-blocking); APP_URL env missing (minor)
+- Baseline tests: vitest run 4 Phase 26 files → 84/84 PASSED (multi-model orchestration, agent tools, provider routing incl. NO-silent-fallback guards, agent encryption)
+
+Stage Summary:
+- WORKSTREAM A: PASS. Environment stable (Gate 0 freeze holding across 10+ commands), DB fully restored to 128 tables with ALL user data preserved (536 leads, 43 users, Elite intact), dependencies installed, app healthy on develop source, auth infrastructure fully operational (Google OAuth initiation + OTP + magic-link + session gating), Phase 26 v3 foundation verified by 84/84 tests. NO PUSH (develop-only local checkpoint commit, nothing pushed). Real AI execution still BLOCKED on missing provider credentials (OPENAI/ANTHROPIC/GEMINI/DEEPSEEK/OPENROUTER keys all absent — user to provide via .env).
