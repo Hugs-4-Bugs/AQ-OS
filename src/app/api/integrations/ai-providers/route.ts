@@ -97,14 +97,104 @@ export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
       // Static provider metadata (reuses the existing route's logic).
+      //
+      // Workstream B §3 (OpenAI distinction): The "openai" provider is
+      // the OpenAI Platform API (platform.openai.com API keys). It is
+      // NOT the ChatGPT consumer product (chat.openai.com). The UI
+      // surfaces this distinction explicitly via `consumerNote`.
+      //
+      // `kind`: 'api-key' (user supplies an API key) | 'platform-sdk'
+      // (uses the platform-installed SDK gateway; no per-user key).
+      //
+      // `consumerNote`: human-readable string clarifying the
+      // relationship (or non-relationship) to a consumer product.
+      // Surfaced in the UI panel so the user understands exactly what
+      // they are connecting.
       const PROVIDERS = [
-        { id: 'z-ai', label: 'Z-AI / GLM (default)', envVar: 'ZAI_API_KEY', modelEnvVar: 'ZAI_MODEL', defaultModel: 'glm-4.6', docUrl: 'https://docs.z.ai', supportsStreaming: true, supportsTools: true },
-        { id: 'openai', label: 'OpenAI / ChatGPT', envVar: 'OPENAI_API_KEY', modelEnvVar: 'OPENAI_MODEL', defaultModel: 'gpt-4o', docUrl: 'https://platform.openai.com', supportsStreaming: true, supportsTools: true },
-        { id: 'anthropic', label: 'Anthropic Claude', envVar: 'ANTHROPIC_API_KEY', modelEnvVar: 'ANTHROPIC_MODEL', defaultModel: 'claude-sonnet-4-20250514', docUrl: 'https://docs.anthropic.com', supportsStreaming: true, supportsTools: true },
-        { id: 'gemini', label: 'Google Gemini', envVar: 'GEMINI_API_KEY', modelEnvVar: 'GEMINI_MODEL', defaultModel: 'gemini-1.5-flash', docUrl: 'https://ai.google.dev/', supportsStreaming: true, supportsTools: true },
-        { id: 'deepseek', label: 'DeepSeek', envVar: 'DEEPSEEK_API_KEY', modelEnvVar: 'DEEPSEEK_MODEL', defaultModel: 'deepseek-chat', docUrl: 'https://api-docs.deepseek.com', supportsStreaming: true, supportsTools: true },
-        { id: 'openrouter', label: 'OpenRouter', envVar: 'OPENROUTER_API_KEY', modelEnvVar: 'OPENROUTER_MODEL', defaultModel: 'openai/gpt-4o', docUrl: 'https://openrouter.ai', supportsStreaming: true, supportsTools: true },
-        { id: 'local', label: 'Local LLM (custom endpoint)', envVar: 'AI_LOCAL_ENDPOINT', modelEnvVar: 'AI_LOCAL_MODEL', defaultModel: 'local-default', docUrl: 'https://github.com/oobabooga/text-generation-webui', supportsStreaming: false, supportsTools: false },
+        {
+          id: 'z-ai',
+          label: 'Z-AI / GLM (platform default)',
+          kind: 'platform-sdk' as const,
+          envVar: 'ZAI_API_KEY',
+          modelEnvVar: 'ZAI_MODEL',
+          defaultModel: 'glm-4.6',
+          docUrl: 'https://docs.z.ai',
+          supportsStreaming: true,
+          supportsTools: true,
+          consumerNote: 'Z-AI is the platform-installed SDK gateway. No per-user API key required; the platform provides the credential.',
+        },
+        {
+          id: 'openai',
+          label: 'OpenAI API',
+          kind: 'api-key' as const,
+          envVar: 'OPENAI_API_KEY',
+          modelEnvVar: 'OPENAI_MODEL',
+          defaultModel: 'gpt-4o',
+          docUrl: 'https://platform.openai.com/api-keys',
+          supportsStreaming: true,
+          supportsTools: true,
+          consumerNote: 'This is the OpenAI Platform API (platform.openai.com) — NOT the ChatGPT consumer product. Use an API key from platform.openai.com, not your ChatGPT login. ChatGPT Plus/Pro subscriptions do NOT grant API access.',
+        },
+        {
+          id: 'anthropic',
+          label: 'Anthropic Claude API',
+          kind: 'api-key' as const,
+          envVar: 'ANTHROPIC_API_KEY',
+          modelEnvVar: 'ANTHROPIC_MODEL',
+          defaultModel: 'claude-sonnet-4-20250514',
+          docUrl: 'https://console.anthropic.com/settings/keys',
+          supportsStreaming: true,
+          supportsTools: true,
+          consumerNote: 'This is the Anthropic Console API (console.anthropic.com) — NOT the Claude.ai consumer product. Use an API key from console.anthropic.com. Claude Pro subscriptions do NOT grant API access.',
+        },
+        {
+          id: 'gemini',
+          label: 'Google Gemini API',
+          kind: 'api-key' as const,
+          envVar: 'GEMINI_API_KEY',
+          modelEnvVar: 'GEMINI_MODEL',
+          defaultModel: 'gemini-1.5-flash',
+          docUrl: 'https://aistudio.google.com/app/apikey',
+          supportsStreaming: true,
+          supportsTools: true,
+          consumerNote: 'This is the Google AI Studio / Gemini API. Generate an API key at aistudio.google.com.',
+        },
+        {
+          id: 'deepseek',
+          label: 'DeepSeek API',
+          kind: 'api-key' as const,
+          envVar: 'DEEPSEEK_API_KEY',
+          modelEnvVar: 'DEEPSEEK_MODEL',
+          defaultModel: 'deepseek-chat',
+          docUrl: 'https://platform.deepseek.com/api_keys',
+          supportsStreaming: true,
+          supportsTools: true,
+          consumerNote: 'Use an API key from platform.deepseek.com (not the consumer chat login).',
+        },
+        {
+          id: 'openrouter',
+          label: 'OpenRouter',
+          kind: 'api-key' as const,
+          envVar: 'OPENROUTER_API_KEY',
+          modelEnvVar: 'OPENROUTER_MODEL',
+          defaultModel: 'openai/gpt-4o',
+          docUrl: 'https://openrouter.ai/keys',
+          supportsStreaming: true,
+          supportsTools: true,
+          consumerNote: 'OpenRouter is an aggregator — one API key routes to many providers. Keys are at openrouter.ai/keys.',
+        },
+        {
+          id: 'local',
+          label: 'Local LLM (custom endpoint)',
+          kind: 'api-key' as const,
+          envVar: 'AI_LOCAL_ENDPOINT',
+          modelEnvVar: 'AI_LOCAL_MODEL',
+          defaultModel: 'local-default',
+          docUrl: 'https://github.com/oobabooga/text-generation-webui',
+          supportsStreaming: false,
+          supportsTools: false,
+          consumerNote: 'Local LLM endpoints (Ollama, LM Studio, text-generation-webui). Supply the full endpoint URL.',
+        },
       ];
 
       // User-connected providers (masked hints only).
@@ -118,6 +208,8 @@ export async function GET(request: NextRequest) {
         return {
           id: p.id,
           label: p.label,
+          kind: p.kind, // 'api-key' | 'platform-sdk' — Workstream B §3
+          consumerNote: p.consumerNote, // Workstream B §3 — surfaces OpenAI API vs ChatGPT distinction
           envVar: p.envVar,
           modelEnvVar: p.modelEnvVar,
           defaultModel: p.defaultModel,
@@ -131,6 +223,7 @@ export async function GET(request: NextRequest) {
           userStatus: userRow?.status || null, // active | inactive | invalid | null
           userCredentialHint: userRow?.credentialHint || null, // masked prefix only
           userLastValidatedAt: userRow?.lastValidatedAt || null,
+          userLastError: userRow?.lastValidationError || null,
           userModelPreferences: userRow?.modelPreferences || null,
           // Overall availability (user OR platform)
           available: userRow?.status === 'active' || platformConfigured,
