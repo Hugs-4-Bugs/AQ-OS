@@ -125,14 +125,23 @@ describe('GET /api/auth/config', () => {
   });
 
   it('should return correct structure with all fields', async () => {
+    // P7 FIX (Sep 2026): /api/auth/config was refactored to expose only
+    // SAFE runtime-presence booleans — the old smtpConfigured/smtpStatus/
+    // emailServiceAvailable/devMode fields (which leaked SMTP details and
+    // a hardcoded googleAvailable=true) were removed. The new contract:
+    //   { googleAvailable, googleConfigured, emailConfigured }
     const response = await GET();
     const body = await response.json();
 
     expect(body).toHaveProperty('googleAvailable');
-    expect(body).toHaveProperty('smtpConfigured');
-    expect(body).toHaveProperty('smtpStatus');
-    expect(body).toHaveProperty('emailServiceAvailable');
-    expect(body).toHaveProperty('devMode');
+    expect(body).toHaveProperty('googleConfigured');
+    expect(body).toHaveProperty('emailConfigured');
+    // Removed fields — must NOT appear in the response (verifies the
+    // security-driven contract change, not just absence of assertion).
+    expect(body).not.toHaveProperty('smtpConfigured');
+    expect(body).not.toHaveProperty('smtpStatus');
+    expect(body).not.toHaveProperty('emailServiceAvailable');
+    expect(body).not.toHaveProperty('devMode');
   });
 
   it('should return googleAvailable as boolean', async () => {
@@ -142,29 +151,37 @@ describe('GET /api/auth/config', () => {
     expect(typeof body.googleAvailable).toBe('boolean');
   });
 
-  it('should return smtpConfigured as boolean', async () => {
+  it('should return emailConfigured as boolean (renamed from smtpConfigured)', async () => {
+    // P7 FIX (Sep 2026): smtpConfigured was renamed to emailConfigured to
+    // cover both SMTP and Resend providers (not just SMTP).
     const response = await GET();
     const body = await response.json();
 
-    expect(typeof body.smtpConfigured).toBe('boolean');
+    expect(typeof body.emailConfigured).toBe('boolean');
   });
 
-  it('should return smtpStatus with safe fields (no passwords)', async () => {
+  it('should not expose any secrets or sensitive smtp details in response', async () => {
+    // P7 FIX (Sep 2026): the smtpStatus object was removed entirely — the
+    // route now exposes ONLY safe booleans, never any smtp details. Verify
+    // the response body contains no passwords, hosts, users, or tokens.
     const response = await GET();
     const body = await response.json();
 
-    expect(body.smtpStatus).toBeDefined();
-    expect(body.smtpStatus).toHaveProperty('configured');
-    // Should NOT expose the actual password
-    const statusStr = JSON.stringify(body.smtpStatus);
-    expect(statusStr).not.toMatch(/smtp.*(password|pass).*=.*[a-zA-Z0-9]{4,}/i);
+    const bodyStr = JSON.stringify(body);
+    // No password-like strings should appear anywhere in the response.
+    expect(bodyStr).not.toMatch(/(password|passwd|secret|token|apiKey)/i);
+    // No smtpStatus object (removed by P7 fix).
+    expect(body.smtpStatus).toBeUndefined();
   });
 
-  it('should return devMode as boolean', async () => {
+  it('should not return devMode field (removed for security)', async () => {
+    // Security hardening: the devMode flag was removed from /api/auth/config
+    // because it leaked the runtime NODE_ENV state to anonymous callers.
+    // The route now exposes only capability booleans, never environment state.
     const response = await GET();
     const body = await response.json();
 
-    expect(typeof body.devMode).toBe('boolean');
+    expect(body.devMode).toBeUndefined();
   });
 });
 
@@ -264,11 +281,19 @@ describe('POST /api/auth/signin', () => {
   });
 
   it('should return 401 for wrong password', async () => {
+    // FIX: the test mock previously used the OLD `password` field name; the
+    // Prisma User schema uses `passwordHash`. Without `passwordHash`, the
+    // production signin route treats the account as an OAuth-only account
+    // (no password set) and returns 409 (Conflict) with `noPasswordSet: true`
+    // — a deliberate UX path that points the user to OTP/Magic Link. Using
+    // the correct `passwordHash` field name lets the route reach the actual
+    // password verification step, where `verifyPassword` returns false and
+    // the route correctly returns 401.
     (db.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'user-1',
       email: 'test@test.com',
       name: 'Test',
-      password: '$2a$12$hashedpassword',
+      passwordHash: '$2a$12$hashedpassword',
       role: 'owner',
       plan: 'free',
       orgId: null,
@@ -276,6 +301,7 @@ describe('POST /api/auth/signin', () => {
       isActive: true,
       mfaEnabled: false,
       lockedUntil: null,
+      mfaConfig: null,
     });
     (verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 

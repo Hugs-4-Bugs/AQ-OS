@@ -12,7 +12,11 @@
 
 import { describe, it, expect } from 'vitest';
 
-const BASE_URL = 'http://localhost:3000';
+// NOTE: Using 127.0.0.1 (not 'localhost') to avoid Node.js fetch's IPv6
+// resolution of 'localhost' → '::1' which is refused when the dev server
+// only binds to IPv4. This is a test-environment fix; the test still
+// exercises the same endpoints and assertions.
+const BASE_URL = 'http://127.0.0.1:3000';
 
 // Helper to make API requests
 async function apiRequest(

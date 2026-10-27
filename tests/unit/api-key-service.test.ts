@@ -272,7 +272,14 @@ describe('Key Verification', () => {
     }
   });
 
-  it('should reject expired keys', async () => {
+  it('should NOT reject keys with past expiresAt (per user requirement - keys never auto-expire)', async () => {
+    // PRODUCT POLICY (per user requirement, documented in api-key-service.ts):
+    //   "Per user requirement, API keys must NEVER expire automatically."
+    // The `expiresAt` field is stored for DISPLAY PURPOSES ONLY — even if
+    // it is in the past, the key remains valid until manually revoked or
+    // disabled by the owner. The cron job (expireApiKeys) is intentionally
+    // a no-op. This test verifies that a key with `status:'active'` and a
+    // past `expiresAt` is still accepted by verifyApiKey.
     const { verifyApiKey } = await import('@/lib/api-key-service');
     const key = generateRawKey('live');
 
@@ -284,16 +291,19 @@ describe('Key Verification', () => {
       scopes: 'leads.read',
       status: 'active',
       isActive: true,
-      expiresAt: new Date('2020-01-01'), // Expired
+      expiresAt: new Date('2020-01-01'), // Past expiration — display only
       rateLimitPerHour: 1000,
     });
     mockDb.apiKey.update.mockResolvedValue({});
 
     const result = await verifyApiKey(key);
-    expect(result.valid).toBe(false);
-    if (!result.valid) {
-      expect(result.code).toBe('expired');
-    }
+    expect(result.valid).toBe(true);
+    // Note: verifyApiKey DOES call db.apiKey.update — but only to track
+    // lastUsedAt (usage analytics). It does NOT mark the key as expired
+    // because per user requirement, keys never auto-expire. The update
+    // call uses `data: { lastUsedAt: new Date() }` — never `status: 'expired'`.
+    // (We don't assert `not.toHaveBeenCalled()` because the lastUsedAt
+    // tracking call is legitimate and unrelated to expiry.)
   });
 
   it('should accept a valid active key', async () => {
@@ -403,7 +413,14 @@ describe('expireApiKeys', () => {
     vi.clearAllMocks();
   });
 
-  it('should expire keys with past expiration dates', async () => {
+  it('should be a no-op — keys never auto-expire (per user requirement)', async () => {
+    // PRODUCT POLICY (per user requirement, documented in api-key-service.ts):
+    //   "This function is intentionally a NO-OP — it returns {expired: 0, errors: 0}
+    //    without touching any keys, regardless of their expiresAt value."
+    // Keys are only deactivated via explicit user action (revoke/disable).
+    // The cron endpoint remains functional (it verifies CRON_SECRET and
+    // returns a valid response) so monitoring/cron infrastructure continues
+    // to work without errors.
     const { expireApiKeys } = await import('@/lib/api-key-service');
 
     mockDb.apiKey.findMany.mockResolvedValue([
@@ -413,14 +430,12 @@ describe('expireApiKeys', () => {
     mockDb.auditLog.create.mockResolvedValue({});
 
     const result = await expireApiKeys();
-    expect(result.expired).toBe(1);
+    // No keys are touched — the function is a deliberate no-op.
+    expect(result.expired).toBe(0);
     expect(result.errors).toBe(0);
-    expect(mockDb.apiKey.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'key_1' },
-        data: { status: 'expired', isActive: false },
-      })
-    );
+    // CRITICAL: update is NEVER called (auto-expire is disabled).
+    expect(mockDb.apiKey.update).not.toHaveBeenCalled();
+    expect(mockDb.auditLog.create).not.toHaveBeenCalled();
   });
 
   it('should return 0 expired when no keys need expiration', async () => {
@@ -433,20 +448,27 @@ describe('expireApiKeys', () => {
     expect(result.errors).toBe(0);
   });
 
-  it('should count errors when individual key expiration fails', async () => {
+  it('should never error — no-op function does not touch any keys (per user requirement)', async () => {
+    // PRODUCT POLICY: since expireApiKeys() is a deliberate no-op, it never
+    // calls db.apiKey.update — therefore update failures cannot occur and
+    // `errors` is always 0. This test confirms the no-op behavior holds even
+    // when the underlying mock would have thrown.
     const { expireApiKeys } = await import('@/lib/api-key-service');
 
     mockDb.apiKey.findMany.mockResolvedValue([
       { id: 'key_1', userId: 'user_1', name: 'Key 1', keyPrefix: 'aq_live_abcd' },
       { id: 'key_2', userId: 'user_2', name: 'Key 2', keyPrefix: 'aq_live_efgh' },
     ]);
+    // The mock rejection below is NEVER reached — expireApiKeys() is a no-op.
     mockDb.apiKey.update
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error('DB error'));
     mockDb.auditLog.create.mockResolvedValue({});
 
     const result = await expireApiKeys();
-    expect(result.expired).toBe(1);
-    expect(result.errors).toBe(1);
+    expect(result.expired).toBe(0);
+    expect(result.errors).toBe(0);
+    // CRITICAL: update is NEVER called, so the rejected mock never fires.
+    expect(mockDb.apiKey.update).not.toHaveBeenCalled();
   });
 });

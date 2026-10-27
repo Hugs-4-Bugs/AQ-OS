@@ -1,17 +1,21 @@
 import { create } from "zustand";
+// Re-export CREDIT_COSTS, ACTION_LABELS, CreditAction from credit-costs.ts
+// (single source of truth — keeps the client-side store in sync with the
+// backend credit-service.ts which uses the same module). Previously this
+// file carried a STALE copy (deep_analysis=5 vs the real 1.5, etc.) which
+// caused the client to display wrong prices and the
+// `subscription-store.test.ts > CREDIT_COSTS consistency` test to fail.
+// The actual charged values are unchanged — credit-costs.ts remains the
+// authoritative source used by the backend deduction path.
+import {
+  CREDIT_COSTS,
+  ACTION_LABELS,
+  type CreditAction,
+} from "./credit-costs";
+export { CREDIT_COSTS, ACTION_LABELS, type CreditAction };
 
 // ===== Plan Types =====
 export type PlanType = "free" | "starter" | "pro" | "elite";
-
-export type CreditAction =
-  | "lead_discovery"
-  | "deep_analysis"
-  | "outreach_message"
-  | "outreach_sequence"
-  | "sales_coaching"
-  | "proposal_generation"
-  | "competitor_analysis"
-  | "data_export";
 
 export interface PlanDetails {
   name: string;
@@ -26,28 +30,7 @@ export interface PlanDetails {
   disabledFeatures: string[];
 }
 
-// ===== Credit Costs =====
-export const CREDIT_COSTS: Record<CreditAction, number> = {
-  lead_discovery: 1,
-  deep_analysis: 5,
-  outreach_message: 2,
-  outreach_sequence: 8,
-  sales_coaching: 3,
-  proposal_generation: 10,
-  competitor_analysis: 8,
-  data_export: 5,
-};
 
-export const ACTION_LABELS: Record<CreditAction, string> = {
-  lead_discovery: "Lead Discovery",
-  deep_analysis: "Deep Lead Analysis",
-  outreach_message: "Outreach Message",
-  outreach_sequence: "Outreach Sequence",
-  sales_coaching: "Sales Coaching",
-  proposal_generation: "Proposal Generation",
-  competitor_analysis: "Competitor Analysis",
-  data_export: "Data Export (PDF)",
-};
 
 // ===== Plan Definitions =====
 export const PLAN_DETAILS: Record<PlanType, PlanDetails> = {

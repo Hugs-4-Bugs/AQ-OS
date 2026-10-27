@@ -254,7 +254,17 @@ describe('callZAI X-Token authentication', () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe('provider fallback integrity', () => {
-  it('falls back to OpenAI when the z-ai gateway rejects authentication', async () => {
+  it('does NOT silently fall back to OpenAI when z-ai gateway rejects auth (Phase 26 v2 / Workstream B §8)', async () => {
+    // PHASE 26 v2 / WORKSTREAM B §8 (per user spec Part 3): production
+    // was DELIBERATELY changed to NOT silently fall back from Z-AI to
+    // OpenAI when the gateway rejects auth. The previous behaviour tried
+    // Z-AI, hit 401, and silently retried on OpenAI — surprising the user
+    // by routing their request to a different provider than they configured.
+    // The new behaviour: respect the explicit `config.provider='z-ai'`
+    // choice, retry Z-AI up to `maxRetries+1` times, then return an
+    // explicit error so the user knows their configured provider failed.
+    // The orchestrator's env-driven fallback chain handles multi-provider
+    // failover separately (when the user does NOT pin a specific provider).
     const dir = writeConfig('fallback-gateway', {
       baseUrl: FAKE.baseUrl,
       apiKey: FAKE.apiKey,
@@ -279,13 +289,26 @@ describe('provider fallback integrity', () => {
       'test_action'
     );
 
-    expect(result.success).toBe(true);
-    expect(result.provider).toBe('openai');
-    expect(result.content).toBe('OPENAI_OK');
+    // NO silent fallback — the explicit provider choice is respected.
+    expect(result.success).toBe(false);
+    expect(result.provider).toBe('z-ai');
+    // result.content is the empty string (not undefined) on failure —
+    // production initializes it to '' before the provider call and never
+    // reassigns when the call fails.
+    expect(result.content).toBe('');
+    // The error must mention the auth failure so the user can act on it.
+    expect(result.error).toMatch(/401|X-Token|auth|Unauthorized/i);
+
     const zaiCalls = captured.filter((c) => c.url.startsWith(FAKE.baseUrl));
     const openaiCalls = captured.filter((c) => c.url.startsWith('https://api.openai.com/v1'));
-    expect(zaiCalls.length).toBe(3); // z-ai exhausted its retries first
-    expect(openaiCalls.length).toBe(1);
-    expect(zaiCalls[0].headers['X-Token']).toBe(FAKE.token); // header still attached during fallback attempts
+    // Z-AI was retried 3 times (maxRetries=2 → 3 attempts) before giving up.
+    expect(zaiCalls.length).toBe(3);
+    // CRITICAL: OpenAI was NEVER called — no silent fallback (Phase 26 v2).
+    expect(openaiCalls.length).toBe(0);
+    // The X-Token header was still attached on every Z-AI attempt (the
+    // gateway MOCK returns 401 regardless — the header attachment is the
+    // production contract being verified here).
+    expect(zaiCalls[0].headers['X-Token']).toBe(FAKE.token);
+    expect(zaiCalls[2].headers['X-Token']).toBe(FAKE.token);
   });
 });
