@@ -109,6 +109,28 @@ export interface OrchestrationResult {
     durationMs: number;
   };
   error?: string;
+  /** Workstream 3 — model disagreement detection. Present when 2+ slots
+   *  completed. When `detected=true`, the caller (agent runtime / workflow
+   *  step) should NOT blindly trust `primaryContent` — it should seek
+   *  additional evidence, reduce confidence, or escalate per the spec. */
+  disagreement?: DisagreementAssessment;
+}
+
+/** Workstream 3 — disagreement assessment between completed model slots. */
+export interface DisagreementAssessment {
+  /** True when the minimum pairwise similarity between completed slots
+   *  falls below DISAGREEMENT_THRESHOLD. The caller must NOT arbitrarily
+   *  pick one — it should seek more evidence or escalate. */
+  detected: boolean;
+  /** Minimum Jaccard similarity (0..1) between any two completed slots'
+   *  outputs. Lower = more disagreement. */
+  minSimilarity: number;
+  /** Mean pairwise similarity across all completed slots. */
+  meanSimilarity: number;
+  /** Recommended next action when disagreement is detected. */
+  recommendation: 'accept' | 'seek_evidence' | 'escalate';
+  /** Human-readable explanation (for audit/memory). */
+  reason: string;
 }
 
 interface OrchestrateParams {
@@ -557,6 +579,13 @@ function aggregate(
   const cancelled = results.filter((r) => r.status === 'SKIPPED_CANCELLED');
   const primary = completed[0];
 
+  // Workstream 3 — model disagreement detection. Only assessed when 2+
+  // slots produced durable output. Single-slot steps (the overwhelming
+  // majority) skip this entirely (no disagreement is possible).
+  const disagreement = completed.length >= 2
+    ? detectDisagreement(completed)
+    : undefined;
+
   return {
     success: completed.length > 0,
     mode,
@@ -577,6 +606,120 @@ function aggregate(
       completed.length === 0 && failed.length > 0
         ? failed.map((f) => f.error ?? 'unknown error').join('; ')
         : undefined,
+    disagreement,
+  };
+}
+
+/**
+ * Workstream 3 — detect material disagreement between completed model slots.
+ *
+ * Uses word-level Jaccard similarity (token-set overlap). This is a
+ * deliberately SIMPLE, deterministic metric — it does NOT attempt semantic
+ * understanding. The goal is to surface MATERIAL disagreement (two models
+ * giving clearly different answers) so the caller can seek more evidence
+ * or escalate, rather than arbitrarily picking one.
+ *
+ * Threshold: 0.30 (configurable). Below this, the outputs share fewer than
+ * 30% of their unique words — material disagreement. The caller should:
+ *   1. inspect evidence (the model outputs themselves)
+ *   2. determine whether additional research is required
+ *   3. retrieve additional evidence if permitted
+ *   4. rerun/evaluate
+ *   5. update confidence
+ *   6. continue only when decision quality is sufficient
+ *   7. escalate if uncertainty remains materially high
+ *
+ * When models agree (similarity >= threshold), `detected=false` and the
+ * existing behavior (primary = first completed slot) is unchanged.
+ */
+const DISAGREEMENT_THRESHOLD = 0.30;
+
+/**
+ * Tokenize a model output into a lowercase word set for Jaccard comparison.
+ * Strips punctuation, collapses whitespace, ignores empty tokens.
+ */
+function tokenize(text: string): Set<string> {
+  if (!text || typeof text !== 'string') return new Set();
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+  );
+}
+
+/**
+ * Compute Jaccard similarity between two texts: |A∩B| / |A∪B|.
+ * Returns 1.0 for identical sets, 0.0 for disjoint sets.
+ */
+function jaccardSimilarity(a: string, b: string): number {
+  const setA = tokenize(a);
+  const setB = tokenize(b);
+  if (setA.size === 0 && setB.size === 0) return 1.0;
+  if (setA.size === 0 || setB.size === 0) return 0.0;
+  let intersection = 0;
+  for (const w of setA) {
+    if (setB.has(w)) intersection++;
+  }
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 1.0 : intersection / union;
+}
+
+/**
+ * Assess disagreement across all completed model slots.
+ * Returns the min + mean pairwise similarity + a recommendation.
+ */
+export function detectDisagreement(
+  completed: ModelCallResult[]
+): DisagreementAssessment {
+  const contents = completed
+    .map((r) => r.content ?? '')
+    .filter((c) => c.trim().length > 0);
+
+  // If only one slot has non-empty content, no disagreement is possible.
+  if (contents.length < 2) {
+    return {
+      detected: false,
+      minSimilarity: 1.0,
+      meanSimilarity: 1.0,
+      recommendation: 'accept',
+      reason: 'Only one slot produced non-empty content — no disagreement possible.',
+    };
+  }
+
+  // Compute all pairwise similarities.
+  const similarities: number[] = [];
+  for (let i = 0; i < contents.length; i++) {
+    for (let j = i + 1; j < contents.length; j++) {
+      similarities.push(jaccardSimilarity(contents[i], contents[j]));
+    }
+  }
+
+  const minSimilarity = Math.min(...similarities);
+  const meanSimilarity = similarities.reduce((a, b) => a + b, 0) / similarities.length;
+  const detected = minSimilarity < DISAGREEMENT_THRESHOLD;
+
+  let recommendation: DisagreementAssessment['recommendation'] = 'accept';
+  let reason = `Models agree (min similarity ${minSimilarity.toFixed(2)} >= ${DISAGREEMENT_THRESHOLD}).`;
+
+  if (detected) {
+    // Determine severity: very low similarity → escalate; moderate → seek evidence.
+    if (minSimilarity < 0.10) {
+      recommendation = 'escalate';
+      reason = `Material disagreement detected (min similarity ${minSimilarity.toFixed(2)} < 0.10). Models gave fundamentally different answers. Escalate to human review.`;
+    } else {
+      recommendation = 'seek_evidence';
+      reason = `Material disagreement detected (min similarity ${minSimilarity.toFixed(2)} < ${DISAGREEMENT_THRESHOLD}). Seek additional evidence before deciding.`;
+    }
+  }
+
+  return {
+    detected,
+    minSimilarity: Math.round(minSimilarity * 100) / 100,
+    meanSimilarity: Math.round(meanSimilarity * 100) / 100,
+    recommendation,
+    reason,
   };
 }
 
