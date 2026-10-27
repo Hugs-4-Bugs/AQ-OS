@@ -1,16 +1,18 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Workflow AI Step Config (Phase 26 v3 — Decisions 3+4)
+// AcquisitionOS — Workflow AI Step Config (Workstream B — Decisions 3+4+5)
 //
 // Embeds inside the Workflow Builder's action node editor. Appears when
-// the selected action type is AI-capable (generate_ai_message, ai_analysis,
-// ai_outreach, score_lead). Lets the user configure:
+// the selected action type is AI-capable. Lets the user configure:
 //
 //   - Provider dropdown (z-ai, openai, anthropic, gemini, deepseek,
 //     openrouter, local) — only providers that are AVAILABLE (user-
 //     connected OR platform-configured) are selectable; others are
 //     shown as disabled with "Connect in Settings → Integrations"
-//   - Model dropdown (provider-specific defaults; user can type a custom
-//     model id)
+//   - Model dropdown — POPULATED FROM LIVE DISCOVERY when available
+//     (cached DiscoveredModel rows); falls back to a maintained
+//     catalog when the provider has no live list endpoint OR when
+//     no discovery has been performed yet (clearly labeled as
+//     "default — validate to discover").
 //   - Execution strategy: Single | Sequential | Parallel
 //   - Multi-model selection (for Sequential/Parallel): checkbox list
 //     of available providers
@@ -21,8 +23,8 @@
 //
 // The configuration is persisted into the workflow node's `config`
 // field as JSON: { provider, model, models, orchestration, concurrency,
-// fallback, temperature }. The existing orchestrator (Phase 26 v1) reads
-// these fields via buildModelCallSpecs + parseOrchestrationMode +
+// fallback, temperature }. The existing orchestrator reads these
+// fields via buildModelCallSpecs + parseOrchestrationMode +
 // parseConcurrencyLimit — NO backend change needed.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -37,7 +39,7 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface AIStepConfig {
@@ -58,13 +60,28 @@ interface ProviderInfo {
   source: 'user' | 'platform' | 'none';
 }
 
+interface DiscoveredModel {
+  modelId: string;
+  displayName: string | null;
+  source: 'live' | 'catalog';
+  contextLength: number | null;
+  supportsVision: boolean;
+  supportsTools: boolean;
+  supportsStructuredOutput: boolean;
+  supportsReasoning: boolean;
+  availability: string | null;
+}
+
+// Fallback hardcoded defaults — only used when no live discovery has
+// happened yet. Clearly labeled in the UI as "default — validate to
+// discover".
 const PROVIDER_DEFAULT_MODELS: Record<string, string[]> = {
   'z-ai': ['glm-4.6', 'glm-4-plus', 'glm-4-air'],
-  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-5'],
-  anthropic: ['claude-sonnet-4-20250514', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-sonnet-20241022'],
   gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'],
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
-  openrouter: ['openai/gpt-4o', 'anthropic/claude-3-sonnet', 'google/gemini-1.5-pro'],
+  openrouter: ['openai/gpt-4o', 'anthropic/claude-3.5-sonnet', 'google/gemini-1.5-pro'],
   local: ['local-default'],
 };
 
@@ -77,6 +94,8 @@ export function WorkflowAIStepConfig({
 }) {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [discoveredModels, setDiscoveredModels] = useState<Record<string, DiscoveredModel[]>>({});
+  const [refreshingModels, setRefreshingModels] = useState<Set<string>>(new Set());
 
   const loadProviders = useCallback(async () => {
     try {
@@ -85,14 +104,64 @@ export function WorkflowAIStepConfig({
       const data = await res.json();
       setProviders(data.providers || []);
     } catch (err) {
-      // Non-fatal — defaults will be used
       console.warn('[WorkflowAIStepConfig] failed to load providers:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Fetch cached discovered models for a single provider
+  const loadDiscoveredModels = useCallback(async (providerId: string) => {
+    try {
+      const res = await fetch(`/api/integrations/ai-providers/models?provider=${encodeURIComponent(providerId)}`, { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.models)) {
+        setDiscoveredModels(prev => ({ ...prev, [providerId]: data.models }));
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
+
+  // Refresh: trigger a fresh live discovery round (calls provider's list endpoint)
+  const refreshModels = useCallback(async (providerId: string) => {
+    setRefreshingModels(prev => new Set(prev).add(providerId));
+    try {
+      const res = await fetch(`/api/integrations/ai-providers/models?provider=${encodeURIComponent(providerId)}&refresh=1`, { credentials: 'include' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (Array.isArray(data.models) && data.models.length > 0) {
+        setDiscoveredModels(prev => ({ ...prev, [providerId]: data.models }));
+        toast.success(`Discovered ${data.models.length} models for ${providerId}`, {
+          description: `Source: ${data.source}${data.exercisedCredential ? ' (live API call)' : ''}`,
+        });
+      } else {
+        toast.error(`No models for ${providerId}`, {
+          description: data.error || 'Validate the credential first.',
+        });
+      }
+    } catch (err) {
+      toast.error(`Failed to refresh models for ${providerId}`, {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setRefreshingModels(prev => { const n = new Set(prev); n.delete(providerId); return n; });
+    }
+  }, []);
+
   useEffect(() => { loadProviders(); }, [loadProviders]);
+
+  // After providers load, fetch cached models for each available provider
+  useEffect(() => {
+    if (!loading && providers.length > 0) {
+      const availableIds = providers.filter(p => p.available).map(p => p.id);
+      Promise.all(availableIds.map(loadDiscoveredModels));
+    }
+  }, [loading, providers, loadDiscoveredModels]);
 
   const availableProviders = providers.filter(p => p.available);
   const orchestration = config.orchestration || 'single';
@@ -107,7 +176,7 @@ export function WorkflowAIStepConfig({
     let next;
     if (checked) {
       if (!current.find(m => m.provider === providerId)) {
-        next = [...current, { provider: providerId, model: PROVIDER_DEFAULT_MODELS[providerId]?.[0] }];
+        next = [...current, { provider: providerId, model: getModelsForProvider(providerId)[0] }];
       } else {
         next = current;
       }
@@ -115,6 +184,21 @@ export function WorkflowAIStepConfig({
       next = current.filter(m => m.provider !== providerId);
     }
     update({ models: next });
+  };
+
+  // Get model list for a provider — prefer live discovery, fall back to hardcoded defaults
+  const getModelsForProvider = (providerId: string): string[] => {
+    const discovered = discoveredModels[providerId];
+    if (discovered && discovered.length > 0) {
+      return discovered.map(m => m.modelId);
+    }
+    return PROVIDER_DEFAULT_MODELS[providerId] || [];
+  };
+
+  // Is the model list for a provider from live discovery?
+  const isLiveDiscovery = (providerId: string): boolean => {
+    const discovered = discoveredModels[providerId];
+    return !!(discovered && discovered.length > 0 && discovered[0].source === 'live');
   };
 
   if (loading) {
@@ -134,7 +218,6 @@ export function WorkflowAIStepConfig({
             <div className="font-medium text-amber-900 dark:text-amber-200">No AI providers configured</div>
             <div className="text-amber-700 dark:text-amber-300 mt-1">
               Connect at least one AI provider in <strong>Settings → Integrations → AI Providers</strong> to enable AI workflow steps.
-              The platform default (Z-AI) will be used as fallback if available.
             </div>
           </div>
         </div>
@@ -172,7 +255,7 @@ export function WorkflowAIStepConfig({
             <Label className="text-xs font-medium">Provider</Label>
             <Select
               value={config.provider || ''}
-              onValueChange={(v) => update({ provider: v, model: PROVIDER_DEFAULT_MODELS[v]?.[0] || '' })}
+              onValueChange={(v) => update({ provider: v, model: getModelsForProvider(v)[0] || '' })}
             >
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select provider" /></SelectTrigger>
               <SelectContent>
@@ -185,17 +268,34 @@ export function WorkflowAIStepConfig({
             </Select>
           </div>
           <div>
-            <Label className="text-xs font-medium">Model</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">Model</Label>
+              {config.provider && (
+                <button
+                  type="button"
+                  onClick={() => refreshModels(config.provider!)}
+                  disabled={refreshingModels.has(config.provider)}
+                  className="text-[10px] text-cyan-700 dark:text-cyan-300 hover:underline flex items-center gap-0.5 disabled:opacity-50"
+                  title="Refresh from provider (live API call)"
+                >
+                  {refreshingModels.has(config.provider) ? (
+                    <><Loader2 className="h-2.5 w-2.5 animate-spin" /> refreshing</>
+                  ) : (
+                    <><RefreshCw className="h-2.5 w-2.5" /> refresh</>
+                  )}
+                </button>
+              )}
+            </div>
             <Select
               value={config.model || ''}
               onValueChange={(v) => update({ model: v })}
             >
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select model" /></SelectTrigger>
               <SelectContent>
-                {(PROVIDER_DEFAULT_MODELS[config.provider || ''] || []).map(m => (
+                {getModelsForProvider(config.provider || '').map(m => (
                   <SelectItem key={m} value={m}>{m}</SelectItem>
                 ))}
-                {config.model && !PROVIDER_DEFAULT_MODELS[config.provider || '']?.includes(config.model) && (
+                {config.model && !getModelsForProvider(config.provider || '').includes(config.model) && (
                   <SelectItem value={config.model}>{config.model} (custom)</SelectItem>
                 )}
               </SelectContent>
@@ -206,6 +306,16 @@ export function WorkflowAIStepConfig({
               value={config.model || ''}
               onChange={(e) => update({ model: e.target.value })}
             />
+            {config.provider && !isLiveDiscovery(config.provider) && (
+              <div className="text-[10px] text-muted-foreground mt-1 italic">
+                Default list — validate the provider credential in Settings → Integrations to discover live models.
+              </div>
+            )}
+            {config.provider && isLiveDiscovery(config.provider) && (
+              <div className="text-[10px] text-cyan-700 dark:text-cyan-300 mt-1 italic">
+                ✓ Live discovery ({discoveredModels[config.provider]?.length || 0} models)
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -239,7 +349,7 @@ export function WorkflowAIStepConfig({
                     >
                       <SelectTrigger className="h-7 text-xs w-44"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {(PROVIDER_DEFAULT_MODELS[p.id] || []).map(m => (
+                        {getModelsForProvider(p.id).map(m => (
                           <SelectItem key={m} value={m}>{m}</SelectItem>
                         ))}
                       </SelectContent>

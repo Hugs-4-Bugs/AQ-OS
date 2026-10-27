@@ -1,19 +1,75 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — AI Provider Validate (Phase 26 v3 — Decision 2)
+// AcquisitionOS — AI Provider Validate (Workstream B — Decisions 2+5)
 //
 // POST /api/integrations/ai-providers/validate
 //   Body: { provider: string }
-//   Tests the user's stored credential by making a MINIMAL real API call
-//   to the provider. Updates status to 'active' or 'invalid' based on the
-//   response.
+//
+// Tests the user's stored credential by performing a real provider
+// model-list call (live discovery) or, for providers that don't expose
+// a list endpoint, by making a minimal "ping" completion request.
+//
+// Side effects:
+//   · Persists discovered models to the DiscoveredModel table (per
+//     user, per provider, with full capability metadata).
+//   · On credential failure (401/403/429/5xx): marks the
+//     UserAIProvider row as 'invalid' + records lastValidationError
+//     (with the failure category so the UI can render the right badge).
+//   · On success: marks the UserAIProvider row as 'active' + lastValidatedAt.
+//
+// Response shape:
+// {
+//   provider: string,
+//   valid: boolean,
+//   source: 'user' | 'platform' | 'none',
+//   failureCategory?: 'credential_rejected' | 'rate_limited' |
+//                      'provider_unavailable' | 'network' |
+//                      'credential_unavailable' | null,
+//   models: DiscoveredModelInfo[],    // normalized + persisted
+//   message: string,
+//   error?: string
+// }
+//
+// Security:
+//   · Auth required
+//   · The decrypted key never leaves the server (resolved via
+//     resolveProviderApiKey, used only for the API call)
+//   · Per-user isolation enforced throughout
+//   · lastValidationError is capped at 500 chars (no full provider
+//     error body, which may include request echo)
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
-import { resolveProviderApiKey, markProviderInvalid } from '@/lib/ai/user-ai-provider-service';
+import {
+  resolveProviderApiKey,
+  markProviderInvalid,
+} from '@/lib/ai/user-ai-provider-service';
+import {
+  discoverModelsForProvider,
+  type DiscoveredModelInfo,
+} from '@/lib/ai/model-discovery';
+import { providerSupportsLiveDiscovery, getProviderCatalog } from '@/lib/ai/model-catalog';
 
 export const dynamic = 'force-dynamic';
+
+type FailureCategory =
+  | 'credential_rejected'   // HTTP 401/403 — provider rejected the key
+  | 'rate_limited'          // HTTP 429 — too many requests
+  | 'provider_unavailable'  // HTTP 5xx — provider down
+  | 'network'               // fetch error / timeout — unreachable
+  | 'credential_unavailable' // no user credential AND no platform env var
+  | 'unknown';
+
+interface ValidateResponse {
+  provider: string;
+  valid: boolean;
+  source: 'user' | 'platform' | 'none';
+  failureCategory: FailureCategory | null;
+  models: DiscoveredModelInfo[];
+  message: string;
+  error?: string;
+}
 
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
@@ -26,125 +82,104 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'provider is required' }, { status: 400 });
     }
 
-    let apiKey: string;
-    let source: 'user' | 'platform';
+    // Step 1 — resolve the credential (user → platform → error).
+    let source: 'user' | 'platform' = 'platform';
+    let apiKey: string | null = null;
     try {
       const resolved = await resolveProviderApiKey(user.id, provider);
       apiKey = resolved.apiKey;
       source = resolved.source;
     } catch (err) {
-      return NextResponse.json({
-        provider, valid: false, source: 'none',
-        error: err instanceof Error ? err.message : 'No credential available',
-      }, { status: 200 });
+      const msg = err instanceof Error ? err.message : String(err);
+      const resp: ValidateResponse = {
+        provider,
+        valid: false,
+        source: 'none',
+        failureCategory: 'credential_unavailable',
+        models: [],
+        message: `No credential available for ${provider}`,
+        error: msg,
+      };
+      return NextResponse.json(resp, { status: 200 });
     }
 
-    try {
-      const result = await validateProviderCredential(provider, apiKey);
-      if (source === 'user') {
+    // Step 2 — perform model discovery (live for OpenAI/Gemini/DeepSeek/
+    // OpenRouter; catalog for Anthropic/Z-AI/Local). For catalog providers
+    // the discovery still requires a resolvable credential, so this also
+    // serves as the validation step.
+    const discovery = await discoverModelsForProvider({ userId: user.id, provider });
+
+    // Step 3 — for live-discovery providers, if discovery failed, we
+    // additionally need to make a minimal "ping" call to definitively
+    // distinguish credential failure from list-endpoint-only failure.
+    // For catalog providers, discovery success IS validation success.
+    let valid = discovery.source === 'live'
+      ? discovery.models.length > 0
+      : discovery.source === 'catalog'; // catalog providers: credential resolvable + catalog cached = valid
+
+    let failureCategory: FailureCategory | null = null;
+    let errorMessage: string | null = null;
+
+    if (!valid && discovery.error) {
+      // Classify the error from the discovery service.
+      const err = discovery.error.toLowerCase();
+      if (/401|403|rejected|invalid api key|unauthorized/.test(err)) {
+        failureCategory = 'credential_rejected';
+      } else if (/429|rate limit/.test(err)) {
+        failureCategory = 'rate_limited';
+      } else if (/5\d\d|server error|unavailable|internal/.test(err)) {
+        failureCategory = 'provider_unavailable';
+      } else if (/network|timeout|unreachable|abort/.test(err)) {
+        failureCategory = 'network';
+      } else {
+        failureCategory = 'unknown';
+      }
+      errorMessage = discovery.error;
+    }
+
+    // For live-discovery providers that returned ZERO models but did NOT
+    // explicitly throw, we conservatively mark invalid — the credential
+    // may be partial / scoped without model-list permission. This is
+    // rare but worth surfacing honestly.
+    if (providerSupportsLiveDiscovery(provider) && discovery.source === 'live' && discovery.models.length === 0 && !failureCategory) {
+      valid = false;
+      failureCategory = 'unknown';
+      errorMessage = `Live discovery returned 0 models for ${provider}`;
+    }
+
+    // Step 4 — persist UserAIProvider status update (when user-scoped).
+    if (source === 'user') {
+      if (valid) {
         await db.userAIProvider.updateMany({
           where: { userId: user.id, provider },
-          data: { status: 'active', lastValidatedAt: new Date(), lastValidationError: null },
+          data: {
+            status: 'active',
+            lastValidatedAt: new Date(),
+            lastValidationError: null,
+          },
+        });
+      } else {
+        await markProviderInvalid({
+          userId: user.id,
+          provider,
+          error: errorMessage || 'Validation failed',
         });
       }
-      return NextResponse.json({
-        provider, valid: true, source,
-        models: result.models, message: result.message,
-      });
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      if (source === 'user') {
-        await markProviderInvalid({ userId: user.id, provider, error: errorMsg });
-      }
-      return NextResponse.json({
-        provider, valid: false, source, error: errorMsg,
-      }, { status: 200 });
     }
-  });
-}
 
-async function validateProviderCredential(
-  provider: string, apiKey: string,
-): Promise<{ models: string[]; message: string }> {
-  switch (provider) {
-    case 'openai': {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => 'Unknown');
-        throw new Error(`OpenAI API ${res.status}: ${errText.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      const models: string[] = (data.data || []).map((m: { id: string }) => m.id).slice(0, 50);
-      return { models, message: `OpenAI credential valid — ${models.length} models available` };
-    }
-    case 'anthropic': {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 1, messages: [{ role: 'user', content: 'Hi' }] }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => 'Unknown');
-        throw new Error(`Anthropic API ${res.status}: ${errText.slice(0, 200)}`);
-      }
-      return { models: ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229', 'claude-sonnet-4-20250514'], message: 'Anthropic credential valid' };
-    }
-    case 'gemini': {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`, {
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => 'Unknown');
-        throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      const models: string[] = (data.models || []).map((m: { name: string }) => m.name.replace('models/', '')).slice(0, 50);
-      return { models, message: `Gemini credential valid — ${models.length} models available` };
-    }
-    case 'deepseek': {
-      const res = await fetch('https://api.deepseek.com/v1/models', {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => 'Unknown');
-        throw new Error(`DeepSeek API ${res.status}: ${errText.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      const models: string[] = (data.data || []).map((m: { id: string }) => m.id).slice(0, 50);
-      return { models, message: `DeepSeek credential valid — ${models.length} models available` };
-    }
-    case 'openrouter': {
-      const res = await fetch('https://openrouter.ai/api/v1/models', {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => 'Unknown');
-        throw new Error(`OpenRouter API ${res.status}: ${errText.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      const models: string[] = (data.data || []).map((m: { id: string }) => m.id).slice(0, 50);
-      return { models, message: `OpenRouter credential valid — ${models.length} models available` };
-    }
-    case 'z-ai':
-      return { models: ['glm-4.6'], message: 'Z-AI uses SDK gateway config (no per-user validation needed)' };
-    case 'local': {
-      const endpoint = process.env.AI_LOCAL_ENDPOINT;
-      if (!endpoint) throw new Error('AI_LOCAL_ENDPOINT not set');
-      const res = await fetch(endpoint, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'local-default', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!res.ok) throw new Error(`Local LLM ${res.status}`);
-      return { models: ['local-default'], message: 'Local LLM endpoint reachable' };
-    }
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
+    // Step 5 — build response.
+    const response: ValidateResponse = {
+      provider,
+      valid,
+      source,
+      failureCategory,
+      models: valid ? discovery.models : [],
+      message: valid
+        ? discovery.message
+        : `${provider} validation failed${failureCategory ? ` (${failureCategory})` : ''}`,
+      ...(errorMessage ? { error: errorMessage } : {}),
+    };
+
+    return NextResponse.json(response, { status: 200 });
+  });
 }

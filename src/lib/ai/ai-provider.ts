@@ -644,9 +644,11 @@ export async function executeAICompletion(
   let totalRetries = 0;
 
   // Try each provider in the fallback chain
+  let lastProviderTried: ProviderType | null = null;
   for (const provider of chain) {
     const caller = PROVIDER_CALL_MAP[provider];
     if (!caller) continue;
+    lastProviderTried = provider;
 
     // Retry logic for each provider
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -721,11 +723,21 @@ export async function executeAICompletion(
   }
 
   // All providers failed
+  // Workstream B §8 fix: preserve the configured provider in the
+  // failure response. The previous code hardcoded `provider: 'z-ai`
+  // here — which silently substituted Z-AI for the configured provider
+  // in failure responses. This violated Workstream B §8: "If the user
+  // selects Local, the workflow/agent MUST NOT silently execute
+  // through Z-AI." Now we report the ACTUAL configured provider (or,
+  // when no provider was configured, the last-tried provider from the
+  // env-driven fallback chain).
+  const reportProvider: ProviderType =
+    (configured as ProviderType | undefined) ?? lastProviderTried ?? 'z-ai';
   return {
     success: false,
     content: '',
-    provider: 'z-ai',
-    model: 'unknown',
+    provider: reportProvider,
+    model: config.model || 'unknown',
     tokensUsed: 0,
     latencyMs: 0,
     retries: totalRetries,

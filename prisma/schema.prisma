@@ -3647,3 +3647,47 @@ model AgentApproval {
   @@index([status])
   @@index([requestedAt])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Workstream B — Discovered Models (live model discovery + catalog cache)
+//
+// Per-user, per-provider cache of models discovered via authenticated
+// list requests (OpenAI /v1/models, Gemini /v1beta/models, DeepSeek
+// /v1/models, OpenRouter /v1/models) OR maintained provider-specific
+// catalogs (Anthropic, Z-AI — these providers do not expose a public
+// list endpoint; their entries are marked source='catalog').
+//
+// One row per (userId, provider, modelId) — UNIQUE constraint enforces
+// no duplicates. Re-discovery upserts capabilities + lastVerifiedAt.
+// ═══════════════════════════════════════════════════════════════════
+
+model DiscoveredModel {
+  id                      String   @id @default(cuid())
+  userId                  String   // ownership scoping — User B cannot see User A's discovered models
+  provider                String   // openai | anthropic | gemini | deepseek | openrouter | z-ai | local
+  modelId                 String   // provider-specific model id (e.g. "gpt-4o")
+  displayName             String?  // human-readable name
+  // 'live' = fetched via authenticated API list request; 'catalog' = maintained fallback list
+  source                  String   @default("catalog")
+  // Capability metadata (per user spec Workstream B §5)
+  contextLength           Int?     // max context tokens (null when unknown)
+  supportsVision           Boolean  @default(false)
+  supportsTools            Boolean  @default(false)
+  supportsStructuredOutput Boolean  @default(false)
+  supportsReasoning        Boolean  @default(false)
+  // JSON array strings: ["text","image","audio"] for input/output modalities
+  inputModalities         String?  // JSON: ["text","image","audio"]
+  outputModalities        String?  // JSON: ["text","image","audio"]
+  // Provider-reported status: available | deprecated | preview | unknown
+  availability            String?  // 'available' | 'deprecated' | 'preview' | 'unknown'
+  lastVerifiedAt          DateTime @default(now())
+  // Original JSON from provider for debugging (capped, never contains secrets)
+  rawMetadata             String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([userId, provider, modelId])
+  @@index([userId, provider])
+  @@index([provider])
+  @@index([availability])
+}
