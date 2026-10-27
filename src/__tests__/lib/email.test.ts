@@ -76,6 +76,11 @@ describe('email-service', () => {
 
   describe('sendEmail', () => {
     it('should return error when no provider configured in production', async () => {
+      // SECURITY HARDENING (Sep 2026): the Ethereal/test-inbox/console fallback
+      // was deliberately REMOVED. OTP and magic links must NEVER be silently
+      // delivered to a test inbox — that could leak credentials to anyone
+      // reading the test-inbox. The route now returns a clear error that
+      // callers must surface to the user; no 'CRITICAL' marker, no devMode.
       delete process.env.RESEND_API_KEY;
       delete process.env.SMTP_HOST;
       delete process.env.SMTP_PORT;
@@ -96,10 +101,23 @@ describe('email-service', () => {
       });
 
       expect(result.sent).toBe(false);
-      expect(result.error).toContain('CRITICAL');
+      // The error message clearly identifies the missing environment
+      // variables and explicitly states that no preview/test inbox fallback
+      // is available (the previous 'CRITICAL' marker was removed in favor
+      // of a more actionable message).
+      expect(result.error).toContain('SMTP_USER and SMTP_PASSWORD');
+      expect(result.error).toContain('No preview/test inbox fallback');
+      // No devMode / previewUrl fields anymore (removed for security).
+      expect(result.devMode).toBeUndefined();
+      expect(result.previewUrl).toBeUndefined();
     });
 
-    it('should use console fallback in dev mode without providers', async () => {
+    it('should NOT use console fallback in dev mode without providers (removed for security)', async () => {
+      // SECURITY HARDENING: the console-fallback / dev-mode path was removed
+      // entirely — even with AUTH_DEV_MODE=true, when no real provider is
+      // configured, sendEmail returns the SAME clear error as in production.
+      // This prevents OTP/magic-link credentials from being printed to stdout
+      // in any environment.
       delete process.env.RESEND_API_KEY;
       delete process.env.SMTP_HOST;
       delete process.env.SMTP_PORT;
@@ -119,7 +137,11 @@ describe('email-service', () => {
         text: 'Test',
       });
 
-      expect(result.devMode).toBe(true);
+      // No console fallback — same error path as production.
+      expect(result.sent).toBe(false);
+      expect(result.devMode).toBeUndefined();
+      expect(result.error).toContain('SMTP_USER and SMTP_PASSWORD');
+      expect(result.error).toContain('No preview/test inbox fallback');
     });
   });
 
@@ -160,7 +182,10 @@ describe('email-service', () => {
   // ── Dev mode vs production behavior ───────────────────────────
 
   describe('dev mode vs production behavior', () => {
-    it('should return devMode: true only when AUTH_DEV_MODE is set and no provider', async () => {
+    it('should NOT return devMode field even when AUTH_DEV_MODE is set (removed for security)', async () => {
+      // SECURITY HARDENING: the devMode / console-fallback path was removed
+      // entirely. AUTH_DEV_MODE is no longer consulted — sendEmail behaves
+      // the same in dev and production when no provider is configured.
       delete process.env.RESEND_API_KEY;
       delete process.env.SMTP_HOST;
       delete process.env.SMTP_PORT;
@@ -179,11 +204,16 @@ describe('email-service', () => {
         text: 'Test',
       });
 
-      expect(result.devMode).toBe(true);
+      // No devMode field — the entire console-fallback path was removed.
+      expect(result.devMode).toBeUndefined();
       expect(result.sent).toBe(false);
+      expect(result.error).toContain('SMTP_USER and SMTP_PASSWORD');
     });
 
     it('should not return devMode in production without providers', async () => {
+      // SECURITY HARDENING: same secure contract as production — no 'CRITICAL'
+      // marker, no devMode field. The error message is actionable: it names
+      // the exact env vars that must be set.
       delete process.env.RESEND_API_KEY;
       delete process.env.SMTP_HOST;
       delete process.env.SMTP_PORT;
@@ -205,7 +235,8 @@ describe('email-service', () => {
 
       expect(result.devMode).toBeUndefined();
       expect(result.sent).toBe(false);
-      expect(result.error).toContain('CRITICAL');
+      expect(result.error).toContain('SMTP_USER and SMTP_PASSWORD');
+      expect(result.error).toContain('No preview/test inbox fallback');
     });
   });
 });

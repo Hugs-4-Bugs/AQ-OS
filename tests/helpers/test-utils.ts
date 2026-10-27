@@ -4,6 +4,20 @@
 
 import { vi } from 'vitest';
 
+// ─── ID + Date helpers (used by mock-data + onboarding-flow E2E tests) ───
+// Previously these helpers were missing from test-utils.ts, causing
+// `TypeError: randomId is not a function` in tests/e2e/onboarding-flow.test.ts.
+// Added here so test files that import { randomId, daysFromNow } work.
+export function randomId(): string {
+  return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function daysFromNow(days: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 export function createMockPrisma() {
   return {
     user: {
@@ -49,6 +63,13 @@ export function createMockPrisma() {
     gdprRequest: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     userSettings: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     consentRecord: { create: vi.fn(), findMany: vi.fn() },
+    // Onboarding progress (E2E onboarding-flow.test.ts exercises this model;
+    // without these mocks, `mockPrisma.onboardingProgress.findFirst` throws
+    // TypeError: Cannot read properties of undefined).
+    onboardingProgress: {
+      findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(),
+      create: vi.fn(), update: vi.fn(), upsert: vi.fn(), delete: vi.fn(), count: vi.fn(),
+    },
     $transaction: vi.fn((fn) => typeof fn === 'function' ? fn() : fn),
     $queryRaw: vi.fn(),
     $executeRaw: vi.fn(),

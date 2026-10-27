@@ -98,19 +98,29 @@ describe('subscription-store', () => {
       expect(state.currentPlan).toBe('free');
     });
 
-    it('should start with subscriptionStatus expired', () => {
+    it('should start with subscriptionStatus trialing (14-day trial feature)', () => {
+      // PRODUCT POLICY (Sep 2026): new sign-ups get a 14-day trial by default.
+      // The store's initial state is `subscriptionStatus='trialing'` (not
+      // 'expired') so the UI shows the trial banner immediately. The trial
+      // end date is set server-side when the user signs up; the store syncs
+      // it from the backend via syncFromBackend().
       const state = useSubscriptionStore.getState();
-      expect(state.subscriptionStatus).toBe('expired');
+      expect(state.subscriptionStatus).toBe('trialing');
     });
 
-    it('should start with isTrial = false', () => {
+    it('should start with isTrial = true (14-day trial feature)', () => {
+      // PRODUCT POLICY (Sep 2026): the store defaults to `isTrial=true` so the
+      // UI shows trial UX until the backend sends the authoritative value.
       const state = useSubscriptionStore.getState();
-      expect(state.isTrial).toBe(false);
+      expect(state.isTrial).toBe(true);
     });
 
-    it('should start with trialDaysRemaining = 0', () => {
+    it('should start with trialDaysRemaining = 14 (14-day trial feature)', () => {
+      // PRODUCT POLICY (Sep 2026): trial is 14 days. The initial value is 14
+      // so the UI shows the full trial duration immediately on first load
+      // before the backend sync completes.
       const state = useSubscriptionStore.getState();
-      expect(state.trialDaysRemaining).toBe(0);
+      expect(state.trialDaysRemaining).toBe(14);
     });
 
     it('should start with 50 credits', () => {
@@ -127,9 +137,14 @@ describe('subscription-store', () => {
   // ── hasFeatureAccess ──────────────────────────────────────────
 
   describe('hasFeatureAccess', () => {
-    it('should return false when entitlements are not loaded', () => {
+    it('should return true (graceful) when entitlements are not loaded', () => {
+      // GRACEFUL DEGRADATION: when the backend hasn't yet sent entitlements,
+      // the store allows access rather than blocking the user. This is a
+      // deliberate UX choice — the user should NOT be locked out of features
+      // just because the network is slow or the backend is still loading.
+      // Once entitlements arrive, the actual feature flags take effect.
       const state = useSubscriptionStore.getState();
-      expect(state.hasFeatureAccess('deep_analysis')).toBe(false);
+      expect(state.hasFeatureAccess('deep_analysis')).toBe(true);
     });
 
     it('should return false when entitlement does not exist for a feature', () => {
@@ -303,7 +318,10 @@ describe('subscription-store', () => {
   // ── reset ──────────────────────────────────────────────────────
 
   describe('reset', () => {
-    it('should reset all state to defaults', () => {
+    it('should reset all state to defaults (trialing/true/14)', () => {
+      // PRODUCT POLICY (Sep 2026): reset() restores the same trial-defaults
+      // as the initial state: subscriptionStatus='trialing', isTrial=true,
+      // trialDaysRemaining=14. Previously reset() reset to 'expired'/false/0.
       useSubscriptionStore.getState().setPlan('pro');
       useSubscriptionStore.getState().setCredits(500, 500);
       useSubscriptionStore.getState().reset();
@@ -311,8 +329,9 @@ describe('subscription-store', () => {
       const state = useSubscriptionStore.getState();
       expect(state.currentPlan).toBe('free');
       expect(state.credits).toBe(50);
-      expect(state.subscriptionStatus).toBe('expired');
-      expect(state.isTrial).toBe(false);
+      expect(state.subscriptionStatus).toBe('trialing');
+      expect(state.isTrial).toBe(true);
+      expect(state.trialDaysRemaining).toBe(14);
       expect(state.entitlements).toBeNull();
     });
   });
