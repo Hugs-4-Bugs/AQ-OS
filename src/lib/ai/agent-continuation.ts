@@ -250,3 +250,47 @@ export async function handleWorkflowCompletionEvent(payload: Record<string, unkn
     await continuePipelineForLead({ userId, leadId, maxSteps: 1 });
   }
 }
+
+/**
+ * Periodic pipeline sweep — advances leads that have pending pipeline steps
+ * but no specific event trigger (new_lead, new_email, follow_up_due,
+ * workflow_completion). Without this sweep, leads are stuck after the
+ * initial 2 steps (DISCOVERY + RESEARCH) because ENRICHMENT, QUALIFICATION,
+ * GAP_ANALYSIS, OPPORTUNITY, SOLUTION_MAPPING, LEAD_SCORING, OUTREACH, CRM,
+ * and REPORTING have no specific event producer.
+ *
+ * Called from the EXISTING heartbeat/cron — NOT a second scheduler. Same
+ * pattern as runAgentSchedulerTick + processPendingEvents + expireStaleApprovals.
+ *
+ * Bounded: 25 leads per tick (resumes next tick — not a product cap).
+ * Idempotent: continuePipelineForLead uses withIdempotency per
+ * (lead, step, evidenceVersion) — a step never repeats for the same lead.
+ */
+export async function runPipelineSweep(): Promise<{ checked: number; advanced: number }> {
+  let leads: Array<{ id: string; userId: string }> = [];
+  try {
+    leads = await db.lead.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: { id: true, userId: true },
+      take: 25,
+      orderBy: { updatedAt: 'asc' },
+    });
+  } catch {
+    return { checked: 0, advanced: 0 };
+  }
+
+  let advanced = 0;
+  for (const lead of leads) {
+    try {
+      const plan = await planNextStep(lead.userId, lead.id);
+      if (plan.next && !plan.next.waitsForEvent) {
+        await continuePipelineForLead({ userId: lead.userId, leadId: lead.id, maxSteps: 1 });
+        advanced++;
+      }
+    } catch {
+      // non-fatal — skip this lead, try next on the next tick
+    }
+  }
+
+  return { checked: leads.length, advanced };
+}
