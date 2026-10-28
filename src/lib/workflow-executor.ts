@@ -424,6 +424,33 @@ export async function processExecution(
     executionId,
     durationMs: totalDuration,
   });
+
+  // Workstream D §5 — emit workflow_completion event so the agent
+  // continuation engine (agent-continuation.ts → handleWorkflowCompletionEvent)
+  // can advance the pipeline for affected leads. The event is idempotent
+  // (UNIQUE idempotencyKey: "workflow-completion:<executionId>") — a retry/
+  // replay of the execution will NOT duplicate the event or the continuation.
+  try {
+    const { emitWorkflowCompletion } = await import('@/lib/ai/agent-workflow-bridge');
+    let leadIds: string[] = [];
+    try {
+      const executionLeads = await db.workflowExecutionLead.findMany({
+        where: { executionId },
+        select: { leadId: true },
+      });
+      leadIds = executionLeads.map((l: { leadId: string }) => l.leadId);
+    } catch { /* non-fatal — no leads associated */ }
+    await emitWorkflowCompletion({
+      userId: execution.userId || userId,
+      executionId,
+      workflowId: workflow.id,
+      status: 'completed',
+      leadIds,
+    });
+  } catch {
+    // Non-fatal — the event system is best-effort; the workflow itself
+    // already completed successfully.
+  }
 }
 
 /** Execute a single step action based on its type and config */
