@@ -203,20 +203,20 @@ model User {
 }
 
 model UserSession {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   userId            String
-  refreshToken      String   @unique
+  refreshToken      String    @unique
   deviceInfo        String?
   ipAddress         String?
   userAgent         String?
   expiresAt         DateTime
-  isRevoked         Boolean  @default(false)
+  isRevoked         Boolean   @default(false)
   // ── Remember-me / activity tracking (P5+P6, forward-only additive) ──
   // rememberMe = the user checked "Remember me for 30 days".
   // lastActivityAt = server-authoritative last authenticated activity.
   // absoluteExpiresAt = hard ceiling (30 days), regardless of activity.
-  rememberMe        Boolean  @default(false)
-  lastActivityAt    DateTime @default(now())
+  rememberMe        Boolean   @default(false)
+  lastActivityAt    DateTime  @default(now())
   absoluteExpiresAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -433,25 +433,25 @@ model CreditAddon {
 }
 
 model PaymentOrder {
-  id                String  @id @default(cuid())
-  userId            String
-  provider          String  @default("razorpay") // razorpay, stripe
-  providerOrderId   String?
-  providerPaymentId String?
+  id                     String  @id @default(cuid())
+  userId                 String
+  provider               String  @default("razorpay") // razorpay, stripe
+  providerOrderId        String?
+  providerPaymentId      String?
   providerSubscriptionId String? // Razorpay subscription id for recurring checkout (plan_*.subscriptions)
-  amount            Float
-  currency          String  @default("USD")
-  plan              String
-  billingCycle      String  @default("monthly") // monthly, yearly
-  status            String  @default("pending") // pending, completed, failed, refunded
-  couponCode        String?
-  discountAmount    Float   @default(0)
-  subtotal          Float   @default(0)
-  taxRate           Float   @default(0)
-  taxAmount         Float   @default(0)
-  gstNumber         String?
-  isIndianUser      Boolean @default(false)
-  idempotencyKey    String? @unique
+  amount                 Float
+  currency               String  @default("USD")
+  plan                   String
+  billingCycle           String  @default("monthly") // monthly, yearly
+  status                 String  @default("pending") // pending, completed, failed, refunded
+  couponCode             String?
+  discountAmount         Float   @default(0)
+  subtotal               Float   @default(0)
+  taxRate                Float   @default(0)
+  taxAmount              Float   @default(0)
+  gstNumber              String?
+  isIndianUser           Boolean @default(false)
+  idempotencyKey         String? @unique
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   webhooks PaymentWebhook[]
@@ -665,10 +665,10 @@ model Lead {
   // src/lib/website-service.ts) but were missing from the schema file.
   // Declared here so `prisma db push` stays purely additive and never
   // drops real data (pre-existing drift fix, Sep 2026).
-  websiteStatus               String?
+  websiteStatus                 String?
   websiteVerificationConfidence String?
-  websiteVerificationSource   String?
-  websiteVerifiedAt           DateTime?
+  websiteVerificationSource     String?
+  websiteVerifiedAt             DateTime?
 
   // Real employee data captured during AI discovery (null = unknown).
   // employeeRange preserves a provider range honestly (e.g. "51-100",
@@ -693,7 +693,7 @@ model Lead {
   // (additive, nullable; legacy rows read as null). Together with
   // discoveredVia (the exact query) and niche/country/city (the targeting
   // combo context) every discovered lead keeps its full provenance.
-  discoveryJobId     String?
+  discoveryJobId String?
 
   isActive  Boolean   @default(true)
   deletedAt DateTime?
@@ -756,8 +756,8 @@ model LeadAnalysis {
   // Columns that already exist in the live database (written by
   // src/lib/website-service.ts) but were missing from the schema file.
   // Declared so db push never drops real data (pre-existing drift fix).
-  isStale               Boolean?
-  staleReason           String?
+  isStale     Boolean?
+  staleReason String?
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
@@ -849,32 +849,32 @@ model PipelineCustomStage {
 // ═══════════════════════════════════════════════════════════════════
 
 model OutreachMessage {
-  id              String    @id @default(cuid())
-  leadId          String
-  userId          String?
-  channel         String // email, whatsapp, linkedin, instagram
-  direction       String    @default("outbound")
-  subject         String?
-  content         String
+  id                 String    @id @default(cuid())
+  leadId             String
+  userId             String?
+  channel            String // email, whatsapp, linkedin, instagram
+  direction          String    @default("outbound")
+  subject            String?
+  content            String
   // Status states: draft, approval_required, queued, sending, provider_accepted,
   // sent, delivered, opened, replied, bounced, failed, rejected, rate_limited,
   // retrying, cancelled. Never mark "sent" unless provider confirms acceptance.
-  status          String    @default("draft")
-  sentAt          DateTime?
+  status             String    @default("draft")
+  sentAt             DateTime?
   providerAcceptedAt DateTime? // When provider API accepted (distinct from actual send)
-  openedAt        DateTime?
-  repliedAt       DateTime?
-  bouncedAt       DateTime?
-  generatedByAI   Boolean   @default(false)
-  sequenceStepId  String? // null = manual/outreach, set = from sequence
-  trackingPixelId String?   @unique
-  metadata        String? // JSON for additional data
-  providerMessageId String? // External ID returned by provider (idempotency + dedup)
-  errorCategory     String? // rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, provider_blocked, unknown
-  errorMessage      String?
-  retryCount        Int     @default(0)
-  maxRetries        Int     @default(3)
-  nextRetryAt       DateTime?
+  openedAt           DateTime?
+  repliedAt          DateTime?
+  bouncedAt          DateTime?
+  generatedByAI      Boolean   @default(false)
+  sequenceStepId     String? // null = manual/outreach, set = from sequence
+  trackingPixelId    String?   @unique
+  metadata           String? // JSON for additional data
+  providerMessageId  String? // External ID returned by provider (idempotency + dedup)
+  errorCategory      String? // rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, provider_blocked, unknown
+  errorMessage       String?
+  retryCount         Int       @default(0)
+  maxRetries         Int       @default(3)
+  nextRetryAt        DateTime?
 
   lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1307,30 +1307,30 @@ model AiChatMessage {
 // ═══════════════════════════════════════════════════════════════════
 
 model WorkflowDefinition {
-  id               String  @id @default(cuid())
-  userId           String
-  orgId            String?
-  name             String
-  description      String?
-  status           String  @default("draft") // draft, active, paused, archived
-  triggerType      String // lead_stage_change, lead_reply, score_change, manual, scheduled, payment_received
-  triggerConfig    String? // JSON: { stage: "replied", scoreThreshold: 80, schedule: "daily", ... }
-  nodes            String  @default("[]") // JSON array of workflow node definitions
-  edges            String  @default("[]") // JSON array of edge connections
-  version          Int     @default(1)
-  isTemplate       Boolean @default(false)
-  templateCategory String?
+  id                     String           @id @default(cuid())
+  userId                 String
+  orgId                  String?
+  name                   String
+  description            String?
+  status                 String           @default("draft") // draft, active, paused, archived
+  triggerType            String // lead_stage_change, lead_reply, score_change, manual, scheduled, payment_received
+  triggerConfig          String? // JSON: { stage: "replied", scoreThreshold: 80, schedule: "daily", ... }
+  nodes                  String           @default("[]") // JSON array of workflow node definitions
+  edges                  String           @default("[]") // JSON array of edge connections
+  version                Int              @default(1)
+  isTemplate             Boolean          @default(false)
+  templateCategory       String?
   // Distinguishes "system-paused due to subscription expiry" (true)
   // from "user-manually-paused" (false). Only the former auto-resumes on repurchase.
-  disabledBySubscription Boolean @default(false)
+  disabledBySubscription Boolean          @default(false)
   // Human-approval gate: when true, send actions create drafts/notifications
   // instead of sending — a human must approve the outreach (additive, default
   // preserves existing behavior).
-  requiresApproval Boolean @default(false)
+  requiresApproval       Boolean          @default(false)
   // Optional Business Profile association (one workflow belongs to exactly one
   // profile/niche; nullable so existing workflows remain valid).
-  profileId String?
-  businessProfile BusinessProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  profileId              String?
+  businessProfile        BusinessProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
   executions    WorkflowExecution[]
   workflowSteps WorkflowStep[]
@@ -1394,8 +1394,8 @@ model WorkflowExecution {
   deadLettered     Boolean   @default(false)
   deadLetterReason String?
 
-  workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  stepLogs WorkflowLog[]
+  workflow  WorkflowDefinition      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepLogs  WorkflowLog[]
   leadItems WorkflowExecutionLead[]
 
   createdAt    DateTime  @default(now())
@@ -2057,19 +2057,19 @@ model DiscoveryJob {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  total     Int      @default(0)
-  progress  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  total         Int      @default(0)
+  progress      Int      @default(0)
   // Effective context/campaign override used for THIS discovery run (Discover
   // page context selector). JSON: { mode: 'none'|'campaign'|'business',
   // campaignId?, campaignNiche?, instructions? }. Persisted so historical jobs
   // remain explainable. Nullable + additive (legacy jobs read as no context).
-  contextJson String?
+  contextJson   String?
   // Phase 7 — terminal outcome classification, one of: success | partial |
   // zero_results | provider_failure | invalid_targeting. Nullable + additive:
   // legacy rows read as null and are derived from status/counts for display.
-  outcome String?
+  outcome       String?
   // Phase 8/9 — parsed targeting plan for THIS run: { niches: string[],
   // countries: string[], city: string|null, combos: number }. Multi-niche and
   // multi-country runs stay explainable long after the input form is gone.
@@ -2993,14 +2993,14 @@ model AnalyticsSnapshot {
 // ═══════════════════════════════════════════════════════════════════
 
 model ProspectPipeline {
-  id          String   @id @default(cuid())
-  leadId      String
-  userId      String
-  status      String   @default("idle") // idle | running | completed | failed
-  currentStep Int      @default(0) // 0 = not started; 1..5 = step currently running
-  totalSteps  Int      @default(5)
-  stepStatus  String   @default("{}") // JSON: { "1": "pending|running|completed|failed|skipped" }
-  progress    Int      @default(0) // 0-100
+  id                String    @id @default(cuid())
+  leadId            String
+  userId            String
+  status            String    @default("idle") // idle | running | completed | failed
+  currentStep       Int       @default(0) // 0 = not started; 1..5 = step currently running
+  totalSteps        Int       @default(5)
+  stepStatus        String    @default("{}") // JSON: { "1": "pending|running|completed|failed|skipped" }
+  progress          Int       @default(0) // 0-100
   step1ResearchJson String? // STEP 1: company deep research result (JSON)
   step2GapsJson     String? // STEP 2: detected gaps (JSON)
   step3MatchJson    String? // STEP 3: offer-vs-gap match result (JSON)
@@ -3009,9 +3009,9 @@ model ProspectPipeline {
   overallScore      Float? // 0-100 offer-fit score
   temperature       String? // hot | warm | cold
   outreachMessageId String? // OutreachMessage draft created by STEP 5
-  error       String?
-  startedAt   DateTime?
-  completedAt DateTime?
+  error             String?
+  startedAt         DateTime?
+  completedAt       DateTime?
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
@@ -3053,7 +3053,7 @@ model SupportTicket {
   source         String    @default("support_center") // support_center | pricing_modal | kb_article | api
   metadata       String? // JSON: e.g. { searchQuery, articleSlug }
 
-  user      User                   @relation(fields: [userId], references: [id])
+  user      User                     @relation(fields: [userId], references: [id])
   messages  SupportTicketMessage[]
   statusLog SupportTicketStatusLog[]
 
@@ -3216,95 +3216,218 @@ model ResearchJob {
 // ═══════════════════════════════════════════════════════════════════
 
 model AutopilotWorkflow {
-  id         String    @id @default(cuid())
-  userId     String
-  orgId      String?
-  name       String
-  // State machine: DRAFT | ACTIVE | PAUSED | RUNNING | COMPLETED | FAILED | DISABLED
-  status     String    @default("DRAFT")
+  id              String    @id @default(cuid())
+  userId          String
+  orgId           String?
+  name            String
+  // State machine:
+  //   DRAFT | ACTIVE | PAUSED | RUNNING | COMPLETED | FAILED | DISABLED
+  //   ── Part 1 durable-autopilot extensions ──
+  //   | WAITING (intentional pause for external event/approval/time)
+  //   | BLOCKED (permanent failure awaiting human intervention)
+  //   | CANCELLED (user-aborted; supersedes legacy DISABLED semantics)
+  status          String    @default("DRAFT")
   // JSON array of selected niches (multi-select; discovery niche vocabulary)
-  niches     String    @default("[]")
+  niches          String    @default("[]")
   // JSON { country, city } — same shape as existing discovery geography config
-  geography  String    @default("{}")
+  geography       String    @default("{}")
   // Phase 20 — JSON { [nicheKey]: businessProfileId } mapping each selected
   // niche to the saved Business Profile used for that niche's leads.
   // Additive column: legacy rows read as "{}" (no mapping → existing
   // workflow-profile/default precedence, behavior unchanged).
-  profileMappings String @default("{}")
+  profileMappings String    @default("{}")
   // Linked user-configured WorkflowDefinition (must be active at run time)
-  workflowId String
+  workflowId      String
   // hourly | every_6_hours | every_12_hours | daily | weekly
-  schedule   String    @default("daily")
-  lastRunAt  DateTime?
-  nextRunAt  DateTime?
-  lastError  String?
-  runCount   Int       @default(0)
+  schedule        String    @default("daily")
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  lastError       String?
+  runCount        Int       @default(0)
   // Honest cumulative counters
-  totalDiscovered Int  @default(0)
-  totalSaved      Int  @default(0)
-  totalProcessed  Int  @default(0)
-  totalExecutions Int  @default(0)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  totalDiscovered Int       @default(0)
+  totalSaved      Int       @default(0)
+  totalProcessed  Int       @default(0)
+  totalExecutions Int       @default(0)
+
+  // ── Part 1 — Durable Autonomous Autopilot Foundation ──────────
+  // Additive columns for the unified time+event trigger + objective
+  // lifecycle. All nullable / defaulted so legacy rows remain valid.
+  //
+  // IANA timezone name for schedule anchoring (e.g. "Asia/Kolkata").
+  // NULL = use server-local timezone (legacy behaviour).
+  timezone            String?
+  // JSON array of event-trigger specs:
+  //   [{ "eventType": "new_lead", "enabled": true },
+  //    { "eventType": "new_email", "enabled": true, "filter": {...} },
+  //    { "eventType": "follow_up_due", "enabled": true },
+  //    { "eventType": "approval_response", "enabled": true },
+  //    { "eventType": "external_webhook", "enabled": false, "source": "..."}]
+  // An empty array (legacy default "[]") means time-only trigger.
+  eventTriggers       String   @default("[]")
+  // businessId — optional BusinessProfile scoping for multi-business users.
+  // NULL = use the legacy workflow-profile mapping / default profile.
+  businessId          String?
+  // JSON execution-policy document:
+  //   { "autoResume": true,
+  //     "maxConcurrentInvocations": 1,
+  //     "maxRetries": 3,
+  //     "backoffMs": 5000,
+  //     "leaseTimeoutMs": 600000,
+  //     "requireApprovalFor": ["email.send","outreach.send"] }
+  executionPolicy     String   @default("{}")
+  // JSON approval-policy document:
+  //   { "mode": "auto" | "escalate_high_risk" | "always_require",
+  //     "escalationChannel": "in_app" | "telegram" | "none",
+  //     "expireAfterMs": 86400000 }
+  approvalPolicy      String   @default("{}")
+  // JSON permissions-policy document:
+  //   { "allowedTools": ["lead.search","email.send"],
+  //     "deniedTools": ["telegram.notify"],
+  //     "dataScope": { "ownLeadsOnly": true, "ownBusinessOnly": true } }
+  permissionsPolicy   String   @default("{}")
+  // JSON model-strategy reference:
+  //   { "strategy": "single" | "sequential" | "parallel",
+  //     "models": [{ "provider": "z-ai", "model": "glm-4.6", "role": "fit_scorer" }],
+  //     "concurrency": 3 }
+  // NULL = use the user's default model strategy (legacy behaviour).
+  modelStrategyConfig String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
   @@index([nextRunAt])
   @@index([workflowId])
+  // Part 1 — accelerate event-trigger lookups by businessId + active.
+  @@index([businessId])
+  @@index([status, nextRunAt])
 }
 
 model AutopilotRun {
-  id                String    @id @default(cuid())
+  id                String  @id @default(cuid())
   autopilotId       String
   userId            String
-  // QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED (Phase 18)
-  status            String    @default("QUEUED")
-  // manual | scheduler
-  trigger           String    @default("manual")
+  // State machine (extended in Part 1):
+  //   QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED  (Phase 18 baseline)
+  //   ── Part 1 durable-autopilot extensions ──
+  //   | WAITING   — intentionally released worker; persisted waiting condition
+  //   | BLOCKED   — permanent failure (invalid config / unsupported provider)
+  //   | PAUSED    — awaiting human approval/clarification
+  status            String  @default("QUEUED")
+  // manual | scheduler  (Phase 18 baseline — the high-level trigger category)
+  trigger           String  @default("manual")
+  // Part 1 — finer trigger classification for unified pipeline observability:
+  //   manual | schedule | event | followup | approval_resume | restart_recovery
+  // NULL on legacy rows → interpreted as the value of `trigger`.
+  triggerType       String?
+  // Part 1 — if triggerType = "event" | "followup" | "approval_resume",
+  // references the AgentEvent.id that woke this invocation. NULL otherwise.
+  triggerEventId    String?
   // JSON snapshot of { niches, geography, profile, workflow } at run time —
   // Phase 18: the run preserves the profile/context snapshot it started
   // with (later profile edits never rewrite history).
-  config            String    @default("{}")
+  config            String  @default("{}")
   // Phase 18 idempotency/run key — deterministic identity for duplicate
   // invocation protection. Scheduler: "scheduled:{autopilotId}:{slot}" —
   // a replayed tick converges on the SAME run row. Manual: unique per
   // invocation ("manual:{autopilotId}:{epochMs}"). NULL on legacy rows.
-  runKey            String?   @unique
+  runKey            String? @unique
+  // Part 1 — explicit idempotency key for the unified-trigger entry.
+  // Distinct from runKey (which is Phase 18 scheduler-specific) so that
+  // event-triggered invocations can have their own dedup identity:
+  //   schedule → "schedule:{automationId}:{slotEpochMs}"
+  //   event    → "event:{automationId}:{triggerEventId}"
+  //   manual   → "manual:{automationId}:{epochMs}" (same as runKey)
+  // Enforced UNIQUE so duplicate ticks/events converge on the same row.
+  idempotencyKey    String? @unique
+  // Part 1 — cross-cutting correlation ID (used for log/event/run linking).
+  // Same value propagated to AgentEvent.correlationId + WorkflowExecution.correlationId.
+  correlationId     String? @unique
   // Phase 18: the run's ONE parent WorkflowExecution (the whole batch —
   // leads are items under it, never per-lead top-level executions).
   executionId       String?
-  discovered        Int       @default(0)
-  saved             Int       @default(0)
-  skippedDupes      Int       @default(0)
-  processed         Int       @default(0)
-  executionsCreated Int       @default(0)
+  discovered        Int     @default(0)
+  saved             Int     @default(0)
+  skippedDupes      Int     @default(0)
+  processed         Int     @default(0)
+  executionsCreated Int     @default(0)
   // Phase 18 lead-level outcome aggregates (settled by the run finalizer
   // once the parent execution reaches a terminal state).
-  leadsCompleted    Int       @default(0)
-  leadsFailed       Int       @default(0)
+  leadsCompleted    Int     @default(0)
+  leadsFailed       Int     @default(0)
   error             String?
-  createdAt         DateTime  @default(now())
-  startedAt         DateTime?
-  completedAt       DateTime?
+
+  // ── Part 1 — Durable execution state ────────────────────────────
+  // The current worker that has claimed this invocation.
+  // Set by atomic claim; cleared on completion / lease expiry.
+  // Format: "{hostname}:{pid}:{randomNonce}".
+  leaseOwner        String?
+  // When the current lease expires. A tick seeing leaseExpiresAt < now
+  // is safe to reclaim (recoverStuckRuns + lease logic).
+  leaseExpiresAt    DateTime?
+  // Coarse current-agent pointer for observability (e.g. "lead_discovery"
+  // or "outreach_composer"). NULL until first agent step starts.
+  currentAgentKey   String?
+  // Free-form action descriptor for the current step (e.g. "tool:lead.search").
+  currentAction     String?
+  // JSON snapshot of the high-level invocation checkpoint:
+  //   { "completedSteps": ["discovery","research"],
+  //     "pendingStep": "qualification",
+  //     "waitingCondition": null,
+  //     "nextAction": { "tool": "lead.qualify", "input": {...} } }
+  // Per-step granular checkpoints live in AutomationCheckpoint rows.
+  currentCheckpoint String    @default("{}")
+  // Retry state (bounded by maxRetries; default 3).
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  nextRetryAt       DateTime?
+  // Waiting state — set when status = WAITING.
+  //   WAITING_FOR_EMAIL | WAITING_FOR_APPROVAL | WAITING_FOR_FOLLOWUP
+  //   | WAITING_FOR_SCHEDULE | WAITING_FOR_EXTERNAL_EVENT
+  //   | WAITING_FOR_PROVIDER
+  waitingCondition  String?
+  // When the waiting condition should be re-checked (the "alarm clock").
+  // NULL = indefinite wait (only external event can wake).
+  nextWakeAt        DateTime?
+  // Error classification for retry policy:
+  //   retryable | permanent | human_required
+  errorCategory     String?
+  // Optional businessId denormalised from AutopilotWorkflow for fast
+  // user-isolation filters without a join.
+  businessId        String?
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime  @default(now()) @updatedAt
 
   @@index([autopilotId])
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@index([executionId])
+  // Part 1 — index for finding claimable invocations.
+  @@index([status, leaseExpiresAt])
+  // Part 1 — index for finding due wakeups.
+  @@index([status, nextWakeAt])
+  // Part 1 — user-scoped business isolation.
+  @@index([userId, businessId])
+  // Part 1 — event-trigger back-reference.
+  @@index([triggerEventId])
 }
 
 model AutopilotLead {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   autopilotId String
   runId       String
   leadId      String
   userId      String
   // DISCOVERED | EXEC_QUEUED | EXEC_FAILED
-  status      String    @default("DISCOVERED")
+  status      String   @default("DISCOVERED")
   executionId String?
   error       String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
   // DB-level idempotency: one lead can only ever be processed once per autopilot.
   @@unique([autopilotId, leadId])
@@ -3353,16 +3476,16 @@ model CustomNiche {
 // ═══════════════════════════════════════════════════════════════════
 
 model ExecutionActivity {
-  id           String   @id @default(cuid())
-  runId        String?  // AutopilotRun id (nullable for non-autopilot executions)
-  executionId  String?  // WorkflowExecution id
-  leadId       String?  // Lead id (for per-lead events)
-  eventType    String   // RUN_QUEUED | RUN_STARTED | RUN_COMPLETED | RUN_FAILED | RUN_CANCELLED | RETRY_INITIATED | RESUME_INITIATED | EXECUTION_CREATED | EXECUTION_CHARGED | LEAD_COMPLETED | LEAD_FAILED | LEAD_DISCOVERED | SETTLE_FINALIZED
-  fromStatus   String?  // previous status (for transitions)
-  toStatus     String?  // new status (for transitions)
-  detail       String?  // JSON blob with additional context (error reason, retry attempt, etc.)
-  userId       String   // ownership scoping — User B can never see User A's activities
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  runId       String? // AutopilotRun id (nullable for non-autopilot executions)
+  executionId String? // WorkflowExecution id
+  leadId      String? // Lead id (for per-lead events)
+  eventType   String // RUN_QUEUED | RUN_STARTED | RUN_COMPLETED | RUN_FAILED | RUN_CANCELLED | RETRY_INITIATED | RESUME_INITIATED | EXECUTION_CREATED | EXECUTION_CHARGED | LEAD_COMPLETED | LEAD_FAILED | LEAD_DISCOVERED | SETTLE_FINALIZED
+  fromStatus  String? // previous status (for transitions)
+  toStatus    String? // new status (for transitions)
+  detail      String? // JSON blob with additional context (error reason, retry attempt, etc.)
+  userId      String // ownership scoping — User B can never see User A's activities
+  createdAt   DateTime @default(now())
 
   @@index([runId])
   @@index([executionId])
@@ -3389,23 +3512,23 @@ model ExecutionActivity {
 model ModelInvocation {
   id            String    @id @default(cuid())
   invocationKey String    @unique
-  executionId   String?   // WorkflowExecution id
-  runId         String?   // AutopilotRun id (when orchestrated by autopilot)
-  leadId        String?   // Lead id (per-lead slots)
-  stepName      String?   // executing workflow step's name
-  actionType    String?   // ai_analysis | ai_outreach | score_lead | ...
-  provider      String    // ACTUAL serving provider (post-fallback)
-  model         String    // ACTUAL serving model reported by provider
-  role          String?   // logical slot role (e.g. 'analyst', 'critic')
+  executionId   String? // WorkflowExecution id
+  runId         String? // AutopilotRun id (when orchestrated by autopilot)
+  leadId        String? // Lead id (per-lead slots)
+  stepName      String? // executing workflow step's name
+  actionType    String? // ai_analysis | ai_outreach | score_lead | ...
+  provider      String // ACTUAL serving provider (post-fallback)
+  model         String // ACTUAL serving model reported by provider
+  role          String? // logical slot role (e.g. 'analyst', 'critic')
   status        String    @default("RUNNING") // RUNNING | COMPLETED | FAILED | CANCELLED
   attempt       Int       @default(0)
   startedAt     DateTime?
   finishedAt    DateTime?
   durationMs    Int?
-  result        String?   // JSON: { content, tokensUsed, retries }
+  result        String? // JSON: { content, tokensUsed, retries }
   error         String?
   tokensUsed    Int?
-  userId        String    // ownership scoping — cross-user isolation
+  userId        String // ownership scoping — cross-user isolation
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -3431,21 +3554,21 @@ model ModelInvocation {
 // ═══════════════════════════════════════════════════════════════════
 
 model AgentActivity {
-  id              String   @id
-  userId          String
-  orgId           String?
-  toolName        String
-  invocationId    String?  // ModelInvocation id (when invoked by an AI agent)
-  executionId     String?  // WorkflowExecution id
-  runId           String?  // AutopilotRun id
-  leadId          String?  // Lead id (when scoped to a lead)
-  input           String   // JSON-serialized validated input
-  status          String   // success | error | unauthorized | not_found | validation_error
-  durationMs      Int      @default(0)
-  output          String?  // JSON-serialized output (when status=success)
-  error           String?
-  fromCache       Int      @default(0) // 1 if served from idempotency cache
-  createdAt       DateTime @default(now())
+  id           String   @id
+  userId       String
+  orgId        String?
+  toolName     String
+  invocationId String? // ModelInvocation id (when invoked by an AI agent)
+  executionId  String? // WorkflowExecution id
+  runId        String? // AutopilotRun id
+  leadId       String? // Lead id (when scoped to a lead)
+  input        String // JSON-serialized validated input
+  status       String // success | error | unauthorized | not_found | validation_error
+  durationMs   Int      @default(0)
+  output       String? // JSON-serialized output (when status=success)
+  error        String?
+  fromCache    Int      @default(0) // 1 if served from idempotency cache
+  createdAt    DateTime @default(now())
 
   @@index([userId])
   @@index([toolName])
@@ -3481,7 +3604,7 @@ model Task {
   leadId      String?
   title       String
   priority    String    @default("medium") // low | medium | high | urgent
-  status      String    @default("open")    // open | in_progress | completed | cancelled
+  status      String    @default("open") // open | in_progress | completed | cancelled
   dueAt       DateTime?
   completedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -3512,17 +3635,17 @@ model Task {
 // ═══════════════════════════════════════════════════════════════════
 
 model UserAIProvider {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   userId              String
-  provider            String   // openai | anthropic | gemini | deepseek | openrouter | z-ai
-  encryptedCredential String   // AES-256-GCM encrypted API key
-  credentialHint      String   // masked prefix for display (e.g. "sk-***...X4f2")
-  modelPreferences    String   @default("{}") // JSON: { defaultModel: "gpt-4o", allowedModels: [...] }
-  status              String   @default("active") // active | inactive | invalid
+  provider            String // openai | anthropic | gemini | deepseek | openrouter | z-ai
+  encryptedCredential String // AES-256-GCM encrypted API key
+  credentialHint      String // masked prefix for display (e.g. "sk-***...X4f2")
+  modelPreferences    String    @default("{}") // JSON: { defaultModel: "gpt-4o", allowedModels: [...] }
+  status              String    @default("active") // active | inactive | invalid
   lastValidatedAt     DateTime?
-  lastValidationError  String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  lastValidationError String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@unique([userId, provider])
   @@index([userId])
@@ -3550,71 +3673,71 @@ model UserAIProvider {
 // ═══════════════════════════════════════════════════════════════════
 
 model Agent {
-  id              String   @id @default(cuid())
-  userId          String
-  orgId           String?
-  name            String
-  description     String?
+  id                   String    @id @default(cuid())
+  userId               String
+  orgId                String?
+  name                 String
+  description          String?
   // ── Workstream C §2 — first-class Agent abstraction ──
   // Long-form objective (what this agent exists to accomplish).
-  objective       String?
+  objective            String?
   // Classification: 'system' (canonical, seeded) | 'custom' (user-created).
   // System agents are reusable across workflows and Autopilot.
-  classification  String   @default("custom")
+  classification       String    @default("custom")
   // Stable system identifier for system agents ('DISCOVERY'|'RESEARCH'|
   // 'ENRICHMENT'|'QUALIFICATION'|'GAP_ANALYSIS'|'OPPORTUNITY'|
   // 'SOLUTION_MAPPING'|'LEAD_SCORING'|'OUTREACH'|'REPLY_ANALYSIS'|
   // 'FOLLOW_UP'|'CRM'|'REPORTING'). NULL for custom agents.
   // UNIQUE per (userId, systemKey) — at most one instance of each system
   // agent per user. NULL systemKey values are exempt (custom agents).
-  systemKey       String?
+  systemKey            String?
   // AI Brain (Decision 12) — single provider+model for reasoning
-  provider        String   @default("z-ai")
-  model           String   @default("glm-4.6")
+  provider             String    @default("z-ai")
+  model                String    @default("glm-4.6")
   // Model strategy (Workstream C §5) — JSON: { strategy: 'single' |
   // 'sequential' | 'parallel' | 'fallback', models?: [{provider,model,role}],
   // concurrency?: 1-4, fallback?: boolean }
   // Default 'single' — preserves Phase 26 v3 single-brain behavior.
-  modelStrategy   String   @default("{\"strategy\":\"single\"}")
+  modelStrategy        String    @default("{\"strategy\":\"single\"}")
   // Memory scopes (Workstream C §7) — JSON array of scopes this agent
   // can read/write: ['user','business','lead','agent','execution','evidence'].
   // Default ['agent'] — only its own agent-scoped memory (Phase 26 v3 behavior).
-  memoryScopes    String   @default("[\"agent\"]")
+  memoryScopes         String    @default("[\"agent\"]")
   // Current execution state (Workstream C §8) — granular state:
   // idle | running | reasoning | awaiting_tool | awaiting_approval |
   // paused | completed | failed | cancelled
-  executionState  String   @default("idle")
+  executionState       String    @default("idle")
   // Per-tool permissions (Decision 8) — JSON: { "email.send": "send_with_approval", "lead.update": "read-write", ... }
   // Value semantics: for email tools, matches ToolContext.emailPermission (read|draft|send_with_approval|autonomous).
   // For non-email tools: "read" (lookup only) | "read-write" (create/update) | "disabled" (tool not available).
-  toolPermissions String   @default("{}")
+  toolPermissions      String    @default("{}")
   // Permission categories (Workstream D §11) — JSON array of categories this
   // agent may perform: ['READ','ANALYZE','DRAFT','WRITE','SEND','DELETE',
   // 'MODIFY','TRIGGER_WORKFLOW','ESCALATE_HUMAN']. Default ['READ','ANALYZE','DRAFT']
   // (safe set). SEND/DELETE/MODIFY/TRIGGER_WORKFLOW require explicit grant.
-  permissionCategories String @default("[\"READ\",\"ANALYZE\",\"DRAFT\"]")
+  permissionCategories String    @default("[\"READ\",\"ANALYZE\",\"DRAFT\"]")
   // Schedule (Decision 10A) — JSON: { type: "cron"|"interval"|"none", cron?: "...", intervalSeconds?: N, nextRunAt?: "..." }
-  schedule        String   @default("{\"type\":\"none\"}")
+  schedule             String    @default("{\"type\":\"none\"}")
   // Triggers (Decision 10B) — JSON array: [{ event: "lead_reply"|"lead_created"|"score_change", condition: {...} }]
-  triggers        String   @default("[]")
+  triggers             String    @default("[]")
   // Approval policy (Decision 9) — "autonomous" (run without human approval) | "approval_required" (pause on actions needing approval)
-  approvalPolicy  String   @default("approval_required")
+  approvalPolicy       String    @default("approval_required")
   // Retry policy — JSON: { maxRetries: N, backoffMs: N }
-  retryPolicy     String   @default("{\"maxRetries\":2,\"backoffMs\":1000}")
+  retryPolicy          String    @default("{\"maxRetries\":2,\"backoffMs\":1000}")
   // Memory configuration (Decision 13-H) — JSON: { windowSize: N (last N messages retained), maxTokens: N }
-  memoryConfig    String   @default("{\"windowSize\":20,\"maxTokens\":4000}")
+  memoryConfig         String    @default("{\"windowSize\":20,\"maxTokens\":4000}")
   // Status: draft | active | paused | disabled
-  status          String   @default("draft")
+  status               String    @default("draft")
   // Execution safety (Decision 6) — hard limits
-  maxIterations   Int      @default(25)  // max reasoning steps per run
-  timeoutMs       Int      @default(300000)  // 5 minutes default
+  maxIterations        Int       @default(25) // max reasoning steps per run
+  timeoutMs            Int       @default(300000) // 5 minutes default
   // Cumulative counters (honest, like AutopilotWorkflow)
-  totalRuns       Int      @default(0)
-  totalTokensUsed Int      @default(0)
-  lastRunAt       DateTime?
-  lastError       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  totalRuns            Int       @default(0)
+  totalTokensUsed      Int       @default(0)
+  lastRunAt            DateTime?
+  lastError            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@unique([userId, systemKey])
   @@index([userId])
@@ -3624,35 +3747,35 @@ model Agent {
 }
 
 model AgentRun {
-  id              String   @id @default(cuid())
-  agentId         String
-  userId          String
-  orgId           String?
+  id             String    @id @default(cuid())
+  agentId        String
+  userId         String
+  orgId          String?
   // Trigger source: "manual" | "schedule" | "trigger:<event>" | "workflow:<executionId>"
-  triggerSource   String
-  status          String   @default("pending")  // pending | running | completed | failed | cancelled | paused_awaiting_approval
+  triggerSource  String
+  status         String    @default("pending") // pending | running | completed | failed | cancelled | paused_awaiting_approval
   // Workstream C §8 — granular execution state for observability:
   // idle | running | reasoning | awaiting_tool | awaiting_approval |
   // paused | completed | failed | cancelled | timeout
-  executionState  String   @default("idle")
+  executionState String    @default("idle")
   // Checkpoint (Workstream C §8) — JSON: { iteration, memoryLength,
   // lastToolName, lastToolStatus } for resume after pause/timeout.
   // NULL when no checkpoint has been persisted.
-  checkpoint      String?
-  startedAt       DateTime?
-  finishedAt      DateTime?
-  durationMs      Int?
+  checkpoint     String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  durationMs     Int?
   // Final result summary (JSON): { iterationsUsed, toolsCalled, tokensUsed, output }
-  result          String?
-  error           String?
+  result         String?
+  error          String?
   // Usage/cost metadata (Decision 19)
-  tokensUsed      Int      @default(0)
-  iterationsUsed  Int      @default(0)
-  toolsCalled     Int      @default(0)
+  tokensUsed     Int       @default(0)
+  iterationsUsed Int       @default(0)
+  toolsCalled    Int       @default(0)
   // Approval state (Decision 9) — "none" | "requested" | "approved" | "rejected"
-  approvalState   String   @default("none")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  approvalState  String    @default("none")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([agentId])
   @@index([userId])
@@ -3663,36 +3786,36 @@ model AgentRun {
 }
 
 model AgentMemory {
-  id              String   @id @default(cuid())
-  agentId         String
+  id           String   @id @default(cuid())
+  agentId      String
   // Role: "system" | "user" | "assistant" | "tool_result" | "reasoning"
-  role            String
-  content         String
-  tokensUsed      Int      @default(0)
+  role         String
+  content      String
+  tokensUsed   Int      @default(0)
   // Optional: link to the run that produced this memory
-  runId           String?
+  runId        String?
   // ── Workstream C §7 — provenance + scope + access policy ──
   // Memory scope: 'user' | 'business' | 'lead' | 'agent' | 'execution' | 'evidence'
   // Default 'agent' — preserves Phase 26 v3 behavior (per-agent memory).
-  scope           String   @default("agent")
+  scope        String   @default("agent")
   // Provenance — what produced this memory. Examples:
   //   'agent:reasoning' | 'tool:lead.lookup' | 'provider:openai:gpt-4o' |
   //   'user:manual' | 'workflow:executeWorkflow' | 'autopilot:tick'
-  source          String?
+  source       String?
   // Freshness label — 'real-time' | 'recent' | 'stale' | 'unknown'
-  freshness       String?
+  freshness    String?
   // Confidence in the memory's accuracy (0.0 to 1.0)
-  confidence      Float?
+  confidence   Float?
   // Version — bumped when memory is updated (optimistic concurrency)
-  version         Int      @default(1)
+  version      Int      @default(1)
   // Access policy — who can read this memory item
   // 'owner' (only the agent's owner) | 'org' (org members) | 'tenant' | 'global'
   // Default 'owner' — strictest. Prevents cross-user leakage.
-  accessPolicy    String   @default("owner")
+  accessPolicy String   @default("owner")
   // Optional: link to the lead this memory is about (when scope='lead')
-  leadId          String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  leadId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([agentId])
   @@index([runId])
@@ -3702,36 +3825,36 @@ model AgentMemory {
 }
 
 model AgentApproval {
-  id              String   @id @default(cuid())
-  userId          String   // Workstream D — ownership scoping for approval decisions
-  agentId         String
-  runId           String
+  id                  String    @id @default(cuid())
+  userId              String // Workstream D — ownership scoping for approval decisions
+  agentId             String
+  runId               String
   // The tool invocation that needs approval (e.g. "email.send")
-  toolName        String
+  toolName            String
   // The input that was about to be passed to the tool (JSON)
-  input           String
+  input               String
   // Status: "requested" | "approved" | "rejected" | "expired"
-  status          String   @default("requested")
+  status              String    @default("requested")
   // ── Workstream C §9 — human-readable reason + context ──
   // Reason: why the agent is requesting approval (free-form text the
   // agent writes when it pauses — explains its plan + risk assessment).
-  reason          String?
+  reason              String?
   // Context: JSON snapshot of the execution state at request time
   // { executionId, leadId, runState, iteration, lastToolName, ... }
-  context         String?
+  context             String?
   // ── Workstream D §8 — escalation payload ──
-  riskLevel       String?  // low | medium | high | critical
-  expiresAt       DateTime?
-  proposedAction  String?  // human-readable summary of what the agent wants to do
-  escalationChannel String? // telegram | in_app | none
+  riskLevel           String? // low | medium | high | critical
+  expiresAt           DateTime?
+  proposedAction      String? // human-readable summary of what the agent wants to do
+  escalationChannel   String? // telegram | in_app | none
   escalationMessageId String? // Telegram message ID for followup
-  requestedAt     DateTime @default(now())
-  decidedAt       DateTime?
-  decidedBy       String?  // userId of the human who decided
+  requestedAt         DateTime  @default(now())
+  decidedAt           DateTime?
+  decidedBy           String? // userId of the human who decided
   // The deciding user's note (optional)
-  decisionNote    String?
+  decisionNote        String?
   // After decision, the tool invocation result (JSON) — for audit
-  invocationResult String?
+  invocationResult    String?
 
   @@index([agentId])
   @@index([runId])
@@ -3754,29 +3877,29 @@ model AgentApproval {
 // ═══════════════════════════════════════════════════════════════════
 
 model DiscoveredModel {
-  id                      String   @id @default(cuid())
-  userId                  String   // ownership scoping — User B cannot see User A's discovered models
-  provider                String   // openai | anthropic | gemini | deepseek | openrouter | z-ai | local
-  modelId                 String   // provider-specific model id (e.g. "gpt-4o")
-  displayName             String?  // human-readable name
+  id                       String   @id @default(cuid())
+  userId                   String // ownership scoping — User B cannot see User A's discovered models
+  provider                 String // openai | anthropic | gemini | deepseek | openrouter | z-ai | local
+  modelId                  String // provider-specific model id (e.g. "gpt-4o")
+  displayName              String? // human-readable name
   // 'live' = fetched via authenticated API list request; 'catalog' = maintained fallback list
-  source                  String   @default("catalog")
+  source                   String   @default("catalog")
   // Capability metadata (per user spec Workstream B §5)
-  contextLength           Int?     // max context tokens (null when unknown)
+  contextLength            Int? // max context tokens (null when unknown)
   supportsVision           Boolean  @default(false)
   supportsTools            Boolean  @default(false)
   supportsStructuredOutput Boolean  @default(false)
   supportsReasoning        Boolean  @default(false)
   // JSON array strings: ["text","image","audio"] for input/output modalities
-  inputModalities         String?  // JSON: ["text","image","audio"]
-  outputModalities        String?  // JSON: ["text","image","audio"]
+  inputModalities          String? // JSON: ["text","image","audio"]
+  outputModalities         String? // JSON: ["text","image","audio"]
   // Provider-reported status: available | deprecated | preview | unknown
-  availability            String?  // 'available' | 'deprecated' | 'preview' | 'unknown'
-  lastVerifiedAt          DateTime @default(now())
+  availability             String? // 'available' | 'deprecated' | 'preview' | 'unknown'
+  lastVerifiedAt           DateTime @default(now())
   // Original JSON from provider for debugging (capped, never contains secrets)
-  rawMetadata             String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  rawMetadata              String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@unique([userId, provider, modelId])
   @@index([userId, provider])
@@ -3789,19 +3912,19 @@ model DiscoveredModel {
 // ═══════════════════════════════════════════════════════════════════
 
 model AgentOperation {
-  id              String   @id @default(cuid())
-  userId          String
-  operationType   String   // agent_run | workflow_start | tool_call | email_send | telegram_notify | approval_resume | continuation_step | external_callback
-  fingerprint     String   @unique  // sha256 of (userId+agentId+runId+opType+target+input+evidenceVersion)
-  agentId         String?
-  runId           String?
-  status          String   @default("completed")  // completed | failed
-  resultType      String?
-  resultId        String?
-  resultRef       String?  // JSON-serialized result for replay
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String    @id @default(cuid())
+  userId        String
+  operationType String // agent_run | workflow_start | tool_call | email_send | telegram_notify | approval_resume | continuation_step | external_callback
+  fingerprint   String    @unique // sha256 of (userId+agentId+runId+opType+target+input+evidenceVersion)
+  agentId       String?
+  runId         String?
+  status        String    @default("completed") // completed | failed
+  resultType    String?
+  resultId      String?
+  resultRef     String? // JSON-serialized result for replay
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([userId, operationType])
   @@index([userId, agentId])
@@ -3813,22 +3936,22 @@ model AgentOperation {
 // ═══════════════════════════════════════════════════════════════════
 
 model AgentEvent {
-  id              String   @id @default(cuid())
-  userId          String
-  eventType       String   // scheduled | workflow_completion | new_lead | new_email | follow_up_due | approval_response | task_completion | retryable_failure | external_webhook
-  payload         String   // JSON
-  source          String   @default("api")
-  status          String   @default("pending")  // pending | processing | processed | failed
-  idempotencyKey  String   @unique  // dedupe key — same logical event never starts duplicate work
-  correlationId   String?
-  executionId     String?
-  attempts        Int      @default(0)
-  retryCount      Int      @default(0)
-  maxRetries      Int      @default(3)
-  error           String?
-  processedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  eventType      String // scheduled | workflow_completion | new_lead | new_email | follow_up_due | approval_response | task_completion | retryable_failure | external_webhook
+  payload        String // JSON
+  source         String    @default("api")
+  status         String    @default("pending") // pending | processing | processed | failed
+  idempotencyKey String    @unique // dedupe key — same logical event never starts duplicate work
+  correlationId  String?
+  executionId    String?
+  attempts       Int       @default(0)
+  retryCount     Int       @default(0)
+  maxRetries     Int       @default(3)
+  error          String?
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([userId, status])
   @@index([userId, eventType])
@@ -3840,24 +3963,81 @@ model AgentEvent {
 // ═══════════════════════════════════════════════════════════════════
 
 model ConnectedAccount {
-  id                  String   @id @default(cuid())
-  userId              String
-  kind                String   @default("business_account")  // ai_provider | business_account | human_channel
-  provider            String   // hostinger-mail | gmail-smtp | smtp-email | ...
-  accountType         String   @default("email")  // email | chat | ai_provider
-  accountIdentifier   String   // e.g. the email address
-  status              String   @default("connected")  // connected | disconnected | error | revoked
-  capabilities        String?  // JSON array: ["email.send","email.reply",...]
+  id                   String    @id @default(cuid())
+  userId               String
+  kind                 String    @default("business_account") // ai_provider | business_account | human_channel
+  provider             String // hostinger-mail | gmail-smtp | smtp-email | ...
+  accountType          String    @default("email") // email | chat | ai_provider
+  accountIdentifier    String // e.g. the email address
+  status               String    @default("connected") // connected | disconnected | error | revoked
+  capabilities         String? // JSON array: ["email.send","email.reply",...]
   credentialsEncrypted String? // AES-256-GCM encrypted credential JSON
-  scopes              String?  // JSON array: ["email.send","email.send:approval_required",...]
-  meta                String?  // JSON: arbitrary provider-specific metadata
-  lastValidatedAt     DateTime?
-  lastError           String?
-  revokedAt           DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  scopes               String? // JSON array: ["email.send","email.send:approval_required",...]
+  meta                 String? // JSON: arbitrary provider-specific metadata
+  lastValidatedAt      DateTime?
+  lastError            String?
+  revokedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@unique([userId, provider, accountIdentifier])
   @@index([userId, provider])
   @@index([userId, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Part 1 — Durable Autonomous Autopilot Foundation
+//
+// Per-step execution checkpoint. One row per (invocation × step).
+// Enables:
+//   · restart-resume: load checkpoint, skip completed steps, resume
+//   · crash recovery: lease expiry → next worker reads latest checkpoint
+//   · observability: dashboard view of step progress
+//
+// Distinct from AgentRun.checkpoint (which is one agent's iteration
+// state inside a single step) — AutomationCheckpoint tracks the
+// multi-step pipeline shape (discovery → research → qualification →
+// outreach → waiting).
+// ═══════════════════════════════════════════════════════════════════
+
+model AutomationCheckpoint {
+  id               String    @id @default(cuid())
+  invocationId     String // FK to AutopilotRun.id (logical FK; not enforced to avoid cascade churn)
+  userId           String // denormalised for user isolation
+  businessId       String? // denormalised from AutopilotWorkflow for fast scoping
+  stepKey          String // canonical step id, e.g. "discovery" | "qualification" | "outreach"
+  stepName         String // human-readable label, e.g. "Lead discovery"
+  // PENDING | RUNNING | COMPLETE | FAILED | SKIPPED | WAITING
+  status           String    @default("PENDING")
+  // Ordering within the invocation. Lower = earlier. Stable across re-runs.
+  sequence         Int       @default(0)
+  // JSON result snapshot — idempotent replay can read this instead of
+  // re-executing the underlying external action.
+  //   { "discovered": 12, "leadIds": [...], "summary": "..." }
+  result           String?
+  // Free-form error text when status = FAILED.
+  error            String?
+  // Error classification reused from AutopilotRun.errorCategory.
+  errorCategory    String?
+  // If status = WAITING, the condition string (mirrors AutopilotRun.waitingCondition).
+  waitingCondition String?
+  // If status = WAITING, the alarm clock (mirrors AutopilotRun.nextWakeAt).
+  nextWakeAt       DateTime?
+  // Pointer to the next step's key (or null if this was the final step).
+  nextAction       String?
+  // Opaque token used by the worker to detect stale claim after resume:
+  //   a worker sets claimNonce when marking RUNNING; on resume, the next
+  //   worker replaces it. Stale workers detect mismatch and abort.
+  claimNonce       String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // One step per invocation+key — re-running the same step reuses the row.
+  @@unique([invocationId, stepKey])
+  @@index([invocationId, sequence])
+  @@index([invocationId, status])
+  @@index([userId, businessId])
+  @@index([status, nextWakeAt])
 }
