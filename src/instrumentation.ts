@@ -411,6 +411,40 @@ export async function register() {
               sweepErr instanceof Error ? sweepErr.message : sweepErr
             );
           }
+
+          // ═══ Part 1 — Durable Autonomous Autopilot Foundation ═══════
+          // Three new ticks piggybacked on the SAME heartbeat (no new
+          // scheduler):
+          //   1. recoverExpiredLeases — crashed-worker lease recovery
+          //   2. drainQueuedAndWaiting — wake due WAITING invocations +
+          //      claim QUEUED invocations whose retry budget allows
+          //   3. (eventTriggerTick is called from processPendingEvents
+          //      handlers, not directly here — see agent-event-dispatcher)
+          //
+          // All non-fatal: any one failing never blocks the others.
+          try {
+            const { recoverExpiredLeases, drainQueuedAndWaiting } = await import(
+              '@/lib/autopilot/unified-trigger'
+            );
+            const recovery = await recoverExpiredLeases();
+            if (recovery.recovered > 0) {
+              console.warn(
+                `[part1-lease] recovered ${recovery.recovered} stale invocations: ${recovery.recoveredIds.slice(0, 5).join(',')}${recovery.recoveredIds.length > 5 ? '…' : ''}`
+              );
+            }
+            const drain = await drainQueuedAndWaiting({ maxConcurrent: 5 });
+            if (drain.claimed > 0 || drain.wokenWaits > 0 || drain.reclaimedStaleLeases > 0) {
+              console.warn(
+                `[part1-drain] scanned=${drain.scanned} claimed=${drain.claimed} ` +
+                `woken=${drain.wokenWaits} reclaimed=${drain.reclaimedStaleLeases}`
+              );
+            }
+          } catch (part1Err) {
+            console.error(
+              '[part1-durable-autopilot] tick failed (non-fatal):',
+              part1Err instanceof Error ? part1Err.message : part1Err
+            );
+          }
         } catch (err) {
           console.error(
             '[autopilot-heartbeat] tick failed (non-fatal):',
