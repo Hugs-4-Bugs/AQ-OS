@@ -370,6 +370,27 @@ export async function register() {
               expireErr instanceof Error ? expireErr.message : expireErr
             );
           }
+          // Phase 26 D §7 — check for due follow-up reminders and emit
+          // 'follow_up_due' events. Each due reminder triggers the
+          // handleFollowUpDueEvent handler → continuePipelineForLead
+          // → FOLLOW_UP agent. Idempotent (UNIQUE idempotencyKey per
+          // reminder). Bounded (50 per tick). Same heartbeat — NO second
+          // scheduler.
+          try {
+            const { checkDueFollowUps } = await import('@/lib/ai/agent-event-dispatcher');
+            const followUpResult = await checkDueFollowUps();
+            if (followUpResult.emitted > 0 || followUpResult.duplicates > 0) {
+              console.warn(
+                `[follow-up-check] tick: checked=${followUpResult.checked} ` +
+                `emitted=${followUpResult.emitted} duplicates=${followUpResult.duplicates}`
+              );
+            }
+          } catch (followUpErr) {
+            console.error(
+              '[follow-up-check] tick failed (non-fatal):',
+              followUpErr instanceof Error ? followUpErr.message : followUpErr
+            );
+          }
         } catch (err) {
           console.error(
             '[autopilot-heartbeat] tick failed (non-fatal):',
