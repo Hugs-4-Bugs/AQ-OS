@@ -255,6 +255,35 @@ export async function register() {
       // Logger is optional
     }
 
+    // ── Step 5b: Register agent event handlers (Workstream D §6) ───
+    // The event dispatcher (agent-event-dispatcher.ts) supports 9 event
+    // types. Each MUST have a registered handler — otherwise events
+    // are persisted but then fail with "No handler registered". This
+    // registration is idempotent (safe for hot reload —
+    // registeredEventTypes() prevents duplicate registration).
+    try {
+      const { registerEventHandler, registeredEventTypes } = await import('@/lib/ai/agent-event-dispatcher');
+      if (registeredEventTypes().length === 0) {
+        const { handleApprovalResponseEvent } = await import('@/lib/ai/approval-escalation');
+        const {
+          handleNewLeadEvent,
+          handleNewEmailEvent,
+          handleFollowUpDueEvent,
+          handleScheduledEvent,
+          handleWorkflowCompletionEvent,
+        } = await import('@/lib/ai/agent-continuation');
+        registerEventHandler('approval_response', handleApprovalResponseEvent);
+        registerEventHandler('new_lead', handleNewLeadEvent);
+        registerEventHandler('new_email', handleNewEmailEvent);
+        registerEventHandler('follow_up_due', handleFollowUpDueEvent);
+        registerEventHandler('scheduled', handleScheduledEvent);
+        registerEventHandler('workflow_completion', handleWorkflowCompletionEvent);
+        console.warn('[instrumentation] registered 6 agent event handlers (approval_response, new_lead, new_email, follow_up_due, scheduled, workflow_completion)');
+      }
+    } catch (err) {
+      console.error('[instrumentation] event handler registration failed (non-fatal):', err);
+    }
+
     // ── Step 6: Autopilot scheduler heartbeat ──────────────────────
     // The cron route (POST /api/cron/autopilot-scheduler, CRON_SECRET) is the
     // primary trigger in deployments that have an external scheduler. In
@@ -302,6 +331,25 @@ export async function register() {
             console.error(
               '[agent-scheduler] tick failed (non-fatal):',
               agentErr instanceof Error ? agentErr.message : agentErr
+            );
+          }
+          // Phase 26 D — process pending agent events (event dispatcher tick).
+          // Uses the SAME heartbeat as the autopilot + agent scheduler — NO
+          // second scheduler. Events are claimed atomically (pending →
+          // processing CAS) and handlers are idempotent (withIdempotency).
+          try {
+            const { processPendingEvents } = await import('@/lib/ai/agent-event-dispatcher');
+            const eventResult = await processPendingEvents();
+            if (eventResult.processed > 0 || eventResult.failed > 0 || eventResult.retriedLater > 0) {
+              console.warn(
+                `[event-dispatcher] tick: scanned=${eventResult.scanned} processed=${eventResult.processed} ` +
+                `failed=${eventResult.failed} retried=${eventResult.retriedLater} duplicates=${eventResult.duplicatesSkipped}`
+              );
+            }
+          } catch (eventErr) {
+            console.error(
+              '[event-dispatcher] tick failed (non-fatal):',
+              eventErr instanceof Error ? eventErr.message : eventErr
             );
           }
         } catch (err) {
