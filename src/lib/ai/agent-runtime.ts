@@ -67,8 +67,10 @@
 import { db } from '@/lib/db';
 import type { AgentRow } from '@/lib/ai/agent-service';
 import { isToolAllowed, getToolPermission } from '@/lib/ai/agent-service';
-import { invokeTool, listTools } from '@/lib/ai/agent-tools';
+import { listTools } from '@/lib/ai/agent-tools';
 import type { ToolContext } from '@/lib/ai/agent-tools';
+import { evaluateAuthorization, authorizeAndInvokeTool, type AgentToolAuthContext } from '@/lib/ai/agent-authz';
+import { escalateApproval } from '@/lib/ai/approval-escalation';
 import { executeAICompletion } from '@/lib/ai/ai-provider';
 import { resolveProviderApiKey, markProviderInvalid } from '@/lib/ai/user-ai-provider-service';
 import {
@@ -399,7 +401,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
         data: { executionState: 'awaiting_tool' },
       }).catch(() => { /* non-fatal */ });
 
-      // ── 3. VALIDATE tool permission ──
+      // ── 3. VALIDATE tool permission (initial filter) ──
       const perm = getToolPermission({
         toolPermissions,
       } as AgentRow, parsed.toolName);
@@ -416,85 +418,123 @@ export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
         continue;
       }
 
-      // ── 4. INVOKE TOOL via the secure registry ──
-      const toolCtx: ToolContext = {
+      // ── 3b. EVALUATE AUTHORIZATION (9-check chain) ──
+      // Every agent-initiated tool execution MUST pass through the full
+      // authorization chain (agent-authz.ts): authenticated user → agent
+      // identity → execution identity → connected account → capability →
+      // permission policy → input validation → idempotency → audit.
+      // No tool is executable by bypassing these checks.
+      const authzCtx: AgentToolAuthContext = {
         userId: opts.userId,
         orgId: agent.orgId || null,
+        agentId: agent.id,
+        runId: run.id,
+        executionId: opts.executionId ?? null,
+        leadId: opts.leadId ?? null,
         emailPermission: (perm === 'autonomous' ? 'autonomous'
           : perm === 'send_with_approval' ? 'send_with_approval'
-          : perm === 'read-write' ? 'autonomous' // non-email read-write tools are autonomous
+          : perm === 'read-write' ? 'autonomous'
           : 'read') as ToolContext['emailPermission'],
+        toolLevelPermission: perm,
+        approvalPolicy: agent.approvalPolicy,
+        permissionCategoriesJson: (agent as { permissionCategories?: string | null }).permissionCategories ?? null,
         invocationId: run.id,
-        executionId: opts.executionId,
-        runId: opts.runId,
-        leadId: opts.leadId,
-        idempotencyKey: `${run.id}:${parsed.toolName}:${iterationsUsed}`,
         log: (event, details) => console.log(`[AgentRun ${run.id}] ${event}`, details || ''),
       };
 
-      // For email.send with send_with_approval: create AgentApproval
-      // (with reason + context per Workstream C §9), pause, wait for decision.
-      if (parsed.toolName === 'email.send' || parsed.toolName === 'email.reply') {
-        if (perm === 'send_with_approval') {
-          // Update executionState to 'awaiting_approval'
-          await db.agentRun.update({
-            where: { id: run.id },
-            data: { executionState: 'awaiting_approval' },
-          }).catch(() => { /* non-fatal */ });
-          await db.agent.update({
-            where: { id: agent.id },
-            data: { executionState: 'awaiting_approval' },
-          }).catch(() => { /* non-fatal */ });
-
-          const approvalReason = `Agent "${agent.name}" (run ${run.id}) is requesting approval to execute ${parsed.toolName}. The agent has reasoned that this action is necessary to complete the user's task. Review the input below and approve/reject. The agent will resume from this point on approval.`;
-          const approvalContext = JSON.stringify({
-            executionId: opts.executionId,
-            runId: opts.runId,
-            leadId: opts.leadId,
-            iteration: iterationsUsed,
-            memoryLength: memory.length,
-            lastToolName: parsed.toolName,
-            agentObjective: agent.objective,
-          });
-          const approval = await db.agentApproval.create({
-            data: {
-              agentId: agent.id,
-              runId: run.id,
-              toolName: parsed.toolName,
-              input: JSON.stringify(parsed.input),
-              status: 'requested',
-              reason: approvalReason,
-              context: approvalContext,
-            },
-          });
-          // Update the run status to paused_awaiting_approval
-          await db.agentRun.update({
-            where: { id: run.id },
-            data: { status: 'paused_awaiting_approval', approvalState: 'requested' },
-          });
-          // Persist the pending state in memory so a future resume can continue.
-          await appendMemoryScoped({
-            agentId: agent.id, runId: run.id,
-            role: 'system', content: `TOOL_APPROVAL_REQUIRED: tool=${parsed.toolName} approvalId=${approval.id} input=${JSON.stringify(parsed.input)}`,
-            tokensUsed: 0,
-            scope: 'agent', source: 'agent:approval_request',
-            freshness: 'real-time', confidence: 1.0,
-          });
-          // Persist checkpoint so resume can pick up where we left off.
-          await persistCheckpoint(run.id, iterationsUsed, memory.length, parsed.toolName, 'awaiting_approval');
-          return {
-            runId: run.id,
-            status: 'paused_awaiting_approval',
-            iterationsUsed, tokensUsed, toolsCalled,
-            finalAnswer: null,
-            error: `Paused awaiting human approval for ${parsed.toolName} (approvalId=${approval.id})`,
-            durationMs: Date.now() - startedAt,
-          };
-        }
+      const authzOutcome = await evaluateAuthorization(parsed.toolName, authzCtx);
+      if (!authzOutcome.allowed) {
+        const errResult = `Error: authorization denied — ${authzOutcome.reason}`;
+        await appendMemoryScoped({
+          agentId: agent.id, runId: run.id,
+          role: 'tool_result', content: errResult, tokensUsed: 0,
+          scope: 'agent', source: `tool:${parsed.toolName}:authz_denied`,
+          freshness: 'real-time', confidence: 1.0,
+        });
+        memory.push({ role: 'assistant', content: aiContent });
+        memory.push({ role: 'tool_result', content: errResult });
+        continue;
       }
 
-      // Invoke the tool via the secure registry.
-      const toolResult = await invokeTool(parsed.toolName, parsed.input, toolCtx);
+      // ── 4. APPROVAL CHECK (driven by the authorization chain) ──
+      // If the authorization chain determined that human approval is required
+      // (SEND/DELETE category + approvalPolicy, OR connected-account scope
+      // demands approval), create a durable approval, escalate via Telegram
+      // or in-app notification, and pause the run. The agent will resume
+      // from its checkpoint after the human decides.
+      if (authzOutcome.approvalRequired) {
+        // Update executionState to 'awaiting_approval'
+        await db.agentRun.update({
+          where: { id: run.id },
+          data: { executionState: 'awaiting_approval' },
+        }).catch(() => { /* non-fatal */ });
+        await db.agent.update({
+          where: { id: agent.id },
+          data: { executionState: 'awaiting_approval' },
+        }).catch(() => { /* non-fatal */ });
+
+        const approvalReason = `Agent "${agent.name}" (run ${run.id}) is requesting approval to execute ${parsed.toolName}. The authorization chain determined this action requires human review. Risk: ${authzOutcome.category ?? 'unknown'}. Review the input below and approve/reject. The agent will resume from this point on approval.`;
+        const approvalContext = JSON.stringify({
+          executionId: opts.executionId,
+          runId: opts.runId,
+          leadId: opts.leadId,
+          iteration: iterationsUsed,
+          memoryLength: memory.length,
+          lastToolName: parsed.toolName,
+          agentObjective: agent.objective,
+        });
+        const approval = await db.agentApproval.create({
+          data: {
+            userId: opts.userId,
+            agentId: agent.id,
+            runId: run.id,
+            toolName: parsed.toolName,
+            input: JSON.stringify(parsed.input),
+            status: 'requested',
+            reason: approvalReason,
+            context: approvalContext,
+          },
+        });
+
+        // Escalate via Telegram/in-app (Workstream D §8 — notify the human
+        // channel so the user can approve/reject). Non-fatal — the approval
+        // row is still valid even if notification fails.
+        await escalateApproval({ approvalId: approval.id }).catch(() => { /* non-fatal */ });
+
+        // Update the run status to paused_awaiting_approval
+        await db.agentRun.update({
+          where: { id: run.id },
+          data: { status: 'paused_awaiting_approval', approvalState: 'requested' },
+        });
+        // Persist the pending state in memory so a future resume can continue.
+        await appendMemoryScoped({
+          agentId: agent.id, runId: run.id,
+          role: 'system', content: `TOOL_APPROVAL_REQUIRED: tool=${parsed.toolName} approvalId=${approval.id} input=${JSON.stringify(parsed.input)}`,
+          tokensUsed: 0,
+          scope: 'agent', source: 'agent:approval_request',
+          freshness: 'real-time', confidence: 1.0,
+        });
+        // Persist checkpoint so resume can pick up where we left off.
+        await persistCheckpoint(run.id, iterationsUsed, memory.length, parsed.toolName, 'awaiting_approval');
+        return {
+          runId: run.id,
+          status: 'paused_awaiting_approval',
+          iterationsUsed, tokensUsed, toolsCalled,
+          finalAnswer: null,
+          error: `Paused awaiting human approval for ${parsed.toolName} (approvalId=${approval.id})`,
+          durationMs: Date.now() - startedAt,
+        };
+      }
+
+      // ── 5. INVOKE TOOL through the full authorization chain ──
+      // authorizeAndInvokeTool wraps the invocation in:
+      //   · evaluateAuthorization (the 9-check chain, already passed above)
+      //   · withIdempotency (persistent AgentOperation fingerprint — a
+      //     duplicate tool call with the same fingerprint returns the existing
+      //     result without re-executing, no duplicate business action, no charge)
+      //   · invokeTool (the actual tool execution via the secure registry)
+      //   · audit logging (agentActivity + the authz log events)
+      const toolResult = await authorizeAndInvokeTool(parsed.toolName, parsed.input, authzCtx);
       toolsCalled++;
 
       // Persist the tool result as memory (lead-scoped when leadId is set +
