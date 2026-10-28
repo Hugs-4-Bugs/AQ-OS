@@ -64,6 +64,13 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[AutopilotScheduler] follow-up check failed (non-fatal):', err);
     }
+    // Phase 26 D §7 — periodic pipeline sweep (same as heartbeat).
+    try {
+      const { runPipelineSweep } = await import('@/lib/ai/agent-continuation');
+      await runPipelineSweep();
+    } catch (err) {
+      console.error('[AutopilotScheduler] pipeline sweep failed (non-fatal):', err);
+    }
 
     return NextResponse.json({
       ok: true,

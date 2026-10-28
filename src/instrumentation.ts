@@ -391,6 +391,26 @@ export async function register() {
               followUpErr instanceof Error ? followUpErr.message : followUpErr
             );
           }
+          // Phase 26 D §7 — periodic pipeline sweep. Advances leads that
+          // have pending pipeline steps (ENRICHMENT, QUALIFICATION, etc.)
+          // but no specific event trigger. Without this, leads are stuck
+          // after the initial 2 steps (DISCOVERY + RESEARCH). Bounded (25
+          // leads per tick). Idempotent (withIdempotency per lead+step).
+          // Same heartbeat — NOT a second scheduler.
+          try {
+            const { runPipelineSweep } = await import('@/lib/ai/agent-continuation');
+            const sweepResult = await runPipelineSweep();
+            if (sweepResult.advanced > 0) {
+              console.warn(
+                `[pipeline-sweep] tick: checked=${sweepResult.checked} advanced=${sweepResult.advanced}`
+              );
+            }
+          } catch (sweepErr) {
+            console.error(
+              '[pipeline-sweep] tick failed (non-fatal):',
+              sweepErr instanceof Error ? sweepErr.message : sweepErr
+            );
+          }
         } catch (err) {
           console.error(
             '[autopilot-heartbeat] tick failed (non-fatal):',
