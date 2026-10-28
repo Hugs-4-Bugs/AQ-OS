@@ -303,6 +303,29 @@ function AgentDetail({ agent, providers, onBack }: { agent: Agent; providers: Pr
     }
   };
 
+  // Handle approve/reject for paused-awaiting-approval runs.
+  // The approvalId is embedded in the run's error string by the agent runtime:
+  // "Paused awaiting human approval for email.send (approvalId=abc123)"
+  const handleApproval = async (approvalId: string, decision: 'approve' | 'reject') => {
+    try {
+      const res = await fetch(`/api/agents/approvals/${approvalId}/decide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ decision }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Approval ${decision}d`, { description: data.message || 'Decision processed' });
+        loadRuns(); // refresh the execution history
+      } else {
+        toast.error('Approval failed', { description: data.error || 'Unknown error' });
+      }
+    } catch (err) {
+      toast.error('Approval failed', { description: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
@@ -397,6 +420,15 @@ function AgentDetail({ agent, providers, onBack }: { agent: Agent; providers: Pr
                     {r.iterationsUsed as number} iter · {r.toolsCalled as number} tools · {r.tokensUsed as number} tokens
                   </div>
                   {r.error && <div className="text-red-600 dark:text-red-400 mt-0.5">{r.error as string}</div>}
+                  {r.status === 'paused_awaiting_approval' && (() => {
+                    const approvalId = (r.error as string)?.match(/approvalId=([a-zA-Z0-9_-]+)/)?.[1];
+                    return approvalId ? (
+                      <div className="flex gap-2 mt-1">
+                        <Button size="sm" className="h-6 text-xs" onClick={() => handleApproval(approvalId, 'approve')}>✓ Approve</Button>
+                        <Button size="sm" variant="destructive" className="h-6 text-xs" onClick={() => handleApproval(approvalId, 'reject')}>✗ Reject</Button>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               ))}
             </div>
