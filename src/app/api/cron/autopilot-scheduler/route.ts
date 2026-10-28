@@ -48,6 +48,15 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[AutopilotScheduler] event dispatcher tick failed (non-fatal):', err);
     }
+    // Phase 26 D §8 — expire stale approvals (same proactive sweep as
+    // the heartbeat — ensures production with external cron also cleans
+    // up stale approvals).
+    try {
+      const { expireStaleApprovals } = await import('@/lib/ai/approval-escalation');
+      await expireStaleApprovals();
+    } catch (err) {
+      console.error('[AutopilotScheduler] approval expiry sweep failed (non-fatal):', err);
+    }
 
     return NextResponse.json({
       ok: true,
