@@ -149,7 +149,20 @@ const SYSTEM_AGENTS: SystemAgentDefinition[] = [
     objective: 'Qualify the lead using the BANT framework (Budget, Authority, Need, Timing) or MEDDIC where applicable. For each dimension, rate the lead (Strong/Moderate/Weak/Unknown) with evidence. Output a final qualification tier (P0/P1/P2/P3) with reasoning.',
     provider: 'z-ai',
     model: 'glm-4.6',
-    modelStrategy: { strategy: 'single' },
+    // BANT has 4 independent dimensions — parallel multi-angle scoring gives
+    // richer, more reliable qualification than a single composite prompt.
+    // Each role slot produces a focused dimension score; the agent runtime
+    // aggregates them into a final tier with disagreement detection.
+    modelStrategy: {
+      strategy: 'parallel',
+      models: [
+        { role: 'budget_scorer' },
+        { role: 'authority_scorer' },
+        { role: 'need_scorer' },
+        { role: 'timing_scorer' },
+      ],
+      concurrency: 3,
+    },
     memoryScopes: ['lead', 'agent', 'evidence'],
     toolPermissions: {
       'lead.lookup': 'read',
@@ -191,7 +204,18 @@ const SYSTEM_AGENTS: SystemAgentDefinition[] = [
     objective: 'Analyze the opportunity for this lead. Estimate deal size, assess solution fit, evaluate timing (immediate/quarter/next-year), and assign a probability of close (0-100%). Provide a written justification for each rating.',
     provider: 'z-ai',
     model: 'glm-4.6',
-    modelStrategy: { strategy: 'single' },
+    // Size / fit / timing are independent assessments — parallel multi-angle
+    // reasoning produces materially better deal-size estimation than one
+    // composite prompt (which tends to anchor on the first dimension).
+    modelStrategy: {
+      strategy: 'parallel',
+      models: [
+        { role: 'size_estimator' },
+        { role: 'fit_assessor' },
+        { role: 'timing_analyst' },
+      ],
+      concurrency: 3,
+    },
     memoryScopes: ['lead', 'agent', 'evidence'],
     toolPermissions: {
       'lead.lookup': 'read',
@@ -286,7 +310,19 @@ const SYSTEM_AGENTS: SystemAgentDefinition[] = [
     objective: 'Analyze the lead\'s reply to our outreach. Classify the intent (interested / not-interested / question / objection / OOO / unsubscribe). Extract key points. Recommend the next action (send info / schedule call / nurture / archive). For interested replies, draft a response.',
     provider: 'z-ai',
     model: 'glm-4.6',
-    modelStrategy: { strategy: 'single' },
+    // Intent classification / key-point extraction / next-action recommendation
+    // are separable analytical lenses. Parallel multi-angle reasoning surfaces
+    // disagreement (e.g. one model sees "interested" while another sees "objection")
+    // which the agent can then escalate or seek more evidence on.
+    modelStrategy: {
+      strategy: 'parallel',
+      models: [
+        { role: 'intent_classifier' },
+        { role: 'key_point_extractor' },
+        { role: 'next_action_recommender' },
+      ],
+      concurrency: 3,
+    },
     memoryScopes: ['lead', 'agent', 'evidence'],
     toolPermissions: {
       'lead.lookup': 'read',

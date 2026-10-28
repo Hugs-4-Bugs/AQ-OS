@@ -147,17 +147,25 @@ describe('Phase 26 — buildModelCallSpecs', () => {
     ]);
   });
 
-  it('identical (provider, model) slots are deduplicated — first wins', () => {
+  it('identical (provider, model, role) tuples are deduplicated — first wins', () => {
+    // G5 fix: dedup key now includes role. Two slots with same (provider,
+    // model) but DIFFERENT roles are LEGITIMATELY DISTINCT invocations
+    // (e.g. LEAD_SCORING: fit_scorer + engagement_scorer + intent_scorer +
+    // timing_scorer — all use default z-ai/glm-4.6 but produce different
+    // outputs). Two slots with IDENTICAL (provider, model, role) ARE
+    // duplicates and must be collapsed.
     expect(
       buildModelCallSpecs({
         models: [
           { provider: 'openai', model: 'gpt-4o', role: 'first' },
-          { provider: 'openai', model: 'gpt-4o', role: 'duplicate' },
+          { provider: 'openai', model: 'gpt-4o', role: 'duplicate' },  // different role → kept
+          { provider: 'openai', model: 'gpt-4o', role: 'first' },       // same role as slot 1 → DROPPED
           { provider: 'anthropic', model: 'claude-sonnet-4' },
         ],
       })
     ).toEqual([
       { provider: 'openai', model: 'gpt-4o', role: 'first', includePreviousOutput: undefined },
+      { provider: 'openai', model: 'gpt-4o', role: 'duplicate', includePreviousOutput: undefined },
       { provider: 'anthropic', model: 'claude-sonnet-4', includePreviousOutput: undefined },
     ]);
   });
