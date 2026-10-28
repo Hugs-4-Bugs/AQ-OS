@@ -462,7 +462,7 @@ export async function syncThread(
       // Determine direction (inbound vs outbound)
       const account = await db.emailAccount.findUnique({
         where: { id: emailAccountId },
-        select: { gmailEmail: true },
+        select: { gmailEmail: true, userId: true },
       });
 
       const direction = fromEmail.includes(account?.gmailEmail || '') ? 'outbound' : 'inbound';
@@ -483,6 +483,35 @@ export async function syncThread(
       });
 
       messagesSynced++;
+
+      // Workstream D §9/§10 — for INBOUND messages, trigger the email
+      // agent lifecycle via processInboundEmail. This:
+      //   1. correlates the message to a Lead (by sender email)
+      //   2. emits a 'new_email' AgentEvent (durable, idempotent)
+      //   3. the event dispatcher → handleNewEmailEvent → continues
+      //      the REPLY_ANALYSIS pipeline step for the lead
+      //
+      // Outbound messages (the user's own sent emails) do NOT trigger
+      // the agent — only genuine inbound replies do.
+      //
+      // Fire-and-forget (non-blocking). processInboundEmail is idempotent
+      // (withIdempotency per providerMessageId) — a PubSub retry or a
+      // duplicate sync will NOT double-process or double-emit.
+      if (direction === 'inbound' && account?.userId) {
+        const { processInboundEmail } = await import('@/lib/ai/email-agent');
+        processInboundEmail({
+          userId: account.userId,
+          providerMessageId: message.id,
+          providerThreadId: gmailThreadId,
+          fromEmail,
+          toEmail,
+          subject: msgSubject,
+          bodyPlain: bodyPlain.substring(0, 50000) || null,
+          source: 'gmail_oauth',
+        }).catch(err => {
+          console.error(`[GmailInbox] processInboundEmail failed for ${message.id}:`, err);
+        });
+      }
     } catch (error) {
       console.error(`[GmailInbox] Error syncing message ${message.id}:`, error);
     }

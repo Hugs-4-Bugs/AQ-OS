@@ -352,6 +352,24 @@ export async function register() {
               eventErr instanceof Error ? eventErr.message : eventErr
             );
           }
+          // Phase 26 D §8 — expire stale approvals (proactive sweep).
+          // Approvals past their expiresAt with status='requested' are
+          // transitioned to 'expired' + their paused runs are terminated.
+          // This prevents runs from being stuck in
+          // 'paused_awaiting_approval' forever when the user never
+          // responds. Safe (no side effects beyond status transitions).
+          try {
+            const { expireStaleApprovals } = await import('@/lib/ai/approval-escalation');
+            const expired = await expireStaleApprovals();
+            if (expired.expired > 0) {
+              console.warn(`[approval-expiry] swept ${expired.expired} stale approvals`);
+            }
+          } catch (expireErr) {
+            console.error(
+              '[approval-expiry] sweep failed (non-fatal):',
+              expireErr instanceof Error ? expireErr.message : expireErr
+            );
+          }
         } catch (err) {
           console.error(
             '[autopilot-heartbeat] tick failed (non-fatal):',
