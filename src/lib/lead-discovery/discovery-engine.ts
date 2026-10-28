@@ -697,8 +697,7 @@ async function saveLead(
         instagram: scraped.socialLinks.instagram || null,
         facebook: scraped.socialLinks.facebook || null,
         city,
-        country,
-        niche,
+        country,        niche,
         source: 'auto_discovery',
         stage: 'discovered',
         hasWebsite: scraped.websiteReachable,
@@ -708,6 +707,12 @@ async function saveLead(
         opportunityNotes: scraped.description || null,
       },
     });
+
+    // Workstream D — emit 'new_lead' event for autonomous continuation
+    // (handleNewLeadEvent → continuePipelineForLead → Discovery agent).
+    import('@/lib/ai/agent-event-dispatcher').then(({ notifyLeadCreated }) =>
+      notifyLeadCreated(userId, lead.id, 'discovery-engine').catch(() => {})
+    ).catch(() => {});
 
     console.log(`[DiscoveryEngine] Saved lead: ${scraped.name} (id: ${lead.id})`);
 

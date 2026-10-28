@@ -263,3 +263,36 @@ function safeParse(raw: string): Record<string, unknown> {
     return {};
   }
 }
+
+// ─── Lead creation event producer ──────────────────────────────────────
+
+/**
+ * Emit a 'new_lead' event when a Lead is successfully persisted.
+ *
+ * The event triggers the autonomous continuation pipeline:
+ *   new_lead → handleNewLeadEvent → continuePipelineForLead → Discovery agent
+ *
+ * Idempotent: idempotencyKey = 'new-lead:<userId>:<leadId>' — the same
+ * lead cannot trigger duplicate events (UNIQUE constraint on AgentEvent).
+ *
+ * Fire-and-forget: callers should use .catch(() => {}) to avoid blocking
+ * the lead creation response on event persistence.
+ *
+ * @param userId  — the lead's owner (must match Lead.userId)
+ * @param leadId  — the persisted Lead's id
+ * @param source  — the creation path: 'api' | 'discovery' | 'import' |
+ *                  'agent-tool' | 'discovery-engine'
+ */
+export async function notifyLeadCreated(
+  userId: string,
+  leadId: string,
+  source: string,
+): Promise<void> {
+  await enqueueEvent({
+    userId,
+    eventType: 'new_lead',
+    payload: { leadId, source },
+    source: `lead-created:${source}`,
+    idempotencyKey: `new-lead:${userId}:${leadId}`,
+  });
+}

@@ -1126,6 +1126,14 @@ export async function processDiscoveryJob(
               },
             });
 
+            // Workstream D — emit 'new_lead' event for autonomous continuation
+            // (handleNewLeadEvent → continuePipelineForLead → Discovery agent).
+            // Idempotent (idempotencyKey = 'new-lead:<userId>:<leadId>') —
+            // a discovery retry or replay cannot duplicate the event.
+            import('@/lib/ai/agent-event-dispatcher').then(({ notifyLeadCreated }) =>
+              notifyLeadCreated(userId, createdLead.id, 'discovery').catch(() => {})
+            ).catch(() => {});
+
             // The new lead joins the run's dedup index immediately so later
             // candidates in THIS run (and any job serialized behind the same
             // per-user lock) resolve to it instead of double-importing.

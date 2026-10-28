@@ -237,6 +237,14 @@ export const POST = withMonitoring(async (request: NextRequest) => {
 
       const lead = await db.lead.create({ data: leadData as never });
 
+      // Workstream D — emit 'new_lead' event so the autonomous continuation
+      // pipeline (handleNewLeadEvent → continuePipelineForLead → Discovery
+      // agent) can start processing this lead. Fire-and-forget — must never
+      // block the API response.
+      import('@/lib/ai/agent-event-dispatcher').then(({ notifyLeadCreated }) =>
+        notifyLeadCreated(leadData.userId || user?.id || '', lead.id, 'api').catch(() => {})
+      ).catch(() => {});
+
       // Record a dedicated ApiKeyUsage entry for the successful creation so
       // the per-month lead limit counter (status 201) can find it. Fire and
       // forget — must never block the response.
