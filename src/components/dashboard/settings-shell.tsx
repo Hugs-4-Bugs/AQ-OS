@@ -75,6 +75,8 @@ import { useSettingsStore } from '@/lib/settings-store';
 import { toast } from 'sonner';
 import ApiKeysPanel from '@/components/dashboard/api-keys-panel';
 import { AIProvidersPanel } from '@/components/dashboard/ai-providers-panel';
+import { UnifiedConnectedAccounts } from '@/components/dashboard/unified-connected-accounts';
+import { OutreachStatusPanel } from '@/components/dashboard/outreach-status-panel';
 import OfferProfileSettings from '@/components/dashboard/offer-profile-settings';
 import PersonalContextSettings from '@/components/dashboard/personal-context-settings';
 import BusinessProfileSettings from '@/components/dashboard/business-profile-settings';
@@ -2396,6 +2398,40 @@ useEffect(() => {
               <Card>
                 <CardContent className="pt-6">
                   <AIProvidersPanel />
+                </CardContent>
+              </Card>
+
+              {/* ═══ UNIFIED CONNECTED ACCOUNTS (Phase 26+27) ═══ */}
+              {/* Single unified surface across AI Providers + Business Accounts
+                  + Human Channels. LinkedIn/Instagram are reported honestly
+                  as provider_blocked — no fake "connected" UI. */}
+              <Card>
+                <CardHeader>
+                  <h4 className="text-sm font-semibold">Unified Connected Accounts</h4>
+                  <p className="text-xs text-muted-foreground">
+                    All connected accounts across AI providers, business email, and human channels. Provider-blocked channels are reported honestly with the specific API limitation.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <UnifiedConnectedAccounts />
+                </CardContent>
+              </Card>
+
+              {/* ═══ OUTREACH STATUS PANEL (Phase 27 — NO FAKE SENT) ═══ */}
+              {/* Shows accurate delivery state per message: draft → approval_required
+                  → queued → sending → provider_accepted → sent → delivered.
+                  "Provider Accepted" ≠ "Delivered" — provider accepted only means
+                  the provider API returned 200 + messageId; real delivery is
+                  confirmed via webhook events. */}
+              <Card>
+                <CardHeader>
+                  <h4 className="text-sm font-semibold">Outreach Delivery Status</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Per-message delivery state. Never shows fake "sent" status — every state is grounded in a real provider response or webhook event.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <OutreachStatusPanel />
                 </CardContent>
               </Card>
             </div>

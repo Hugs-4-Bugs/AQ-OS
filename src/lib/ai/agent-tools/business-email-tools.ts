@@ -58,7 +58,49 @@ async function sendViaConnectedAccount(capability: 'email.send' | 'email.reply',
     try { const c = await db.emailThread.create({ data: { emailAccountId: await ensureBusinessEmailAccountRow(userId, account.accountIdentifier), gmailThreadId: `smtp:${out.messageId}`, leadId, subject: String(input.subject), lastMessageAt: new Date(), messageCount: 1 } }); threadId = c.id; } catch { /* non-fatal */ }
   } else { try { await db.emailThread.update({ where: { id: threadId }, data: { lastMessageAt: new Date(), messageCount: { increment: 1 } } }); } catch { /* non-fatal */ } }
   try { await db.emailMessage.create({ data: { threadId: threadId!, gmailMessageId: out.messageId || `smtp:${Date.now()}`, fromEmail: account.accountIdentifier, toEmail: String(input.to), subject: String(input.subject), bodyPlain: input.text ? String(input.text) : null, bodyHtml: input.html ? String(input.html) : null, direction: 'outbound', isRead: true, leadId } }); } catch { /* non-fatal */ }
-  return { status: 'success', toolInvocationId: '', durationMs: 0, output: { sent: true, messageId: out.messageId, accepted: out.accepted, threadId, leadId } };
+
+  // Persist OutreachMessage with accurate status — SMTP returning 250 = provider accepted.
+  // Actual delivery to recipient inbox happens asynchronously via SMTP relay chain
+  // and is NOT confirmed by SMTP. We use 'provider_accepted' rather than 'sent'/'delivered'
+  // to comply with the Phase 27 "NO FAKE SENT" rule.
+  let outreachMessageId: string | null = null;
+  if (leadId) {
+    try {
+      const om = await db.outreachMessage.create({
+        data: {
+          leadId,
+          userId,
+          channel: 'email',
+          direction: 'outbound',
+          subject: String(input.subject),
+          content: input.text ? String(input.text) : (input.html ? String(input.html) : ''),
+          status: 'provider_accepted',
+          providerMessageId: out.messageId || null,
+          providerAcceptedAt: new Date(),
+          sentAt: new Date(),
+          generatedByAI: true,
+          metadata: JSON.stringify({ provider: account.provider, threadId, accepted: out.accepted }),
+        },
+      });
+      outreachMessageId = om.id;
+    } catch { /* non-fatal */ }
+  }
+
+  return {
+    status: 'success',
+    toolInvocationId: '',
+    durationMs: 0,
+    output: {
+      sent: true,                        // backward-compat (provider accepted = envelope handed off)
+      deliveryState: 'provider_accepted',// accurate state for UI timeline
+      messageId: out.messageId,
+      providerMessageId: out.messageId,
+      accepted: out.accepted,
+      threadId,
+      leadId,
+      outreachMessageId,
+    },
+  };
 }
 
 async function ensureBusinessEmailAccountRow(userId: string, identifier: string): Promise<string> {

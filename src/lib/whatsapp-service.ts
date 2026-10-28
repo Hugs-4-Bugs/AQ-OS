@@ -683,11 +683,12 @@ export async function sendMetaMessage(
     const responseData = await response.json() as { messages?: Array<{ id: string }> };
     const providerMessageId = responseData.messages?.[0]?.id || '';
 
-    // Update delivery status
+    // Update delivery status — Meta accepted the message (provider_accepted),
+    // actual delivery is confirmed async via webhook (delivered/read events).
     await db.messageDelivery.update({
       where: { id: delivery.id },
       data: {
-        status: 'sent',
+        status: 'provider_accepted',  // HONEST: API acceptance != delivery
         providerMessageId,
         sentAt: new Date(),
       },
@@ -699,8 +700,8 @@ export async function sendMetaMessage(
     // Audit log
     await logWhatsAppEvent({
       userId,
-      action: 'whatsapp_message_sent',
-      details: `Meta text message sent to ${to}`,
+      action: 'whatsapp_message_accepted',
+      details: `Meta text message accepted for delivery to ${to} (providerMessageId=${providerMessageId})`,
       resourceId: delivery.id,
       metadata: { provider: 'meta', to, providerMessageId, deliveryId: delivery.id },
     });
@@ -848,7 +849,7 @@ export async function sendMetaTemplate(
     await db.messageDelivery.update({
       where: { id: delivery.id },
       data: {
-        status: 'sent',
+        status: 'provider_accepted',  // HONEST: API acceptance != delivery
         providerMessageId,
         sentAt: new Date(),
       },
@@ -858,8 +859,8 @@ export async function sendMetaTemplate(
 
     await logWhatsAppEvent({
       userId,
-      action: 'whatsapp_message_sent',
-      details: `Meta template message sent to ${to}`,
+      action: 'whatsapp_template_accepted',
+      details: `Meta template message accepted for delivery to ${to}`,
       resourceId: delivery.id,
       metadata: { provider: 'meta', to, templateName, providerMessageId },
     });
@@ -982,7 +983,7 @@ export async function sendMetaMedia(
     await db.messageDelivery.update({
       where: { id: delivery.id },
       data: {
-        status: 'sent',
+        status: 'provider_accepted',
         providerMessageId,
         sentAt: new Date(),
       },
@@ -1405,7 +1406,7 @@ export async function sendTwilioMessage(
     await db.messageDelivery.update({
       where: { id: delivery.id },
       data: {
-        status: 'sent',
+        status: 'provider_accepted',
         providerMessageId,
         sentAt: new Date(),
       },
@@ -1541,7 +1542,7 @@ export async function sendTwilioTemplate(
     await db.messageDelivery.update({
       where: { id: delivery.id },
       data: {
-        status: 'sent',
+        status: 'provider_accepted',
         providerMessageId,
         sentAt: new Date(),
       },
@@ -1675,7 +1676,7 @@ export async function sendTwilioMedia(
     await db.messageDelivery.update({
       where: { id: delivery.id },
       data: {
-        status: 'sent',
+        status: 'provider_accepted',
         providerMessageId,
         sentAt: new Date(),
       },
