@@ -257,3 +257,137 @@ function buildProposedActionSummary(toolName: string, input: Record<string, unkn
       return `Execute ${toolName}${Object.keys(input).length ? ` with ${Object.keys(input).slice(0, 5).join(', ')}` : ''}`;
   }
 }
+
+/**
+ * The approval_response EVENT HANDLER (registered at startup).
+ *
+ * This handler is invoked by the event dispatcher when an approval_response
+ * event is processed. It performs the ACTUAL resume/terminate:
+ *
+ *   Approve → execute the approved tool exactly once (persistent idempotency
+ *     via authorizeAndInvokeTool which wraps withIdempotency) → resume the
+ *     agent run from its checkpoint → update the run status.
+ *
+ *   Reject → terminate the paused run → record the rejection in agent memory
+ *     so the agent learns the outcome on its next run.
+ *
+ * This runs inside the event dispatcher tick — idempotent. A duplicate event
+ * (retry) finds the approval already transitioned + the tool already executed
+ * (withIdempotency replay) → no double-execution.
+ */
+export async function handleApprovalResponseEvent(payload: Record<string, unknown>): Promise<void> {
+  const approvalId = String(payload.approvalId ?? '');
+  const decision = String(payload.decision ?? '');
+  if (!approvalId || !decision) return;
+
+  let approval: Awaited<ReturnType<typeof db.agentApproval.findUnique>> = null;
+  try {
+    approval = await db.agentApproval.findUnique({ where: { id: approvalId } });
+  } catch {
+    return; // table unavailable — nothing to do
+  }
+  if (!approval) return;
+
+  if (decision === 'approve') {
+    // Execute the approved tool exactly once through the full authorization
+    // chain (agent-authz.ts). authorizeAndInvokeTool wraps the invocation in
+    // withIdempotency (persistent AgentOperation fingerprint) — a retry of
+    // this event returns the existing result without re-executing.
+    let toolInput: Record<string, unknown> = {};
+    try { toolInput = approval.input ? JSON.parse(approval.input) : {}; } catch { /* keep default */ }
+
+    let agent: Awaited<ReturnType<typeof db.agent.findUnique>> = null;
+    try {
+      agent = await db.agent.findUnique({ where: { id: approval.agentId } });
+    } catch { /* non-fatal */ }
+    if (!agent) return;
+
+    try {
+      const { authorizeAndInvokeTool } = await import('@/lib/ai/agent-authz');
+      const authzCtx = {
+        userId: approval.userId,
+        orgId: agent.orgId || null,
+        agentId: approval.agentId,
+        runId: approval.runId,
+        executionId: null,
+        leadId: typeof toolInput.leadId === 'string' ? toolInput.leadId : null,
+        emailPermission: 'autonomous' as const,
+        toolLevelPermission: 'autonomous',
+        approvalPolicy: 'autonomous',
+        permissionCategoriesJson: (agent as { permissionCategories?: string | null }).permissionCategories ?? null,
+        invocationId: `approval:${approval.id}`,
+        log: (event: string, details?: Record<string, unknown>) => console.log(`[ApprovalExec ${approval.id}] ${event}`, details || ''),
+      };
+      const toolResult = await authorizeAndInvokeTool(approval.toolName, toolInput, authzCtx);
+
+      try {
+        await db.agentApproval.update({
+          where: { id: approval.id },
+          data: { invocationResult: JSON.stringify(toolResult.output || toolResult.error) },
+        });
+      } catch { /* non-fatal */ }
+
+      // Resume the agent run from its checkpoint (§8 step 7 — no state lost).
+      const { runAgent } = await import('@/lib/ai/agent-runtime');
+      const resume = await runAgent({
+        agentId: approval.agentId,
+        userId: approval.userId,
+        triggerSource: `approval:${approval.id}`,
+        resumeFromRunId: approval.runId,
+        leadId: typeof toolInput.leadId === 'string' ? toolInput.leadId : undefined,
+      });
+
+      try {
+        await db.agentRun.updateMany({
+          where: { id: approval.runId, status: 'paused_awaiting_approval' },
+          data: {
+            status: resume.status,
+            error: resume.error,
+            completedAt: ['completed', 'failed', 'cancelled', 'timeout'].includes(resume.status) ? new Date() : null,
+          },
+        });
+      } catch { /* non-fatal */ }
+    } catch (err) {
+      console.error(`[handleApprovalResponseEvent] approve execution failed for ${approvalId}:`, err);
+      throw err; // re-throw so the event dispatcher can retry
+    }
+  }
+
+  if (decision === 'reject') {
+    // Rejection policy: terminate the paused run + record the reason in
+    // agent memory so the agent learns the outcome on its next run.
+    try {
+      await db.agentRun.updateMany({
+        where: { id: approval.runId, status: 'paused_awaiting_approval' },
+        data: { status: 'cancelled', error: `Approval ${approval.id} rejected by human`, completedAt: new Date() },
+      });
+    } catch { /* non-fatal */ }
+
+    try {
+      const { appendMemoryScoped } = await import('@/lib/ai/agent-memory-service');
+      await appendMemoryScoped({
+        agentId: approval.agentId,
+        runId: approval.runId,
+        role: 'system',
+        content: `HUMAN_REJECTED: tool=${approval.toolName} approvalId=${approval.id} note=${approval.decisionNote ?? '(none)'}`,
+        tokensUsed: 0,
+        scope: 'agent',
+        source: 'human:rejection',
+        freshness: 'real-time',
+        confidence: 1.0,
+      });
+    } catch { /* non-fatal */ }
+
+    // Notify the user that the rejection was processed.
+    try {
+      await db.notification.create({
+        data: {
+          userId: approval.userId,
+          type: 'agent_approval',
+          title: 'Agent approval rejected',
+          message: `Rejected — agent run ${approval.runId.slice(-8)} terminated.`.slice(0, 500),
+        },
+      });
+    } catch { /* non-fatal */ }
+  }
+}
