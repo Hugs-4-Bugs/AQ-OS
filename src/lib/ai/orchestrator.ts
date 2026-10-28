@@ -45,7 +45,7 @@ import { db } from '@/lib/db';
 
 // ===== TYPES =====
 
-export type OrchestrationMode = 'SEQUENTIAL' | 'PARALLEL';
+export type OrchestrationMode = 'SEQUENTIAL' | 'PARALLEL' | 'FALLBACK';
 
 /** One configured model slot inside a step's model list. */
 export interface ModelCallSpec {
@@ -69,7 +69,7 @@ export interface ModelCallResult {
   /** Actual serving provider/model (post-fallback). */
   provider?: string;
   model?: string;
-  status: 'COMPLETED' | 'FAILED' | 'REUSED' | 'SKIPPED_CANCELLED';
+  status: 'COMPLETED' | 'FAILED' | 'REUSED' | 'SKIPPED_CANCELLED' | 'SKIPPED_FALLBACK';
   content?: string;
   error?: string;
   durationMs?: number;
@@ -106,6 +106,9 @@ export interface OrchestrationResult {
     failed: number;
     reused: number;
     cancelled: number;
+    /** FALLBACK mode only: number of slots skipped because an earlier
+     *  slot already produced output. Zero for SEQUENTIAL/PARALLEL. */
+    fallbackSkipped?: number;
     durationMs: number;
   };
   error?: string;
@@ -186,7 +189,12 @@ export function buildModelCallSpecs(
                     : undefined,
               }
             : {};
-      const key = `${spec.provider ?? ''}|${spec.model ?? ''}`;
+      // Dedup key MUST include `role` — otherwise parallel multi-angle slots
+      // (LEAD_SCORING: fit_scorer + engagement_scorer + intent_scorer + timing_scorer)
+      // all collapse to ONE slot because they share the same default (provider,model).
+      // Same-role slots ARE legitimately distinct invocations; same (provider,model,role)
+      // tuple is the true duplicate. See Phase 26 Extension §G5.
+      const key = `${spec.provider ?? ''}|${spec.model ?? ''}|${spec.role ?? ''}`;
       if (seen.has(key)) continue; // dedupe identical logical slots
       seen.add(key);
       specs.push(spec);
@@ -207,12 +215,19 @@ function strOrUndefined(v: unknown): string | undefined {
   return t.length > 0 ? t : undefined;
 }
 
-/** Parse orchestration mode from step config ('parallel' → PARALLEL). */
+/** Parse orchestration mode from step config.
+ *  - 'parallel'   → PARALLEL   (bounded concurrent fan-out, all slots attempted)
+ *  - 'fallback'   → FALLBACK   (try each spec in order, stop on first success)
+ *  - 'sequential' → SEQUENTIAL (chain all slots, each sees predecessors' output)
+ *  - default      → SEQUENTIAL
+ */
 export function parseOrchestrationMode(
   config: Record<string, unknown>
 ): OrchestrationMode {
   const raw = typeof config.orchestration === 'string' ? config.orchestration.toLowerCase() : '';
-  return raw === 'parallel' ? 'PARALLEL' : 'SEQUENTIAL';
+  if (raw === 'parallel') return 'PARALLEL';
+  if (raw === 'fallback') return 'FALLBACK';
+  return 'SEQUENTIAL';
 }
 
 /** Parse bounded concurrency from step config, clamped to [1, 4]. */
@@ -226,9 +241,15 @@ export function parseConcurrencyLimit(config: Record<string, unknown>): number {
 
 /**
  * Deterministic idempotency key for a logical invocation slot.
- * Same slot (execution + lead + step + configured provider/model) →
+ * Same slot (execution + lead + step + configured provider/model/role) →
  * same key → the ModelInvocation unique constraint enforces exactly one
  * durable row per slot across retries, resumes, and replays.
+ *
+ * `role` is included so parallel multi-angle slots (e.g. LEAD_SCORING with
+ * fit_scorer / engagement_scorer / intent_scorer / timing_scorer) each get
+ * their own durable row. Without `role`, the 4 slots collide on the unique
+ * constraint and only the first one is ever persisted — making parallel
+ * multi-angle scoring silently impossible. See Phase 26 Extension §G5.
  */
 export function computeInvocationKey(params: {
   executionId: string;
@@ -236,6 +257,7 @@ export function computeInvocationKey(params: {
   stepName: string;
   provider?: string;
   model?: string;
+  role?: string;
 }): string {
   return [
     'mi',
@@ -244,6 +266,7 @@ export function computeInvocationKey(params: {
     params.stepName,
     params.provider ?? 'env-default',
     params.model ?? 'default',
+    params.role ?? 'no-role',
   ].join(':');
 }
 
@@ -311,6 +334,49 @@ export async function orchestrateModelCalls(
         completedSoFar.push(results[i]);
       }
     }
+  } else if (mode === 'FALLBACK') {
+    // FALLBACK — try each spec in order; stop on first COMPLETED/REUSED.
+    // Subsequent slots are NOT executed (recorded as SKIPPED_FALLBACK).
+    // Idempotency still applies per slot: a previously-completed slot
+    // is REUSED, and if the FIRST slot is REUSED we skip all the rest.
+    // Failed slots are tracked (so the user can see why the fallback
+    // proceeded to the next provider) but do not abort the operation.
+    let succeeded = false;
+    for (let i = 0; i < specs.length; i++) {
+      if (succeeded) {
+        results[i] = {
+          configuredProvider: specs[i].provider,
+          configuredModel: specs[i].model,
+          role: specs[i].role,
+          status: 'SKIPPED_FALLBACK',
+        };
+        continue;
+      }
+      if (await probe()) {
+        results[i] = {
+          configuredProvider: specs[i].provider,
+          configuredModel: specs[i].model,
+          role: specs[i].role,
+          status: 'SKIPPED_CANCELLED',
+        };
+        // Cancelled ⇒ stop the whole fallback chain (later slots also cancelled)
+        for (let j = i + 1; j < specs.length; j++) {
+          results[j] = {
+            configuredProvider: specs[j].provider,
+            configuredModel: specs[j].model,
+            role: specs[j].role,
+            status: 'SKIPPED_CANCELLED',
+          };
+        }
+        break;
+      }
+      const r = await executeOneModelCall(specs[i], basePrompt, context);
+      results[i] = r;
+      if (r.status === 'COMPLETED' || r.status === 'REUSED') {
+        succeeded = true;
+      }
+      // On FAILED, continue to next spec (the fallback proceeds)
+    }
   } else {
     // PARALLEL — bounded worker pool over the slot queue (cursor pattern).
     // Workers NEVER reject: every slot's error is captured in its result.
@@ -374,6 +440,7 @@ async function executeOneModelCall(
     stepName: context.stepName,
     provider: spec.provider,
     model: spec.model,
+    role: spec.role,
   });
 
   // ── Idempotency read: a durably completed slot is REUSED, never re-run ──
@@ -577,12 +644,15 @@ function aggregate(
   const completed = results.filter((r) => r.status === 'COMPLETED' || r.status === 'REUSED');
   const failed = results.filter((r) => r.status === 'FAILED');
   const cancelled = results.filter((r) => r.status === 'SKIPPED_CANCELLED');
+  const fallbackSkipped = results.filter((r) => r.status === 'SKIPPED_FALLBACK');
   const primary = completed[0];
 
   // Workstream 3 — model disagreement detection. Only assessed when 2+
   // slots produced durable output. Single-slot steps (the overwhelming
   // majority) skip this entirely (no disagreement is possible).
-  const disagreement = completed.length >= 2
+  // Also skip when mode is FALLBACK — only one slot is expected to produce
+  // output by design; reporting "disagreement" would be misleading.
+  const disagreement = completed.length >= 2 && mode !== 'FALLBACK'
     ? detectDisagreement(completed)
     : undefined;
 
@@ -600,6 +670,7 @@ function aggregate(
       failed: failed.length,
       reused: results.filter((r) => r.status === 'REUSED').length,
       cancelled: cancelled.length,
+      fallbackSkipped: fallbackSkipped.length,
       durationMs: Date.now() - startedAt,
     },
     error:

@@ -582,21 +582,40 @@ function CreateAgentModal({ providers, onClose, onCreated }: {
   const [description, setDescription] = useState('');
   const [provider, setProvider] = useState(providers[0]?.id || 'z-ai');
   const [model, setModel] = useState(providers[0]?.defaultModel || 'glm-4.6');
+  // Multi-model strategy (Phase 26 Extension — parallel multi-model execution).
+  // Default is 'single' — most agents don't benefit from multi-model fan-out.
+  // Use 'parallel' for agents where multiple independent angles materially
+  // improve quality (e.g. lead scoring, qualification, opportunity analysis).
+  // Use 'sequential' for chained reasoning (researcher → summarizer).
+  // Use 'fallback' for resilience (try OpenAI first, fall back to Z-AI on failure).
+  const [strategy, setStrategy] = useState<'single' | 'sequential' | 'parallel' | 'fallback'>('single');
+  const [parallelModels, setParallelModels] = useState<Array<{ role: string; provider?: string; model?: string }>>([]);
+  const [concurrency, setConcurrency] = useState(2);
   const [toolPermissions, setToolPermissions] = useState<Record<string, string>>({});
   const [approvalPolicy, setApprovalPolicy] = useState<'approval_required' | 'autonomous'>('approval_required');
   const [creating, setCreating] = useState(false);
+
+  const addParallelModel = () => setParallelModels(prev => [...prev, { role: `role_${prev.length + 1}` }]);
+  const removeParallelModel = (idx: number) => setParallelModels(prev => prev.filter((_, i) => i !== idx));
 
   const handleCreate = async () => {
     if (!name.trim()) { toast.error('Name required'); return; }
     if (providers.length === 0) { toast.error('No AI providers available. Connect one in Settings → Integrations first.'); return; }
     setCreating(true);
     try {
+      const modelStrategy = strategy === 'single'
+        ? { strategy: 'single' }
+        : strategy === 'parallel'
+        ? { strategy: 'parallel', models: parallelModels.length > 0 ? parallelModels : undefined, concurrency }
+        : strategy === 'sequential'
+        ? { strategy: 'sequential', models: parallelModels.length > 0 ? parallelModels : undefined }
+        : { strategy: 'fallback', models: parallelModels.length > 0 ? parallelModels : undefined };
       const res = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name, description, provider, model, toolPermissions, approvalPolicy,
+          name, description, provider, model, toolPermissions, approvalPolicy, modelStrategy,
         }),
       });
       const data = await res.json();
@@ -627,7 +646,7 @@ function CreateAgentModal({ providers, onClose, onCreated }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">AI Brain (single provider)</Label>
+              <Label className="text-xs">AI Brain (primary provider)</Label>
               <Select value={provider} onValueChange={(v) => {
                 setProvider(v);
                 const p = providers.find(p => p.id === v);
@@ -642,10 +661,79 @@ function CreateAgentModal({ providers, onClose, onCreated }: {
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Model</Label>
+              <Label className="text-xs">Primary Model</Label>
               <Input value={model} onChange={(e) => setModel(e.target.value)} className="mt-1" />
             </div>
           </div>
+          <div>
+            <Label className="text-xs">Model Strategy (Phase 26 Extension)</Label>
+            <Select value={strategy} onValueChange={(v) => setStrategy(v as 'single' | 'sequential' | 'parallel' | 'fallback')}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single — one model handles the whole task (default; cheapest, fastest)</SelectItem>
+                <SelectItem value="sequential">Sequential — chain models; each sees predecessors' output (researcher → summarizer)</SelectItem>
+                <SelectItem value="parallel">Parallel — fan out multiple angles concurrently; aggregate + detect disagreement (multi-angle scoring)</SelectItem>
+                <SelectItem value="fallback">Fallback — try models in order; stop on first success (resilience)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Most agents should stay <strong>single</strong>. Use parallel only where independent angles materially improve quality (qualification BANT, opportunity size/fit/timing, reply analysis intent+key-points+next-action).
+            </p>
+          </div>
+          {strategy !== 'single' && (
+            <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Model Slots ({strategy})</Label>
+                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={addParallelModel}>+ Add slot</Button>
+              </div>
+              {parallelModels.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  No slots configured. The orchestrator will use the primary provider/model as a single slot. Add slots to actually fan out.
+                </p>
+              )}
+              {parallelModels.map((slot, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-1.5 items-center">
+                  <Input
+                    className="col-span-4 h-8 text-xs"
+                    placeholder="role (e.g. fit_scorer)"
+                    value={slot.role}
+                    onChange={(e) => setParallelModels(prev => prev.map((s, i) => i === idx ? { ...s, role: e.target.value } : s))}
+                  />
+                  <Select
+                    value={slot.provider ?? ''}
+                    onValueChange={(v) => setParallelModels(prev => prev.map((s, i) => i === idx ? { ...s, provider: v } : s))}
+                  >
+                    <SelectTrigger className="col-span-4 h-8 text-xs"><SelectValue placeholder="provider (default)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">(use primary)</SelectItem>
+                      {providers.map(p => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    className="col-span-3 h-8 text-xs"
+                    placeholder="model (default)"
+                    value={slot.model ?? ''}
+                    onChange={(e) => setParallelModels(prev => prev.map((s, i) => i === idx ? { ...s, model: e.target.value } : s))}
+                  />
+                  <Button size="sm" variant="ghost" className="col-span-1 h-8 px-2 text-xs" onClick={() => removeParallelModel(idx)}>✕</Button>
+                </div>
+              ))}
+              {strategy === 'parallel' && (
+                <div className="flex items-center gap-2 pt-1">
+                  <Label className="text-[11px] whitespace-nowrap">Concurrency</Label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={4}
+                    value={concurrency}
+                    onChange={(e) => setConcurrency(parseInt(e.target.value, 10))}
+                    className="flex-1"
+                  />
+                  <span className="text-xs font-mono w-6 text-right">{concurrency}</span>
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <Label className="text-xs">Approval Policy</Label>
             <Select value={approvalPolicy} onValueChange={(v) => setApprovalPolicy(v as never)}>

@@ -214,7 +214,26 @@ describe('orchestrator — pure functions', () => {
       provider: 'openai', model: 'gpt-4o',
     });
     expect(k1).toBe(k2);
-    expect(k1).toBe('mi:ex1:lead1:stepA:openai:gpt-4o');
+    // G5 fix: key now includes role segment (default 'no-role' when role omitted)
+    expect(k1).toBe('mi:ex1:lead1:stepA:openai:gpt-4o:no-role');
+  });
+
+  it('computeInvocationKey differs by role (G5 — parallel multi-angle slots)', async () => {
+    const { computeInvocationKey } = await import('@/lib/ai/orchestrator');
+    const k1 = computeInvocationKey({
+      executionId: 'ex1', leadId: 'lead1', stepName: 'LEAD_SCORING',
+      provider: 'z-ai', model: 'glm-4.6', role: 'fit_scorer',
+    });
+    const k2 = computeInvocationKey({
+      executionId: 'ex1', leadId: 'lead1', stepName: 'LEAD_SCORING',
+      provider: 'z-ai', model: 'glm-4.6', role: 'engagement_scorer',
+    });
+    // Two distinct parallel slots MUST have distinct keys — otherwise the
+    // UNIQUE constraint on ModelInvocation collapses them to ONE row, making
+    // parallel multi-angle scoring silently impossible.
+    expect(k1).not.toBe(k2);
+    expect(k1).toBe('mi:ex1:lead1:LEAD_SCORING:z-ai:glm-4.6:fit_scorer');
+    expect(k2).toBe('mi:ex1:lead1:LEAD_SCORING:z-ai:glm-4.6:engagement_scorer');
   });
 
   it('computeInvocationKey differs for different slots', async () => {

@@ -144,49 +144,136 @@ export async function continuePipelineForLead(params: {
     } catch { /* non-fatal */ }
     const evidenceVersion = `${plan.completed.length}:${memoryCount}`;
 
-    for (const key of groupKeys.slice(0, 3)) {
-      let agent: { id: string; userId: string; status: string; systemKey: string | null } | null = null;
-      try {
-        agent = await db.agent.findFirst({ where: { userId: params.userId, systemKey: key, classification: 'system', status: 'active' } });
-      } catch { /* non-fatal */ }
-      if (!agent) continue;
+    // PARALLEL GROUP — when 2+ independent agents are eligible (GAP_ANALYSIS,
+    // OPPORTUNITY, SOLUTION_MAPPING — they have no inter-dependencies), execute
+    // them with bounded concurrency via Promise.allSettled. Each agent's
+    // withIdempotency guard prevents duplicate execution; failures are isolated.
+    //
+    // Single-step groups still take the sequential path (cheaper, and preserves
+    // the existing memory/evidence write order that downstream steps depend on).
+    const isParallelGroup = node.parallelGroup && groupKeys.length > 1;
+    if (isParallelGroup) {
+      // Resolve all eligible agents up front (parallel DB query, NOT a fan-out
+      // of separate queries). Then fan out runAgent calls with bounded concurrency.
+      const eligibleAgents = await Promise.all(
+        groupKeys.slice(0, 3).map(async (key) => {
+          try {
+            const a = await db.agent.findFirst({
+              where: { userId: params.userId, systemKey: key, classification: 'system', status: 'active' },
+            });
+            return a ? { key, agent: a } : null;
+          } catch { return null; }
+        }),
+      );
+      const tasks = eligibleAgents.filter((x): x is { key: PipelineSystemKey; agent: { id: string; userId: string; status: string; systemKey: string | null } } => x !== null);
 
-      try {
-        const { withIdempotency } = await import('@/lib/ai/agent-idempotency');
-        const { runAgent } = await import('@/lib/ai/agent-runtime');
-        const op = await withIdempotency(
-          {
-            userId: params.userId,
-            agentId: agent.id,
-            operationType: 'continuation_step',
-            target: `${key}:${params.leadId}`,
-            input: {},
-            evidenceVersion,
-          },
-          () => runAgent({
-            agentId: agent!.id,
-            userId: params.userId,
-            triggerSource: `continuation:${key.toLowerCase()}`,
-            initialPrompt: KEY_TO_NODE.get(key)!.prompt(params.leadId),
-            leadId: params.leadId,
-          }),
-          (result) => ({ resultType: `agent_run:${result.status}`, resultId: result.runId, resultRef: JSON.stringify(result) }),
-        ).catch((err: unknown) => ({
-          replayed: false,
-          result: { runId: '', status: 'failed', iterationsUsed: 0, tokensUsed: 0, toolsCalled: 0, finalAnswer: null, error: String(err), durationMs: 0 },
-          operationId: '',
-          fingerprint: '',
-        }));
-
-        if (!op.replayed) {
-          ran.push(key);
-          if (op.result && (op.result as { status: string }).status === 'paused_awaiting_approval') {
-            return { ran, paused: 'awaiting_approval', note: `Step ${key} paused for human approval — escalation sent.` };
+      // Bounded concurrency: 3 max (matches the slice(0, 3) above). Each task
+      // is wrapped so it NEVER throws — Promise.allSettled captures all outcomes.
+      const MAX_PARALLEL = 3;
+      const results: Array<{ key: PipelineSystemKey; outcome: { replayed: boolean; result: { runId: string; status: string; iterationsUsed: number; tokensUsed: number; toolsCalled: number; finalAnswer: unknown; error?: string; durationMs: number }; operationId: string; fingerprint: string } | { error: string } }> = [];
+      const queue = [...tasks];
+      let idx = 0;
+      const workers = Array.from({ length: Math.min(MAX_PARALLEL, tasks.length) }, async () => {
+        while (queue.length > 0) {
+          const task = queue.shift();
+          if (!task) break;
+          const { key, agent } = task;
+          try {
+            const { withIdempotency } = await import('@/lib/ai/agent-idempotency');
+            const { runAgent } = await import('@/lib/ai/agent-runtime');
+            const op = await withIdempotency(
+              {
+                userId: params.userId,
+                agentId: agent.id,
+                operationType: 'continuation_step',
+                target: `${key}:${params.leadId}`,
+                input: {},
+                evidenceVersion,
+              },
+              () => runAgent({
+                agentId: agent.id,
+                userId: params.userId,
+                triggerSource: `continuation:${key.toLowerCase()}`,
+                initialPrompt: KEY_TO_NODE.get(key)!.prompt(params.leadId),
+                leadId: params.leadId,
+              }),
+              (result) => ({ resultType: `agent_run:${result.status}`, resultId: result.runId, resultRef: JSON.stringify(result) }),
+            ).catch((err: unknown) => ({
+              replayed: false,
+              result: { runId: '', status: 'failed', iterationsUsed: 0, tokensUsed: 0, toolsCalled: 0, finalAnswer: null, error: String(err), durationMs: 0 },
+              operationId: '',
+              fingerprint: '',
+            }));
+            results.push({ key, outcome: op });
+          } catch (err) {
+            results.push({ key, outcome: { error: err instanceof Error ? err.message : String(err) } });
           }
         }
-      } catch {
-        // Agent runtime or idempotency unavailable — skip this step honestly
-        continue;
+      });
+      await Promise.all(workers);
+
+      // Inspect results in spec order (not completion order) for deterministic
+      // decision-making. If ANY agent paused for approval, halt the pipeline.
+      let pausedKey: PipelineSystemKey | null = null;
+      for (const r of results) {
+        if (!r.outcome || 'error' in r.outcome) continue;
+        if (!r.outcome.replayed) ran.push(r.key);
+        const status = (r.outcome.result as { status?: string }).status;
+        if (status === 'paused_awaiting_approval') {
+          pausedKey = r.key;
+          break;
+        }
+      }
+      if (pausedKey) {
+        return { ran, paused: 'awaiting_approval', note: `Step ${pausedKey} paused for human approval — escalation sent.` };
+      }
+    } else {
+      // SEQUENTIAL path — single-step group OR the common case. Keeps the
+      // existing memory write order that downstream steps may rely on.
+      for (const key of groupKeys.slice(0, 3)) {
+        let agent: { id: string; userId: string; status: string; systemKey: string | null } | null = null;
+        try {
+          agent = await db.agent.findFirst({ where: { userId: params.userId, systemKey: key, classification: 'system', status: 'active' } });
+        } catch { /* non-fatal */ }
+        if (!agent) continue;
+
+        try {
+          const { withIdempotency } = await import('@/lib/ai/agent-idempotency');
+          const { runAgent } = await import('@/lib/ai/agent-runtime');
+          const op = await withIdempotency(
+            {
+              userId: params.userId,
+              agentId: agent.id,
+              operationType: 'continuation_step',
+              target: `${key}:${params.leadId}`,
+              input: {},
+              evidenceVersion,
+            },
+            () => runAgent({
+              agentId: agent!.id,
+              userId: params.userId,
+              triggerSource: `continuation:${key.toLowerCase()}`,
+              initialPrompt: KEY_TO_NODE.get(key)!.prompt(params.leadId),
+              leadId: params.leadId,
+            }),
+            (result) => ({ resultType: `agent_run:${result.status}`, resultId: result.runId, resultRef: JSON.stringify(result) }),
+          ).catch((err: unknown) => ({
+            replayed: false,
+            result: { runId: '', status: 'failed', iterationsUsed: 0, tokensUsed: 0, toolsCalled: 0, finalAnswer: null, error: String(err), durationMs: 0 },
+            operationId: '',
+            fingerprint: '',
+          }));
+
+          if (!op.replayed) {
+            ran.push(key);
+            if (op.result && (op.result as { status: string }).status === 'paused_awaiting_approval') {
+              return { ran, paused: 'awaiting_approval', note: `Step ${key} paused for human approval — escalation sent.` };
+            }
+          }
+        } catch {
+          // Agent runtime or idempotency unavailable — skip this step honestly
+          continue;
+        }
       }
     }
 
