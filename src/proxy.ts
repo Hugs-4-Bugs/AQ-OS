@@ -82,6 +82,10 @@ const PUBLIC_ROUTES = [
   '/api/payments/credit-addons',
   // Anonymous crash reporting (rate-limited inside the route)
   '/api/feedback/crash',
+  // Phase 26+27: Static provider catalog (no secrets — pure declarative UI scaffold
+  // for connected-accounts surface; tells the UI which providers are available,
+  // which are server-configured, and which are provider_blocked like LinkedIn/Instagram)
+  '/api/connected-accounts/catalog',
 ];
 
 // State-changing HTTP methods that require CSRF protection

@@ -153,6 +153,55 @@ async function writeAuditLog(params: {
         importErr instanceof Error ? importErr.message : importErr);
     }
   }
+
+  // ── Best-effort real-time SSE broadcast to AI events channel ──
+  // Surface safe telemetry to the UI: toolName, status, durationMs, runId, leadId.
+  // NEVER expose hidden chain-of-thought or sensitive input/output content.
+  try {
+    const { sendToUser } = await import('@/lib/sse-manager');
+    const safeEvent = {
+      type: 'agent.tool.invoked',
+      toolName: params.toolName,
+      status: params.result.status,
+      durationMs: params.result.durationMs,
+      runId: params.context.runId || null,
+      executionId: params.context.executionId || null,
+      leadId: params.context.leadId || null,
+      toolInvocationId: params.toolInvocationId,
+      fromCache: !!params.result.fromCache,
+      timestamp: new Date().toISOString(),
+    };
+    await sendToUser(params.context.userId, {
+      id: params.toolInvocationId,
+      event: 'agent.tool.invoked',
+      data: safeEvent,
+    });
+  } catch {
+    // SSE manager may not be available (e.g. during tests) — non-fatal
+  }
+
+  // ── Also publish to realtime event bus (consumed by /api/events/ai SSE endpoint) ──
+  try {
+    const { publishEvent } = await import('@/lib/realtime-event-bus');
+    await publishEvent({
+      channel: 'ai_events',
+      eventType: 'agent.tool.invoked',
+      payload: {
+        type: 'agent.tool.invoked',
+        toolName: params.toolName,
+        status: params.result.status,
+        durationMs: params.result.durationMs,
+        runId: params.context.runId || null,
+        executionId: params.context.executionId || null,
+        leadId: params.context.leadId || null,
+        toolInvocationId: params.toolInvocationId,
+        fromCache: !!params.result.fromCache,
+      },
+      userId: params.context.userId,
+    });
+  } catch {
+    // realtime-event-bus may not be available in all environments — non-fatal
+  }
 }
 
 // ─── Dispatcher ─────────────────────────────────────────────────────

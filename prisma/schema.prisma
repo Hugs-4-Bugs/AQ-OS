@@ -856,8 +856,12 @@ model OutreachMessage {
   direction       String    @default("outbound")
   subject         String?
   content         String
-  status          String    @default("draft") // draft, sent, delivered, opened, replied, bounced, failed
+  // Status states: draft, approval_required, queued, sending, provider_accepted,
+  // sent, delivered, opened, replied, bounced, failed, rejected, rate_limited,
+  // retrying, cancelled. Never mark "sent" unless provider confirms acceptance.
+  status          String    @default("draft")
   sentAt          DateTime?
+  providerAcceptedAt DateTime? // When provider API accepted (distinct from actual send)
   openedAt        DateTime?
   repliedAt       DateTime?
   bouncedAt       DateTime?
@@ -865,6 +869,12 @@ model OutreachMessage {
   sequenceStepId  String? // null = manual/outreach, set = from sequence
   trackingPixelId String?   @unique
   metadata        String? // JSON for additional data
+  providerMessageId String? // External ID returned by provider (idempotency + dedup)
+  errorCategory     String? // rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, provider_blocked, unknown
+  errorMessage      String?
+  retryCount        Int     @default(0)
+  maxRetries        Int     @default(3)
+  nextRetryAt       DateTime?
 
   lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -2541,7 +2551,9 @@ model MessageDelivery {
   provider          String? // gmail, telegram_bot, meta, twilio, etc.
   providerMessageId String?   @unique // External message ID from provider (dedup key)
   direction         String    @default("outbound") // inbound, outbound
-  status            String    @default("pending") // pending, queued, sent, delivered, read, failed, bounced
+  // Status states: pending, queued, sending, provider_accepted, sent, delivered, read,
+  // failed, bounced, rejected, rate_limited, retrying, cancelled, approval_required, provider_blocked
+  status            String    @default("pending")
   content           String? // Message content
   contentMetadata   String? // JSON: extra content info (media type, template vars, etc.)
   recipientId       String? // Recipient identifier (email, phone, chat ID)
@@ -2551,7 +2563,7 @@ model MessageDelivery {
   templateName      String?
   metadata          String? // JSON: arbitrary metadata (workflow step, tracking, etc.)
   errorMessage      String? // Latest error message
-  errorCategory     String? // Categorized error: rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, unknown
+  errorCategory     String? // Categorized error: rate_limit, auth_failure, network_error, content_rejected, recipient_invalid, provider_error, provider_blocked, approval_required, unknown
   retryCount        Int       @default(0)
   maxRetries        Int       @default(3)
   nextRetryAt       DateTime?

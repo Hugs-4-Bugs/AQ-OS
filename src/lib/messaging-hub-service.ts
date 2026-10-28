@@ -1067,15 +1067,30 @@ async function routeToChannel(
     }
 
     case 'linkedin': {
-      // In production: call LinkedIn messaging API
-      console.log(`[MessagingHub] Routing LinkedIn message`);
-      return { success: true, providerMessageId: `linkedin-${Date.now()}` };
+      // HONEST PROVIDER-BLOCKED STATUS
+      // LinkedIn Messaging API requires Partner Program access not available to
+      // this application. Per Phase 27 outreach reliability rule: NEVER fake "sent".
+      // Return provider_blocked so UI shows accurate state instead of fake success.
+      return {
+        success: false,
+        error: 'LinkedIn direct messaging requires Partner Program API access not available to this application. Use InMail via the LinkedIn Sales Navigator product, or export the lead and contact via a connected email/WhatsApp channel.',
+        errorCategory: 'provider_blocked',
+        status: 'provider_blocked',
+      };
     }
 
     case 'instagram': {
-      // In production: call Instagram DM API
-      console.log(`[MessagingHub] Routing Instagram message`);
-      return { success: true, providerMessageId: `instagram-${Date.now()}` };
+      // HONEST PROVIDER-BLOCKED STATUS
+      // Instagram Messaging API requires: (1) Instagram Professional Account,
+      // (2) Facebook App with instagram_manage_messages permission,
+      // (3) App Review approval, (4) 24-hour messaging window rule.
+      // None are currently available. NEVER fake "sent".
+      return {
+        success: false,
+        error: 'Instagram direct messaging requires a Facebook App with instagram_manage_messages permission + App Review approval + Instagram Professional Account + recipient-initiated conversation (24h window). None are configured. Use a connected email/WhatsApp channel instead.',
+        errorCategory: 'provider_blocked',
+        status: 'provider_blocked',
+      };
     }
 
     default:

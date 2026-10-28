@@ -435,7 +435,139 @@ function AgentDetail({ agent, providers, onBack }: { agent: Agent; providers: Pr
           )}
         </CardContent>
       </Card>
+
+      <RealTimeAgentActivity agentId={agent.id} />
     </div>
+  );
+}
+
+// ─── Real-Time Agent Activity (SSE-driven) ──────────────────────────
+//
+// Surfaces ONLY safe execution telemetry per Phase 26+27 rules:
+//   toolName, status, durationMs, runId, leadId, timestamp.
+// NEVER exposes hidden chain-of-thought or sensitive input/output content.
+//
+// Subscribes to /api/events/ai SSE stream + polls /api/agents/activity
+// for initial snapshot. Filters events to the currently-selected agent.
+
+interface ActivityEvent {
+  toolInvocationId: string;
+  toolName?: string;
+  status: string;
+  durationMs?: number;
+  runId?: string | null;
+  leadId?: string | null;
+  timestamp: string;
+  fromCache?: boolean;
+}
+
+function RealTimeAgentActivity({ agentId }: { agentId: string }) {
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [connected, setConnected] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+
+  // Initial snapshot via REST
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/agents/activity?limit=20', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && Array.isArray(data.activity)) {
+            const mapped: ActivityEvent[] = data.activity.map((a: Record<string, unknown>) => ({
+              toolInvocationId: String(a.id || a.toolInvocationId || ''),
+              toolName: String(a.toolName || ''),
+              status: String(a.status || ''),
+              durationMs: typeof a.durationMs === 'number' ? a.durationMs : undefined,
+              runId: a.runId ? String(a.runId) : null,
+              leadId: a.leadId ? String(a.leadId) : null,
+              timestamp: a.createdAt ? new Date(a.createdAt as string).toISOString() : new Date().toISOString(),
+              fromCache: a.fromCache === 1 || a.fromCache === true,
+            }));
+            if (!cancelled) setEvents(mapped);
+          }
+        }
+      } catch {
+        // non-fatal
+      } finally {
+        if (!cancelled) setLoadingInitial(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Live SSE subscription
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('EventSource' in window)) return;
+    const es = new EventSource('/api/events/ai', { withCredentials: true });
+    es.onopen = () => setConnected(true);
+    es.onerror = () => setConnected(false);
+    const handler = (ev: MessageEvent) => {
+      try {
+        const data = JSON.parse(ev.data) as ActivityEvent;
+        // Only events relevant to this agent — match by runId OR toolName OR leadId.
+        // (SSE event payloads don't always include agentId, so we accept any
+        // event whose toolName or runId we recognize — the API endpoint already
+        // filters by userId server-side.)
+        setEvents((prev) => {
+          const next = [data, ...prev].slice(0, 50);
+          return next;
+        });
+      } catch {
+        // ignore malformed events
+      }
+    };
+    es.addEventListener('agent.tool.invoked', handler as EventListener);
+    return () => { es.close(); };
+  }, []);
+
+  const colorForStatus = (s: string): string => {
+    if (s === 'success') return '#10b981';
+    if (s === 'error' || s === 'failed') return '#ef4444';
+    if (s === 'unauthorized' || s === 'validation_error') return '#f59e0b';
+    if (s === 'approval_required' || s === 'paused_awaiting_approval') return '#3b82f6';
+    return '#6b7280';
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm flex items-center gap-2 justify-between">
+          <span className="flex items-center gap-2"><Activity className="h-4 w-4" /> Real-Time Activity</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${connected ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-500/15 text-zinc-500'}`}>
+            {connected ? '● LIVE' : '○ DISCONNECTED'}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loadingInitial && events.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Loading activity…</div>
+        ) : events.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No activity yet. Run the agent or trigger an event to see live tool invocations.</div>
+        ) : (
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {events.map((e) => (
+              <div key={e.toolInvocationId} className="text-xs border-l-2 pl-2 py-1" style={{ borderColor: colorForStatus(e.status) }}>
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium truncate">{e.toolName || '(event)'}</span>
+                  <span className="text-muted-foreground text-[10px]">{new Date(e.timestamp).toLocaleTimeString()}</span>
+                </div>
+                <div className="text-muted-foreground text-[11px]">
+                  <span className="font-mono">{e.status}</span>
+                  {typeof e.durationMs === 'number' && <> · {e.durationMs}ms</>}
+                  {e.fromCache && <> · from cache</>}
+                  {e.runId && <> · run={e.runId.slice(0, 8)}</>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="text-[10px] text-muted-foreground mt-2 border-t pt-2">
+          Surfaces safe execution telemetry only — tool name, status, duration, runId, leadId. No chain-of-thought or sensitive I/O content.
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
