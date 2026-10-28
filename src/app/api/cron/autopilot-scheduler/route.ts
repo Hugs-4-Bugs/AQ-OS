@@ -57,6 +57,13 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[AutopilotScheduler] approval expiry sweep failed (non-fatal):', err);
     }
+    // Phase 26 D §7 — check for due follow-up reminders (same as heartbeat).
+    try {
+      const { checkDueFollowUps } = await import('@/lib/ai/agent-event-dispatcher');
+      await checkDueFollowUps();
+    } catch (err) {
+      console.error('[AutopilotScheduler] follow-up check failed (non-fatal):', err);
+    }
 
     return NextResponse.json({
       ok: true,

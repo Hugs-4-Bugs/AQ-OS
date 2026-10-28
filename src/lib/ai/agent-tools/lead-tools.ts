@@ -124,6 +124,13 @@ registerTool({
       },
       select: { id: true },
     });
+
+    // Workstream D — emit 'new_lead' event for autonomous continuation
+    // (handleNewLeadEvent → continuePipelineForLead → Discovery agent).
+    import('@/lib/ai/agent-event-dispatcher').then(({ notifyLeadCreated }) =>
+      notifyLeadCreated(ctx.userId, lead.id, 'agent-tool').catch(() => {})
+    ).catch(() => {});
+
     return {
       status: 'success',
       toolInvocationId: '',

@@ -263,3 +263,114 @@ function safeParse(raw: string): Record<string, unknown> {
     return {};
   }
 }
+
+// ─── Lead creation event producer ──────────────────────────────────────
+
+/**
+ * Emit a 'new_lead' event when a Lead is successfully persisted.
+ *
+ * The event triggers the autonomous continuation pipeline:
+ *   new_lead → handleNewLeadEvent → continuePipelineForLead → Discovery agent
+ *
+ * Idempotent: idempotencyKey = 'new-lead:<userId>:<leadId>' — the same
+ * lead cannot trigger duplicate events (UNIQUE constraint on AgentEvent).
+ *
+ * Fire-and-forget: callers should use .catch(() => {}) to avoid blocking
+ * the lead creation response on event persistence.
+ *
+ * @param userId  — the lead's owner (must match Lead.userId)
+ * @param leadId  — the persisted Lead's id
+ * @param source  — the creation path: 'api' | 'discovery' | 'import' |
+ *                  'agent-tool' | 'discovery-engine'
+ */
+export async function notifyLeadCreated(
+  userId: string,
+  leadId: string,
+  source: string,
+): Promise<void> {
+  await enqueueEvent({
+    userId,
+    eventType: 'new_lead',
+    payload: { leadId, source },
+    source: `lead-created:${source}`,
+    idempotencyKey: `new-lead:${userId}:${leadId}`,
+  });
+}
+
+// ─── Follow-up due event producer ───────────────────────────────────────
+
+/**
+ * Check for due follow-up reminders and emit 'follow_up_due' events.
+ *
+ * Queries FollowUpReminder where:
+ *   completed = false (still pending)
+ *   dueAt <= now (the follow-up is due/overdue)
+ *
+ * For each due reminder, emits a 'follow_up_due' AgentEvent with:
+ *   idempotencyKey = 'follow-up-due:<userId>:<leadId>:<reminderId>'
+ *
+ * Idempotent: the same reminder cannot trigger duplicate events (UNIQUE
+ * constraint on AgentEvent.idempotencyKey). A heartbeat retry or server
+ * restart will find existing events (duplicate=true) and skip.
+ *
+ * Bounded: takes 50 reminders per tick (resumes next tick — not a cap,
+ * just a per-tick batch for resource sanity).
+ *
+ * Called from the existing heartbeat/cron tick — NO second scheduler.
+ */
+export async function checkDueFollowUps(): Promise<{ checked: number; emitted: number; duplicates: number }> {
+  const { db } = await import('@/lib/db');
+
+  let dueReminders: Array<{
+    id: string;
+    leadId: string;
+    userId: string | null;
+    dueAt: Date;
+    message: string;
+    lead: { userId: string } | null;
+  }> = [];
+
+  try {
+    dueReminders = await db.followUpReminder.findMany({
+      where: {
+        completed: false,
+        dueAt: { lte: new Date() },
+      },
+      include: { lead: { select: { userId: true } } },
+      take: 50,
+      orderBy: { dueAt: 'asc' },
+    });
+  } catch {
+    return { checked: 0, emitted: 0, duplicates: 0 };
+  }
+
+  let emitted = 0;
+  let duplicates = 0;
+
+  for (const reminder of dueReminders) {
+    // Resolve userId: prefer the reminder's userId, fall back to the lead's userId.
+    const userId = reminder.userId || reminder.lead?.userId;
+    if (!userId) continue;
+
+    try {
+      const result = await enqueueEvent({
+        userId,
+        eventType: 'follow_up_due',
+        payload: {
+          leadId: reminder.leadId,
+          reminderId: reminder.id,
+          message: reminder.message.slice(0, 500),
+          dueAt: reminder.dueAt.toISOString(),
+        },
+        source: 'follow-up-scheduler',
+        idempotencyKey: `follow-up-due:${userId}:${reminder.leadId}:${reminder.id}`,
+      });
+      if (result.duplicate) duplicates++;
+      else emitted++;
+    } catch {
+      // non-fatal — the heartbeat will retry on the next tick
+    }
+  }
+
+  return { checked: dueReminders.length, emitted, duplicates };
+}

@@ -136,7 +136,7 @@ export async function importCSV(
         }
 
         // Create lead
-        await db.lead.create({
+        const createdLead = await db.lead.create({
           data: {
             userId,
             orgId: options?.orgId || null,
@@ -158,6 +158,11 @@ export async function importCSV(
             rating: typeof leadData.rating === 'number' ? leadData.rating : null,
           },
         });
+
+        // Workstream D — emit 'new_lead' event for autonomous continuation.
+        import('@/lib/ai/agent-event-dispatcher').then(({ notifyLeadCreated }) =>
+          notifyLeadCreated(userId, createdLead.id, 'import').catch(() => {})
+        ).catch(() => {});
 
         imported++;
       } catch (rowErr) {
