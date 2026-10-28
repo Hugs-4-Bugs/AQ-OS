@@ -8,40 +8,70 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mock Prisma before importing any module that uses @/lib/db ──────
-const mockDb = {
-  lead: {
-    findFirst: vi.fn(),
-    create: vi.fn(),
-    updateMany: vi.fn(),
-  },
-  workflowExecution: {
-    findFirst: vi.fn(),
-  },
-  task: {
-    create: vi.fn(),
-  },
-  messageDraft: {
-    create: vi.fn(),
-  },
-  user: {
-    findUnique: vi.fn(),
-  },
-  businessProfile: {
-    findFirst: vi.fn(),
-  },
-  agentActivity: {
-    create: vi.fn().mockResolvedValue({ id: 'audit-1' }),
-  },
-  emailAccount: {
-    findFirst: vi.fn(),
-  },
-  usageTracking: {
-    upsert: vi.fn().mockResolvedValue({}),
-  },
-};
+// vi.mock factories are hoisted ABOVE top-level `const` declarations by
+// vitest, so `mockDb` MUST be created via `vi.hoisted()` to be in scope
+// when the factory runs. This regression appeared when Workstream C/D
+// added `connected-accounts/service.ts` which is transitively imported
+// via agent-tools/index.ts → business-email-tools.ts → service.ts →
+// @/lib/db (the mocked module). The vi.hoisted pattern matches the
+// existing entitlements mock below.
+const { mockDb } = vi.hoisted(() => {
+  const mockDb = {
+    lead: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    workflowExecution: {
+      findFirst: vi.fn(),
+    },
+    task: {
+      create: vi.fn(),
+    },
+    messageDraft: {
+      create: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
+    },
+    businessProfile: {
+      findFirst: vi.fn(),
+    },
+    agentActivity: {
+      create: vi.fn().mockResolvedValue({ id: 'audit-1' }),
+    },
+    emailAccount: {
+      findFirst: vi.fn(),
+    },
+    usageTracking: {
+      upsert: vi.fn().mockResolvedValue({}),
+    },
+  };
+  return { mockDb };
+});
 
 vi.mock('@/lib/db', () => ({
   db: mockDb,
+}));
+
+// Workstream D added connected-accounts/service.ts as a transitive
+// import through agent-tools/index.ts → business-email-tools.ts → service.ts.
+// Mock it here so the test stays isolated from the new module's transitive
+// imports (crypto/encryption, adapter registry). This test suite does NOT
+// exercise businessEmail.send/reply — only the Gmail-OAuth email tools
+// and lead/workflow/etc tools — so a stub mock is safe.
+vi.mock('@/lib/connected-accounts/service', () => ({
+  resolveAccountForCapability: vi.fn(),
+  scopeRequiresApproval: vi.fn().mockReturnValue(false),
+  scopeGrantsCapability: vi.fn().mockReturnValue(true),
+  getAdapter: vi.fn().mockReturnValue(null),
+  connectBusinessAccount: vi.fn(),
+  disconnectAccount: vi.fn(),
+  revokeAccount: vi.fn(),
+  validateAccount: vi.fn(),
+  listUnifiedConnectedAccounts: vi.fn().mockResolvedValue([]),
+  SUPPORTED_BUSINESS_PROVIDERS: [],
+  defaultScopesFor: vi.fn().mockReturnValue([]),
 }));
 
 // Mock entitlement service — use vi.hoisted so the mock value is

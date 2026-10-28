@@ -3576,6 +3576,11 @@ model Agent {
   // Value semantics: for email tools, matches ToolContext.emailPermission (read|draft|send_with_approval|autonomous).
   // For non-email tools: "read" (lookup only) | "read-write" (create/update) | "disabled" (tool not available).
   toolPermissions String   @default("{}")
+  // Permission categories (Workstream D §11) — JSON array of categories this
+  // agent may perform: ['READ','ANALYZE','DRAFT','WRITE','SEND','DELETE',
+  // 'MODIFY','TRIGGER_WORKFLOW','ESCALATE_HUMAN']. Default ['READ','ANALYZE','DRAFT']
+  // (safe set). SEND/DELETE/MODIFY/TRIGGER_WORKFLOW require explicit grant.
+  permissionCategories String @default("[\"READ\",\"ANALYZE\",\"DRAFT\"]")
   // Schedule (Decision 10A) — JSON: { type: "cron"|"interval"|"none", cron?: "...", intervalSeconds?: N, nextRunAt?: "..." }
   schedule        String   @default("{\"type\":\"none\"}")
   // Triggers (Decision 10B) — JSON array: [{ event: "lead_reply"|"lead_created"|"score_change", condition: {...} }]
@@ -3686,6 +3691,7 @@ model AgentMemory {
 
 model AgentApproval {
   id              String   @id @default(cuid())
+  userId          String   // Workstream D — ownership scoping for approval decisions
   agentId         String
   runId           String
   // The tool invocation that needs approval (e.g. "email.send")
@@ -3701,6 +3707,12 @@ model AgentApproval {
   // Context: JSON snapshot of the execution state at request time
   // { executionId, leadId, runState, iteration, lastToolName, ... }
   context         String?
+  // ── Workstream D §8 — escalation payload ──
+  riskLevel       String?  // low | medium | high | critical
+  expiresAt       DateTime?
+  proposedAction  String?  // human-readable summary of what the agent wants to do
+  escalationChannel String? // telegram | in_app | none
+  escalationMessageId String? // Telegram message ID for followup
   requestedAt     DateTime @default(now())
   decidedAt       DateTime?
   decidedBy       String?  // userId of the human who decided
@@ -3711,6 +3723,7 @@ model AgentApproval {
 
   @@index([agentId])
   @@index([runId])
+  @@index([userId, status])
   @@index([status])
   @@index([requestedAt])
 }
@@ -3757,4 +3770,82 @@ model DiscoveredModel {
   @@index([userId, provider])
   @@index([provider])
   @@index([availability])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Workstream D — Agent Operation Registry (§13 idempotency)
+// ═══════════════════════════════════════════════════════════════════
+
+model AgentOperation {
+  id              String   @id @default(cuid())
+  userId          String
+  operationType   String   // agent_run | workflow_start | tool_call | email_send | telegram_notify | approval_resume | continuation_step | external_callback
+  fingerprint     String   @unique  // sha256 of (userId+agentId+runId+opType+target+input+evidenceVersion)
+  agentId         String?
+  runId           String?
+  status          String   @default("completed")  // completed | failed
+  resultType      String?
+  resultId        String?
+  resultRef       String?  // JSON-serialized result for replay
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, operationType])
+  @@index([userId, agentId])
+  @@index([userId, runId])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Workstream D — Agent Event Queue (§6 event/trigger dispatcher)
+// ═══════════════════════════════════════════════════════════════════
+
+model AgentEvent {
+  id              String   @id @default(cuid())
+  userId          String
+  eventType       String   // scheduled | workflow_completion | new_lead | new_email | follow_up_due | approval_response | task_completion | retryable_failure | external_webhook
+  payload         String   // JSON
+  source          String   @default("api")
+  status          String   @default("pending")  // pending | processing | processed | failed
+  idempotencyKey  String   @unique  // dedupe key — same logical event never starts duplicate work
+  correlationId   String?
+  executionId     String?
+  attempts        Int      @default(0)
+  retryCount      Int      @default(0)
+  maxRetries      Int      @default(3)
+  error           String?
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, eventType])
+  @@index([status, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Workstream D — Connected Business Account (§1-3 connected accounts)
+// ═══════════════════════════════════════════════════════════════════
+
+model ConnectedAccount {
+  id                  String   @id @default(cuid())
+  userId              String
+  kind                String   @default("business_account")  // ai_provider | business_account | human_channel
+  provider            String   // hostinger-mail | gmail-smtp | smtp-email | ...
+  accountType         String   @default("email")  // email | chat | ai_provider
+  accountIdentifier   String   // e.g. the email address
+  status              String   @default("connected")  // connected | disconnected | error | revoked
+  capabilities        String?  // JSON array: ["email.send","email.reply",...]
+  credentialsEncrypted String? // AES-256-GCM encrypted credential JSON
+  scopes              String?  // JSON array: ["email.send","email.send:approval_required",...]
+  meta                String?  // JSON: arbitrary provider-specific metadata
+  lastValidatedAt     DateTime?
+  lastError           String?
+  revokedAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, provider, accountIdentifier])
+  @@index([userId, provider])
+  @@index([userId, status])
 }
