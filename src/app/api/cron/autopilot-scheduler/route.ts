@@ -28,9 +28,32 @@ export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   try {
     const result = await runAutopilotSchedulerTick();
+
+    // Phase 26 — also tick the agent scheduler + event dispatcher (same
+    // pattern as the instrumentation.ts heartbeat — all three ticks run
+    // in the SAME cron call, NO second scheduler). Without this, production
+    // environments that use external cron (instead of the in-process
+    // heartbeat) would never process agent events or scheduled agent runs.
+    let agentSchedulerResult: Record<string, unknown> | undefined;
+    try {
+      const { runAgentSchedulerTick } = await import('@/lib/ai/agent-scheduler');
+      agentSchedulerResult = await runAgentSchedulerTick();
+    } catch (err) {
+      console.error('[AutopilotScheduler] agent scheduler tick failed (non-fatal):', err);
+    }
+    let eventDispatcherResult: Record<string, unknown> | undefined;
+    try {
+      const { processPendingEvents } = await import('@/lib/ai/agent-event-dispatcher');
+      eventDispatcherResult = await processPendingEvents();
+    } catch (err) {
+      console.error('[AutopilotScheduler] event dispatcher tick failed (non-fatal):', err);
+    }
+
     return NextResponse.json({
       ok: true,
       ...result,
+      agentScheduler: agentSchedulerResult,
+      eventDispatcher: eventDispatcherResult,
       durationMs: Date.now() - startedAt,
     });
   } catch (error) {
