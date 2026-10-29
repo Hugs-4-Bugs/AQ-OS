@@ -80,26 +80,47 @@ function isInternalHostname(host: string): boolean {
 /**
  * Check if a hostname is a valid public domain (not localhost, not
  * internal IP, not internal cloud hostname).
+ *
+ * In DEVELOPMENT mode (NODE_ENV !== 'production'), localhost and private
+ * IPs are ALLOWED so that authentication works when running locally
+ * (http://localhost:3000). Google OAuth redirect_uri and magic-link URLs
+ * are constructed correctly for local development.
+ *
+ * In PRODUCTION mode (NODE_ENV === 'production'), localhost and private
+ * IPs are REJECTED because cloud gateways (Aliyun FC, etc.) may inject
+ * internal hostnames that are unreachable by end users.
+ *
+ * 0.0.0.0 is ALWAYS rejected — the server binds to it but the browser
+ * never accesses it directly; it's never a valid origin.
+ * accounts.google.com / *.google.com are ALWAYS rejected — on the OAuth
+ * callback the browser sends `referer: https://accounts.google.com/...`
+ * which must NEVER be mistaken for the app's public origin.
+ * Internal cloud-provider hostnames (*.fcapp.run, *.aliyuncs.com, etc.)
+ * are ALWAYS rejected — they're injected by the cloud gateway, not the
+ * real public domain the user typed.
  */
 function isPublicHost(host: string): boolean {
   if (!host) return false;
   const lower = host.toLowerCase();
-  // Reject loopback / private addresses
+  // Always reject 0.0.0.0 — never a valid browser origin
+  if (lower.startsWith('0.0.0.0')) return false;
+  // In PRODUCTION, reject localhost and private IPs (cloud gateway safety)
+  // In DEVELOPMENT, ALLOW them so local auth works (http://localhost:3000)
+  const isProduction = process.env.NODE_ENV === 'production';
   if (
-    lower.startsWith('0.0.0.0') ||
-    lower.startsWith('localhost') ||
-    lower.startsWith('127.0.0.1') ||
-    lower.startsWith('192.168.') ||
-    lower.startsWith('10.') ||
-    lower.startsWith('172.')
+    isProduction && (
+      lower.startsWith('localhost') ||
+      lower.startsWith('127.0.0.1') ||
+      lower.startsWith('192.168.') ||
+      lower.startsWith('10.') ||
+      lower.startsWith('172.')
+    )
   ) {
     return false;
   }
-  // Reject internal cloud-provider hostnames
+  // Always reject internal cloud-provider hostnames
   if (isInternalHostname(lower)) return false;
-  // Reject Google's own domains — on the OAuth callback the browser sends
-  // `referer: https://accounts.google.com/...`, which must NEVER be
-  // mistaken for the app's public origin.
+  // Always reject Google's own domains (referer on OAuth callback)
   if (lower === 'accounts.google.com' || lower.endsWith('.google.com')) return false;
   return true;
 }

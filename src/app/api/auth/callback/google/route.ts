@@ -78,20 +78,32 @@ function isPublicOrigin(origin: string): boolean {
 // share the exact same rejection rules.)
 // ───────────────────────────────────────────────────────────────────
 function isBadOAuthHost(h: string | null | undefined): boolean {
+  if (!h) return true;
+  const lower = h.toLowerCase();
+  // Always reject 0.0.0.0 — never a valid browser origin
+  if (lower.startsWith('0.0.0.0')) return true;
+  // In PRODUCTION, reject localhost/private IPs (cloud gateway safety)
+  // In DEVELOPMENT, ALLOW them so local auth works (http://localhost:3000)
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (
+    isProduction && (
+      lower === 'localhost' ||
+      lower.startsWith('127.0.0.1') ||
+      lower.startsWith('10.') ||
+      lower.startsWith('192.168.') ||
+      lower.startsWith('172.')
+    )
+  ) {
+    return true;
+  }
+  // Always reject cloud-internal + Google's own domains
   return (
-    !h ||
-    h === 'localhost' ||
-    h.startsWith('0.0.0.0') ||
-    h.startsWith('127.0.0.1') ||
-    h.startsWith('10.') ||
-    h.startsWith('192.168.') ||
-    h.startsWith('172.') ||
-    h.includes('.fcapp.run') ||
-    h.includes('.aliyuncs.com') ||
-    h.includes('.functioncompute.com') ||
-    h.includes('.glm.run') ||
-    h === 'accounts.google.com' ||
-    h.endsWith('.google.com')
+    lower.includes('.fcapp.run') ||
+    lower.includes('.aliyuncs.com') ||
+    lower.includes('.functioncompute.com') ||
+    lower.includes('.glm.run') ||
+    lower === 'accounts.google.com' ||
+    lower.endsWith('.google.com')
   );
 }
 

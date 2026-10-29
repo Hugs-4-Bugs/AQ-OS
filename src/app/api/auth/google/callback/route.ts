@@ -28,20 +28,36 @@ export const runtime = 'nodejs';
 // localhost:3000/?auth_error=... which the user's browser cannot reach.
 // ───────────────────────────────────────────────────────────────────
 function getDynamicOrigin(request: NextRequest): string {
-  const isBadHost = (h: string): boolean =>
-    !h ||
-    h === 'localhost' ||
-    h.startsWith('0.0.0.0') ||
-    h.startsWith('127.0.0.1') ||
-    h.startsWith('10.') ||
-    h.startsWith('192.168.') ||
-    h.startsWith('172.') ||
-    h.includes('.fcapp.run') ||
-    h.includes('.aliyuncs.com') ||
-    h.includes('.functioncompute.com') ||
-    h.includes('.glm.run') ||
-    h === 'accounts.google.com' ||
-    h.endsWith('.google.com');
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isBadHost = (h: string): boolean => {
+    if (!h) return true;
+    const lower = h.toLowerCase();
+    // Always reject 0.0.0.0 + cloud-internal + Google domains
+    if (
+      lower.startsWith('0.0.0.0') ||
+      lower.includes('.fcapp.run') ||
+      lower.includes('.aliyuncs.com') ||
+      lower.includes('.functioncompute.com') ||
+      lower.includes('.glm.run') ||
+      lower === 'accounts.google.com' ||
+      lower.endsWith('.google.com')
+    ) {
+      return true;
+    }
+    // In PRODUCTION, reject localhost/private IPs; in dev, allow them
+    if (
+      isProduction && (
+        lower === 'localhost' ||
+        lower.startsWith('127.0.0.1') ||
+        lower.startsWith('10.') ||
+        lower.startsWith('192.168.') ||
+        lower.startsWith('172.')
+      )
+    ) {
+      return true;
+    }
+    return false;
+  };
 
   // 1. x-forwarded-host + x-forwarded-proto (proxy/gateway headers)
   const forwardedHost = request.headers.get('x-forwarded-host');

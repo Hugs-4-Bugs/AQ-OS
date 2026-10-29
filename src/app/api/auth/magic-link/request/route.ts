@@ -99,13 +99,24 @@ export async function POST(request: NextRequest) {
       try {
         const u = new URL(url);
         const h = u.hostname.toLowerCase();
+        // Always reject 0.0.0.0 — never a valid browser origin
+        if (h.startsWith('0.0.0.0')) return false;
+        // In PRODUCTION, reject localhost/private IPs (cloud gateway safety)
+        // In DEVELOPMENT, ALLOW them so local magic-link URLs work
+        const isProduction = process.env.NODE_ENV === 'production';
         if (
-          h === 'localhost' ||
-          h.startsWith('127.') ||
-          h.startsWith('0.0.0.0') ||
-          h.startsWith('10.') ||
-          h.startsWith('192.168.') ||
-          h.startsWith('172.') ||
+          isProduction && (
+            h === 'localhost' ||
+            h.startsWith('127.') ||
+            h.startsWith('10.') ||
+            h.startsWith('192.168.') ||
+            h.startsWith('172.')
+          )
+        ) {
+          return false;
+        }
+        // Always reject cloud-internal hostnames
+        if (
           h.includes('.fcapp.run') ||
           h.includes('.aliyuncs.com') ||
           h.includes('.functioncompute.com')

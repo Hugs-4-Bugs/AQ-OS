@@ -41,26 +41,45 @@ import { setAuthCookies, readRememberMeCookie } from '@/lib/auth';
 import { verifyRelayToken, relayHopGuardValue } from '@/lib/oauth-relay';
 import { buildRedirectUrl, getOriginFromRequest } from '@/lib/app-url';
 
-/** Reject origins that must never be a relay landing target. */
+/** Reject origins that must never be a relay landing target.
+ *
+ * In DEVELOPMENT mode (NODE_ENV !== 'production'), localhost and private
+ * IPs are ALLOWED (with relaxed https requirement for http://localhost) so
+ * the relay can land on the local dev server. In PRODUCTION, localhost and
+ * private IPs are rejected AND https is required.
+ */
 function isSafeRelayOrigin(origin: string): boolean {
   try {
     const u = new URL(origin);
     const h = u.hostname.toLowerCase();
+    const isProduction = process.env.NODE_ENV === 'production';
+    // Always reject 0.0.0.0 + cloud-internal + Google domains
     if (
-      !u.origin ||
-      u.protocol !== 'https:' ||
       !h ||
-      h === 'localhost' ||
       h.startsWith('0.0.0.0') ||
-      h.startsWith('127.') ||
-      h.startsWith('10.') ||
-      h.startsWith('192.168.') ||
-      h.startsWith('172.') ||
       h.includes('.fcapp.run') ||
       h.includes('.aliyuncs.com') ||
       h.includes('.functioncompute.com') ||
       h.endsWith('.google.com')
     ) {
+      return false;
+    }
+    // In PRODUCTION: require https + reject localhost/private IPs
+    if (isProduction) {
+      if (u.protocol !== 'https:') return false;
+      if (
+        h === 'localhost' ||
+        h.startsWith('127.') ||
+        h.startsWith('10.') ||
+        h.startsWith('192.168.') ||
+        h.startsWith('172.')
+      ) {
+        return false;
+      }
+    }
+    // In DEVELOPMENT: allow http://localhost:3000 (relax https requirement)
+    // Non-localhost dev hosts still need https
+    if (!isProduction && h !== 'localhost' && !h.startsWith('127.') && u.protocol !== 'https:') {
       return false;
     }
     return true;
