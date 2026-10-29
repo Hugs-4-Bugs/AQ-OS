@@ -322,8 +322,15 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
         // Auth cookies are set by the API, refresh auth state
         window.location.reload();
       } else {
-        setError(data.error || 'Invalid OTP');
-        toast.error(data.error || 'Verification failed');
+        // Display the error message. If the server included a 'detail'
+        // field (sanitized error description), append it so the user can
+        // see WHAT failed (e.g., "no such table: UserSession") without
+        // needing to open DevTools.
+        const errMsg = data.error || 'Invalid OTP';
+        const detail = data.detail ? ` (${data.detail})` : '';
+        const fullMsg = detail ? `${errMsg}${detail}` : errMsg;
+        setError(fullMsg);
+        toast.error(fullMsg, { duration: 8000 });
       }
     } catch {
       setError('Network error. Please try again.');

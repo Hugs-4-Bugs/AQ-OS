@@ -262,8 +262,7 @@ export async function POST(request: NextRequest) {
     // SAFE error handling: generic message to the browser; stable category
     // code + sanitized detail for diagnosability (no secrets, no stacks).
     // The `detail` field contains a SHORT sanitized error message (max 200 chars,
-    // no file paths, no connection strings) so the user can report the exact
-    // error category without exposing secrets.
+    // no file paths, no connection strings) so the user can see WHAT failed.
     const category = classifyAuthErrorCategory(error);
     const rawMsg = error instanceof Error ? error.message : String(error);
     // Sanitize: strip file paths, connection strings, and truncate
@@ -272,7 +271,11 @@ export async function POST(request: NextRequest) {
       .replace(/file:[^\s]+/g, '[db-url]')   // strip DB URLs
       .replace(/password[^\s]*/gi, '[redacted]')  // strip password mentions
       .slice(0, 200);
+    // FULL stack trace server-side for debugging
     console.error(`[OTP Verify] error category=${category}`, rawMsg);
+    if (error instanceof Error && error.stack) {
+      console.error(`[OTP Verify] stack trace:`, error.stack);
+    }
     if (category === 'database') {
       return NextResponse.json(
         { error: 'Unable to verify the code right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR', category, detail: sanitizedDetail },

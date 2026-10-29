@@ -1060,9 +1060,16 @@ export async function sendSecurityAlert(params: {
 export function classifyAuthErrorCategory(error: unknown): string {
   if (error instanceof Error) {
     const msg = error.message || '';
+    // Database/Prisma errors — expanded to catch SQLite "no such table",
+    // "Table does not exist", and Prisma "Unknown field" errors that were
+    // previously misclassified as 'unexpected' → generic 500.
     if (
       /P1\d{3}|P2\d{3}|prisma/i.test(msg) ||
-      /unable to open the database file|SQLITE_|database file|Can't reach database/i.test(msg)
+      /unable to open the database file|SQLITE_|database file|Can't reach database/i.test(msg) ||
+      /no such table|table.*does not exist|does not exist in the current database/i.test(msg) ||
+      /unknown column|no column named|missing column/i.test(msg) ||
+      /unique constraint failed|foreign key constraint/i.test(msg) ||
+      /sqlite/i.test(msg)
     ) {
       return 'database';
     }
