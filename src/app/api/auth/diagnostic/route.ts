@@ -118,7 +118,7 @@ export async function GET() {
         willThrowInProduction: jwtUsingDevFallback && process.env.NODE_ENV === 'production',
         ...authVars.JWT_SECRET,
       },
-      envVars,
+      authVars,
       database: dbInfo,
       diagnosis,
     });
