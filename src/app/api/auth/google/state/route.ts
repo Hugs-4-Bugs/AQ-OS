@@ -25,25 +25,32 @@ export async function GET(request: NextRequest) {
 
     // ── Dynamic domain detection ─────────────────────────────────
     // Read the domain from the incoming request so the SAME redirect_uri
-    // works whether the user is on the preview workspace URL or the
-    // production URL. We prefer, in order:
-    //   1. The `origin` query param (explicit, from frontend)
-    //   2. x-forwarded-host + x-forwarded-proto (proxy headers)
-    //   3. host header
-    //   4. The Origin / Referer request header (browser-supplied)
-    // Whatever domain the request comes from, that same domain is used
-    // for the Google OAuth redirect_uri — so the callback returns to the
-    // same deployment the user is actually using.
+    // works whether the user is on the preview workspace URL, the
+    // production URL, or running locally (http://localhost:3000).
+    //
+    // In DEVELOPMENT mode (NODE_ENV !== 'production'), localhost and
+    // private IPs are ALLOWED so Google OAuth redirect_uri is correctly
+    // built as http://localhost:3000/api/auth/callback/google for local
+    // development. In PRODUCTION, they are rejected (cloud gateway safety).
+    const isProduction = process.env.NODE_ENV === 'production';
     const isInternalHost = (host: string): boolean => {
       const h = host.toLowerCase();
+      if (!h) return true;
+      if (h.startsWith('0.0.0.0')) return true;
+      // In production, reject localhost/private IPs; in dev, allow them
+      if (
+        isProduction && (
+          h === 'localhost' ||
+          h.startsWith('127.') ||
+          h.startsWith('10.') ||
+          h.startsWith('192.168.') ||
+          h.startsWith('172.')
+        )
+      ) {
+        return true;
+      }
+      // Always reject cloud-internal hostnames
       return (
-        !h ||
-        h === 'localhost' ||
-        h === '0.0.0.0' ||
-        h.startsWith('127.') ||
-        h.startsWith('10.') ||
-        h.startsWith('192.168.') ||
-        h.startsWith('172.') ||
         h.includes('.fcapp.run') ||
         h.includes('.aliyuncs.com') ||
         h.includes('.functioncompute.com')

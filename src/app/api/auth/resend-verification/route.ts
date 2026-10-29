@@ -85,16 +85,23 @@ export async function POST(request: NextRequest) {
     });
 
     // ── Send verification email (REAL Gmail SMTP only) ───────────
+    // If SMTP delivery FAILS, return honest 503 (no fake "OTP sent" success).
     const emailConfigured = isEmailServiceConfigured();
     let devDelivery: ReturnType<typeof devOtpDelivery> = undefined;
+    let emailDeliveryFailed = false;
     if (emailConfigured) {
       try {
         const result = await sendVerificationEmail(normalizedEmail, user.name || 'User', otp);
         console.log(
           `[Resend Verification] Email sent: provider=${result.provider}, sent=${result.sent}, messageId=${result.messageId || 'n/a'}`,
         );
+        if (!result.sent) {
+          console.error('[Resend Verification] Email delivery failed:', result.error);
+          emailDeliveryFailed = true;
+        }
       } catch (emailError) {
         console.error('[Resend Verification] Failed to send email:', emailError);
+        emailDeliveryFailed = true;
       }
     } else {
       console.error('[Resend Verification] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY).');
@@ -102,6 +109,17 @@ export async function POST(request: NextRequest) {
       // client so the flow can continue when no real provider exists. In
       // production builds this is always undefined.
       devDelivery = devOtpDelivery(otp, 'verification code');
+    }
+
+    // If SMTP was configured but delivery ACTUALLY failed, return honest 503
+    if (emailDeliveryFailed) {
+      return NextResponse.json(
+        {
+          error: 'EMAIL_DELIVERY_FAILED',
+          message: 'A new verification code was generated, but we could not email it. Please check SMTP configuration and try again.',
+        },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({

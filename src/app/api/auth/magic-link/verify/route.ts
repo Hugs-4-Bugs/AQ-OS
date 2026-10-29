@@ -43,16 +43,21 @@ function getDynamicOrigin(request: NextRequest): string {
     try {
       const u = new URL(APP_URL);
       const h = u.hostname.toLowerCase();
+      // Always reject 0.0.0.0 + cloud-internal hostnames
+      // In dev, allow localhost/private IPs; in production, reject them
+      const isProduction = process.env.NODE_ENV === 'production';
       const isInternalHost =
-        h === 'localhost' ||
-        h.startsWith('127.') ||
         h.startsWith('0.0.0.0') ||
-        h.startsWith('10.') ||
-        h.startsWith('192.168.') ||
-        h.startsWith('172.') ||
         h.includes('.fcapp.run') ||
         h.includes('.aliyuncs.com') ||
-        h.includes('.functioncompute.com');
+        h.includes('.functioncompute.com') ||
+        (isProduction && (
+          h === 'localhost' ||
+          h.startsWith('127.') ||
+          h.startsWith('10.') ||
+          h.startsWith('192.168.') ||
+          h.startsWith('172.')
+        ));
       if (!isInternalHost) {
         return u.origin;
       }

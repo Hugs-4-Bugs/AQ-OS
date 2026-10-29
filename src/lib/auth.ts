@@ -214,7 +214,37 @@ export function extractBearerToken(request: NextRequest): string | null {
 // ===== COOKIE HELPERS =====
 
 /**
+ * Determine if the cookie should be Secure based on the response URL protocol.
+ * More reliable than NODE_ENV: handles local production builds over http://localhost.
+ */
+function shouldUseSecureCookie(response: NextResponse): boolean {
+  try {
+    // Check the response URL protocol if available
+    const responseUrl = (response as NextResponse & { url?: string }).url;
+    if (responseUrl) {
+      return responseUrl.startsWith('https://');
+    }
+  } catch {
+    // fall through to NODE_ENV check
+  }
+  // Fallback: NODE_ENV-based (original behavior)
+  return process.env.NODE_ENV === 'production';
+}
+
+/**
  * Set auth cookies on a response.
+ *
+ * Cookie design updates (Part 3 Checkpoint 1):
+ * - secure flag: based on response URL protocol, NOT just NODE_ENV. This
+ *   fixes the "immediate logout" bug when running `npm start` (production
+ *   build) locally on http://localhost — the browser refused to store
+ *   Secure cookies over HTTP.
+ * - sameSite: 'lax' (was 'strict'): 'strict' prevented some browsers from
+ *   SETTING cookies on the Google OAuth callback top-level navigation,
+ *   causing the user to appear logged out immediately after Google auth.
+ *   'lax' allows cookies to be set on top-level GET navigations (which is
+ *   safe — CSRF protection is still enforced for POST/PUT/DELETE via the
+ *   existing CSRF middleware).
  *
  * opts.persist (default TRUE — preserves the app's current behavior for
  * every existing caller): refresh_token is a persistent cookie with a
@@ -231,19 +261,20 @@ export function setAuthCookies(
   opts?: { persist?: boolean }
 ): NextResponse {
   const persist = opts?.persist !== false;
+  const secure = shouldUseSecureCookie(response);
 
   response.cookies.set('access_token', accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure,
+    sameSite: 'lax',
     path: '/',
     maxAge: 15 * 60, // 15 minutes
   });
 
   response.cookies.set('refresh_token', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure,
+    sameSite: 'lax',
     path: '/api/auth', // Accessible to refresh + signout endpoints
     ...(persist ? { maxAge: 30 * 24 * 60 * 60 } : {}), // 30d when remembered; session cookie otherwise
   });
@@ -253,18 +284,19 @@ export function setAuthCookies(
 
 /** Clear auth cookies */
 export function clearAuthCookies(response: NextResponse): NextResponse {
+  const secure = shouldUseSecureCookie(response);
   response.cookies.set('access_token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure,
+    sameSite: 'lax',
     path: '/',
     maxAge: 0,
   });
 
   response.cookies.set('refresh_token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure,
+    sameSite: 'lax',
     path: '/api/auth',
     maxAge: 0,
   });

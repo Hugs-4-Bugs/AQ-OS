@@ -165,7 +165,11 @@ export async function POST(request: NextRequest) {
     // ── Send verification email (REAL Gmail SMTP delivery only) ───
     // No Ethereal / preview inbox fallback. The OTP is NEVER returned in
     // the response — the user must read it from their real email inbox.
+    // If SMTP delivery FAILS, we return an HONEST 503 so the user knows
+    // the verification code was NOT emailed (no fake "OTP sent" success).
     const emailConfigured = isEmailServiceConfigured();
+    let emailDeliveryFailed = false;
+    let emailDeliveryError: string | undefined;
 
     if (emailConfigured) {
       try {
@@ -182,10 +186,15 @@ export async function POST(request: NextRequest) {
             userAgent: ua,
           });
         } else {
+          // SMTP was configured but delivery actually failed — surface honestly
           console.error('[Signup] Email delivery failed:', result.error);
+          emailDeliveryFailed = true;
+          emailDeliveryError = result.error;
         }
       } catch (emailError) {
         console.error('[Signup] Failed to send verification email:', emailError);
+        emailDeliveryFailed = true;
+        emailDeliveryError = emailError instanceof Error ? emailError.message : String(emailError);
       }
     } else {
       console.error('[Signup] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY). User cannot verify their email.');
@@ -196,6 +205,22 @@ export async function POST(request: NextRequest) {
     // account can actually be verified and used. In production builds
     // devOtpDelivery() returns undefined and the response is unchanged.
     const devDelivery = emailConfigured ? undefined : devOtpDelivery(verificationOtp, 'verification code');
+
+    // If SMTP was configured but delivery ACTUALLY failed, return honest 503
+    // (NOT a fake "OTP sent" success). The user account WAS created, but the
+    // verification code was NOT emailed — the user can request a resend after
+    // fixing their SMTP configuration.
+    if (emailDeliveryFailed) {
+      return NextResponse.json(
+        {
+          error: 'EMAIL_DELIVERY_FAILED',
+          message: 'Account created, but we could not email your verification code. Please check SMTP configuration and request a new code.',
+          requiresVerification: true,
+          email: normalizedEmail,
+        },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json(
       {
