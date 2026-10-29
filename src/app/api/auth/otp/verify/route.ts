@@ -260,22 +260,27 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     // SAFE error handling: generic message to the browser; stable category
-    // code in the server log for diagnosability (no secrets, no stacks).
-    // ERROR-SEMANTICS FIX (2026-09-24, account consistency): infrastructure
-    // failures (database unavailable, etc.) now return 503
-    // INFRASTRUCTURE_ERROR — the same contract as the OTP request route —
-    // so a transient DB outage can NEVER be mistaken by the client for an
-    // authentication failure (invalid credentials / forced logout).
+    // code + sanitized detail for diagnosability (no secrets, no stacks).
+    // The `detail` field contains a SHORT sanitized error message (max 200 chars,
+    // no file paths, no connection strings) so the user can report the exact
+    // error category without exposing secrets.
     const category = classifyAuthErrorCategory(error);
-    console.error(`[OTP Verify] error category=${category}`, error instanceof Error ? error.message : error);
+    const rawMsg = error instanceof Error ? error.message : String(error);
+    // Sanitize: strip file paths, connection strings, and truncate
+    const sanitizedDetail = rawMsg
+      .replace(/\/[^\s]+/g, '[path]')        // strip file paths
+      .replace(/file:[^\s]+/g, '[db-url]')   // strip DB URLs
+      .replace(/password[^\s]*/gi, '[redacted]')  // strip password mentions
+      .slice(0, 200);
+    console.error(`[OTP Verify] error category=${category}`, rawMsg);
     if (category === 'database') {
       return NextResponse.json(
-        { error: 'Unable to verify the code right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR' },
+        { error: 'Unable to verify the code right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR', category, detail: sanitizedDetail },
         { status: 503 }
       );
     }
     return NextResponse.json(
-      { error: 'Unable to verify the code right now. Please try again in a moment.' },
+      { error: 'Unable to verify the code right now. Please try again in a moment.', code: 'OTP_VERIFY_ERROR', category, detail: sanitizedDetail },
       { status: 500 }
     );
   }
