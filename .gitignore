@@ -3,28 +3,3 @@ GIT_INCREMENT_LOCAL_COMMITS.bundle
 # Phase 2 QA artifacts — session cookies and transient tool output, never commit
 .test-tmp/
 tool-results/
-
-# Secrets — never commit runtime credentials (forward-only: untracked via git rm --cached)
-.env
-.env.*
-.env.local
-.env.*.local
-*.cookies
-scripts/.repro-cookies*
-scripts/phase3-token.txt
-scripts/.qa-*
-!/.env.example
-
-# Runtime state and local artifacts — never commit (Phase 3–6 line hygiene)
-node_modules/
-.next/
-*.log
-*.tsbuildinfo
-db/
-db-backups/
-prisma/db/
-backend/test.db
-**/__pycache__/
-upload/
-download/
-env (1).txt

@@ -58,9 +58,11 @@ describe('Phase 26 Extension — G5: role-aware dedup', () => {
 // ─── G7: FALLBACK strategy ──────────────────────────────────────────
 
 describe('Phase 26 Extension — G7: FALLBACK strategy', () => {
-  it('OrchestrationMode type includes FALLBACK', () => {
+  it('OrchestrationMode type includes FALLBACK (and Part 2 SINGLE)', () => {
     const src = readSrc('src/lib/ai/orchestrator.ts');
-    expect(src).toMatch(/export type OrchestrationMode = 'SEQUENTIAL' \| 'PARALLEL' \| 'FALLBACK'/);
+    // Part 2 added SINGLE as a first-class strategy. The type union
+    // must still include SEQUENTIAL, PARALLEL, and FALLBACK.
+    expect(src).toMatch(/export type OrchestrationMode = 'SINGLE' \| 'SEQUENTIAL' \| 'PARALLEL' \| 'FALLBACK'/);
   });
 
   it('parseOrchestrationMode handles fallback', () => {

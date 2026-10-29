@@ -45,7 +45,9 @@ import { db } from '@/lib/db';
 
 // ===== TYPES =====
 
-export type OrchestrationMode = 'SEQUENTIAL' | 'PARALLEL' | 'FALLBACK';
+/** Part 2 adds SINGLE as a first-class strategy (degenerate 1-spec
+ *  execution — explicit, named, and auditable rather than implicit). */
+export type OrchestrationMode = 'SINGLE' | 'SEQUENTIAL' | 'PARALLEL' | 'FALLBACK';
 
 /** One configured model slot inside a step's model list. */
 export interface ModelCallSpec {
@@ -216,6 +218,7 @@ function strOrUndefined(v: unknown): string | undefined {
 }
 
 /** Parse orchestration mode from step config.
+ *  - 'single'     → SINGLE     (one spec, one invocation, no fan-out)
  *  - 'parallel'   → PARALLEL   (bounded concurrent fan-out, all slots attempted)
  *  - 'fallback'   → FALLBACK   (try each spec in order, stop on first success)
  *  - 'sequential' → SEQUENTIAL (chain all slots, each sees predecessors' output)
@@ -225,6 +228,7 @@ export function parseOrchestrationMode(
   config: Record<string, unknown>
 ): OrchestrationMode {
   const raw = typeof config.orchestration === 'string' ? config.orchestration.toLowerCase() : '';
+  if (raw === 'single') return 'SINGLE';
   if (raw === 'parallel') return 'PARALLEL';
   if (raw === 'fallback') return 'FALLBACK';
   return 'SEQUENTIAL';
@@ -315,6 +319,29 @@ export async function orchestrateModelCalls(
   const mode = params.mode;
   const probe = params.isCancelled ?? executionStatusProbe(context.executionId);
   const results: ModelCallResult[] = new Array(specs.length);
+
+  // ── Part 2: SINGLE strategy — explicit first-class strategy for the
+  //    single-model case. Semantically equivalent to SEQUENTIAL with one
+  //    spec, but explicitly named and audited so callers (and the audit
+  //    log) can distinguish "the user configured ONE model deliberately"
+  //    from "the user configured a SEQUENTIAL chain that happens to have
+  //    one slot". Falls through to the SEQUENTIAL code path below.
+  if (mode === 'SINGLE') {
+    if (specs.length === 0) {
+      return aggregate(results, mode, startedAt);
+    }
+    if (await probe()) {
+      results[0] = {
+        configuredProvider: specs[0].provider,
+        configuredModel: specs[0].model,
+        role: specs[0].role,
+        status: 'SKIPPED_CANCELLED',
+      };
+    } else {
+      results[0] = await executeOneModelCall(specs[0], basePrompt, context);
+    }
+    return aggregate(results, mode, startedAt);
+  }
 
   if (mode === 'SEQUENTIAL') {
     const completedSoFar: ModelCallResult[] = [];
