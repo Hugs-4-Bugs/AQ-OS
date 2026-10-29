@@ -28,3 +28,8 @@ backend/test.db
 upload/
 download/
 env (1).txt
+
+# Test databases — never commit; regenerated each test run
+test.db
+prisma/test.db
+*.test.db

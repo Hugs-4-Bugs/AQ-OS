@@ -178,11 +178,12 @@ describe('orchestrator — pure functions', () => {
     expect(specs[0].model).toBeUndefined();
   });
 
-  it('parseOrchestrationMode returns PARALLEL only for "parallel"', async () => {
+  it('parseOrchestrationMode returns PARALLEL only for "parallel" (and SINGLE for "single" — Part 2)', async () => {
     const { parseOrchestrationMode } = await import('@/lib/ai/orchestrator');
     expect(parseOrchestrationMode({ orchestration: 'parallel' })).toBe('PARALLEL');
     expect(parseOrchestrationMode({ orchestration: 'sequential' })).toBe('SEQUENTIAL');
-    expect(parseOrchestrationMode({ orchestration: 'single' })).toBe('SEQUENTIAL');
+    // Part 2 added SINGLE as a first-class strategy.
+    expect(parseOrchestrationMode({ orchestration: 'single' })).toBe('SINGLE');
     expect(parseOrchestrationMode({})).toBe('SEQUENTIAL');
   });
 
