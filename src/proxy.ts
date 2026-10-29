@@ -54,6 +54,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/resend-verification',
   '/api/auth/config',           // public login-method discovery
   '/api/auth/email-diagnostic', // CRON_SECRET-gated inside the route
+  '/api/auth/diagnostic',        // Part 3: safe env-var diagnostic (no secrets, fingerprints only)
   // Health probes (load balancers / uptime monitors)
   '/api/health',
   // Cron endpoints (CRON_SECRET Bearer auth inside each route)
