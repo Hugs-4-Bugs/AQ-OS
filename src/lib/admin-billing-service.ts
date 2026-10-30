@@ -1347,6 +1347,762 @@ export async function getRevenueByPeriod(
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// PHASE 31 COMPLETION — Operational list/detail/export helpers
+//
+// All functions reuse existing models (Subscription, PaymentOrder,
+// PaymentWebhook, Invoice, CreditsLedger, ModelInvocation, AuditLog).
+// All list queries are paginated + bounded. No findMany() is used for
+// aggregate metrics — groupBy/aggregate/count are used instead.
+// ═══════════════════════════════════════════════════════════════════
+
+// --- 10. Subscription List (operational) ---
+
+export interface SubscriptionListOptions {
+  status?: string;
+  plan?: string;
+  provider?: 'stripe' | 'razorpay';
+  limit?: number;
+  offset?: number;
+}
+
+export interface SubscriptionListEntry {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  plan: string;
+  status: string;
+  billingCycle: string;
+  isTrial: boolean;
+  trialEndsAt: Date | null;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  provider: 'stripe' | 'razorpay' | 'none';
+  providerSubscriptionId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SubscriptionListResult {
+  subscriptions: SubscriptionListEntry[];
+  total: number;
+}
+
+/**
+ * Paginated list of platform subscriptions with operational fields.
+ * Reuses existing Subscription model — NO duplicate infrastructure.
+ */
+export async function getSubscriptionList(
+  options?: SubscriptionListOptions
+): Promise<SubscriptionListResult> {
+  try {
+    const where: Record<string, unknown> = {};
+    if (options?.status) where.status = options.status;
+    if (options?.plan) where.plan = options.plan;
+    if (options?.provider === 'stripe') where.stripeSubscriptionId = { not: null };
+    if (options?.provider === 'razorpay') where.razorpaySubscriptionId = { not: null };
+
+    const limit = Math.min(options?.limit || 50, 200);
+    const offset = options?.offset || 0;
+
+    const [subs, total] = await Promise.all([
+      db.subscription.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: {
+          user: { select: { email: true, name: true } },
+        },
+      }),
+      db.subscription.count({ where }),
+    ]);
+
+    return {
+      subscriptions: subs.map((s) => {
+        const provider: 'stripe' | 'razorpay' | 'none' = s.stripeSubscriptionId
+          ? 'stripe'
+          : s.razorpaySubscriptionId
+          ? 'razorpay'
+          : 'none';
+        return {
+          id: s.id,
+          userId: s.userId,
+          userEmail: s.user?.email || '',
+          userName: s.user?.name || null,
+          plan: s.plan,
+          status: s.status,
+          billingCycle: s.billingCycle,
+          isTrial: s.isTrial,
+          trialEndsAt: s.trialEndsAt,
+          currentPeriodStart: s.currentPeriodStart,
+          currentPeriodEnd: s.currentPeriodEnd,
+          cancelAtPeriodEnd: s.cancelAtPeriodEnd,
+          provider,
+          providerSubscriptionId:
+            s.stripeSubscriptionId || s.razorpaySubscriptionId || null,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        };
+      }),
+      total,
+    };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get subscription list:', error);
+    return { subscriptions: [], total: 0 };
+  }
+}
+
+// --- 11. Payment / Transaction List ---
+
+export interface PaymentListOptions {
+  status?: string;
+  provider?: string;
+  plan?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PaymentListEntry {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  provider: string;
+  providerOrderId: string | null;
+  providerPaymentId: string | null;
+  amount: number;
+  currency: string;
+  plan: string;
+  billingCycle: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PaymentListResult {
+  payments: PaymentListEntry[];
+  total: number;
+}
+
+/**
+ * Paginated list of payment/transaction records.
+ * Reuses existing PaymentOrder model. Provider/reference IDs are surfaced
+ * only when non-null and never include signing secrets.
+ */
+export async function getPaymentList(
+  options?: PaymentListOptions
+): Promise<PaymentListResult> {
+  try {
+    const where: Record<string, unknown> = {};
+    if (options?.status) where.status = options.status;
+    if (options?.provider) where.provider = options.provider;
+    if (options?.plan) where.plan = options.plan;
+    if (options?.startDate || options?.endDate) {
+      const createdAt: Record<string, Date> = {};
+      if (options?.startDate) createdAt.gte = options.startDate;
+      if (options?.endDate) createdAt.lte = options.endDate;
+      where.createdAt = createdAt;
+    }
+
+    const limit = Math.min(options?.limit || 50, 200);
+    const offset = options?.offset || 0;
+
+    const [payments, total] = await Promise.all([
+      db.paymentOrder.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: { user: { select: { email: true, name: true } } },
+      }),
+      db.paymentOrder.count({ where }),
+    ]);
+
+    return {
+      payments: payments.map((p) => ({
+        id: p.id,
+        userId: p.userId,
+        userEmail: p.user?.email || '',
+        userName: p.user?.name || null,
+        provider: p.provider,
+        providerOrderId: p.providerOrderId,
+        providerPaymentId: p.providerPaymentId,
+        amount: p.amount,
+        currency: p.currency,
+        plan: p.plan,
+        billingCycle: p.billingCycle,
+        status: p.status,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      })),
+      total,
+    };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get payment list:', error);
+    return { payments: [], total: 0 };
+  }
+}
+
+// --- 12. Refund History ---
+
+export interface RefundHistoryOptions {
+  provider?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface RefundHistoryEntry {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  provider: string;
+  providerPaymentId: string | null;
+  amount: number;
+  currency: string;
+  plan: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RefundHistoryResult {
+  refunds: RefundHistoryEntry[];
+  total: number;
+  totalRefundedAmount: number;
+}
+
+/**
+ * Paginated history of refunded payment orders (full + partial).
+ * Reuses existing PaymentOrder model — refund execution itself goes
+ * through /api/admin/refund (billing.refund permission required).
+ */
+export async function getRefundHistory(
+  options?: RefundHistoryOptions
+): Promise<RefundHistoryResult> {
+  try {
+    const where: Record<string, unknown> = { status: 'refunded' };
+    if (options?.provider) where.provider = options.provider;
+    if (options?.startDate || options?.endDate) {
+      const updatedAt: Record<string, Date> = {};
+      if (options?.startDate) updatedAt.gte = options.startDate;
+      if (options?.endDate) updatedAt.lte = options.endDate;
+      where.updatedAt = updatedAt;
+    }
+
+    const limit = Math.min(options?.limit || 50, 200);
+    const offset = options?.offset || 0;
+
+    const [refunds, total, amountAgg] = await Promise.all([
+      db.paymentOrder.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: { user: { select: { email: true, name: true } } },
+      }),
+      db.paymentOrder.count({ where }),
+      db.paymentOrder.aggregate({
+        _sum: { amount: true },
+        where,
+      }),
+    ]);
+
+    return {
+      refunds: refunds.map((p) => ({
+        id: p.id,
+        userId: p.userId,
+        userEmail: p.user?.email || '',
+        userName: p.user?.name || null,
+        provider: p.provider,
+        providerPaymentId: p.providerPaymentId,
+        amount: p.amount,
+        currency: p.currency,
+        plan: p.plan,
+        status: p.status,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      })),
+      total,
+      totalRefundedAmount: amountAgg._sum.amount || 0,
+    };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get refund history:', error);
+    return { refunds: [], total: 0, totalRefundedAmount: 0 };
+  }
+}
+
+// --- 13. Credits Overview (DB-aggregated) ---
+
+export interface CreditsOverviewOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreditsOverviewEntry {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  action: string;
+  credits: number;
+  balance: number;
+  description: string | null;
+  referenceId: string | null;
+  createdAt: Date;
+}
+
+export interface CreditsOverviewResult {
+  totalCreditBalance: number;
+  totalLedgerEntries: number;
+  recentEntries: CreditsOverviewEntry[];
+}
+
+/**
+ * Aggregate credits balance (DB aggregate, no findMany) + paginated
+ * recent ledger entries. Reuses existing CreditsLedger model.
+ */
+export async function getCreditsOverview(
+  options?: CreditsOverviewOptions
+): Promise<CreditsOverviewResult> {
+  try {
+    const limit = Math.min(options?.limit || 50, 200);
+    const offset = options?.offset || 0;
+
+    const [balanceAgg, totalEntries, recentEntries] = await Promise.all([
+      db.user.aggregate({ _sum: { credits: true } }),
+      db.creditsLedger.count({}),
+      db.creditsLedger.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: { user: { select: { email: true, name: true } } },
+      }),
+    ]);
+
+    return {
+      totalCreditBalance: balanceAgg._sum.credits || 0,
+      totalLedgerEntries: totalEntries,
+      recentEntries: recentEntries.map((e) => ({
+        id: e.id,
+        userId: e.userId,
+        userEmail: e.user?.email || '',
+        userName: e.user?.name || null,
+        action: e.action,
+        credits: e.credits,
+        balance: e.balance,
+        description: e.description,
+        referenceId: e.referenceId,
+        createdAt: e.createdAt,
+      })),
+    };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get credits overview:', error);
+    return { totalCreditBalance: 0, totalLedgerEntries: 0, recentEntries: [] };
+  }
+}
+
+// --- 14. AI Usage Overview (DB-aggregated) ---
+
+export interface AIUsageOverviewOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AIUsageTotals {
+  invocations: number;
+  tokens: number;
+  completed: number;
+  failed: number;
+}
+
+export interface AIUsageByProviderEntry {
+  provider: string;
+  invocations: number;
+  tokens: number;
+}
+
+export interface AIUsageByModelEntry {
+  provider: string;
+  model: string;
+  invocations: number;
+  tokens: number;
+}
+
+export interface AIUsageRecentEntry {
+  id: string;
+  invocationKey: string;
+  provider: string;
+  model: string;
+  status: string;
+  tokensUsed: number | null;
+  durationMs: number | null;
+  userId: string;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+}
+
+export interface AIUsageOverviewResult {
+  totals: AIUsageTotals;
+  byProvider: AIUsageByProviderEntry[];
+  byModel: AIUsageByModelEntry[];
+  recent: AIUsageRecentEntry[];
+  total: number;
+}
+
+/**
+ * Aggregate AI/model usage from existing ModelInvocation records.
+ * Uses DB-side count/aggregate/groupBy — NO findMany for aggregates.
+ * Reuses existing ModelInvocation model.
+ */
+export async function getAIUsageOverview(
+  options?: AIUsageOverviewOptions
+): Promise<AIUsageOverviewResult> {
+  try {
+    const where: Record<string, unknown> = {};
+    if (options?.startDate || options?.endDate) {
+      const createdAt: Record<string, Date> = {};
+      if (options?.startDate) createdAt.gte = options.startDate;
+      if (options?.endDate) createdAt.lte = options.endDate;
+      where.createdAt = createdAt;
+    }
+
+    const limit = Math.min(options?.limit || 50, 200);
+    const offset = options?.offset || 0;
+
+    const [total, tokensAgg, completedCount, failedCount, byProviderGroups, byModelGroups, recent] = await Promise.all([
+      db.modelInvocation.count({ where }),
+      db.modelInvocation.aggregate({ _sum: { tokensUsed: true }, where }),
+      db.modelInvocation.count({ where: { ...where, status: 'COMPLETED' } }),
+      db.modelInvocation.count({ where: { ...where, status: 'FAILED' } }),
+      db.modelInvocation.groupBy({
+        by: ['provider'],
+        _count: { provider: true },
+        _sum: { tokensUsed: true },
+        where,
+      }),
+      db.modelInvocation.groupBy({
+        by: ['provider', 'model'],
+        _count: { model: true },
+        _sum: { tokensUsed: true },
+        where,
+      }),
+      db.modelInvocation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          invocationKey: true,
+          provider: true,
+          model: true,
+          status: true,
+          tokensUsed: true,
+          durationMs: true,
+          userId: true,
+          startedAt: true,
+          finishedAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      totals: {
+        invocations: total,
+        tokens: tokensAgg._sum.tokensUsed || 0,
+        completed: completedCount,
+        failed: failedCount,
+      },
+      byProvider: byProviderGroups.map((g) => ({
+        provider: g.provider,
+        invocations: g._count.provider,
+        tokens: g._sum.tokensUsed || 0,
+      })),
+      byModel: byModelGroups.map((g) => ({
+        provider: g.provider,
+        model: g.model,
+        invocations: g._count.model,
+        tokens: g._sum.tokensUsed || 0,
+      })),
+      recent,
+      total,
+    };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get AI usage overview:', error);
+    return {
+      totals: { invocations: 0, tokens: 0, completed: 0, failed: 0 },
+      byProvider: [],
+      byModel: [],
+      recent: [],
+      total: 0,
+    };
+  }
+}
+
+// --- 15. Billing Events (AuditLog) ---
+
+export interface BillingEventsOptions {
+  action?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface BillingEventEntry {
+  id: string;
+  userId: string;
+  action: string;
+  details: string | null;
+  resource: string | null;
+  resourceId: string | null;
+  ipAddress: string | null;
+  createdAt: Date;
+}
+
+export interface BillingEventsResult {
+  events: BillingEventEntry[];
+  total: number;
+}
+
+/**
+ * Billing-related audit log entries (refund_issued, plan_change,
+ * payment_*, billing_*, credits_*, subscription_*). Reuses existing
+ * AuditLog model. Bounded + paginated.
+ */
+export async function getBillingEvents(
+  options?: BillingEventsOptions
+): Promise<BillingEventsResult> {
+  try {
+    const BILLING_ACTION_PREFIXES = [
+      'refund', 'payment', 'billing', 'credits', 'subscription', 'plan_',
+    ];
+
+    const where: Record<string, unknown> = {};
+    if (options?.action) {
+      where.action = { contains: options.action };
+    } else {
+      // Filter to billing-related actions only (OR semantics emulated via in)
+      where.OR = BILLING_ACTION_PREFIXES.map((p) => ({
+        action: { contains: p },
+      }));
+    }
+    if (options?.startDate || options?.endDate) {
+      const createdAt: Record<string, Date> = {};
+      if (options?.startDate) createdAt.gte = options.startDate;
+      if (options?.endDate) createdAt.lte = options.endDate;
+      where.createdAt = createdAt;
+    }
+
+    const limit = Math.min(options?.limit || 50, 200);
+    const offset = options?.offset || 0;
+
+    const [events, total] = await Promise.all([
+      db.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          userId: true,
+          action: true,
+          details: true,
+          resource: true,
+          resourceId: true,
+          ipAddress: true,
+          createdAt: true,
+        },
+      }),
+      db.auditLog.count({ where }),
+    ]);
+
+    return { events, total };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get billing events:', error);
+    return { events: [], total: 0 };
+  }
+}
+
+// --- 16. Provider Status (evidence-based) ---
+
+export type ProviderConfigState = 'CONFIGURED' | 'NOT_CONFIGURED' | 'ERROR' | 'UNKNOWN';
+export type WebhookHealthState = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN';
+
+export interface ProviderStatusEntry {
+  provider: 'stripe' | 'razorpay';
+  configState: ProviderConfigState;
+  // Health is evidence-based: derived from recent PaymentWebhook data,
+  // NEVER claimed HEALTHY merely because an env var is present.
+  health: WebhookHealthState;
+  recentEvents: number;
+  recentFailures: number;
+  lastEventAt: Date | null;
+  lastFailureAt: Date | null;
+}
+
+export interface ProviderStatusResult {
+  providers: ProviderStatusEntry[];
+  // Aggregate webhook health across all providers — UNKNOWN when there
+  // is insufficient evidence (no recent webhook events at all).
+  webhookHealth: WebhookHealthState;
+}
+
+/**
+ * Provider configuration + evidence-based webhook health.
+ *
+ * Configuration state is derived from env var presence:
+ *   - STRIPE_SECRET_KEY present (non-empty)  → CONFIGURED
+ *   - RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET present → CONFIGURED
+ *   - Otherwise → NOT_CONFIGURED
+ *
+ * Health is derived ONLY from PaymentWebhook records (last 24h):
+ *   - DOWN:      >50% failure rate AND ≥5 events
+ *   - DEGRADED:  5–50% failure rate AND ≥5 events
+ *   - HEALTHY:   <5% failure rate AND ≥5 events
+ *   - UNKNOWN:   <5 events (insufficient evidence)
+ *
+ * HEALTHY is NEVER claimed based on env var presence alone.
+ */
+export async function getProviderStatus(): Promise<ProviderStatusResult> {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const providers: ProviderStatusEntry[] = [];
+
+    // Stripe configuration
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeConfigured = !!stripeKey && stripeKey.length > 0;
+
+    // Razorpay configuration (both key id + secret required)
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY;
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_SECRET;
+    const razorpayConfigured = !!razorpayKeyId && !!razorpayKeySecret;
+
+    // Per-provider webhook evidence (last 24h) — DB-aggregated
+    const [stripeEvidence, razorpayEvidence] = await Promise.all([
+      Promise.all([
+        db.paymentWebhook.count({
+          where: { provider: 'stripe', receivedAt: { gte: twentyFourHoursAgo } },
+        }),
+        db.paymentWebhook.count({
+          where: {
+            provider: 'stripe',
+            receivedAt: { gte: twentyFourHoursAgo },
+            processed: false,
+            processingError: { not: null },
+          },
+        }),
+        db.paymentWebhook.findFirst({
+          where: { provider: 'stripe' },
+          orderBy: { receivedAt: 'desc' },
+          select: { receivedAt: true },
+        }),
+        db.paymentWebhook.findFirst({
+          where: {
+            provider: 'stripe',
+            processed: false,
+            processingError: { not: null },
+          },
+          orderBy: { receivedAt: 'desc' },
+          select: { receivedAt: true },
+        }),
+      ]),
+      Promise.all([
+        db.paymentWebhook.count({
+          where: { provider: 'razorpay', receivedAt: { gte: twentyFourHoursAgo } },
+        }),
+        db.paymentWebhook.count({
+          where: {
+            provider: 'razorpay',
+            receivedAt: { gte: twentyFourHoursAgo },
+            processed: false,
+            processingError: { not: null },
+          },
+        }),
+        db.paymentWebhook.findFirst({
+          where: { provider: 'razorpay' },
+          orderBy: { receivedAt: 'desc' },
+          select: { receivedAt: true },
+        }),
+        db.paymentWebhook.findFirst({
+          where: {
+            provider: 'razorpay',
+            processed: false,
+            processingError: { not: null },
+          },
+          orderBy: { receivedAt: 'desc' },
+          select: { receivedAt: true },
+        }),
+      ]),
+    ]);
+
+    function deriveHealth(recent: number, failures: number): WebhookHealthState {
+      if (recent < 5) return 'UNKNOWN';
+      const rate = failures / recent;
+      if (rate > 0.5) return 'DOWN';
+      if (rate >= 0.05) return 'DEGRADED';
+      return 'HEALTHY';
+    }
+
+    const stripeProvider: ProviderStatusEntry = {
+      provider: 'stripe',
+      configState: stripeConfigured ? 'CONFIGURED' : 'NOT_CONFIGURED',
+      health: deriveHealth(stripeEvidence[0], stripeEvidence[1]),
+      recentEvents: stripeEvidence[0],
+      recentFailures: stripeEvidence[1],
+      lastEventAt: stripeEvidence[2]?.receivedAt || null,
+      lastFailureAt: stripeEvidence[3]?.receivedAt || null,
+    };
+    providers.push(stripeProvider);
+
+    const razorpayProvider: ProviderStatusEntry = {
+      provider: 'razorpay',
+      configState: razorpayConfigured ? 'CONFIGURED' : 'NOT_CONFIGURED',
+      health: deriveHealth(razorpayEvidence[0], razorpayEvidence[1]),
+      recentEvents: razorpayEvidence[0],
+      recentFailures: razorpayEvidence[1],
+      lastEventAt: razorpayEvidence[2]?.receivedAt || null,
+      lastFailureAt: razorpayEvidence[3]?.receivedAt || null,
+    };
+    providers.push(razorpayProvider);
+
+    // Aggregate webhook health = worst-case across configured providers
+    const configuredProviders = providers.filter(
+      (p) => p.configState === 'CONFIGURED'
+    );
+    let aggregateHealth: WebhookHealthState;
+    if (configuredProviders.length === 0) {
+      aggregateHealth = 'UNKNOWN';
+    } else if (configuredProviders.some((p) => p.health === 'DOWN')) {
+      aggregateHealth = 'DOWN';
+    } else if (configuredProviders.some((p) => p.health === 'DEGRADED')) {
+      aggregateHealth = 'DEGRADED';
+    } else if (configuredProviders.every((p) => p.health === 'HEALTHY')) {
+      aggregateHealth = 'HEALTHY';
+    } else {
+      // Some providers have UNKNOWN health — surface UNKNOWN rather than
+      // claiming HEALTHY based on the configured subset alone.
+      aggregateHealth = 'UNKNOWN';
+    }
+
+    return { providers, webhookHealth: aggregateHealth };
+  } catch (error) {
+    console.error('[AdminBilling] Failed to get provider status:', error);
+    return { providers: [], webhookHealth: 'UNKNOWN' };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
