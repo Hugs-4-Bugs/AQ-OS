@@ -108,6 +108,13 @@ export async function GET(
         workflowCount,
         notificationCount,
         apiKeyCount,
+        // ── Phase 28: User360 business activity ──
+        workflowExecutions,
+        autopilotRuns,
+        outreachMessages,
+        modelInvocations,
+        connectedAccounts,
+        recentLeads,
       ] = await Promise.all([
         db.subscription.findFirst({
           where: { userId: id, status: { in: ['active', 'trialing'] } },
@@ -156,6 +163,18 @@ export async function GET(
         db.workflowDefinition.count({ where: { userId: id } }),
         db.notification.count({ where: { userId: id } }),
         db.apiKey.count({ where: { userId: id } }),
+        // ── Phase 28: User360 business activity ──
+        db.workflowExecution.count({ where: { workflow: { userId: id } } }).catch(() => 0),
+        db.autopilotRun.count({ where: { userId: id } }).catch(() => 0),
+        db.outreachMessage.count({ where: { lead: { userId: id } } }).catch(() => 0),
+        db.modelInvocation.count({ where: { userId: id } }).catch(() => 0),
+        db.connectedAccount.count({ where: { userId: id } }).catch(() => 0),
+        db.lead.findMany({
+          where: { userId: id },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: { id: true, email: true, businessName: true, city: true, createdAt: true },
+        }),
       ]);
 
       return NextResponse.json({
@@ -171,9 +190,15 @@ export async function GET(
           resourceCounts: {
             leads: leadCount,
             workflows: workflowCount,
+            workflowExecutions,
+            autopilotRuns,
+            outreachMessages,
+            modelInvocations,
+            connectedAccounts,
             notifications: notificationCount,
             apiKeys: apiKeyCount,
           },
+          recentLeads,
         },
       });
     } catch (error) {
