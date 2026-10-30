@@ -382,8 +382,91 @@ export async function PATCH(
         });
       }
 
+      // ── Phase 29: Account enforcement (suspend, restrict, ban, reactivate) ──
+      if (['suspend', 'restrict', 'ban', 'reactivate'].includes(action)) {
+        if (targetId === adminUser.id) {
+          return NextResponse.json(
+            { error: 'You cannot perform account enforcement on your own account' },
+            { status: 400 }
+          );
+        }
+
+        // Check the admin has the specific permission for this action
+        const permissionMap: Record<string, string> = {
+          suspend: 'users.suspend',
+          restrict: 'users.restrict',
+          ban: 'users.ban',
+          reactivate: 'users.reactivate',
+        };
+        const requiredPermission = permissionMap[action];
+
+        // Verify permission (withSuperAdmin already checks role, but we
+        // also check specific permission for non-super_admin admin roles)
+        const { hasPermission } = await import('@/lib/rbac');
+        if (!hasPermission(adminUser.role as never, requiredPermission as never)) {
+          // Log security event for failed authorization
+          await db.systemEvent.create({
+            data: {
+              type: 'warning',
+              category: 'security',
+              message: `Unauthorized admin action attempt: ${action} on ${target.email} by ${adminUser.email}`,
+              metadata: JSON.stringify({ targetUserId: targetId, adminId: adminUser.id, action, requiredPermission }),
+              resolved: false,
+            },
+          }).catch(() => {});
+
+          return NextResponse.json(
+            { error: `Insufficient permission: ${requiredPermission} required for ${action}` },
+            { status: 403 }
+          );
+        }
+
+        const reason = typeof body.reason === 'string' ? body.reason.slice(0, 500) : 'No reason provided';
+        const isActive = action === 'reactivate';
+        const updated = await db.user.update({
+          where: { id: targetId },
+          data: { isActive },
+        });
+
+        // If suspending/banning, revoke all sessions
+        if (!isActive) {
+          await db.userSession.updateMany({
+            where: { userId: targetId, isRevoked: false },
+            data: { isRevoked: true },
+          }).catch(() => {});
+        }
+
+        // Audit log
+        await writeAdminAudit(
+          adminUser.id,
+          `admin_${action}`,
+          targetId,
+          { targetEmail: target.email, reason, previousState: target.isActive, newState: isActive },
+          ip,
+          ua
+        );
+
+        // Security event for ban (escalation-level action)
+        if (action === 'ban') {
+          await db.systemEvent.create({
+            data: {
+              type: 'warning',
+              category: 'security',
+              message: `User banned: ${target.email} by ${adminUser.email}. Reason: ${reason}`,
+              metadata: JSON.stringify({ targetUserId: targetId, adminId: adminUser.id, reason }),
+              resolved: false,
+            },
+          }).catch(() => {});
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: { id: updated.id, isActive: updated.isActive, action, reason },
+        });
+      }
+
       return NextResponse.json(
-        { error: 'Unknown action. Supported: toggle_active, adjust_credits, revoke_sessions' },
+        { error: 'Unknown action. Supported: toggle_active, adjust_credits, revoke_sessions, suspend, restrict, ban, reactivate' },
         { status: 400 }
       );
     } catch (error) {

@@ -3,7 +3,7 @@
 // Phase 3: Auth + Authorization + Session Security + RBAC
 // ═══════════════════════════════════════════════════════════════════
 
-export type UserRole = 'super_admin' | 'owner' | 'admin' | 'member' | 'viewer';
+export type UserRole = 'super_admin' | 'owner' | 'admin' | 'member' | 'viewer' | 'support' | 'analytics';
 
 export type Permission =
   | 'leads:read'
@@ -29,7 +29,34 @@ export type Permission =
   | 'team:write'
   | 'api:read'
   | 'api:write'
-  | 'admin:access';
+  | 'admin:access'
+  // ── Phase 29: Admin RBAC permissions ──
+  | 'users.read'
+  | 'users.update'
+  | 'users.suspend'
+  | 'users.restrict'
+  | 'users.ban'
+  | 'users.reactivate'
+  | 'user360.read'
+  | 'user360.support'
+  | 'billing.refund'
+  | 'billing.adjust'
+  | 'credits.read'
+  | 'credits.adjust'
+  | 'workflows.read'
+  | 'workflows.control'
+  | 'autopilot.read'
+  | 'autopilot.control'
+  | 'outreach.control'
+  | 'ai.usage.read'
+  | 'integrations.read'
+  | 'integrations.control'
+  | 'system.health.read'
+  | 'system.logs.read'
+  | 'audit.read'
+  | 'security.events.read'
+  | 'rbac.read'
+  | 'rbac.assign';
 
 // Permission matrix: role → set of permissions
 const ROLE_PERMISSIONS: Record<UserRole, Set<Permission>> = {
@@ -47,6 +74,20 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission>> = {
     'team:read', 'team:write',
     'api:read', 'api:write',
     'admin:access',
+    // Phase 29: full admin permissions
+    'users.read', 'users.update', 'users.suspend', 'users.restrict', 'users.ban', 'users.reactivate',
+    'user360.read', 'user360.support',
+    'billing.refund', 'billing.adjust',
+    'credits.read', 'credits.adjust',
+    'workflows.read', 'workflows.control',
+    'autopilot.read', 'autopilot.control',
+    'outreach.control',
+    'ai.usage.read',
+    'integrations.read', 'integrations.control',
+    'system.health.read', 'system.logs.read',
+    'audit.read',
+    'security.events.read',
+    'rbac.read', 'rbac.assign',
   ]),
   owner: new Set<Permission>([
     'leads:read', 'leads:write', 'leads:delete',
@@ -76,6 +117,19 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission>> = {
     'billing:read',
     'team:read',
     'api:read',
+    // Phase 29: platform admin permissions (no RBAC assignment, no secret access)
+    'admin:access',
+    'users.read', 'users.update', 'users.suspend', 'users.restrict', 'users.reactivate',
+    'user360.read',
+    'billing.adjust',
+    'credits.read', 'credits.adjust',
+    'workflows.read', 'workflows.control',
+    'autopilot.read', 'autopilot.control',
+    'outreach.control',
+    'ai.usage.read',
+    'integrations.read', 'integrations.control',
+    'system.health.read', 'system.logs.read',
+    'audit.read',
   ]),
   member: new Set<Permission>([
     'leads:read', 'leads:write',
@@ -98,7 +152,55 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission>> = {
     'competitors:read',
     'settings:read',
   ]),
+  // ── Phase 29: Admin RBAC roles ──
+  support: new Set<Permission>([
+    'admin:access',
+    'users.read', 'users.update', 'users.suspend', 'users.restrict', 'users.reactivate',
+    'user360.read', 'user360.support',
+    'credits.read',
+    'workflows.read',
+    'autopilot.read',
+    'outreach:read', 'outreach.control',
+    'integrations.read',
+    'system.health.read',
+    'audit.read',
+  ]),
+  analytics: new Set<Permission>([
+    'admin:access',
+    'users.read', 'user360.read',
+    'billing:read', 'credits.read',
+    'leads:read', 'workflows.read', 'autopilot.read',
+    'outreach:read', 'ai.usage.read',
+    'system.health.read', 'audit.read',
+  ]),
 };
+
+// ── Phase 29: Admin role definitions ──
+export type AdminRole = 'super_admin' | 'admin' | 'support' | 'analytics';
+
+export const ADMIN_ROLES: AdminRole[] = ['super_admin', 'admin', 'support', 'analytics'];
+
+export const ADMIN_ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
+  super_admin: 'Full platform administrative access including RBAC management',
+  admin: 'Operational admin access — user management, billing, system control (no RBAC assignment)',
+  support: 'Support/operations — User360, user investigation, account restrictions, operational monitoring',
+  analytics: 'Read-only analytics — approved business/system metrics, no mutations',
+};
+
+/** Check if a role is a platform admin role (not org-level) */
+export function isPlatformAdminRole(role: string): boolean {
+  return ADMIN_ROLES.includes(role as AdminRole);
+}
+
+/** Prevent self-escalation: a role cannot assign roles higher than its own */
+export function canAssignRole(assignerRole: UserRole, targetRole: UserRole): boolean {
+  // Only super_admin can assign admin roles
+  if (assignerRole !== 'super_admin') return false;
+  // super_admin can assign any admin role
+  // But cannot assign 'owner' (that's an org-level role, set at signup)
+  if (targetRole === 'owner') return false;
+  return true;
+}
 
 /** Check if a role has a specific permission */
 export function hasPermission(role: UserRole, permission: Permission): boolean {
