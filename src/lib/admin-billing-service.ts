@@ -302,72 +302,57 @@ export async function getBillingOverview(): Promise<BillingOverviewResult> {
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
-    // Active subscriptions by plan
-    const activeSubscriptions = await db.subscription.findMany({
+    // Active subscriptions by plan — use DB groupBy instead of loading all records
+    const planGroups = await db.subscription.groupBy({
+      by: ['plan'],
+      _count: { plan: true },
       where: { status: { in: ['active', 'trialing'] } },
-      select: { plan: true },
     });
+    const byPlan = planGroups.map((g) => ({ plan: g.plan, count: g._count.plan }));
+    const totalActive = byPlan.reduce((sum, g) => sum + g.count, 0);
 
-    const byPlanMap = new Map<string, number>();
-    for (const sub of activeSubscriptions) {
-      byPlanMap.set(sub.plan, (byPlanMap.get(sub.plan) || 0) + 1);
-    }
-    const byPlan = Array.from(byPlanMap.entries()).map(([plan, count]) => ({ plan, count }));
-
-    // Revenue for current month
-    const currentMonthPayments = await db.paymentOrder.findMany({
-      where: {
-        status: 'completed',
-        createdAt: { gte: currentMonthStart },
-      },
-      select: { amount: true },
-    });
-    const currentMonthRevenue = currentMonthPayments.reduce((sum, p) => sum + p.amount, 0);
-
-    // Revenue for last month
-    const lastMonthPayments = await db.paymentOrder.findMany({
-      where: {
-        status: 'completed',
-        createdAt: { gte: lastMonthStart, lte: lastMonthEnd },
-      },
-      select: { amount: true },
-    });
-    const lastMonthRevenue = lastMonthPayments.reduce((sum, p) => sum + p.amount, 0);
+    // Revenue — use DB aggregate(_sum) instead of loading all payment records
+    const [currentMonthAgg, lastMonthAgg, allTimeAgg] = await Promise.all([
+      db.paymentOrder.aggregate({
+        _sum: { amount: true },
+        where: { status: 'completed', createdAt: { gte: currentMonthStart } },
+      }),
+      db.paymentOrder.aggregate({
+        _sum: { amount: true },
+        where: { status: 'completed', createdAt: { gte: lastMonthStart, lte: lastMonthEnd } },
+      }),
+      db.paymentOrder.aggregate({
+        _sum: { amount: true },
+        where: { status: 'completed' },
+      }),
+    ]);
+    const currentMonthRevenue = currentMonthAgg._sum.amount || 0;
+    const lastMonthRevenue = lastMonthAgg._sum.amount || 0;
 
     const percentChange = lastMonthRevenue === 0
       ? (currentMonthRevenue > 0 ? 100 : 0)
       : ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
 
-    // Failed payments count
-    const failedPayments = await db.paymentOrder.count({
-      where: { status: 'failed' },
-    });
+    // Counts — use DB count() (already efficient)
+    const [failedPayments, pastDue, trials, churnedLast30] = await Promise.all([
+      db.paymentOrder.count({ where: { status: 'failed' } }),
+      db.subscription.count({ where: { status: 'past_due' } }),
+      db.subscription.count({ where: { status: 'trialing', isTrial: true } }),
+      db.subscription.count({
+        where: {
+          status: { in: ['expired', 'canceled'] },
+          updatedAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
+        },
+      }),
+    ]);
 
-    // Past-due subscriptions
-    const pastDue = await db.subscription.count({
-      where: { status: 'past_due' },
-    });
-
-    // Trial users count
-    const trials = await db.subscription.count({
-      where: { status: 'trialing', isTrial: true },
-    });
-
-    // Churn rate: (expired + canceled in last 30 days) / total at start of period
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const churnedLast30 = await db.subscription.count({
-      where: {
-        status: { in: ['expired', 'canceled'] },
-        updatedAt: { gte: thirtyDaysAgo },
-      },
-    });
-    const totalAtPeriodStart = activeSubscriptions.length + churnedLast30;
+    const totalAtPeriodStart = totalActive + churnedLast30;
     const churnRate = totalAtPeriodStart > 0
       ? (churnedLast30 / totalAtPeriodStart) * 100
       : 0;
 
     return {
-      totalActive: activeSubscriptions.length,
+      totalActive,
       byPlan,
       revenue: {
         currentMonth: currentMonthRevenue,
