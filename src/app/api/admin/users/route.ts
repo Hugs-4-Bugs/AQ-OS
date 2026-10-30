@@ -3,7 +3,8 @@
 //
 // GET /api/admin/users
 // Paginated, searchable user listing for the Admin Dashboard.
-// PLATFORM-LEVEL access across ALL tenants — guarded by withSuperAdmin.
+// PLATFORM-LEVEL access — guarded by Phase 29 granular permission:
+//   users.read (granted to: super_admin, admin, support, analytics)
 //
 // SECURITY:
 // - Only safe, non-sensitive fields are ever returned. Credential and
@@ -13,7 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 
@@ -42,7 +43,7 @@ const SAFE_USER_SELECT = {
 } as const;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withSuperAdmin(request, async () => {
+  return withPermission(request, 'users.read', async () => {
     try {
       const { searchParams } = new URL(request.url);
       const search = (searchParams.get('search') || '').trim();

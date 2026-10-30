@@ -7,7 +7,10 @@
 //   • adjust_credits   — add/deduct credits with ledger entry + reason
 //   • revoke_sessions  — revoke all active refresh sessions
 //
-// PLATFORM-LEVEL access across ALL tenants — guarded by withSuperAdmin.
+// PLATFORM-LEVEL access across ALL tenants — guarded by Phase 29
+// granular permissions:
+//   GET  → user360.read (super_admin, admin, support, analytics)
+//   PATCH → per-action permission (users.suspend, users.ban, etc.)
 //
 // SECURITY / SAFETY RAILS:
 // - Only safe, non-sensitive fields are ever returned (no passwordHash,
@@ -19,7 +22,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -63,7 +66,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
-  return withSuperAdmin(request, async () => {
+  return withPermission(request, 'user360.read', async () => {
     try {
       const user = await db.user.findUnique({
         where: { id },
@@ -215,7 +218,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
-  return withSuperAdmin(request, async (adminUser) => {
+  // PATCH uses user360.read as the base authorization — each action
+  // then additionally checks its specific permission (users.suspend,
+  // users.ban, credits.adjust, etc.) inside the handler.
+  return withPermission(request, 'user360.read', async (adminUser) => {
     try {
       const { searchParams } = new URL(request.url);
       // ID can arrive via the dynamic segment or ?userId= fallback
@@ -248,6 +254,11 @@ export async function PATCH(
 
       // 1) Activate / deactivate -------------------------------------------------
       if (action === 'toggle_active') {
+        // Check users.update permission for toggle_active
+        const { hasPermission: checkPerm } = await import('@/lib/rbac');
+        if (!checkPerm(adminUser.role as never, 'users.update' as never)) {
+          return NextResponse.json({ error: 'Insufficient permission: users.update required' }, { status: 403 });
+        }
         if (targetId === adminUser.id) {
           return NextResponse.json(
             { error: 'You cannot deactivate your own account' },
@@ -294,6 +305,11 @@ export async function PATCH(
 
       // 2) Adjust credits --------------------------------------------------------
       if (action === 'adjust_credits') {
+        // Check credits.adjust permission
+        const { hasPermission: checkPerm2 } = await import('@/lib/rbac');
+        if (!checkPerm2(adminUser.role as never, 'credits.adjust' as never)) {
+          return NextResponse.json({ error: 'Insufficient permission: credits.adjust required' }, { status: 403 });
+        }
         const amount = Number(body.amount);
         const reason = truncate(body.reason, 200).trim();
 
@@ -362,6 +378,11 @@ export async function PATCH(
 
       // 3) Revoke sessions -------------------------------------------------------
       if (action === 'revoke_sessions') {
+        // Check users.update permission for revoke_sessions
+        const { hasPermission: checkPerm3 } = await import('@/lib/rbac');
+        if (!checkPerm3(adminUser.role as never, 'users.update' as never)) {
+          return NextResponse.json({ error: 'Insufficient permission: users.update required' }, { status: 403 });
+        }
         const res = await db.userSession.updateMany({
           where: { userId: targetId, isRevoked: false },
           data: { isRevoked: true },
@@ -400,8 +421,9 @@ export async function PATCH(
         };
         const requiredPermission = permissionMap[action];
 
-        // Verify permission (withSuperAdmin already checks role, but we
-        // also check specific permission for non-super_admin admin roles)
+        // Verify permission — withPermission already checked user360.read,
+        // but we additionally check the specific action permission
+        // (users.suspend, users.ban, etc.) for granular control.
         const { hasPermission } = await import('@/lib/rbac');
         if (!hasPermission(adminUser.role as never, requiredPermission as never)) {
           // Log security event for failed authorization
