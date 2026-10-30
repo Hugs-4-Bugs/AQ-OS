@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import {
   getBillingOverview,
   getWebhookMonitoring,
@@ -25,7 +25,7 @@ import {
 // ═══════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withSuperAdmin(request, async () => {
+  return withPermission(request, 'billing:read', async () => {
     try {
       const { searchParams } = new URL(request.url);
       const action = searchParams.get('action');
