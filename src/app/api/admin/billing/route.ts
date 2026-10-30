@@ -17,6 +17,13 @@ import {
   getInvoiceTracking,
   getSubscriptionMetrics,
   getRevenueByPeriod,
+  getSubscriptionList,
+  getPaymentList,
+  getRefundHistory,
+  getCreditsOverview,
+  getAIUsageOverview,
+  getBillingEvents,
+  getProviderStatus,
   type SubscriptionMetricsPeriod,
 } from '@/lib/admin-billing-service';
 
@@ -154,13 +161,148 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
 
         // ─────────────────────────────────────────────────────────
+        // Subscription List (operational)
+        // GET /api/admin/billing?action=subscriptions&status=active&plan=pro&provider=stripe&limit=50&offset=0
+        // ─────────────────────────────────────────────────────────
+        case 'subscriptions': {
+          const status = searchParams.get('status') || undefined;
+          const plan = searchParams.get('plan') || undefined;
+          const providerParam = searchParams.get('provider');
+          const provider =
+            providerParam === 'stripe' || providerParam === 'razorpay'
+              ? (providerParam as 'stripe' | 'razorpay')
+              : undefined;
+          const limit = parseInt(searchParams.get('limit') || '50', 10);
+          const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+          const data = await getSubscriptionList({
+            status,
+            plan,
+            provider,
+            limit: isNaN(limit) ? 50 : limit,
+            offset: isNaN(offset) ? 0 : offset,
+          });
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // Payment / Transaction List
+        // GET /api/admin/billing?action=payments&status=completed&provider=stripe&plan=pro&startDate=...&endDate=...&limit=50&offset=0
+        // ─────────────────────────────────────────────────────────
+        case 'payments': {
+          const status = searchParams.get('status') || undefined;
+          const provider = searchParams.get('provider') || undefined;
+          const plan = searchParams.get('plan') || undefined;
+          const startDateStr = searchParams.get('startDate');
+          const endDateStr = searchParams.get('endDate');
+          const limit = parseInt(searchParams.get('limit') || '50', 10);
+          const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+          const data = await getPaymentList({
+            status,
+            provider,
+            plan,
+            startDate: startDateStr ? new Date(startDateStr) : undefined,
+            endDate: endDateStr ? new Date(endDateStr) : undefined,
+            limit: isNaN(limit) ? 50 : limit,
+            offset: isNaN(offset) ? 0 : offset,
+          });
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // Refund History
+        // GET /api/admin/billing?action=refunds&provider=stripe&startDate=...&endDate=...&limit=50&offset=0
+        // ─────────────────────────────────────────────────────────
+        case 'refunds': {
+          const provider = searchParams.get('provider') || undefined;
+          const startDateStr = searchParams.get('startDate');
+          const endDateStr = searchParams.get('endDate');
+          const limit = parseInt(searchParams.get('limit') || '50', 10);
+          const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+          const data = await getRefundHistory({
+            provider,
+            startDate: startDateStr ? new Date(startDateStr) : undefined,
+            endDate: endDateStr ? new Date(endDateStr) : undefined,
+            limit: isNaN(limit) ? 50 : limit,
+            offset: isNaN(offset) ? 0 : offset,
+          });
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // Credits Overview
+        // GET /api/admin/billing?action=credits&limit=50&offset=0
+        // ─────────────────────────────────────────────────────────
+        case 'credits': {
+          const limit = parseInt(searchParams.get('limit') || '50', 10);
+          const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+          const data = await getCreditsOverview({
+            limit: isNaN(limit) ? 50 : limit,
+            offset: isNaN(offset) ? 0 : offset,
+          });
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // AI Usage Overview
+        // GET /api/admin/billing?action=ai-usage&startDate=...&endDate=...&limit=50&offset=0
+        // ─────────────────────────────────────────────────────────
+        case 'ai-usage': {
+          const startDateStr = searchParams.get('startDate');
+          const endDateStr = searchParams.get('endDate');
+          const limit = parseInt(searchParams.get('limit') || '50', 10);
+          const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+          const data = await getAIUsageOverview({
+            startDate: startDateStr ? new Date(startDateStr) : undefined,
+            endDate: endDateStr ? new Date(endDateStr) : undefined,
+            limit: isNaN(limit) ? 50 : limit,
+            offset: isNaN(offset) ? 0 : offset,
+          });
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // Billing Events (AuditLog)
+        // GET /api/admin/billing?action=events&action_filter=refund&startDate=...&endDate=...&limit=50&offset=0
+        // ─────────────────────────────────────────────────────────
+        case 'events': {
+          const actionFilter = searchParams.get('action_filter') || undefined;
+          const startDateStr = searchParams.get('startDate');
+          const endDateStr = searchParams.get('endDate');
+          const limit = parseInt(searchParams.get('limit') || '50', 10);
+          const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+          const data = await getBillingEvents({
+            action: actionFilter,
+            startDate: startDateStr ? new Date(startDateStr) : undefined,
+            endDate: endDateStr ? new Date(endDateStr) : undefined,
+            limit: isNaN(limit) ? 50 : limit,
+            offset: isNaN(offset) ? 0 : offset,
+          });
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
+        // Provider Status (Stripe/Razorpay configuration + webhook health)
+        // GET /api/admin/billing?action=provider-status
+        // ─────────────────────────────────────────────────────────
+        case 'provider-status': {
+          const data = await getProviderStatus();
+          return NextResponse.json({ success: true, data });
+        }
+
+        // ─────────────────────────────────────────────────────────
         // Unknown action
         // ─────────────────────────────────────────────────────────
         default:
           return NextResponse.json(
             {
               success: false,
-              error: `Unknown action: "${action}". Valid actions: overview, webhooks, failed-payments, invoices, metrics, revenue`,
+              error: `Unknown action: "${action}". Valid actions: overview, webhooks, failed-payments, invoices, metrics, revenue, subscriptions, payments, refunds, credits, ai-usage, events, provider-status`,
             },
             { status: 400 }
           );
