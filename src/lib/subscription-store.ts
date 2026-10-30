@@ -282,6 +282,7 @@ interface SubscriptionState {
   markUnavailable: () => void;
   syncFromBackend: (data: BackendSubscriptionData) => void;
   syncEntitlements: (data: BackendEntitlementsData) => void;
+  syncFromAuth: (plan: string) => void;
   reset: () => void;
 }
 
@@ -311,8 +312,80 @@ const DEFAULT_STATE = {
   lastFetchedAt: null as number | null,
 };
 
+// ===== LOCAL CACHE (prevents subscription flickering on page load) =====
+// On page load, the store starts with DEFAULT_STATE (free/50/trial).
+// The sync hook fetches /api/subscriptions/current asynchronously —
+// during the fetch (1-3 seconds), the UI shows DEFAULT_STATE (free/50).
+// This causes Pro/Elite users to briefly see "Free / 50 credits / trial"
+// before the correct plan loads.
+//
+// FIX: Cache the last-known-good subscription state in localStorage.
+// On page load, initialize from the cache instead of DEFAULT_STATE.
+// The sync hook still refreshes in the background — but the UI starts
+// with the correct plan/credits from the cache, eliminating flicker.
+const CACHE_KEY = 'aqos_subscription_cache';
+const CACHE_FIELDS = [
+  'currentPlan', 'subscriptionStatus', 'billingCycle',
+  'credits', 'creditsMonthly', 'rolloverCredits', 'addonCredits',
+  'dailyOutreachUsed', 'dailyOutreachLimit', 'dailyOutreachRemaining',
+  'dailyOutreachResetsAt', 'dailyOutreachTimezone',
+  'isTrial', 'trialEndsAt', 'trialDaysRemaining',
+  'disabledFeatures', 'creditWarningStatus',
+  'hasEverVerified', 'lastFetchedAt',
+] as const;
+
+function loadCachedState(): Partial<typeof DEFAULT_STATE> {
+  if (typeof window === 'undefined') return {}; // SSR safe
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    // Only restore known fields + only if hasEverVerified was true
+    // (don't restore a cache that was never successfully synced)
+    if (!parsed.hasEverVerified) return {};
+    const result: Record<string, unknown> = {};
+    for (const field of CACHE_FIELDS) {
+      if (field in parsed) {
+        result[field] = parsed[field];
+      }
+    }
+    // Mark as "loading" — the sync hook will verify this cache is still current
+    result.syncState = 'loading';
+    result.isLoading = true;
+    return result as Partial<typeof DEFAULT_STATE>;
+  } catch {
+    return {};
+  }
+}
+
+function saveCachedState(state: Partial<SubscriptionState>): void {
+  if (typeof window === 'undefined') return; // SSR safe
+  try {
+    const toCache: Record<string, unknown> = {};
+    for (const field of CACHE_FIELDS) {
+      if (field in state) {
+        toCache[field] = (state as Record<string, unknown>)[field];
+      }
+    }
+    localStorage.setItem(CACHE_KEY, JSON.stringify(toCache));
+  } catch {
+    // localStorage might be full or disabled — non-fatal
+  }
+}
+
+function clearCachedState(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    // non-fatal
+  }
+}
+
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   ...DEFAULT_STATE,
+  ...loadCachedState(), // Restore last-known-good state from localStorage (prevents flicker)
 
   // ── Computed: canPerform ──────────────────────────────────────
   // Checks BOTH credits AND entitlements before allowing an action
@@ -560,6 +633,8 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       lastFetchedAt: Date.now(),
       isLoading: false,
     });
+    // Persist to localStorage so the next page load starts with correct plan/credits
+    saveCachedState(get());
   },
 
   // ── syncEntitlements ─────────────────────────────────────────
@@ -571,9 +646,53 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     });
   },
 
+  // ── syncFromAuth ─────────────────────────────────────────────
+  // Called IMMEDIATELY when the auth user object becomes available
+  // (from /api/auth/me or JWT). Sets the plan + estimated credits from
+  // the auth state BEFORE the subscription API fetch completes.
+  //
+  // This is the PRIMARY fix for subscription flickering:
+  //   1. Page loads → auth fetches /api/auth/me → user.plan = "pro"
+  //   2. syncFromAuth("pro") → store immediately sets currentPlan="pro",
+  //      creditsMonthly=PLAN_CREDITES["pro"] — NO Free flicker
+  //   3. useSubscriptionSync fetches /api/subscriptions/current (async)
+  //   4. syncFromBackend updates with exact credits/trial/daily-outreach
+  //   5. If subscription API fails (503) → store keeps auth-derived plan
+  //      (pro), does NOT fall back to Free
+  //
+  // Priority: auth (immediate) > subscription API (authoritative) >
+  //           localStorage cache (hydration fallback) > DEFAULT_STATE
+  syncFromAuth: (plan: string) => {
+    const currentPlan = (plan || 'free') as PlanType;
+    const planDetails = PLAN_DETAILS[currentPlan];
+    if (!planDetails) return; // unknown plan — don't change anything
+
+    // Only update if the plan actually changed from what we have.
+    // This prevents unnecessary re-renders when auth and store agree.
+    const current = get();
+    if (current.currentPlan === currentPlan && current.syncState === 'verified') {
+      return; // already correct and verified — no need to update
+    }
+
+    set({
+      currentPlan,
+      creditsMonthly: planDetails.creditsMonthly,
+      // Don't override credits if we already have a verified exact value
+      // (the subscription API gives exact credits; auth only gives plan)
+      ...(current.syncState !== 'verified' ? {
+        credits: planDetails.creditsMonthly, // estimate from plan
+      } : {}),
+      disabledFeatures: planDetails.disabledFeatures,
+      // Mark as "loading" — the subscription API will verify exact values
+      syncState: current.syncState === 'verified' ? 'verified' : 'loading',
+      isLoading: current.syncState !== 'verified',
+    });
+  },
+
   // ── reset ────────────────────────────────────────────────────
   // Resets store to default values (used on logout)
   reset: () => {
+    clearCachedState(); // Clear localStorage on logout
     set(DEFAULT_STATE);
   },
 }));
