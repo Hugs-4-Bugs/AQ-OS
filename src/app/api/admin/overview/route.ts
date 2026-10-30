@@ -137,11 +137,52 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const finished = completedExecutions + failedExecutions;
       const successRate = finished > 0 ? Math.round((completedExecutions / finished) * 100) : 100;
 
-      // ── Outreach ─────────────────────────────────────────────
-      const [totalSequences, totalOutreachMessages] = await Promise.all([
+      // ── Outreach (detailed status breakdown) ─────────────────
+      const [totalSequences, totalOutreachMessages, outreachByStatus] = await Promise.all([
         db.outreachSequence.count(),
         db.outreachMessage.count(),
+        db.outreachMessage.groupBy({ by: ['status'], _count: { status: true } }),
       ]);
+      const outreachStatusMap = outreachByStatus.map((g) => ({
+        status: g.status,
+        count: g._count.status,
+      }));
+
+      // ── Autopilot ────────────────────────────────────────────
+      const [autopilotWorkflows, autopilotRuns, autopilotRunStatus] = await Promise.all([
+        db.autopilotWorkflow.count({ where: { status: 'active' } }).catch(() => 0),
+        db.autopilotRun.count().catch(() => 0),
+        db.autopilotRun.groupBy({ by: ['status'], _count: { status: true } }).catch(() => []),
+      ]);
+      const autopilotRunStatusMap = autopilotRunStatus.map((g) => ({
+        status: g.status,
+        count: g._count.status,
+      }));
+
+      // ── AI Usage ─────────────────────────────────────────────
+      const [modelInvocations, modelInvocations30d, aiCostRecords] = await Promise.all([
+        db.modelInvocation.count().catch(() => 0),
+        db.modelInvocation.count({ where: { createdAt: { gte: d30 } } }).catch(() => 0),
+        db.aiCostRecord.count().catch(() => 0),
+      ]);
+
+      // ── Subscription status breakdown ────────────────────────
+      const [cancelledSubs, expiredSubs, pastDueSubs] = await Promise.all([
+        db.subscription.count({ where: { status: 'canceled' } }),
+        db.subscription.count({ where: { status: 'expired' } }),
+        db.subscription.count({ where: { status: 'past_due' } }),
+      ]);
+
+      // ── System health ────────────────────────────────────────
+      const systemHealth: Record<string, string> = {
+        database: 'healthy', // if we got here, DB is working
+        api: 'healthy', // if we got here, API is working
+        scheduler: 'unknown',
+        autopilot: autopilotWorkflows > 0 ? 'active' : 'idle',
+        aiProviders: 'unknown',
+        emailProvider: process.env.SMTP_HOST ? 'configured' : 'unknown',
+        paymentProvider: 'unknown',
+      };
 
       // ── Billing / revenue ────────────────────────────────────
       const completedThisMonth = await db.paymentOrder.findMany({
@@ -231,7 +272,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             successRate,
             byStatus: execByStatus,
           },
-          outreach: { sequences: totalSequences, messages: totalOutreachMessages },
+          outreach: {
+            sequences: totalSequences,
+            messages: totalOutreachMessages,
+            byStatus: outreachStatusMap,
+          },
+          autopilot: {
+            activeWorkflows: autopilotWorkflows,
+            totalRuns: autopilotRuns,
+            runsByStatus: autopilotRunStatusMap,
+          },
+          aiUsage: {
+            modelInvocations,
+            modelInvocationsLast30d: modelInvocations30d,
+            aiCostRecords,
+          },
+          systemHealth,
           billing: {
             revenueThisMonth,
             revenueLastMonth,
@@ -241,6 +297,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             failedOrders,
             activeSubscriptions,
             trialingSubscriptions: trialingSubs,
+            cancelledSubscriptions: cancelledSubs,
+            expiredSubscriptions: expiredSubs,
+            pastDueSubscriptions: pastDueSubs,
           },
           credits: {
             totalBalance: creditSum._sum.credits || 0,
