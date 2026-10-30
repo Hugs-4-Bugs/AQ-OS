@@ -155,7 +155,24 @@ interface DetailData {
     resourceId: string | null;
     createdAt: string;
   }[];
-  resourceCounts: { leads: number; workflows: number; notifications: number; apiKeys: number };
+  resourceCounts: {
+    leads: number;
+    workflows: number;
+    notifications: number;
+    apiKeys: number;
+    workflowExecutions: number;
+    autopilotRuns: number;
+    outreachMessages: number;
+    modelInvocations: number;
+    connectedAccounts: number;
+  };
+  recentLeads: {
+    id: string;
+    email: string | null;
+    businessName: string | null;
+    city: string | null;
+    createdAt: string;
+  }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -365,6 +382,36 @@ export default function AdminUsersPage() {
       setAdjustReason('');
     }
   }, [detail, adjustAmount, adjustReason, patch]);
+
+  const handleSuspend = useCallback(async (reason: string) => {
+    if (!detail) return;
+    const ok = await patch(
+      detail.user.id,
+      { action: 'suspend', reason },
+      `${detail.user.email} suspended`
+    );
+    if (ok) setConfirmAction(null);
+  }, [detail, patch]);
+
+  const handleBan = useCallback(async (reason: string) => {
+    if (!detail) return;
+    const ok = await patch(
+      detail.user.id,
+      { action: 'ban', reason },
+      `${detail.user.email} banned`
+    );
+    if (ok) setConfirmAction(null);
+  }, [detail, patch]);
+
+  const handleReactivate = useCallback(async (reason: string) => {
+    if (!detail) return;
+    const ok = await patch(
+      detail.user.id,
+      { action: 'reactivate', reason },
+      `${detail.user.email} reactivated`
+    );
+    if (ok) setConfirmAction(null);
+  }, [detail, patch]);
 
   const resetFilters = useCallback(() => {
     setSearch('');
@@ -814,13 +861,18 @@ export default function AdminUsersPage() {
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Resources
                   </h3>
-                  <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="grid grid-cols-3 gap-2 text-center">
                     {(
                       [
                         ['Leads', detail.resourceCounts.leads],
                         ['Workflows', detail.resourceCounts.workflows],
+                        ['Executions', detail.resourceCounts.workflowExecutions],
+                        ['Autopilot Runs', detail.resourceCounts.autopilotRuns],
+                        ['Outreach', detail.resourceCounts.outreachMessages],
+                        ['AI Invocations', detail.resourceCounts.modelInvocations],
+                        ['Connected Accts', detail.resourceCounts.connectedAccounts],
                         ['Notifications', detail.resourceCounts.notifications],
-                        ['API keys', detail.resourceCounts.apiKeys],
+                        ['API Keys', detail.resourceCounts.apiKeys],
                       ] as const
                     ).map(([label, value]) => (
                       <div key={label} className="rounded-lg border border-border p-2">
@@ -830,6 +882,28 @@ export default function AdminUsersPage() {
                     ))}
                   </div>
                 </section>
+
+                {/* Recent Leads */}
+                {detail.recentLeads && detail.recentLeads.length > 0 && (
+                  <section aria-label="Recent leads">
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Recent Leads (latest 5)
+                    </h3>
+                    <ul className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                      {detail.recentLeads.map((l) => (
+                        <li key={l.id} className="flex items-center justify-between gap-2 text-xs">
+                          <span className="truncate">
+                            {l.businessName || l.email || 'Unknown lead'}
+                            {l.city ? ` · ${l.city}` : ''}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {fmtDate(l.createdAt)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
 
                 <Separator />
 
