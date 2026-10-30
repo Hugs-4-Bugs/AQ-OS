@@ -25,6 +25,11 @@ export function useAuth() {
         credentials: 'include',
       }, { errorMessage: 'Failed to fetch user', showToast: false });
       setUser(data.user);
+      // IMMEDIATELY sync the auth-derived plan into the subscription store.
+      // This prevents the Free/50 flicker — the subscription store gets
+      // the correct plan (pro/elite/starter) from the JWT BEFORE the
+      // /api/subscriptions/current fetch completes.
+      useSubscriptionStore.getState().syncFromAuth(data.user.plan);
     } catch (error) {
       const status = (error as { status?: number })?.status;
       if (status === 401) {
@@ -84,6 +89,7 @@ export function useAuth() {
       }
 
       setUser(data.user);
+      useSubscriptionStore.getState().syncFromAuth(data.user.plan);
       return { success: true, user: data.user, mfaRequired: false };
     } catch (error) {
       return { success: false, error: 'Network error. Please try again.', mfaRequired: false };
@@ -133,6 +139,7 @@ export function useAuth() {
       }
 
       setUser(data.user);
+      useSubscriptionStore.getState().syncFromAuth(data.user.plan);
       return { success: true, user: data.user };
     } catch (error) {
       return { success: false, error: 'Network error. Please try again.' };
@@ -160,6 +167,7 @@ export function useAuth() {
       }
 
       setUser(data.user);
+      useSubscriptionStore.getState().syncFromAuth(data.user.plan);
       return { success: true, user: data.user };
     } catch {
       return { success: false, error: 'Network error. Please try again.' };
