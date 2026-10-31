@@ -70,6 +70,15 @@ AUTOPILOT_RUN_COLUMNS = [
     ("updatedAt", "DATETIME"),
 ]
 
+# DiscoveryJob: Phase 7 outcome + Phase 8/9 targeting plan columns.
+# The DiscoveryJob code path (src/app/api/leads/discover/*) issues Prisma
+# queries that default-select every schema column — without these columns
+# the discovery subsystem throws P2022.
+DISCOVERY_JOB_COLUMNS = [
+    ("outcome", "TEXT"),
+    ("targetingJson", "TEXT"),
+]
+
 def existing_columns(con, table):
     return set(r[1] for r in con.execute(f"PRAGMA table_info({table});").fetchall())
 
@@ -91,6 +100,7 @@ def main():
         for table, cols in [
             ("AutopilotWorkflow", AUTOPilot_WORKFLOW_COLUMNS),
             ("AutopilotRun", AUTOPILOT_RUN_COLUMNS),
+            ("DiscoveryJob", DISCOVERY_JOB_COLUMNS),
         ]:
             existing = existing_columns(con, table)
             for col, type_clause in cols:
