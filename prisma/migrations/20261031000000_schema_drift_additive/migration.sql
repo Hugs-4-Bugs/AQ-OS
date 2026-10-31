@@ -104,19 +104,117 @@ ALTER TABLE "DataExport" ADD COLUMN "type" TEXT;
 ALTER TABLE "WorkflowLog" ADD COLUMN "retryAttempt" INTEGER;
 
 -- ───────────────────────────────────────────────────────────────────
+-- OutreachMessage: retry/delivery-state columns (Phase 26+ outreach
+-- reliability). All additive (nullable or constant default).
+-- ───────────────────────────────────────────────────────────────────
+ALTER TABLE "OutreachMessage" ADD COLUMN "providerAcceptedAt" DATETIME;
+ALTER TABLE "OutreachMessage" ADD COLUMN "providerMessageId" TEXT;
+ALTER TABLE "OutreachMessage" ADD COLUMN "errorCategory" TEXT;
+ALTER TABLE "OutreachMessage" ADD COLUMN "errorMessage" TEXT;
+ALTER TABLE "OutreachMessage" ADD COLUMN "retryCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "OutreachMessage" ADD COLUMN "maxRetries" INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE "OutreachMessage" ADD COLUMN "nextRetryAt" DATETIME;
+
+-- ───────────────────────────────────────────────────────────────────
+-- Missing tables: the following 5 tables are declared in schema.prisma
+-- but were never captured by any migration. They are created here via
+-- CREATE TABLE IF NOT EXISTS so that a fresh `prisma migrate deploy`
+-- reproduces the full schema. On the existing production DB (which
+-- already has these tables from `prisma db push`), the IF NOT EXISTS
+-- clause makes this a no-op.
+-- ───────────────────────────────────────────────────────────────────
+
+-- WorkflowExecutionLead: per-lead child rows for batch workflow execution.
+CREATE TABLE IF NOT EXISTS "WorkflowExecutionLead" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "executionId" TEXT NOT NULL,
+    "leadId" TEXT,
+    "leadName" TEXT,
+    "niche" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "error" TEXT,
+    "stepSummary" TEXT,
+    "startedAt" DATETIME,
+    "completedAt" DATETIME,
+    "durationMs" INTEGER,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "WorkflowExecutionLead_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES "WorkflowExecution" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "WorkflowExecutionLead_executionId_idx" ON "WorkflowExecutionLead"("executionId");
+CREATE INDEX IF NOT EXISTS "WorkflowExecutionLead_leadId_idx" ON "WorkflowExecutionLead"("leadId");
+CREATE INDEX IF NOT EXISTS "WorkflowExecutionLead_status_idx" ON "WorkflowExecutionLead"("status");
+
+-- CustomNiche: user-owned niche beyond the predefined vocabulary.
+CREATE TABLE IF NOT EXISTS "CustomNiche" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "nicheKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "CustomNiche_userId_nicheKey_key" ON "CustomNiche"("userId", "nicheKey");
+CREATE INDEX IF NOT EXISTS "CustomNiche_userId_status_idx" ON "CustomNiche"("userId", "status");
+
+-- AgentEvent: unified event log for the agent/event-trigger system.
+CREATE TABLE IF NOT EXISTS "AgentEvent" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    "correlationId" TEXT,
+    "payload" TEXT NOT NULL DEFAULT '{}',
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "processedAt" DATETIME,
+    "source" TEXT,
+    "executionId" TEXT,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "retryCount" INTEGER NOT NULL DEFAULT 0,
+    "maxRetries" INTEGER NOT NULL DEFAULT 3,
+    "error" TEXT,
+    "idempotencyKey" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS "AgentEvent_userId_idx" ON "AgentEvent"("userId");
+CREATE INDEX IF NOT EXISTS "AgentEvent_status_idx" ON "AgentEvent"("status");
+CREATE INDEX IF NOT EXISTS "AgentEvent_correlationId_idx" ON "AgentEvent"("correlationId");
+
+-- ExecutionActivity: unified execution event log.
+CREATE TABLE IF NOT EXISTS "ExecutionActivity" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "runId" TEXT,
+    "executionId" TEXT,
+    "leadId" TEXT,
+    "userId" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    "fromStatus" TEXT,
+    "toStatus" TEXT,
+    "detail" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS "ExecutionActivity_runId_idx" ON "ExecutionActivity"("runId");
+CREATE INDEX IF NOT EXISTS "ExecutionActivity_executionId_idx" ON "ExecutionActivity"("executionId");
+CREATE INDEX IF NOT EXISTS "ExecutionActivity_userId_idx" ON "ExecutionActivity"("userId");
+CREATE INDEX IF NOT EXISTS "ExecutionActivity_leadId_idx" ON "ExecutionActivity"("leadId");
+
+-- DailyOutreachUsage: per-user daily outreach quota counter.
+CREATE TABLE IF NOT EXISTS "DailyOutreachUsage" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "dateKey" TEXT NOT NULL,
+    "used" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "DailyOutreachUsage_userId_dateKey_key" ON "DailyOutreachUsage"("userId", "dateKey");
+
+-- ───────────────────────────────────────────────────────────────────
 -- AutopilotWorkflow + AutopilotRun additive columns are NOT included
 -- in this migration because the Autopilot tables themselves are not
--- created by any existing migration — they exist in the canonical
--- production DB (created historically via `prisma db push`) but a
--- fresh `prisma migrate deploy` would not have the tables to ALTER.
---
--- The Autopilot ADD COLUMNs are applied directly to the production DB
--- via scripts/phase34_apply_autopilot_drift.py (idempotent — uses
--- PRAGMA table_info to skip columns that already exist). The script
--- is safe: pure additive ALTER TABLE, no DROP, no RENAME, no UPDATE.
---
+-- created by any existing migration. They are applied directly to the
+-- production DB via scripts/apply_autopilot_drift.py (idempotent).
 -- A future migration pass that captures the full Autopilot table
--- CREATE statements (plus the rest of the broader drift) will supersede
--- this script. That pass is tracked as migration-chain debt in the
--- Phase 34 final closure report.
+-- CREATE statements will supersede that script.
 -- ───────────────────────────────────────────────────────────────────
