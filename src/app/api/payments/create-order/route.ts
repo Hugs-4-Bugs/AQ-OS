@@ -141,46 +141,14 @@ export const POST = withMonitoring(async (request: NextRequest) => {
       }
 
       // ═══════════════════════════════════════════════════════════════
-      // Only allow ONE pending checkout at a time per user
+      // Idempotency: check if an order with this idempotency key already
+      // exists. This check runs BEFORE the pending-order guard so that a
+      // legitimate replay (same idempotencyKey) returns the original order
+      // as idempotent:true instead of being rejected by the pending-order
+      // guard (409). The pending-order guard only applies to callers that
+      // do NOT supply an idempotency key (preventing accidental duplicate
+      // checkouts from double-clicks without a client-supplied key).
       // ═══════════════════════════════════════════════════════════════
-      const pendingOrder = await db.paymentOrder.findFirst({
-        where: {
-          userId: user.id,
-          status: 'pending',
-          plan,
-          billingCycle,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (pendingOrder) {
-        const orderAge = Date.now() - new Date(pendingOrder.createdAt).getTime();
-        // Allow retry if pending order is older than 30 minutes
-        if (orderAge < 30 * 60 * 1000) {
-          return NextResponse.json(
-            { error: 'You already have a pending order. Please wait or cancel it first.' },
-            { status: 409 }
-          );
-        }
-        // Expire the old pending order
-        await db.paymentOrder.update({
-          where: { id: pendingOrder.id },
-          data: { status: 'failed' },
-        });
-      }
-
-      // Get pricing for the plan and currency
-      const planCurrencyPricing = PLAN_PRICING[plan][currency];
-      if (!planCurrencyPricing) {
-        return NextResponse.json(
-          { error: `Invalid currency: ${currency}` },
-          { status: 400 }
-        );
-      }
-
-      const baseAmount = planCurrencyPricing[billingCycle];
-
-      // Idempotency: check if an order with this idempotency key already exists
       if (idempotencyKey) {
         const existingOrder = await db.paymentOrder.findFirst({
           where: {
@@ -207,6 +175,50 @@ export const POST = withMonitoring(async (request: NextRequest) => {
           });
         }
       }
+
+      // ═══════════════════════════════════════════════════════════════
+      // Only allow ONE pending checkout at a time per user (when no
+      // idempotency key is supplied — the idempotency check above handles
+      // intentional replays).
+      // ═══════════════════════════════════════════════════════════════
+      if (!idempotencyKey) {
+        const pendingOrder = await db.paymentOrder.findFirst({
+          where: {
+            userId: user.id,
+            status: 'pending',
+            plan,
+            billingCycle,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (pendingOrder) {
+          const orderAge = Date.now() - new Date(pendingOrder.createdAt).getTime();
+          // Allow retry if pending order is older than 30 minutes
+          if (orderAge < 30 * 60 * 1000) {
+            return NextResponse.json(
+              { error: 'You already have a pending order. Please wait or cancel it first.' },
+              { status: 409 }
+            );
+          }
+          // Expire the old pending order
+          await db.paymentOrder.update({
+            where: { id: pendingOrder.id },
+            data: { status: 'failed' },
+          });
+        }
+      }
+
+      // Get pricing for the plan and currency
+      const planCurrencyPricing = PLAN_PRICING[plan][currency];
+      if (!planCurrencyPricing) {
+        return NextResponse.json(
+          { error: `Invalid currency: ${currency}` },
+          { status: 400 }
+        );
+      }
+
+      const baseAmount = planCurrencyPricing[billingCycle];
 
       // Coupon validation and discount calculation using coupon-service
       let discountAmount = 0;

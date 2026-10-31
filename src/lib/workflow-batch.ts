@@ -1470,8 +1470,38 @@ export async function retryBatchExecution(
     return { success: false, error: stepLoad.error };
   }
 
-  // Reset the failed leads (and leads skipped by a cancellation) to
-  // pending. Completed leads are NEVER reset — no duplicate outreach.
+  // Atomic status claim — guarantees only ONE concurrent retry call wins.
+  // The updateMany filter (`status in retriable`) ensures the first call
+  // flips status to 'running', so a concurrent second call's filter no
+  // longer matches and its count is 0. The winner then (and only then)
+  // resets lead items and spawns runBatchSteps — the loser returns without
+  // touching lead items, preventing duplicate step execution.
+  const claim = await db.workflowExecution.updateMany({
+    where: { id: executionId, status: { in: retriable } },
+    data: {
+      status: 'running',
+      error: null,
+      completedAt: null,
+      retryCount: { increment: 1 },
+      lastRetryAt: new Date(),
+    },
+  });
+  if (claim.count === 0) {
+    const fresh = await db.workflowExecution.findUnique({
+      where: { id: executionId },
+      select: { status: true },
+    });
+    return {
+      success: false,
+      error: fresh
+        ? `Cannot retry execution — another retry is in progress or status is '${fresh.status}'`
+        : 'Execution not found',
+    };
+  }
+
+  // Only the winner reaches here — reset the failed leads (and leads
+  // skipped by a cancellation) to pending. Completed leads are NEVER
+  // reset — no duplicate outreach.
   await db.workflowExecutionLead.updateMany({
     where: { executionId, status: 'failed' },
     data: { status: 'pending', error: null },
@@ -1482,17 +1512,6 @@ export async function retryBatchExecution(
       data: { status: 'pending', error: null },
     });
   }
-
-  await db.workflowExecution.update({
-    where: { id: executionId },
-    data: {
-      status: 'running',
-      error: null,
-      completedAt: null,
-      retryCount: { increment: 1 },
-      lastRetryAt: new Date(),
-    },
-  });
 
   await runBatchSteps(executionId, execution.workflowId, userId, {
     timeoutMs: execution.timeoutMs ?? defaultTimeoutMs(),
