@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     workflowLog: { create: vi.fn() },
   },
@@ -103,6 +104,13 @@ function primeExecutionDoubles(opts?: {
   mocks.db.workflowExecution.update.mockImplementation(async ({ where, data }: { where: { id: string }; data: { status?: string } }) => {
     if (typeof data?.status === 'string') statusById.set(where.id, data.status);
     return {};
+  });
+  mocks.db.workflowExecution.updateMany.mockImplementation(async ({ where, data }: { where: { id: string; status?: unknown }; data: { status?: string } }) => {
+    // Mocked atomic claim — always succeeds (the real atomic semantics
+    // are tested in E2E, not in these mocked unit tests). The status
+    // guard is tested via the findFirst mock setup in each test case.
+    if (typeof data?.status === 'string' && where?.id) statusById.set(where.id, data.status);
+    return { count: 1 };
   });
   mocks.db.workflowExecution.findUnique.mockImplementation(async ({ where }: { where: { id: string } }) => ({
     id: where.id,

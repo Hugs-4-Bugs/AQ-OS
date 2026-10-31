@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     workflowLog: { create: vi.fn() },
   },
@@ -100,6 +101,7 @@ function primeExecutionDoubles(opts?: { liveStatus?: string; finalStatus?: strin
     triggerData: null,
   }));
   mocks.db.workflowExecution.update.mockResolvedValue({});
+  mocks.db.workflowExecution.updateMany.mockResolvedValue({ count: 1 });
   mocks.db.workflowLog.create.mockResolvedValue({});
 }
 
