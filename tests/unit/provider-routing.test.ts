@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 26 v2 — Provider Routing tests
+// Provider Routing tests
 //
 // Verifies:
 //   - Gemini provider makes REAL API calls to Google Generative Language API
@@ -63,7 +63,7 @@ import { executeAICompletion } from '@/lib/ai/ai-provider';
 
 const messages = [{ role: 'user' as const, content: 'Hello' }];
 
-describe('Phase 26 v2 — Provider routing (no silent Z-AI fallback)', () => {
+describe('Provider routing (no silent Z-AI fallback)', () => {
   beforeEach(() => {
     // Clear all provider keys before each test
     setEnv('OPENAI_API_KEY', undefined);

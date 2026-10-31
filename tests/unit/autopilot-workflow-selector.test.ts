@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 19 Unit Tests: Autopilot Workflow Selector
+// AcquisitionOS — Unit Tests: Autopilot Workflow Selector
 //
-// Covers the Phase 19 contract:
+// Covers the contract:
 //  1. Eligible workflows dynamically returned (live db query, scoped)
 //  2. Newly created eligible workflow appears without code changes
 //  3. User isolation (scoped listing; foreign ids indistinguishable)
@@ -15,7 +15,7 @@
 // 10. No hard-coded workflow ID/name as selector source of truth
 // 11. Invalid selection produces no execution/charge pathway
 // 12. Flat 5-credit execution fee unchanged
-// (13 Phase 18 idempotency + 14 P11-17 personalization are guarded by
+// (13 idempotency + 14 P11-17 personalization are guarded by
 //  the existing autopilot-runner / personalization suites — regression.)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -39,7 +39,7 @@ const mockPrisma = vi.hoisted(() => ({
     deleteMany: vi.fn(), count: vi.fn(), findFirst: vi.fn(),
   },
   workflowDefinition: { findFirst: vi.fn(), findMany: vi.fn() },
-  // Phase 20 — canonical niche resolution queries (create/update path).
+  // canonical niche resolution queries (create/update path).
   // Default: the caller has "Dentists" saved as a custom niche so the
   // legacy test input keeps resolving end-to-end.
   customNiche: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
@@ -105,7 +105,7 @@ function apRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Phase 20 — the test user's saved custom niche (keeps the legacy
+  // the test user's saved custom niche (keeps the legacy
   // 'Dentists' input resolvable through the canonical service).
   mockPrisma.customNiche.findMany.mockResolvedValue([
     { id: 'cn-dentists', name: 'Dentists', nicheKey: 'dentists', status: 'active' },

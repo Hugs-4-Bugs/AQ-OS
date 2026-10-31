@@ -11,10 +11,10 @@
 //   · Approval reason + context persisted on pause
 //   · Execution state transitions (idle → running → reasoning → ...)
 //   · Workflow → agent integration preserved (existing case 'agent.run')
-//   · Agent → tool permission enforcement (preserved from Phase 26 v3)
+//   · Agent → tool permission enforcement (preserved from v3)
 //   · Failure isolation — per-iteration errors don't corrupt siblings
 //
-// Mock strategy (matches Phase 26 v3 + Workstream B tests):
+// Mock strategy (matches v3 + Workstream B tests):
 //   · vi.mock('@/lib/db', ...) replaces PrismaClient with mocks
 //   · The real system-agents.ts + agent-memory-service.ts are exercised
 //   · The real agent-service.ts is exercised for CRUD + system agent helpers
@@ -24,7 +24,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ─── Mock Prisma (per Phase 26 v3 test pattern) ──────────────────────
+// ─── Mock Prisma (per v3 test pattern) ──────────────────────
 
 const mockDb = {
   userAIProvider: {

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 24 Execution Engine Tests
+// AcquisitionOS — Execution Engine Tests
 //
-// Tests the NEW Phase 24 surface area:
+// Tests the NEW surface area:
 //   · retryAutopilotRun(userId, runId) — AutopilotRun-level retry that
 //     delegates to workflow-batch.retryBatchExecution. Only failed leads
 //     are reset to 'pending'; completed leads NEVER re-execute. The
@@ -12,7 +12,7 @@
 //     items are reset; the interrupted-in-flight lead resumes from its
 //     persisted stepSummary. No new execution, no new charge.
 //
-// Both functions enforce the Phase 23 entitlement gate (defense-in-depth):
+// Both functions enforce the entitlement gate (defense-in-depth):
 // a user who downgraded to Free/Standard cannot retry or resume even if
 // they have a previously-eligible run.
 //
@@ -21,16 +21,16 @@
 // underlying engine's rechargeWorkflowExecutionFeeOnStart handles the
 // never-started-refund re-charge case idempotently).
 //
-// Pre-existing Phase 18–23 surface (discovery/dedup/lead persistence/
+// Pre-existing contract surface (discovery/dedup/lead persistence/
 // workflow assignment/per-lead execution/failure isolation/idempotency/
 // cancellation/scheduler) is covered by the existing test suite — this
-// file focuses on the Phase 24 additions and the invariant that they
+// file focuses on the additions and the invariant that they
 // preserve the existing contract.
 // ═══════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ── Mock DB (Prisma-shaped subset that Phase 24 retry/resume touches). ──
+// ── Mock DB (Prisma-shaped subset that retry/resume touches). ──
 const mockPrisma = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
   autopilotWorkflow: {
@@ -119,7 +119,7 @@ beforeEach(() => {
 // Group 1: retryAutopilotRun — entitlement gate (defense-in-depth)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — retryAutopilotRun entitlement gate', () => {
+describe('retryAutopilotRun entitlement gate', () => {
   it('Free plan: retry BLOCKED with code PLAN_INELIGIBLE', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     const result = await retryAutopilotRun('u1', 'run1');
@@ -175,7 +175,7 @@ describe('Phase 24 — retryAutopilotRun entitlement gate', () => {
 // Group 2: retryAutopilotRun — ownership + state checks
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — retryAutopilotRun ownership + state', () => {
+describe('retryAutopilotRun ownership + state', () => {
   it('Cross-user: User B cannot retry User A\'s run → NOT_FOUND (before plan check)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'uB', plan: 'pro', subscriptions: [] });
     mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
@@ -254,7 +254,7 @@ describe('Phase 24 — retryAutopilotRun ownership + state', () => {
 // Group 3: resumeAutopilotRun — entitlement gate (defense-in-depth)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — resumeAutopilotRun entitlement gate', () => {
+describe('resumeAutopilotRun entitlement gate', () => {
   it('Free plan: resume BLOCKED with code PLAN_INELIGIBLE', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     const result = await resumeAutopilotRun('u1', 'run1');
@@ -293,7 +293,7 @@ describe('Phase 24 — resumeAutopilotRun entitlement gate', () => {
 // Group 4: resumeAutopilotRun — ownership + state checks
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — resumeAutopilotRun ownership + state', () => {
+describe('resumeAutopilotRun ownership + state', () => {
   it('Cross-user: User B cannot resume User A\'s run → NOT_FOUND', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'uB', plan: 'pro', subscriptions: [] });
     mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
@@ -363,7 +363,7 @@ describe('Phase 24 — resumeAutopilotRun ownership + state', () => {
 // Group 5: Billing invariant — retry/resume never double-charge
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — billing invariant (no double-charge on retry/resume)', () => {
+describe('billing invariant (no double-charge on retry/resume)', () => {
   it('retryAutopilotRun NEVER calls chargeWorkflowExecutionFee (existing fee is kept)', async () => {
     await retryAutopilotRun('u1', 'run1');
     expect(mockChargeWorkflowExecutionFee).not.toHaveBeenCalled();
@@ -404,7 +404,7 @@ describe('Phase 24 — billing invariant (no double-charge on retry/resume)', ()
 //          per-lead outcomes propagate to AutopilotLead rows.
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — settle finalizer re-arm', () => {
+describe('settle finalizer re-arm', () => {
   it('retryAutopilotRun re-arms settleRunExecutionOutcome for the run', async () => {
     await retryAutopilotRun('u1', 'run1');
     expect(mockPrisma.workflowExecution.findUnique).toHaveBeenCalled();
@@ -420,18 +420,18 @@ describe('Phase 24 — settle finalizer re-arm', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Group 7: Phase 18–23 contract preservation — retry/resume do NOT
+// Group 7: contract contract preservation — retry/resume do NOT
 //          weaken existing invariants.
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 24 — Phase 18–23 contract preservation', () => {
-  it('Phase 23 entitlement gate remains authoritative (free user blocked)', async () => {
+describe('contract contract preservation', () => {
+  it('entitlement gate remains authoritative (free user blocked)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     const result = await retryAutopilotRun('u1', 'run1');
     expect(result.code).toBe('PLAN_INELIGIBLE');
   });
 
-  it('Phase 23 contract: isAutopilotPlanEligible lives in entitlement-service (untouched)', async () => {
+  it('contract: isAutopilotPlanEligible lives in entitlement-service (untouched)', async () => {
     const { isAutopilotPlanEligible, resolveUserPlan } = await import('@/lib/entitlement-service');
     expect(typeof isAutopilotPlanEligible).toBe('function');
     expect(typeof resolveUserPlan).toBe('function');

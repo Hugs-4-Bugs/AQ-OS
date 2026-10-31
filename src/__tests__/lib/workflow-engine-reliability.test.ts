@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Unit Tests: Phase 4 — Workflow Execution Engine Reliability
+// Unit Tests: Workflow Execution Engine Reliability
 //
 // Covers (against the MAIN engine, executeWorkflow/runSteps semantics):
 //   1. Step order + every configured step executes (1, 2, 3+ steps).
@@ -128,7 +128,7 @@ afterEach(() => {
 // 1–2. Order, execution of every step, I/O propagation
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — step order and I/O', () => {
+describe('step order and I/O', () => {
   it('executes a 3-step workflow in the persisted order, skipping none', async () => {
     const calls: string[] = [];
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
@@ -171,7 +171,7 @@ describe('Phase 4 — step order and I/O', () => {
 // 3. Honest failure + partial failure representation
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — honest failure and partial failure', () => {
+describe('honest failure and partial failure', () => {
   it('marks the execution failed, never runs later steps, and logs them as skipped', async () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
       makeStep('s1', 'One', 'add_note', { content: 'a' }),
@@ -210,7 +210,7 @@ describe('Phase 4 — honest failure and partial failure', () => {
 // 4. Per-step retries
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — per-step retries', () => {
+describe('per-step retries', () => {
   it('retries a step configured with retries=2 until it succeeds, persisting retryAttempt', async () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
       makeStep('s1', 'Flaky', 'webhook_call', { url: 'https://x.test', retries: 2 }),
@@ -270,7 +270,7 @@ describe('Phase 4 — per-step retries', () => {
 // 5–6. Cancellation and pause honored mid-run
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — mid-run cancellation and pause', () => {
+describe('mid-run cancellation and pause', () => {
   it('stops executing further steps after cancellation and never overwrites with completed', async () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
       makeStep('s1', 'One', 'add_note', { content: 'a' }),
@@ -323,7 +323,7 @@ describe('Phase 4 — mid-run cancellation and pause', () => {
 // 7. Timeout
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — execution timeout', () => {
+describe('execution timeout', () => {
   it('a hanging step resolves as a timeout failure within the budget', async () => {
     process.env.WORKFLOW_TIMEOUT = '80';
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
@@ -382,7 +382,7 @@ describe('Phase 4 — execution timeout', () => {
 // 8. Idempotency
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — idempotency', () => {
+describe('idempotency', () => {
   it('returns the existing execution for a repeated key without creating a duplicate', async () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([
       makeStep('s1', 'One', 'add_note', { content: 'a' }),
@@ -417,7 +417,7 @@ describe('Phase 4 — idempotency', () => {
 // 9. Zero-step / malformed definitions fail honestly
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — invalid definitions never silently execute', () => {
+describe('invalid definitions never silently execute', () => {
   it('a zero-step workflow creates a FAILED record with a clear error instead of silent success', async () => {
     mocks.db.workflowDefinition.findFirst.mockResolvedValue(makeWorkflow([], '[]'));
 
@@ -470,7 +470,7 @@ describe('Part 2 — flat execution fee replaces per-step charging', () => {
 // 11. Legacy nodes-based retry
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 4 — retry of nodes-based definitions', () => {
+describe('retry of nodes-based definitions', () => {
   it('re-runs the node steps on retry instead of silently completing with zero steps', async () => {
     const nodes = JSON.stringify([
       { id: 't', type: 'trigger', title: 'Trigger' },

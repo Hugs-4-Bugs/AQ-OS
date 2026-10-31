@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 26 Production E2E Scenarios (Workstream 12)
+// AcquisitionOS — Production E2E Scenarios (Workstream 12)
 //
 // 10 deterministic scenarios covering the REAL agent runtime:
 //   A. Research agent       — lead → research → evidence → model → result → memory → credits → audit
@@ -48,7 +48,7 @@ const state = vi.hoisted(() => ({
   modelResponses: new Map<string, string>(),
 }));
 
-// ── Mock the DB with all Phase 26 tables ──
+// ── Mock the DB with all tables ──
 vi.mock('@/lib/db', () => ({
   db: {
     agent: {

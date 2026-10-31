@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Gap 3: Background Workflow Tenant Isolation
+// Gap 3: Background Workflow Tenant Isolation
 //
-// Closes the explicit Phase 34 acceptance gap:
+// Closes the explicit acceptance gap:
 //   "Run the actual workflow execution engine and create two tenants.
 //    Verify Tenant A's queued/scheduled/background execution cannot:
 //      - read Tenant B's lead
@@ -142,7 +142,7 @@ async function createWorkflowWithAddNoteStep(userId: string, marker: string) {
   return wf;
 }
 
-describe('[Phase 34 Gap 3] Background workflow execution — tenant isolation via REAL engine', () => {
+describe('Background workflow execution — tenant isolation via REAL engine', () => {
   let tenantA_leadId: string;
   let tenantB_leadId: string;
   let tenantA_workflowId: string;

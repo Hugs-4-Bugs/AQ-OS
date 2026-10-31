@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 26 Multi-Model Orchestration Tests
+// AcquisitionOS — Multi-Model Orchestration Tests
 //
-// Covers the NEW Phase 26 surface area:
+// Covers the NEW surface area:
 //   · buildModelCallSpecs — model config parsing (single/array/dedupe)
 //   · computeInvocationKey — deterministic idempotency keys
 //   · Routing — configured provider/model actually reach the provider
@@ -111,7 +111,7 @@ beforeEach(() => {
 // Group 1: buildModelCallSpecs — model configuration parsing
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — buildModelCallSpecs', () => {
+describe('buildModelCallSpecs', () => {
   it('empty config → single default slot routed by the env chain', () => {
     expect(buildModelCallSpecs({})).toEqual([{}]);
   });
@@ -175,7 +175,7 @@ describe('Phase 26 — buildModelCallSpecs', () => {
 // Group 2: computeInvocationKey — deterministic idempotency keys
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — computeInvocationKey', () => {
+describe('computeInvocationKey', () => {
   it('is deterministic — same slot context, same key', () => {
     const a = computeInvocationKey({
       executionId: 'e1', leadId: 'l1', stepName: 's1', provider: 'openai', model: 'gpt-4o',
@@ -207,7 +207,7 @@ describe('Phase 26 — computeInvocationKey', () => {
 // Group 3: mode / concurrency parsing
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — orchestration mode & concurrency parsing', () => {
+describe('orchestration mode & concurrency parsing', () => {
   it('default mode is SEQUENTIAL', () => {
     expect(parseOrchestrationMode({})).toBe('SEQUENTIAL');
   });
@@ -234,7 +234,7 @@ describe('Phase 26 — orchestration mode & concurrency parsing', () => {
 // Group 4: ROUTING — configured provider/model actually invoked
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — model routing', () => {
+describe('model routing', () => {
   it('configured provider and model are passed to executeAICompletion', async () => {
     await orchestrateModelCalls({
       specs: [{ provider: 'openai', model: 'gpt-4o' }],
@@ -287,7 +287,7 @@ describe('Phase 26 — model routing', () => {
 // Group 5: SEQUENTIAL orchestration
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — SEQUENTIAL orchestration', () => {
+describe('SEQUENTIAL orchestration', () => {
   it('executes models in configured order (A → B → C)', async () => {
     const order: string[] = [];
     mockExecuteAICompletion.mockImplementation(async (req: { config?: { model?: string } }) => {
@@ -386,7 +386,7 @@ describe('Phase 26 — SEQUENTIAL orchestration', () => {
 // Group 6: PARALLEL orchestration — bounded concurrency
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — PARALLEL orchestration', () => {
+describe('PARALLEL orchestration', () => {
   it('models execute CONCURRENTLY (overlapping in flight)', async () => {
     let active = 0;
     let maxActive = 0;
@@ -491,7 +491,7 @@ describe('Phase 26 — PARALLEL orchestration', () => {
 // Group 7: INVOCATION IDEMPOTENCY (retry/resume safety)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — invocation idempotency', () => {
+describe('invocation idempotency', () => {
   it('durably COMPLETED slot is REUSED — provider NOT re-invoked', async () => {
     mockPrisma.modelInvocation.findUnique.mockResolvedValue({
       id: 'inv-existing',
@@ -589,7 +589,7 @@ describe('Phase 26 — invocation idempotency', () => {
 // Group 8: CANCELLATION
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — cancellation', () => {
+describe('cancellation', () => {
   it('cancelled probe → remaining slots SKIPPED, no new invocations', async () => {
     let cancelled = false;
     mockExecuteAICompletion.mockImplementation(async () => {
@@ -636,7 +636,7 @@ describe('Phase 26 — cancellation', () => {
 // Group 9: MODEL-LEVEL TRACKING
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — model-level tracking', () => {
+describe('model-level tracking', () => {
   it('creates a RUNNING ModelInvocation row with full slot identity', async () => {
     await orchestrateModelCalls({
       specs: [{ provider: 'openai', model: 'gpt-4o', role: 'analyst' }],
@@ -728,7 +728,7 @@ describe('Phase 26 — model-level tracking', () => {
 // Group 10: BILLING — flat-fee policy untouched
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — billing invariants (no double billing)', () => {
+describe('billing invariants (no double billing)', () => {
   it('orchestration emits ONLY MODEL_* activity events — never charge events', async () => {
     await orchestrateModelCalls({
       specs: [{ model: 'a' }, { model: 'b' }, { model: 'c' }],
@@ -756,7 +756,7 @@ describe('Phase 26 — billing invariants (no double billing)', () => {
     // The orchestration layer only touches modelInvocation +
     // executionActivity + workflowExecution (status probe). The credits
     // ledger is never part of the model path — flat fee is charged once
-    // at run acceptance by the Phase 24 engine, untouched here.
+    // at run acceptance by the engine, untouched here.
     const touched = Object.keys(mockPrisma).filter(
       (k) => Object.values((mockPrisma as Record<string, Record<string, unknown>>)[k] ?? {}).some(
         (fn) => (fn as { mock?: { calls: unknown[] } }).mock?.calls?.length > 0
@@ -773,7 +773,7 @@ describe('Phase 26 — billing invariants (no double billing)', () => {
 // Group 11: aggregation semantics
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — result aggregation', () => {
+describe('result aggregation', () => {
   it('primary = FIRST successful slot in spec order (not the last)', async () => {
     mockExecuteAICompletion.mockImplementation(async (req: { config?: { model?: string } }) =>
       okCompletion(`content-${req.config?.model}`)
@@ -819,7 +819,7 @@ describe('Phase 26 — result aggregation', () => {
 // Group 12: orchestrateAIAction — workflow action entry point
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 26 — orchestrateAIAction (action entry point)', () => {
+describe('orchestrateAIAction (action entry point)', () => {
   it('parses step config: models[] + orchestration: parallel', async () => {
     const result = await orchestrateAIAction({
       actionType: 'ai_analysis',

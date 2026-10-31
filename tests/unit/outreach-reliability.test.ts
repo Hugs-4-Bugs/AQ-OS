@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 26+27 — Outreach Reliability: NO FAKE SENT + accurate status states
+// Outreach Reliability: NO FAKE SENT + accurate status states
 //
-// Verifies the core Phase 27 rule: NEVER mark "sent" / "delivered" unless the
+// Verifies the core rule: NEVER mark "sent" / "delivered" unless the
 // provider confirms the relevant state. Uses honest states:
 //   draft | approval_required | queued | sending | provider_accepted | sent |
 //   delivered | failed | rejected | rate_limited | retrying | cancelled |
@@ -20,9 +20,9 @@ function readSrc(rel: string): string {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
-// ─── Phase 27 — NO FAKE SENT rule ──────────────────────────────────
+// ─── NO FAKE SENT rule ──────────────────────────────────
 
-describe('Phase 27 — NO FAKE SENT rule', () => {
+describe('NO FAKE SENT rule', () => {
   it('LinkedIn stub is GONE — replaced with provider_blocked honest status', () => {
     const src = readSrc('src/lib/messaging-hub-service.ts');
     // The old fake return must NOT be present
@@ -63,7 +63,7 @@ describe('Phase 27 — NO FAKE SENT rule', () => {
 
 // ─── Schema status state machine ───────────────────────────────────
 
-describe('Phase 27 — OutreachMessage schema documents accurate status states', () => {
+describe('OutreachMessage schema documents accurate status states', () => {
   it('OutreachMessage includes provider_accepted + provider_blocked + approval_required', () => {
     const schema = readSrc('prisma/schema.prisma');
     const outreachBlock = schema.match(/model OutreachMessage \{[\s\S]*?\n\}/);
@@ -90,7 +90,7 @@ describe('Phase 27 — OutreachMessage schema documents accurate status states',
 
 // ─── Agent activity SSE broadcast ──────────────────────────────────
 
-describe('Phase 26+27 — Agent activity SSE broadcast', () => {
+describe('Agent activity SSE broadcast', () => {
   it('registry.ts broadcasts safe telemetry (no chain-of-thought)', () => {
     const src = readSrc('src/lib/ai/agent-tools/registry.ts');
     expect(src).toContain('sendToUser');
@@ -110,7 +110,7 @@ describe('Phase 26+27 — Agent activity SSE broadcast', () => {
 
 // ─── Status state set completeness ─────────────────────────────────
 
-describe('Phase 27 — accurate outreach status state set', () => {
+describe('accurate outreach status state set', () => {
   const ACCURATE_STATES = [
     'draft',
     'approval_required',
@@ -148,7 +148,7 @@ describe('Phase 27 — accurate outreach status state set', () => {
 
 // ─── Connected accounts catalog reports provider-blocked honestly ──
 
-describe('Phase 27 — Connected accounts catalog honest reporting', () => {
+describe('Connected accounts catalog honest reporting', () => {
   it('catalog reports LinkedIn as provider_blocked with reason', () => {
     const src = readSrc('src/app/api/connected-accounts/catalog/route.ts');
     expect(src).toContain("status: 'provider_blocked'");
@@ -167,7 +167,7 @@ describe('Phase 27 — Connected accounts catalog honest reporting', () => {
 
 // ─── New API routes exist ──────────────────────────────────────────
 
-describe('Phase 27 — New API routes wired', () => {
+describe('New API routes wired', () => {
   it('/api/connected-accounts exists', () => {
     expect(fs.existsSync(path.join(ROOT, 'src/app/api/connected-accounts/route.ts'))).toBe(true);
     expect(fs.existsSync(path.join(ROOT, 'src/app/api/connected-accounts/catalog/route.ts'))).toBe(true);

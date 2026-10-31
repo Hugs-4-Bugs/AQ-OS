@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Gap 4: Autopilot Tenant Isolation
+// Gap 4: Autopilot Tenant Isolation
 //
-// Closes the explicit Phase 34 acceptance gap:
+// Closes the explicit acceptance gap:
 //   "Create two tenants and test the real Autopilot path. Verify:
 //      - Tenant A cannot access Tenant B's Autopilot configuration
 //      - Tenant A cannot trigger Tenant B's Autopilot
@@ -182,7 +182,7 @@ function makeAccessToken(userId: string, plan: string) {
   });
 }
 
-describe('[Phase 34 Gap 4] Autopilot — tenant isolation via REAL engine + HTTP paths', () => {
+describe('Autopilot — tenant isolation via REAL engine + HTTP paths', () => {
   let tenantA_autopilotId: string;
   let tenantB_autopilotId: string;
   let tenantA_workflowId: string;

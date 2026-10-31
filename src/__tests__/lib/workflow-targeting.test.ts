@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Unit Tests: Phase 6 — Workflow Targeting
+// Unit Tests: Workflow Targeting
 //
 // Covers:
 //   1. Niche resolution pages through the FULL matching set — no
@@ -141,7 +141,7 @@ afterEach(() => {
 // 1–2. Chunked resolution — no arbitrary take(500) truncation
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 6 — uncapped niche/custom resolution', () => {
+describe('uncapped niche/custom resolution', () => {
   it('niche resolution pages through 2 full pages + a short page (1200 leads, pro plan)', async () => {
     process.env.WORKFLOW_MAX_TARGET_LEADS = '2000';
     // 1200 matching leads across three query pages
@@ -186,7 +186,7 @@ describe('Phase 6 — uncapped niche/custom resolution', () => {
 // 3–4. Entitlement gate + honest size guard for every mode
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 6 — backend validation of the resolved target', () => {
+describe('backend validation of the resolved target', () => {
   it('a niche resolving beyond the FREE plan limit is rejected (gate previously bypassed)', async () => {
     mocks.state.user.plan = 'free'; // free = 10 leads
     mocks.db.lead.findMany.mockImplementation(async () => Array.from({ length: 40 }, (_, i) => makeLead(i)));
@@ -238,7 +238,7 @@ describe('Phase 6 — backend validation of the resolved target', () => {
 // 5. Exact target snapshot
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 6 — exact target snapshot', () => {
+describe('exact target snapshot', () => {
   it('selected_leads snapshot carries the verbatim selectedLeadIds + mode + batch + count', async () => {
     mocks.resolveLeadForExecution.mockImplementation(async (_u: string, leadId: string) => ({
       ok: true, lead: makeLead(Number(leadId.split('_')[1]) || 0),
@@ -288,7 +288,7 @@ describe('Phase 6 — exact target snapshot', () => {
 // 6. Large batches are async — no giant synchronous request
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 6 — scalable batch execution', () => {
+describe('scalable batch execution', () => {
   it('a batch larger than the settle threshold responds immediately with honest running statuses', async () => {
     process.env.WORKFLOW_BATCH_SETTLE_MAX_LEADS = '2';
     mocks.db.lead.findMany.mockImplementation(async () => [makeLead(0), makeLead(1), makeLead(2)]);

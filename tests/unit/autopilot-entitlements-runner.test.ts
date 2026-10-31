@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 23 runAutopilot Defense-in-Depth Gate Tests
+// AcquisitionOS — runAutopilot Defense-in-Depth Gate Tests
 //
 // This file imports the REAL `@/lib/autopilot/runner` module (NOT mocked)
 // so the defense-in-depth entitlement gate inside `runAutopilot` is
@@ -32,7 +32,7 @@ vi.hoisted(() => {
   process.env.AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS = '150';
 });
 
-// ── Mock DB (Prisma-shaped subset that Phase 23 runner code touches). ──
+// ── Mock DB (Prisma-shaped subset that runner code touches). ──
 const mockPrisma = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
   autopilotWorkflow: {
@@ -153,7 +153,7 @@ beforeEach(() => {
 // Group 1: Defense-in-depth entitlement gate — plan eligibility
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — runAutopilot defense-in-depth gate (plan eligibility)', () => {
+describe('runAutopilot defense-in-depth gate (plan eligibility)', () => {
   it('Free plan: manual run is BLOCKED with code PLAN_INELIGIBLE', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue(autopilotRowForRun({ status: 'ACTIVE' }));
@@ -221,7 +221,7 @@ describe('Phase 23 — runAutopilot defense-in-depth gate (plan eligibility)', (
 // Group 2: Blocked run is non-mutating + zero-credit
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — blocked run is non-mutating + zero-credit', () => {
+describe('blocked run is non-mutating + zero-credit', () => {
   it('Blocked run NEVER mutates autopilot state (no ACTIVE→RUNNING claim)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue(autopilotRowForRun({ status: 'ACTIVE' }));
@@ -253,7 +253,7 @@ describe('Phase 23 — blocked run is non-mutating + zero-credit', () => {
 // Group 3: Cross-user isolation (ownership scoping inside runAutopilot)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — cross-user isolation (runAutopilot ownership)', () => {
+describe('cross-user isolation (runAutopilot ownership)', () => {
   it('User B cannot run User A\'s autopilot: scoped findFirst returns null → NOT_FOUND (before plan check)', async () => {
     // User B is pro (so the entitlement gate would have passed if the
     // autopilot existed). The scoped query `{ id: 'apA', userId: 'uB' }`
@@ -285,12 +285,12 @@ describe('Phase 23 — cross-user isolation (runAutopilot ownership)', () => {
 // Group 4: 5-credit execution invariant preserved (eligible plan)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — 5-credit execution invariant (eligible Pro run)', () => {
+describe('5-credit execution invariant (eligible Pro run)', () => {
   it('A Pro-plan eligible run goes through the canonical charge path (gate does not double-bill)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'pro', subscriptions: [] });
     mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue(autopilotRowForRun({ status: 'ACTIVE' }));
     await runAutopilot('ap1', 'u1', 'manual');
-    // The Phase 23 gate itself adds ZERO charges. The canonical 5-credit
+    // The gate itself adds ZERO charges. The canonical 5-credit
     // charge happens inside executeAutopilotRun via chargeWorkflowExecutionFee
     // — covered by autopilot-runner.test.ts. Here we assert the gate
     // doesn't ADD an extra charge on top of the canonical one.
@@ -303,7 +303,7 @@ describe('Phase 23 — 5-credit execution invariant (eligible Pro run)', () => {
 // Group 5: Upgrade scenario — previously-blocked manual run now proceeds
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — upgrade scenario (manual run after plan upgrade)', () => {
+describe('upgrade scenario (manual run after plan upgrade)', () => {
   it('First call blocked (free), second call proceeds after upgrade to Pro', async () => {
     // First call — free plan.
     mockPrisma.user.findUnique.mockResolvedValueOnce({ id: 'u1', plan: 'free', subscriptions: [] });

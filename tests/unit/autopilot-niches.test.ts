@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 20 Unit Tests: Autopilot Niches
+// AcquisitionOS — Unit Tests: Autopilot Niches
 //
-// Covers the Phase 20 contract at unit level:
+// Covers the contract at unit level:
 //  1. Multiple predefined niches resolve to the canonical vocabulary
 //  2. Custom niche creation (normalized identity + persistence payload)
 //  3. Custom niche persistence semantics (plain user-scoped DB rows —
@@ -16,12 +16,12 @@
 //     profileMappings persisted through create AND update)
 // 11. Profile mapping validation (shape, selected-niche keys, ownership)
 // +  source-scan guards (no second hard-coded niche list; UI fetches
-//    the dynamic API) mirroring the Phase 19 conventions.
+//    the dynamic API) mirroring the conventions.
 //
 // Items 9/10/12–18 (discovery attribution, cross-run dedup, per-lead
-// personalized context, Phase 19 workflow intact, 0-credit discovery,
-// flat single charge, ONE parent execution, Phase 18 idempotency,
-// Phase 19 eligibility) are covered by the Phase 20 additions to
+// personalized context, workflow intact, 0-credit discovery,
+// flat single charge, ONE parent execution, idempotency,
+// eligibility) are covered by the additions to
 // tests/unit/autopilot-runner.test.ts plus the existing regression
 // suites (autopilot-runner, autopilot-workflow-selector, autopilot,
 // workflow-batch, phase16-17-personalization).
@@ -120,7 +120,7 @@ const CREATE_INPUT = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Active + owned linked workflow (Phase 19 eligibility passes).
+  // Active + owned linked workflow .
   mockPrisma.workflowDefinition.findFirst.mockResolvedValue({
     id: 'wf-1', userId: USER_A, status: 'active', name: 'Test WF', profileId: null,
   });
@@ -429,7 +429,7 @@ describe('validateProfileMappingsOwnership', () => {
 // Autopilot configuration integration (spec 20.7 / 20.4)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('createAutopilot (Phase 20 niche + mapping integration)', () => {
+describe('createAutopilot (niche + mapping integration)', () => {
   it('persists a multi-niche configuration with resolved canonical niche names', async () => {
     mockPrisma.customNiche.findMany.mockResolvedValue([customRow({ name: 'AI SaaS', nicheKey: 'ai saas' })]);
     const result = await createAutopilot(USER_A, null, null, {
@@ -500,7 +500,7 @@ describe('createAutopilot (Phase 20 niche + mapping integration)', () => {
   });
 });
 
-describe('updateAutopilotFields (Phase 20)', () => {
+describe('updateAutopilotFields ', () => {
   it('updates niches through the canonical resolution and persists mappings', async () => {
     mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue(apRow());
     mockPrisma.customNiche.findMany.mockResolvedValue([
@@ -537,7 +537,7 @@ describe('updateAutopilotFields (Phase 20)', () => {
   });
 });
 
-describe('listAutopilots (Phase 20 serialization)', () => {
+describe('listAutopilots (serialization)', () => {
   it('returns the parsed profileMappings with every autopilot', async () => {
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([
       apRow({ profileMappings: JSON.stringify({ dental: 'bp-1' }) }),
@@ -561,7 +561,7 @@ describe('listAutopilots (Phase 20 serialization)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Source-scan guards (Phase 19 convention): no second hard-coded niche
+// Source-scan guards : no second hard-coded niche
 // list; the canonical service consumes the app's shared vocabulary; the
 // UI fetches the dynamic custom-niche API.
 // ═══════════════════════════════════════════════════════════════════

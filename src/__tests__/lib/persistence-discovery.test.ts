@@ -192,7 +192,7 @@ beforeEach(() => {
 
 // ═══ PHASE 11 — MY CONTEXT PERSISTENCE ═════════════════════════════
 
-describe('Phase 11 — My Context persistence', () => {
+describe('My Context persistence', () => {
   it('create/save: PUT persists, GET returns the stored context', async () => {
     const put = await putContext(req('PUT', '/api/settings/personal-context', {
       context: { whatYouDo: 'I run a B2B SaaS agency', services: 'Web automation', goals: 'Sign 5 clients' },
@@ -262,7 +262,7 @@ describe('Phase 11 — My Context persistence', () => {
 
 // ═══ PHASE 12 — BUSINESS PROFILE PERSISTENCE ═══════════════════════
 
-describe('Phase 12 — Business Profile persistence', () => {
+describe('Business Profile persistence', () => {
   it('create → read roundtrip persists to the DB row', async () => {
     const post = await createProfile(req('POST', '/api/business-profiles', {
       name: 'Dental SaaS Co', industry: 'Healthcare IT', preferredTone: 'formal', cta: 'Book a demo',
@@ -313,7 +313,7 @@ describe('Phase 12 — Business Profile persistence', () => {
 
 // ═══ PHASE 13 — MY OFFER PERSISTENCE ═══════════════════════════════
 
-describe('Phase 13 — My Offer persistence', () => {
+describe('My Offer persistence', () => {
   it('create/update roundtrips through the DB row (exact user data)', async () => {
     const put = await putOffer(req('PUT', '/api/prospecting/offer-profile', {
       services: [
@@ -359,7 +359,7 @@ describe('Phase 13 — My Offer persistence', () => {
 
 // ═══ PHASE 14 — MULTIPLE PROFILES + DEFAULT SELECTION ══════════════
 
-describe('Phase 14 — multiple saved profiles & explicit default', () => {
+describe('multiple saved profiles & explicit default', () => {
   it('multiple profiles coexist; editing one does not mutate another', async () => {
     const p1 = (await json(await createProfile(req('POST', '/api/business-profiles', { name: 'Profile One', industry: 'IT' })))).profile as Record<string, unknown>;
     const p2 = (await json(await createProfile(req('POST', '/api/business-profiles', { name: 'Profile Two', industry: 'Health' })))).profile as Record<string, unknown>;
@@ -471,7 +471,7 @@ describe('User isolation — server-side ownership enforcement', () => {
 
 // ═══ PHASE 15 — DISCOVERY CONTEXT SELECTION & SNAPSHOT ═════════════
 
-describe('Phase 15 — discovery context selection + snapshot', () => {
+describe('discovery context selection + snapshot', () => {
   beforeEach(async () => {
     await createProfile(req('POST', '/api/business-profiles', {
       name: 'Dental SaaS', industry: 'Healthcare IT', description: 'Practice management software',

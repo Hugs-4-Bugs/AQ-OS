@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 25 Execution Activity Tests
+// AcquisitionOS — Execution Activity Tests
 //
-// Tests the NEW Phase 25 surface area:
+// Tests the NEW surface area:
 //   · logExecutionActivity — best-effort event recording
 //   · getActivityForRun — ownership-scoped retrieval
 //   · getActivityForExecution — ownership-scoped retrieval
@@ -48,7 +48,7 @@ beforeEach(() => {
 // Group 1: logExecutionActivity — best-effort event recording
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — logExecutionActivity', () => {
+describe('logExecutionActivity', () => {
   it('creates a record with all fields', async () => {
     await logExecutionActivity({
       runId: 'run1',
@@ -118,7 +118,7 @@ describe('Phase 25 — logExecutionActivity', () => {
 // Group 2: All 7 state types → activity events
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — state type coverage', () => {
+describe('state type coverage', () => {
   it('QUEUED → logs RUN_QUEUED event', async () => {
     await logExecutionActivity({ runId: 'r1', eventType: 'RUN_QUEUED', toStatus: 'QUEUED', userId: 'u1' });
     expect(mockPrisma.executionActivity.create).toHaveBeenCalledWith(
@@ -173,7 +173,7 @@ describe('Phase 25 — state type coverage', () => {
 // Group 3: Query helpers — getActivityForRun, getActivityForExecution, getRecentActivity
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — query helpers', () => {
+describe('query helpers', () => {
   it('getActivityForRun — returns activities for the right run + user', async () => {
     const mockActivities = [
       { id: 'a1', runId: 'r1', eventType: 'RUN_QUEUED', userId: 'u1', createdAt: new Date() },
@@ -224,7 +224,7 @@ describe('Phase 25 — query helpers', () => {
 // Group 4: Cross-user isolation
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — cross-user isolation', () => {
+describe('cross-user isolation', () => {
   it('User B querying User A\'s run — findMany filters by userId=B (returns empty)', async () => {
     // The query helper always scopes by userId — User B's query for
     // User A's run returns activities where userId=uB (empty, since
@@ -251,7 +251,7 @@ describe('Phase 25 — cross-user isolation', () => {
 // Group 5: Per-lead tracking
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — per-lead tracking', () => {
+describe('per-lead tracking', () => {
   it('logs LEAD_COMPLETED with leadId', async () => {
     await logExecutionActivity({ runId: 'r1', executionId: 'e1', leadId: 'lead1', eventType: 'LEAD_COMPLETED', toStatus: 'EXEC_COMPLETED', userId: 'u1' });
     expect(mockPrisma.executionActivity.create).toHaveBeenCalledWith(
@@ -283,7 +283,7 @@ describe('Phase 25 — per-lead tracking', () => {
 // Group 6: Retry history
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — retry history', () => {
+describe('retry history', () => {
   it('RETRY_INITIATED records fromStatus + toStatus for traceability', async () => {
     await logExecutionActivity({ runId: 'r1', executionId: 'e1', eventType: 'RETRY_INITIATED', fromStatus: 'FAILED', toStatus: 'RUNNING', userId: 'u1' });
     const data = mockPrisma.executionActivity.create.mock.calls[0][0].data;
@@ -304,7 +304,7 @@ describe('Phase 25 — retry history', () => {
 // Group 7: Cancellation history
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — cancellation history', () => {
+describe('cancellation history', () => {
   it('RUN_CANCELLED records fromStatus + toStatus for audit trail', async () => {
     await logExecutionActivity({ runId: 'r1', eventType: 'RUN_CANCELLED', fromStatus: 'RUNNING', toStatus: 'CANCELLED', userId: 'u1' });
     const data = mockPrisma.executionActivity.create.mock.calls[0][0].data;
@@ -330,7 +330,7 @@ describe('Phase 25 — cancellation history', () => {
 // Group 8: Billing invariant — activity logging is zero-credit
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — billing invariant (zero-credit tracking)', () => {
+describe('billing invariant (zero-credit tracking)', () => {
   it('logExecutionActivity NEVER calls chargeWorkflowExecutionFee', async () => {
     // The execution-activity module only imports `db` — it has no
     // billing dependency. Verified by the mock setup: only
@@ -356,7 +356,7 @@ describe('Phase 25 — billing invariant (zero-credit tracking)', () => {
 // Group 9: Invalid state transition protection
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — invalid transition protection', () => {
+describe('invalid transition protection', () => {
   it('COMPLETED run logging RUN_STARTED would be a caller bug — but logExecutionActivity does not validate (it records what it\'s told)', async () => {
     // logExecutionActivity is a passive recorder — it logs whatever event
     // the caller tells it. The STATE MACHINE enforcement lives in the
@@ -382,7 +382,7 @@ describe('Phase 25 — invalid transition protection', () => {
 // Group 10: Run history
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 25 — run history', () => {
+describe('run history', () => {
   it('getActivityForRun returns events in chronological order', async () => {
     const events = [
       { id: 'a1', eventType: 'RUN_QUEUED', createdAt: new Date('2026-10-24T10:00:00Z') },

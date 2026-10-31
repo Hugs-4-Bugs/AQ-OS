@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 26 v2 — Agentic Tool Layer tests
+// Agentic Tool Layer tests
 //
 // Tests the canonical tool registry + dispatcher + individual tools.
 // Mock Prisma + Gmail OAuth to keep tests fast and deterministic.
@@ -124,7 +124,7 @@ function makeCtx(overrides: Partial<Parameters<typeof invokeTool>[2]> = {}) {
   };
 }
 
-describe('Phase 26 v2 — Agent Tool Layer', () => {
+describe('Agent Tool Layer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -408,7 +408,7 @@ describe('Phase 26 v2 — Agent Tool Layer', () => {
   // ── Activity log ────────────────────────────────────────────────
 
   describe('activity.log', () => {
-    it('writes to Phase 25 ExecutionActivity', async () => {
+    it('writes to ExecutionActivity', async () => {
       const { logExecutionActivity } = await import('@/lib/execution-activity');
       const result = await invokeTool(
         'activity.log',

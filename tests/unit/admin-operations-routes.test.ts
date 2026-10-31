@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 32 — GENUINE ROUTE-LEVEL HTTP TESTS
+// GENUINE ROUTE-LEVEL HTTP TESTS
 //
 // These tests invoke the REAL route handlers (GET/POST/PATCH) imported
 // from the actual Next.js route modules, using REAL NextRequest objects,
@@ -7,7 +7,7 @@
 // permission registry. Only @/lib/auth (getAuthUser) and the DB/service
 // layer are mocked — the auth→permission→HTTP-status pipeline is real.
 //
-// Routes under test (Phase 32):
+// Routes under test :
 //   GET   /api/admin/operations/system-health       → system.health.read
 //   GET   /api/admin/operations/events              → system.health.read
 //   PATCH /api/admin/operations/events/[id]         → system.events.resolve
@@ -47,7 +47,7 @@ vi.mock('@/lib/auth', () => {
 });
 
 // ── Mock admin-operations-service ─────────────────────────────────────
-// Phase 32 HARDENING: mocks the service for RBAC tests, but the
+// HARDENING: mocks the service for RBAC tests, but the
 // idempotency + REAL-execution tests below use the REAL service
 // functions where possible (with mocked DB + retryExecution).
 vi.mock('@/lib/security/require-confirmation', () => ({
@@ -84,7 +84,7 @@ vi.mock('@/lib/admin-operations-service', () => ({
     last24h: { auditEvents: 0, signups: 0, signins: 0, signinFailures: 0, workflowExecutions: 0, workflowFailures: 0 },
     byEventSource: [], byEventType: [],
   }),
-  // NEW: Phase 32 hardening functions (REAL backend behavior)
+  // NEW: hardening functions (REAL backend behavior)
   getWorkflowMonitoring: vi.fn().mockResolvedValue({
     executions: [], total: 0, byStatus: [], staleCount: 0,
   }),
@@ -246,7 +246,7 @@ function buildPost(url: string, body: unknown): NextRequest {
 // GET /api/admin/operations/system-health  (system.health.read)
 // Granted to: super_admin, admin, support, analytics
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] GET /api/admin/operations/system-health', () => {
+describe('GET /api/admin/operations/system-health', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -294,7 +294,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/system-health', () => {
 // ═══════════════════════════════════════════════════════════════════
 // GET /api/admin/operations/events  (system.health.read)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] GET /api/admin/operations/events', () => {
+describe('GET /api/admin/operations/events', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -339,7 +339,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/events', () => {
 // PATCH /api/admin/operations/events/[id]  (system.events.resolve)
 // Granted to: super_admin, admin ONLY
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] PATCH /api/admin/operations/events/[id]', () => {
+describe('PATCH /api/admin/operations/events/[id]', () => {
   let PATCH: (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -389,7 +389,7 @@ describe('[Phase 32 HTTP] PATCH /api/admin/operations/events/[id]', () => {
 // integrations.read per existing rbac.ts — kept as-is to avoid weakening
 // or broadening existing RBAC).
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] GET /api/admin/operations/integrations', () => {
+describe('GET /api/admin/operations/integrations', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -429,7 +429,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/integrations', () => {
 // POST /api/admin/operations/integrations/[provider]/action  (integrations.control)
 // Granted to: super_admin, admin ONLY
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] POST /api/admin/operations/integrations/[provider]/action', () => {
+describe('POST /api/admin/operations/integrations/[provider]/action', () => {
   let POST: (request: NextRequest, ctx: { params: Promise<{ provider: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
   const VALID_BODY = { action: 'validate', idempotencyKey: 'op-1-abcd' };
@@ -485,7 +485,7 @@ describe('[Phase 32 HTTP] POST /api/admin/operations/integrations/[provider]/act
 // GET /api/admin/operations/audit  (audit.read)
 // Granted to: super_admin, admin, support, analytics
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] GET /api/admin/operations/audit', () => {
+describe('GET /api/admin/operations/audit', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -531,10 +531,10 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/audit', () => {
 // Granted to: super_admin, admin ONLY
 // Includes idempotency validation.
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] POST /api/admin/operations/retry', () => {
+describe('POST /api/admin/operations/retry', () => {
   let POST: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
-  // Phase 32 HARDENING: targetId is now REQUIRED for real retry execution
+  // HARDENING: targetId is now REQUIRED for real retry execution
   const VALID_BODY = {
     idempotencyKey: 'retry-key-001',
     operationType: 'workflow_reexecute',
@@ -621,7 +621,7 @@ describe('[Phase 32 HTTP] POST /api/admin/operations/retry', () => {
 // ═══════════════════════════════════════════════════════════════════
 // GET /api/admin/operations/metrics  (system.health.read)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] GET /api/admin/operations/metrics', () => {
+describe('GET /api/admin/operations/metrics', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -659,7 +659,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/metrics', () => {
 // ═══════════════════════════════════════════════════════════════════
 // SECRET PROTECTION — verify route responses never contain secrets
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] Secret protection in operations route responses', () => {
+describe('Secret protection in operations route responses', () => {
   let systemHealthGET: (request: NextRequest) => Promise<Response>;
   let integrationsGET: (request: NextRequest) => Promise<Response>;
   let eventsGET: (request: NextRequest) => Promise<Response>;
@@ -726,11 +726,11 @@ describe('[Phase 32 HTTP] Secret protection in operations route responses', () =
 
 // ═══════════════════════════════════════════════════════════════════
 // IDEMPOTENCY — verify retry endpoint honors idempotency keys
-// Phase 32 HARDENING: retry now ACTUALLY executes (status='executed')
+// HARDENING: retry now ACTUALLY executes (status='executed')
 // or is explicitly rejected. Intent-only 'started' is no longer the
 // success path.
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] Idempotency — POST /api/admin/operations/retry', () => {
+describe('Idempotency — POST /api/admin/operations/retry', () => {
   let POST: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
   let executeRealRetry: ReturnType<typeof vi.fn>;
@@ -831,7 +831,7 @@ describe('[Phase 32 HTTP] Idempotency — POST /api/admin/operations/retry', () 
 // All RBAC-gated at HTTP level via withPermission.
 // ═══════════════════════════════════════════════════════════════════
 
-describe('[Phase 32 HTTP] GET /api/admin/operations/workflows', () => {
+describe('GET /api/admin/operations/workflows', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -860,7 +860,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/workflows', () => {
   });
 });
 
-describe('[Phase 32 HTTP] GET /api/admin/operations/autopilot', () => {
+describe('GET /api/admin/operations/autopilot', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -889,7 +889,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/autopilot', () => {
   });
 });
 
-describe('[Phase 32 HTTP] GET /api/admin/operations/cron-jobs', () => {
+describe('GET /api/admin/operations/cron-jobs', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -918,7 +918,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/cron-jobs', () => {
   });
 });
 
-describe('[Phase 32 HTTP] GET /api/admin/operations/deployment-health', () => {
+describe('GET /api/admin/operations/deployment-health', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -947,7 +947,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/deployment-health', () => {
   });
 });
 
-describe('[Phase 32 HTTP] GET /api/admin/operations/overview (unified)', () => {
+describe('GET /api/admin/operations/overview (unified)', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -993,7 +993,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/overview (unified)', () => {
   });
 });
 
-describe('[Phase 32 HTTP] GET /api/admin/operations/users/[id]/support-context', () => {
+describe('GET /api/admin/operations/users/[id]/support-context', () => {
   let GET: (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -1039,7 +1039,7 @@ describe('[Phase 32 HTTP] GET /api/admin/operations/users/[id]/support-context',
 // ═══════════════════════════════════════════════════════════════════
 // REAL EXECUTION — verify integration action returns REAL provider result
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 HTTP] REAL integration action — provider validation', () => {
+describe('REAL integration action — provider validation', () => {
   let POST: (request: NextRequest, ctx: { params: Promise<{ provider: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
 

@@ -69,7 +69,7 @@ describe('single-niche / single-country (the historical form)', () => {
   });
 });
 
-describe('multi-niche (Phase 8 — the "hospital, dentist" input)', () => {
+describe('multi-niche (the "hospital, dentist" input)', () => {
   it('comma-separated input parses into independent niches × combos', () => {
     const plan = buildTargetingPlan(params({ niche: 'hospital, dentist', country: 'India' }));
     expect(plan.invalid).toBe(false);
@@ -107,7 +107,7 @@ describe('multi-niche (Phase 8 — the "hospital, dentist" input)', () => {
   });
 });
 
-describe('multi-country (Phase 9)', () => {
+describe('multi-country ', () => {
   it('multi-niche × multi-country produces the full combination matrix', () => {
     const plan = buildTargetingPlan(params({ niche: 'hospital, dentist', country: 'India, United States' }));
     expect(plan.invalid).toBe(false);

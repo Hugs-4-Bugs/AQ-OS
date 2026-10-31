@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Unit Tests: Lead Discovery Normalization (Phase 7)
+// Unit Tests: Lead Discovery Normalization 
 // src/lib/lead-discovery/normalization.ts
 //
 // Guards the canonical field-level normalization shared by the discovery
@@ -124,7 +124,7 @@ describe('location helpers', () => {
 });
 
 describe('parseNicheList', () => {
-  it('splits a comma-separated multi-niche input (the Phase 8 bug input)', () => {
+  it('splits a comma-separated multi-niche input (the bug input)', () => {
     expect(parseNicheList('hospital, dentist').niches).toEqual(['hospital', 'dentist']);
   });
   it('supports semicolons, dedupes case-insensitively, preserves order', () => {

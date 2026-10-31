@@ -425,7 +425,7 @@ beforeEach(() => {
 
 // ═══ PHASE 16 — per-lead intelligence ═══════════════════════════════
 
-describe('Phase 16 — per-lead personalized intelligence', () => {
+describe('per-lead personalized intelligence', () => {
   it('two leads with different data produce MATERIALLY different contexts', async () => {
     const a = await buildLeadIntelligence(USER, LEAD_DENTAL, { resolvedProfile: { profile: PROFILE_DEFAULT, source: 'default' } });
     const b = await buildLeadIntelligence(USER, LEAD_AYUR, { resolvedProfile: { profile: PROFILE_DEFAULT, source: 'default' } });
@@ -561,7 +561,7 @@ describe('Outreach settings precedence (profile defaults → workflow → execut
 
 // ═══ PHASE 17 — batch execution personalization ═════════════════════
 
-describe('Phase 17 — personalized batch workflow execution', () => {
+describe('personalized batch workflow execution', () => {
   it('each lead\'s ActionContext carries ITS OWN intelligence + execution settings', async () => {
     primeBatchStores(workflowWith('bp_wf'));
     const executionSettings = { profileId: 'bp_exec', tone: 'urgent', cta: 'Exec CTA' };

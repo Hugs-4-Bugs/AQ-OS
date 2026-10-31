@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Unit Tests: Lead Deduplication Priority Core (Phase 10)
+// Unit Tests: Lead Deduplication Priority Core 
 // src/lib/lead-dedup-service.ts — findDuplicateMatch / buildDedupIndex
 //
 // Guards the STRICT priority order required by the spec:
@@ -44,7 +44,7 @@ beforeEach(() => {
   (db.lead.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
-describe('Phase 10 priority order — first matching tier wins', () => {
+describe('priority order — first matching tier wins', () => {
   it('tier 1: same website DOMAIN wins (www/case insensitive)', () => {
     const entries = [
       entry({ id: 'lead-1', businessName: 'Totally Different Name', website: 'https://www.ACME.com/deep/path' }),

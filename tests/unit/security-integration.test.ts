@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 33 — REAL Backend Integration Tests for Audit & Security
+// REAL Backend Integration Tests for Audit & Security
 //
 // Uses REAL recordAuditEvent() + REAL db.auditLog + REAL
 // verifyAuditIntegrity() + REAL requestConfirmation()/confirmAction()
@@ -52,7 +52,7 @@ vi.mock('@/lib/auth', () => {
   };
 });
 
-// Mock requireConfirmation for Phase 33 RBAC tests that need to bypass
+// Mock requireConfirmation for RBAC tests that need to bypass
 // confirmation to test RBAC layer. Confirmation enforcement is tested
 // separately in the BLOCKER 1 test section.
 vi.mock('@/lib/security/require-confirmation', () => ({
@@ -76,7 +76,7 @@ async function ensureTestAdminUser() {
     create: {
       id: TEST_ADMIN.id,
       email: TEST_ADMIN.email,
-      name: 'Test Admin (Phase 33)',
+      name: 'Test Admin ',
       role: 'super_admin',
       plan: 'elite',
       credits: 0,
@@ -134,7 +134,7 @@ function buildPost(url: string, body: unknown): NextRequest {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 1 — Immutable Audit Events (append-only + hash chain)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] Immutable Audit Events', () => {
+describe('Immutable Audit Events', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -234,7 +234,7 @@ describe('[Phase 33 REAL] Immutable Audit Events', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 2 — Audit Integrity Verification
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] Audit Integrity Verification', () => {
+describe('Audit Integrity Verification', () => {
   it('REAL: verifyAuditIntegrity returns valid for newly created chain events', async () => {
     await ensureTestAdminUser();
     const event = await recordAuditEvent({
@@ -364,7 +364,7 @@ describe('[Phase 33 REAL] Audit Integrity Verification', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 3 — Sensitive Action Confirmation
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] Sensitive Action Confirmation', () => {
+describe('Sensitive Action Confirmation', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -463,7 +463,7 @@ describe('[Phase 33 REAL] Sensitive Action Confirmation', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 4 — Security Event Recording + Failed Authorization
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] Security Events + Failed Authorization', () => {
+describe('Security Events + Failed Authorization', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -499,7 +499,7 @@ describe('[Phase 33 REAL] Security Events + Failed Authorization', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 5 — Suspicious Activity Detection
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] Suspicious Activity Detection', () => {
+describe('Suspicious Activity Detection', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -553,7 +553,7 @@ describe('[Phase 33 REAL] Suspicious Activity Detection', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 6 — Configuration Change Auditing
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] Configuration Change Auditing', () => {
+describe('Configuration Change Auditing', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -612,9 +612,9 @@ describe('[Phase 33 REAL] Configuration Change Auditing', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// TEST 7 — RBAC for Phase 33 Routes
+// TEST 7 — RBAC for Routes
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 REAL] RBAC — Security Routes', () => {
+describe('RBAC — Security Routes', () => {
   let authModule: MockedAuthModule;
   let auditGET: (request: NextRequest) => Promise<Response>;
   let integrityPOST: (request: NextRequest) => Promise<Response>;
@@ -787,7 +787,7 @@ describe('[Phase 33 REAL] RBAC — Security Routes', () => {
 // BLOCKER 1 — SERVER-ENFORCED SENSITIVE ACTION CONFIRMATION ON rbac/assign
 // Tests the ACTUAL mutation endpoint, not just the confirmation service.
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 BLOCKER 1] Server-enforced confirmation on rbac/assign', () => {
+describe('[BLOCKER 1] Server-enforced confirmation on rbac/assign', () => {
   let authModule: MockedAuthModule;
   let assignPOST: (request: NextRequest) => Promise<Response>;
   let confirmReqPOST: (request: NextRequest) => Promise<Response>;
@@ -944,7 +944,7 @@ async function body_error(res: Response): Promise<string> {
 // BLOCKER 2 — REAL FAILED-AUTHORIZATION AUDITING
 // Tests that real 403 responses create AuditLog entries.
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 BLOCKER 2] Failed authorization creates audit entry', () => {
+describe('[BLOCKER 2] Failed authorization creates audit entry', () => {
   let authModule: MockedAuthModule;
 
   beforeEach(async () => {
@@ -1015,7 +1015,7 @@ describe('[Phase 33 BLOCKER 2] Failed authorization creates audit entry', () => 
 // BLOCKER 3 — REAL CONFIGURATION CHANGE AUDITING
 // Tests that the integration action endpoint calls recordConfigChange.
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 BLOCKER 3] Config change audit from real endpoint', () => {
+describe('[BLOCKER 3] Config change audit from real endpoint', () => {
   let authModule: MockedAuthModule;
   let integrationPOST: (request: NextRequest, ctx: { params: Promise<{ provider: string }> }) => Promise<Response>;
 
@@ -1064,7 +1064,7 @@ describe('[Phase 33 BLOCKER 3] Config change audit from real endpoint', () => {
 // ═══════════════════════════════════════════════════════════════════
 // BLOCKER 5 — CONCURRENCY-SAFE HASH CHAIN
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 BLOCKER 5] Concurrency-safe hash chain', () => {
+describe('[BLOCKER 5] Concurrency-safe hash chain', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -1111,7 +1111,7 @@ describe('[Phase 33 BLOCKER 5] Concurrency-safe hash chain', () => {
 // ═══════════════════════════════════════════════════════════════════
 // BLOCKER 6 — COMPLETE TAMPER DETECTION (all fields)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 BLOCKER 6] Complete tamper detection', () => {
+describe('[BLOCKER 6] Complete tamper detection', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -1193,7 +1193,7 @@ describe('[Phase 33 BLOCKER 6] Complete tamper detection', () => {
 // ═══════════════════════════════════════════════════════════════════
 // BLOCKER 1: SUSPICIOUS ACTIVITY E2E FOR ALL 4 RULES
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 E2E] Suspicious activity — all 4 rules via real production paths', () => {
+describe('[E2E] Suspicious activity — all 4 rules via real production paths', () => {
   let authModule: MockedAuthModule;
   let auditGET: (request: NextRequest) => Promise<Response>;
   let suspiciousGET: (request: NextRequest) => Promise<Response>;
@@ -1385,7 +1385,7 @@ describe('[Phase 33 E2E] Suspicious activity — all 4 rules via real production
 // ═══════════════════════════════════════════════════════════════════
 // BLOCKER 2: HASH-FIELD ADVERSARIAL TESTS — 15/15 FIELDS
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 Hash] Complete 15/15 field tamper detection', () => {
+describe('Complete 15/15 field tamper detection', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -1506,7 +1506,7 @@ describe('[Phase 33 Hash] Complete 15/15 field tamper detection', () => {
 // ═══════════════════════════════════════════════════════════════════
 // BLOCKER 3: GENUINE CONCURRENT WRITES
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 Concurrency] Genuine Promise.all concurrent writes', () => {
+describe('Genuine Promise.all concurrent writes', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();
@@ -1569,7 +1569,7 @@ describe('[Phase 33 Concurrency] Genuine Promise.all concurrent writes', () => {
 // ═══════════════════════════════════════════════════════════════════
 // BLOCKER 4: TERMINAL ANCHOR ADVERSARIAL TESTS
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 33 Anchor] Terminal deletion/modification adversarial tests', () => {
+describe('Terminal deletion/modification adversarial tests', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestAdminUser();

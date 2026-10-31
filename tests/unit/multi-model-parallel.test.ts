@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 26 Extension — Parallel Multi-Model Execution
+// Parallel Multi-Model Execution
 //
 // Verifies the 4 core contract points:
 //  1. Role-aware dedup (G5 fix) — parallel multi-angle slots are NOT collapsed
@@ -23,7 +23,7 @@ function readSrc(rel: string): string {
 
 // ─── G5: Role-aware dedup ───────────────────────────────────────────
 
-describe('Phase 26 Extension — G5: role-aware dedup', () => {
+describe('G5: role-aware dedup', () => {
   it('buildModelCallSpecs dedup key includes role (not just provider|model)', () => {
     const src = readSrc('src/lib/ai/orchestrator.ts');
     // The dedup key MUST include role
@@ -57,7 +57,7 @@ describe('Phase 26 Extension — G5: role-aware dedup', () => {
 
 // ─── G7: FALLBACK strategy ──────────────────────────────────────────
 
-describe('Phase 26 Extension — G7: FALLBACK strategy', () => {
+describe('G7: FALLBACK strategy', () => {
   it('OrchestrationMode type includes FALLBACK (and Part 2 SINGLE)', () => {
     const src = readSrc('src/lib/ai/orchestrator.ts');
     // Part 2 added SINGLE as a first-class strategy. The type union
@@ -103,7 +103,7 @@ describe('Phase 26 Extension — G7: FALLBACK strategy', () => {
 
 // ─── G6: Parallel group in agent-continuation ──────────────────────
 
-describe('Phase 26 Extension — G6: parallel group Promise.allSettled', () => {
+describe('G6: parallel group Promise.allSettled', () => {
   it('agent-continuation.ts has a parallel branch using Promise.all (NOT for..of)', () => {
     const src = readSrc('src/lib/ai/agent-continuation.ts');
     expect(src).toContain('isParallelGroup');
@@ -137,7 +137,7 @@ describe('Phase 26 Extension — G6: parallel group Promise.allSettled', () => {
 
 // ─── G4: System agent strategies ───────────────────────────────────
 
-describe('Phase 26 Extension — G4: system agent strategies', () => {
+describe('G4: system agent strategies', () => {
   it('QUALIFICATION uses parallel BANT multi-angle', () => {
     const src = readSrc('src/lib/ai/system-agents.ts');
     const block = src.match(/systemKey: 'QUALIFICATION'[\s\S]*?seedAsActive/);
@@ -181,11 +181,11 @@ describe('Phase 26 Extension — G4: system agent strategies', () => {
 
 // ─── UI: CreateAgentModal strategy selector ────────────────────────
 
-describe('Phase 26 Extension — UI: CreateAgentModal', () => {
+describe('UI: CreateAgentModal', () => {
   it('CreateAgentModal has strategy state + selector', () => {
     const src = readSrc('src/components/dashboard/agents-tab.tsx');
     expect(src).toMatch(/strategy.*useState.*'single' \| 'sequential' \| 'parallel' \| 'fallback'/);
-    expect(src).toContain('Model Strategy (Phase 26 Extension)');
+    expect(src).toContain('Model Strategy ');
     expect(src).toContain('Single — one model handles the whole task');
     expect(src).toContain('Sequential — chain models');
     expect(src).toContain('Parallel — fan out multiple angles');
@@ -219,7 +219,7 @@ describe('Phase 26 Extension — UI: CreateAgentModal', () => {
 
 // ─── API: /api/agents accepts modelStrategy ─────────────────────────
 
-describe('Phase 26 Extension — API: modelStrategy validation', () => {
+describe('API: modelStrategy validation', () => {
   it('/api/agents POST validates strategy enum', () => {
     const src = readSrc('src/app/api/agents/route.ts');
     expect(src).toContain("body.modelStrategy");
@@ -248,7 +248,7 @@ describe('Phase 26 Extension — API: modelStrategy validation', () => {
 
 // ─── Regression: orchestrator core unchanged for SEQUENTIAL/PARALLEL ──
 
-describe('Phase 26 Extension — regression: orchestrator paths intact', () => {
+describe('regression: orchestrator paths intact', () => {
   it('SEQUENTIAL path still chains predecessor outputs', () => {
     const src = readSrc('src/lib/ai/orchestrator.ts');
     expect(src).toMatch(/mode === 'SEQUENTIAL'/);
@@ -295,7 +295,7 @@ describe('Phase 26 Extension — regression: orchestrator paths intact', () => {
 
 // ─── No secrets in source ──────────────────────────────────────────
 
-describe('Phase 26 Extension — secret safety', () => {
+describe('secret safety', () => {
   it('no credential values in modified source files', () => {
     const files = [
       'src/lib/ai/orchestrator.ts',

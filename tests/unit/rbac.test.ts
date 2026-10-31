@@ -13,7 +13,7 @@ import {
   type Permission,
 } from '@/lib/rbac';
 
-describe('[Phase 29] RBAC — Role Permission Matrix', () => {
+describe('RBAC — Role Permission Matrix', () => {
   describe('SUPER_ADMIN', () => {
     it('has all admin permissions', () => {
       expect(hasPermission('super_admin', 'users.read')).toBe(true);
@@ -91,7 +91,7 @@ describe('[Phase 29] RBAC — Role Permission Matrix', () => {
   });
 });
 
-describe('[Phase 29] RBAC — Role Assignment', () => {
+describe('RBAC — Role Assignment', () => {
   it('super_admin can assign admin roles', () => {
     expect(canAssignRole('super_admin', 'admin')).toBe(true);
     expect(canAssignRole('super_admin', 'support')).toBe(true);
@@ -111,7 +111,7 @@ describe('[Phase 29] RBAC — Role Assignment', () => {
   });
 });
 
-describe('[Phase 29] RBAC — Platform Admin Detection', () => {
+describe('RBAC — Platform Admin Detection', () => {
   it('identifies platform admin roles', () => {
     expect(isPlatformAdminRole('super_admin')).toBe(true);
     expect(isPlatformAdminRole('admin')).toBe(true);
@@ -126,7 +126,7 @@ describe('[Phase 29] RBAC — Platform Admin Detection', () => {
   });
 });
 
-describe('[Phase 29] RBAC — Permission Helpers', () => {
+describe('RBAC — Permission Helpers', () => {
   it('hasAllPermissions checks all permissions', () => {
     expect(hasAllPermissions('super_admin', ['users.read', 'users.ban', 'rbac.assign'])).toBe(true);
     expect(hasAllPermissions('support', ['users.read', 'users.suspend'])).toBe(true);
@@ -152,7 +152,7 @@ describe('[Phase 29] RBAC — Permission Helpers', () => {
   });
 });
 
-describe('[Phase 29] RBAC — Secret Field Exclusion', () => {
+describe('RBAC — Secret Field Exclusion', () => {
   it('permission model does not include secret access permissions', () => {
     // There should never be a permission that grants access to raw secrets
     const allPerms = getRolePermissions('super_admin');

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 26 v3 — UserAIProvider + Agent + Encryption tests
+// UserAIProvider + Agent + Encryption tests
 //
 // Covers:
 //   - Encryption service roundtrip (encrypt → decrypt → match)
@@ -65,7 +65,7 @@ vi.mock('@/lib/ai/agent-tools', () => ({
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
-describe('Phase 26 v3 — Encryption Service', () => {
+describe('Encryption Service', () => {
   it('encryptCredential + decryptCredential roundtrip preserves plaintext', async () => {
     const { encryptCredential, decryptCredential } = await import('@/lib/crypto/encryption');
     const plaintext = 'sk-test-1234567890abcdef';
@@ -108,7 +108,7 @@ describe('Phase 26 v3 — Encryption Service', () => {
   });
 });
 
-describe('Phase 26 v3 — UserAIProvider resolution order', () => {
+describe('UserAIProvider resolution order', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset env
@@ -180,7 +180,7 @@ describe('Phase 26 v3 — UserAIProvider resolution order', () => {
   });
 });
 
-describe('Phase 26 v3 — Agent Service', () => {
+describe('Agent Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

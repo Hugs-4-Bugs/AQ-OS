@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Gap 6: Complete Destructive-Operation Inventory + Tests
+// Gap 6: Complete Destructive-Operation Inventory + Tests
 //
-// Closes the explicit Phase 34 acceptance gap:
+// Closes the explicit acceptance gap:
 //   "Resolve the discrepancy (the prior report said 'all 20 DELETE routes'
 //    but only 10 were listed). Produce the complete current inventory.
 //    For every operation classify: intentional/destructive behavior,
@@ -26,7 +26,7 @@
 //   - All cascade `@relation(... onDelete: Cascade)` in schema.prisma
 //
 // ═══════════════════════════════════════════════════════════════════
-// INVENTORY SUMMARY (full per-operation detail in the Phase 34 closure
+// INVENTORY SUMMARY (full per-operation detail in the closure
 // report; counts here are the source of truth for the discrepancy fix):
 //
 //   HTTP DELETE routes:                  32  (prior report claimed 20, listed 10)
@@ -144,7 +144,7 @@ const INVENTORY_COUNTS = {
   CASCADE_RELATIONS: 83,
 };
 
-describe('[Phase 34 Gap 6] Destructive-operation inventory + cross-tenant rejection', () => {
+describe('Destructive-operation inventory + cross-tenant rejection', () => {
   let tenantA_leadId: string;
   let tenantB_leadId: string;
   let tenantA_workflowId: string;
@@ -227,7 +227,7 @@ describe('[Phase 34 Gap 6] Destructive-operation inventory + cross-tenant reject
   // updates to the inventory to be deliberate.
   // ───────────────────────────────────────────────────────────────
   it('INVENTORY: counts are documented and consistent with the audit', () => {
-    // These constants are the source of truth. The Phase 34 closure
+    // These constants are the source of truth. The closure
     // report references them. Editing them down silently is the exact
     // failure mode the prior report exhibited.
     expect(INVENTORY_COUNTS.HTTP_DELETE_ROUTES).toBe(32);

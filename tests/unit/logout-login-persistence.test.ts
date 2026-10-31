@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Gap 1: Logout/Login Persistence (REAL production auth path)
+// Gap 1: Logout/Login Persistence (REAL production auth path)
 //
-// Closes the explicit Phase 34 acceptance gap:
+// Closes the explicit acceptance gap:
 //   "Add a real production-path E2E test:
 //    1. authenticate as test user
 //    2. create durable data
@@ -112,7 +112,7 @@ function buildRequestWithCookies(
 // ═══════════════════════════════════════════════════════════════════
 // TEST SUITE
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34 Gap 1] Logout/Login persistence — REAL auth path', () => {
+describe('Logout/Login persistence — REAL auth path', () => {
   let accessToken1: string;
   let refreshToken1: string;
   let accessToken2: string;

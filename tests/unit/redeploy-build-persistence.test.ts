@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Gap 2: Redeploy / Build Persistence
+// Gap 2: Redeploy / Build Persistence
 //
-// Closes the explicit Phase 34 acceptance gap:
+// Closes the explicit acceptance gap:
 //   "Prove that an application build/redeploy does NOT recreate/reset
 //    the persistent database."
 //
@@ -71,7 +71,7 @@ function snapshotDB() {
 // doesn't have to create anything and the assertion is "production data
 // survived the build".
 async function snapshotDurableRecords() {
-  // Pick the two known preserved users from the Phase 33 baseline.
+  // Pick the two known preserved users from the baseline.
   const katty = await db.user.findUnique({
     where: { email: 'kattyboy785@gmail.com' },
     select: { id: true, email: true, plan: true, credits: true, name: true, isActive: true, deletedAt: true, createdAt: true },
@@ -155,7 +155,7 @@ function jsonSnap(s: unknown): string {
   );
 }
 
-describe('[Phase 34 Gap 2] Redeploy/build does NOT recreate or reset the persistent DB', () => {
+describe('Redeploy/build does NOT recreate or reset the persistent DB', () => {
   let dbBefore: ReturnType<typeof snapshotDB>;
   let dbAfter: ReturnType<typeof snapshotDB>;
   let recordsBefore: Awaited<ReturnType<typeof snapshotDurableRecords>>;

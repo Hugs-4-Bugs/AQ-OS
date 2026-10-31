@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 21 Autopilot Countries Unit Tests
+// AcquisitionOS — Autopilot Countries Unit Tests
 // Country catalog · selection resolution (Worldwide / single / multi /
 // duplicates / invalid / cap) · persistence shape · API validation ·
 // user isolation · runner geography resolution · catalog payload.
@@ -55,7 +55,7 @@ beforeEach(() => {
     id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF', profileId: null,
   });
   mockPrisma.workflowDefinition.findMany.mockResolvedValue([]);
-  // Phase 20 — no saved custom niches (predefined niches pass through).
+  // no saved custom niches (predefined niches pass through).
   mockPrisma.customNiche.findMany.mockResolvedValue([]);
   mockPrisma.autopilotWorkflow.create.mockImplementation(
     async ({ data }: { data: Record<string, unknown> }) => ({
@@ -75,7 +75,7 @@ beforeEach(() => {
 // 1. Catalog (190+ countries, stable codes, deterministic order)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — country catalog', () => {
+describe('country catalog', () => {
   it('contains 190+ individual countries (full ISO 3166-1 set)', () => {
     expect(COUNTRIES.length).toBeGreaterThanOrEqual(190);
     expect(COUNTRIES.length).toBe(249);
@@ -140,7 +140,7 @@ describe('Phase 21 — country catalog', () => {
 // 2. Selection resolution — Worldwide / single / multiple
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — resolveCountrySelection', () => {
+describe('resolveCountrySelection', () => {
   it('1. WORLDWIDE: undefined / null / [] / ["Worldwide"] all mean global discovery', () => {
     for (const input of [undefined, null, [], ['Worldwide'], ['worldwide'], [' WORLDWIDE ']]) {
       const result = resolveCountrySelection(input);
@@ -248,7 +248,7 @@ describe('Phase 21 — resolveCountrySelection', () => {
 // 3. Persisted geography shape + runner-side resolution
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — persisted geography shape', () => {
+describe('persisted geography shape', () => {
   it('8. PERSISTENCE: Worldwide keeps the legacy JSON shape (no countries key)', () => {
     expect(buildPersistedGeography({ countries: [], worldwide: true })).toEqual({});
     expect(buildPersistedGeography({ countries: [], worldwide: true }, 'Mumbai')).toEqual({ city: 'Mumbai' });
@@ -259,7 +259,7 @@ describe('Phase 21 — persisted geography shape', () => {
     expect(geo).toEqual({ city: 'Dubai', countries: ['India', 'United Arab Emirates'] });
   });
 
-  it('runCountriesFromGeography: Phase 21 countries[] is authoritative', () => {
+  it('runCountriesFromGeography: countries[] is authoritative', () => {
     expect(runCountriesFromGeography({ countries: ['India', 'Brazil'] })).toEqual(['India', 'Brazil']);
   });
 
@@ -293,7 +293,7 @@ describe('Phase 21 — persisted geography shape', () => {
 // 4. API/service validation (parseAutopilotConfig + create/update)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — parseAutopilotConfig (API validation)', () => {
+describe('parseAutopilotConfig (API validation)', () => {
   it('11. accepts a valid multi-country selection and returns the resolved selection', () => {
     const parsed = parseAutopilotConfig(['Dentist'], {
       countries: ['IN', 'AE', 'UK'], city: 'Mumbai',
@@ -360,7 +360,7 @@ describe('Phase 21 — parseAutopilotConfig (API validation)', () => {
 // 5. Persistence through create/update + user isolation (server-side)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — createAutopilot persistence', () => {
+describe('createAutopilot persistence', () => {
   it('8. PERSISTENCE: multi-country selection persists in geography JSON', async () => {
     const result = await createAutopilot('u1', null, 'pro', {
       name: 'Multi-country AP',
@@ -405,7 +405,7 @@ describe('Phase 21 — createAutopilot persistence', () => {
   });
 });
 
-describe('Phase 21 — updateAutopilotFields persistence + isolation', () => {
+describe('updateAutopilotFields persistence + isolation', () => {
   const storedRow = {
     id: 'ap1', userId: 'u1', name: 'AP', status: 'ACTIVE',
     niches: JSON.stringify(['Dentist']),

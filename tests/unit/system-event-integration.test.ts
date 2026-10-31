@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 32 — REAL SystemEvent Integration Tests
+// REAL SystemEvent Integration Tests
 //
 // Uses REAL recordSystemEvent() + REAL db.systemEvent + REAL
 // getOperationalEvents() + REAL resolveOperationalEvent().
@@ -46,7 +46,7 @@ vi.mock('@/lib/auth', () => {
   };
 });
 
-// Mock requireConfirmation — Phase 33 enforces confirmation on event resolution
+// Mock requireConfirmation — enforces confirmation on event resolution
 vi.mock('@/lib/security/require-confirmation', () => ({
   requireConfirmation: vi.fn().mockResolvedValue({
     valid: true,
@@ -117,7 +117,7 @@ function buildPatch(url: string, body: unknown): NextRequest {
 // ═══════════════════════════════════════════════════════════════════
 // TEST A — Real operational failure creates SystemEvent + visible through API
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 SystemEvent] TEST A — real failure creates event + API visibility', () => {
+describe('TEST A — real failure creates event + API visibility', () => {
   let authModule: MockedAuthModule;
   let eventsGET: (request: NextRequest) => Promise<Response>;
 
@@ -194,7 +194,7 @@ describe('[Phase 32 SystemEvent] TEST A — real failure creates event + API vis
 // ═══════════════════════════════════════════════════════════════════
 // TEST B — Event resolution + AuditLog accountability + idempotency
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 SystemEvent] TEST B — resolution + AuditLog + idempotency', () => {
+describe('TEST B — resolution + AuditLog + idempotency', () => {
   let authModule: MockedAuthModule;
   let eventsPATCH: (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
   let testEventId: string;
@@ -280,7 +280,7 @@ describe('[Phase 32 SystemEvent] TEST B — resolution + AuditLog + idempotency'
 // ═══════════════════════════════════════════════════════════════════
 // TEST C — Secret protection (details never contain secrets)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 SystemEvent] TEST C — secret redaction', () => {
+describe('TEST C — secret redaction', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
   });
@@ -332,7 +332,7 @@ describe('[Phase 32 SystemEvent] TEST C — secret redaction', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST D — Operational filtering (type/source/resolved/dateRange)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 SystemEvent] TEST D — real DB filtering', () => {
+describe('TEST D — real DB filtering', () => {
   let authModule: MockedAuthModule;
   let eventsGET: (request: NextRequest) => Promise<Response>;
 
@@ -390,7 +390,7 @@ describe('[Phase 32 SystemEvent] TEST D — real DB filtering', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST E — RBAC (unauthorized → 401, insufficient → 403, authorized → access)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 SystemEvent] TEST E — RBAC', () => {
+describe('TEST E — RBAC', () => {
   let authModule: MockedAuthModule;
   let eventsGET: (request: NextRequest) => Promise<Response>;
 
@@ -447,7 +447,7 @@ describe('[Phase 32 SystemEvent] TEST E — RBAC', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST F — recordSystemEvent never throws (safe from failure paths)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 SystemEvent] TEST F — recordSystemEvent safety', () => {
+describe('TEST F — recordSystemEvent safety', () => {
   it('REAL: does NOT throw even with invalid type', async () => {
     // Should not throw — falls back to 'error'
     await expect(

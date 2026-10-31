@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 21 Runner Multi-Country Unit Tests
+// AcquisitionOS — Runner Multi-Country Unit Tests
 // Discovery fan-out (per niche × country chunk) · per-country
 // attribution reach-through · run country snapshot + immutability ·
 // ONE parent execution + ONE flat 5-credit charge regardless of the
-// country count · Phase 20 niche/profile compatibility · cross-chunk
+// country count · niche/profile compatibility · cross-chunk
 // ledger dedup.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -172,7 +172,7 @@ beforeEach(() => {
 // 12/13 — discovery fan-out + country attribution reach-through
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — multi-country discovery fan-out', () => {
+describe('multi-country discovery fan-out', () => {
   it('13. MULTIPLE COUNTRIES: India+UAE+UK produce ONE discovery job per niche carrying the selection', async () => {
     const outcome = await executeAutopilotRun(
       rowWith({ countries: ['India', 'United Arab Emirates', 'United Kingdom'] }),
@@ -265,7 +265,7 @@ describe('Phase 21 — multi-country discovery fan-out', () => {
 // 15/16 — run country snapshot + immutability
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — run country snapshot', () => {
+describe('run country snapshot', () => {
   it('15. RUN SNAPSHOT: the run config records the resolved countries + worldwide flag', async () => {
     await executeAutopilotRun(
       rowWith({ countries: ['India', 'United Arab Emirates'] }),
@@ -280,7 +280,7 @@ describe('Phase 21 — run country snapshot', () => {
     expect(snapshot.countries).toEqual(['India', 'United Arab Emirates']);
     expect(snapshot.worldwide).toBe(false);
     expect(snapshot.geography).toEqual({ countries: ['India', 'United Arab Emirates'] });
-    // Phase 20 fields remain in the snapshot
+    // fields remain in the snapshot
     expect(snapshot.niches).toEqual(['Dentist']);
     expect(snapshot.profileMappings).toEqual({});
     expect(Array.isArray(snapshot.nicheProfiles)).toBe(true);
@@ -328,7 +328,7 @@ describe('Phase 21 — run country snapshot', () => {
 // 19/20/21 — billing invariance
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — billing invariance (ONE flat fee per run)', () => {
+describe('billing invariance (ONE flat fee per run)', () => {
   it('19. ONE workflow execution charge (exactly 5 credits) for a multi-country run', async () => {
     const outcome = await executeAutopilotRun(
       rowWith({ countries: ['India', 'United Arab Emirates', 'United Kingdom'] }),
@@ -368,10 +368,10 @@ describe('Phase 21 — billing invariance (ONE flat fee per run)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 17/18 — Phase 20 niche + country combination
+// 17/18 — niche + country combination
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — Phase 20 compatibility (niches + profiles + countries)', () => {
+describe('compatibility (niches + profiles + countries)', () => {
   it('17. multi-niche × multi-country: per-niche jobs carry the SAME country selection; ONE parent execution', async () => {
     const outcome = await executeAutopilotRun(
       rowWith({ countries: ['India', 'United Arab Emirates'] }, ['Dentist', 'Gym']),
@@ -391,7 +391,7 @@ describe('Phase 21 — Phase 20 compatibility (niches + profiles + countries)', 
     expect(mockChargeWorkflowExecutionFee).toHaveBeenCalledTimes(1);
   });
 
-  it('18. per-lead profile resolutions still flow with countries (Phase 20 mapping intact)', async () => {
+  it('18. per-lead profile resolutions still flow with countries ', async () => {
     mockResolveBusinessProfileForUser.mockResolvedValue({
       profile: { id: 'bp9', name: 'Dental Profile', preferredTone: 'friendly', preferredLanguage: 'English', cta: 'Call' },
       source: 'explicit',
@@ -406,7 +406,7 @@ describe('Phase 21 — Phase 20 compatibility (niches + profiles + countries)', 
     const keys = Object.keys(batchCall[2].profileResolutionsByLeadId);
     expect(keys.length).toBeGreaterThan(0);
     expect(batchCall[2].profileResolutionsByLeadId[keys[0]].profile.id).toBe('bp9');
-    // snapshot keeps the profileMappings + nicheProfiles (Phase 20)
+    // snapshot keeps the profileMappings + nicheProfiles 
     const updateCall = mockPrisma.autopilotRun.update.mock.calls.find(
       (c) => c[0].where.id === 'run1' && c[0].data.config
     );
@@ -414,7 +414,7 @@ describe('Phase 21 — Phase 20 compatibility (niches + profiles + countries)', 
     expect(snapshot.profileMappings).toEqual({ dentist: 'bp9' });
     expect(snapshot.nicheProfiles).toHaveLength(1);
     expect(snapshot.nicheProfiles[0].profileId).toBe('bp9');
-    // ...and the Phase 21 country snapshot rides alongside
+    // ...and the country snapshot rides alongside
     expect(snapshot.countries).toEqual(['India', 'United Arab Emirates']);
   });
 });
@@ -423,7 +423,7 @@ describe('Phase 21 — Phase 20 compatibility (niches + profiles + countries)', 
 // 14 — dedup across countries (runner ledger level)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 21 — dedup across countries (runner ledger)', () => {
+describe('dedup across countries (runner ledger)', () => {
   it('14. the same lead surfaced by two country chunks is ledgered ONCE (unique constraint)', async () => {
     // 12 countries → 2 chunk jobs; BOTH return the SAME business
     // (cross-country re-sighting). The AutopilotLead unique constraint

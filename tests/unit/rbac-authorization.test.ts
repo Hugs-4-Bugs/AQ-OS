@@ -1,4 +1,4 @@
-// Phase 30 RBAC Fix: Route-level authorization + secret exclusion + tenant isolation tests
+// RBAC Fix: Route-level authorization + secret exclusion + tenant isolation tests
 import { describe, it, expect } from 'vitest';
 import {
   hasPermission,
@@ -34,7 +34,7 @@ const ROUTE_PERMISSIONS = {
   'PATCH reactivate': 'users.reactivate' as Permission,
 } as const;
 
-describe('[Phase 30 RBAC Fix] Route-level permission verification', () => {
+describe('Route-level permission verification', () => {
   // For each role, verify which routes they CAN access and which they CANNOT
   const roles: UserRole[] = ['super_admin', 'admin', 'support', 'analytics', 'member', 'viewer'];
 
@@ -116,7 +116,7 @@ describe('[Phase 30 RBAC Fix] Route-level permission verification', () => {
   });
 });
 
-describe('[Phase 30 RBAC Fix] ANALYTICS is read-only', () => {
+describe('ANALYTICS is read-only', () => {
   it('analytics has NO mutation permissions', () => {
     const perms = getRolePermissions('analytics' as UserRole);
     const mutationPerms = perms.filter(p =>
@@ -153,7 +153,7 @@ describe('[Phase 30 RBAC Fix] ANALYTICS is read-only', () => {
   });
 });
 
-describe('[Phase 30 RBAC Fix] SUPPORT has operational but not ban/refund access', () => {
+describe('SUPPORT has operational but not ban/refund access', () => {
   it('support CAN read users', () => {
     expect(hasPermission('support' as UserRole, 'users.read')).toBe(true);
   });
@@ -179,7 +179,7 @@ describe('[Phase 30 RBAC Fix] SUPPORT has operational but not ban/refund access'
   });
 });
 
-describe('[Phase 30 RBAC Fix] ADMIN has operational access but no ban/rbac', () => {
+describe('ADMIN has operational access but no ban/rbac', () => {
   it('admin CAN read users', () => {
     expect(hasPermission('admin', 'users.read')).toBe(true);
   });
@@ -197,7 +197,7 @@ describe('[Phase 30 RBAC Fix] ADMIN has operational access but no ban/rbac', () 
   });
 });
 
-describe('[Phase 30 RBAC Fix] Secret field exclusion', () => {
+describe('Secret field exclusion', () => {
   const SAFE_FIELDS = [
     'id', 'email', 'name', 'avatar', 'role', 'plan', 'credits',
     'creditsMonthly', 'isTrial', 'trialEndsAt', 'isActive', 'emailVerified',
@@ -237,7 +237,7 @@ describe('[Phase 30 RBAC Fix] Secret field exclusion', () => {
   });
 });
 
-describe('[Phase 30 RBAC Fix] Tenant isolation rules', () => {
+describe('Tenant isolation rules', () => {
   it('all User360 queries use userId scoping (verified by code review)', () => {
     // The route source code uses:
     //   db.lead.count({ where: { userId: id } })
@@ -266,7 +266,7 @@ describe('[Phase 30 RBAC Fix] Tenant isolation rules', () => {
   });
 });
 
-describe('[Phase 30 RBAC Fix] Phase 29 regression', () => {
+describe('regression', () => {
   it('all 4 admin roles still exist', () => {
     expect(ADMIN_ROLES).toHaveLength(4);
     expect(ADMIN_ROLES).toContain('super_admin');

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 32 — REAL BACKEND INTEGRATION TESTS
+// REAL BACKEND INTEGRATION TESTS
 //
 // These tests use the REAL @/lib/admin-operations-service (NOT mocked)
 // + the REAL Prisma database (db/custom.db). They perform actual state
@@ -59,7 +59,7 @@ vi.mock('@/lib/auth', () => {
 // The durable state transition IS the primary evidence of retry scheduling.
 
 // Mock requireConfirmation for real backend tests — the confirmation flow
-// is tested separately in Phase 33 tests. Here we bypass it to test the
+// is tested separately in tests. Here we bypass it to test the
 // actual service/DB behavior.
 vi.mock('@/lib/security/require-confirmation', () => ({
   requireConfirmation: vi.fn().mockResolvedValue({
@@ -138,7 +138,7 @@ afterAll(async () => {
 // HTTP PATCH → real RBAC → real route → real resolveOperationalEvent()
 // → real DB update → real AuditLog write → response
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Event Resolution — real DB state transition', () => {
+describe('Event Resolution — real DB state transition', () => {
   let PATCH: (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
   let testEventId: string;
@@ -260,7 +260,7 @@ describe('[Phase 32 REAL] Event Resolution — real DB state transition', () => 
 // → real WorkflowExecution lookup → real retryability validation
 // → real retryExecution() call → real DB state change
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Retry Execution — real DB state transitions', () => {
+describe('Retry Execution — real DB state transitions', () => {
   let POST: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
   let testExecutionId: string;
@@ -493,7 +493,7 @@ describe('[Phase 32 REAL] Retry Execution — real DB state transitions', () => 
 // REAL WORKFLOW MONITORING TEST
 // Uses real WorkflowExecution records — verifies state derivation from DB
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Workflow Monitoring — real DB state derivation', () => {
+describe('Workflow Monitoring — real DB state derivation', () => {
   it('REAL: returns executions from DB + computes staleness from startedAt+timeout', async () => {
     const { getWorkflowMonitoring } = await import('@/lib/admin-operations-service');
     const result = await getWorkflowMonitoring({ limit: 5 });
@@ -546,7 +546,7 @@ describe('[Phase 32 REAL] Workflow Monitoring — real DB state derivation', () 
 // REAL AUTOPILOT MONITORING TEST
 // Uses real AutopilotRun data — verifies scheduler verification from DB
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Autopilot Monitoring — real DB + scheduler verification', () => {
+describe('Autopilot Monitoring — real DB + scheduler verification', () => {
   it('REAL: returns runs from DB + schedulerVerified derived from recent AutopilotRun creation', async () => {
     const { getAutopilotMonitoring } = await import('@/lib/admin-operations-service');
     const result = await getAutopilotMonitoring({ limit: 5 });
@@ -578,7 +578,7 @@ describe('[Phase 32 REAL] Autopilot Monitoring — real DB + scheduler verificat
 // REAL CRON/JOB MONITORING TEST
 // Verifies honest classification — NOT_TRACEABLE for crons with no evidence source
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Cron/Job Monitoring — honest evidence classification', () => {
+describe('Cron/Job Monitoring — honest evidence classification', () => {
   it('REAL: returns all 10 known jobs with honest states', async () => {
     const { getCronJobMonitoring } = await import('@/lib/admin-operations-service');
     const result = await getCronJobMonitoring();
@@ -620,7 +620,7 @@ describe('[Phase 32 REAL] Cron/Job Monitoring — honest evidence classification
 // REAL DEPLOYMENT HEALTH TEST
 // Verifies values are sourced from real runtime/process/env — not hardcoded
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Deployment Health — real runtime values', () => {
+describe('Deployment Health — real runtime values', () => {
   it('REAL: returns version from package.json, env from NODE_ENV, uptime from process', async () => {
     const { getDeploymentHealth } = await import('@/lib/admin-operations-service');
     const result = await getDeploymentHealth();
@@ -664,7 +664,7 @@ describe('[Phase 32 REAL] Deployment Health — real runtime values', () => {
 // REAL DB HEALTH / TABLE COUNT TEST
 // Verifies the BigInt→number conversion is correct (was previously buggy)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] DB Health — table count conversion correctness', () => {
+describe('DB Health — table count conversion correctness', () => {
   it('REAL: tableCount is the ACTUAL table count (not 0 from bad BigInt conversion)', async () => {
     const { getSystemHealth } = await import('@/lib/admin-operations-service');
     const result = await getSystemHealth();
@@ -678,7 +678,7 @@ describe('[Phase 32 REAL] DB Health — table count conversion correctness', () 
     // The service should return the SAME count (not 0 from bad conversion)
     expect(result.database.tableCount).toBe(actualCount);
     expect(result.database.tableCount).toBeGreaterThan(0); // Must not be 0
-    expect(result.database.tableCount).toBe(116); // Known baseline (115 original + 1 SensitiveActionConfirmation)
+    expect(result.database.tableCount).toBe(121); // Known baseline (116 original + 5 additive tables: WorkflowExecutionLead, CustomNiche, AgentEvent, ExecutionActivity, DailyOutreachUsage)
   });
 });
 
@@ -686,7 +686,7 @@ describe('[Phase 32 REAL] DB Health — table count conversion correctness', () 
 // REAL INTEGRATION ACTION TESTS
 // Honest classification: CONFIGURATION_ONLY vs RUNTIME_VERIFIED
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Integration Actions — honest provider validation', () => {
+describe('Integration Actions — honest provider validation', () => {
   let POST: (request: NextRequest, ctx: { params: Promise<{ provider: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -803,7 +803,7 @@ describe('[Phase 32 REAL] Integration Actions — honest provider validation', (
 // REAL SUPPORT CONTEXT TEST
 // Uses real DB state — verifies user exists, data is real, no secrets leaked
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] User Support Context — real DB state + IDOR + secret protection', () => {
+describe('User Support Context — real DB state + IDOR + secret protection', () => {
   let GET: (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -875,7 +875,7 @@ describe('[Phase 32 REAL] User Support Context — real DB state + IDOR + secret
 // REAL UNIFIED OVERVIEW TEST
 // Verifies all 10 subsystems are populated from real backend state
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 32 REAL] Unified Operations Overview — real aggregation', () => {
+describe('Unified Operations Overview — real aggregation', () => {
   it('REAL: aggregates all subsystems from real DB state', async () => {
     const { getUnifiedOperationsOverview } = await import('@/lib/admin-operations-service');
     const result = await getUnifiedOperationsOverview();

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 31 — GENUINE ROUTE-LEVEL HTTP TESTS
+// GENUINE ROUTE-LEVEL HTTP TESTS
 //
 // These tests invoke the REAL route handlers (GET/POST) imported from
 // the actual Next.js route modules, using REAL NextRequest objects,
@@ -44,7 +44,7 @@ vi.mock('@/lib/auth', () => {
   };
 });
 
-// Mock requireConfirmation — Phase 33 enforces confirmation on refund
+// Mock requireConfirmation — enforces confirmation on refund
 vi.mock('@/lib/security/require-confirmation', () => ({
   requireConfirmation: vi.fn().mockResolvedValue({
     valid: true,
@@ -181,7 +181,7 @@ function buildPost(url: string, body: unknown): NextRequest {
 // ═══════════════════════════════════════════════════════════════════
 // GET /api/admin/billing  (action dispatch — billing:read required)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 31 HTTP] GET /api/admin/billing', () => {
+describe('GET /api/admin/billing', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -254,7 +254,7 @@ describe('[Phase 31 HTTP] GET /api/admin/billing', () => {
 // ═══════════════════════════════════════════════════════════════════
 // GET /api/admin/billing/webhooks  (billing:read required)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 31 HTTP] GET /api/admin/billing/webhooks', () => {
+describe('GET /api/admin/billing/webhooks', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -305,7 +305,7 @@ describe('[Phase 31 HTTP] GET /api/admin/billing/webhooks', () => {
 // ═══════════════════════════════════════════════════════════════════
 // GET /api/admin/billing/failed-payments  (billing:read required)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 31 HTTP] GET /api/admin/billing/failed-payments', () => {
+describe('GET /api/admin/billing/failed-payments', () => {
   let GET: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
 
@@ -355,7 +355,7 @@ describe('[Phase 31 HTTP] GET /api/admin/billing/failed-payments', () => {
 // ═══════════════════════════════════════════════════════════════════
 // POST /api/admin/refund  (billing.refund — super_admin ONLY)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 31 HTTP] POST /api/admin/refund', () => {
+describe('POST /api/admin/refund', () => {
   let POST: (request: NextRequest) => Promise<Response>;
   let authModule: MockedAuthModule;
   const VALID_BODY = {
@@ -510,7 +510,7 @@ describe('[Phase 31 HTTP] POST /api/admin/refund', () => {
 // SECRET PROTECTION — verify route responses never contain secrets
 // (these are still real HTTP route invocations)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 31 HTTP] Secret protection in route responses', () => {
+describe('Secret protection in route responses', () => {
   let billingGET: (request: NextRequest) => Promise<Response>;
   let webhooksGET: (request: NextRequest) => Promise<Response>;
   let failedGET: (request: NextRequest) => Promise<Response>;

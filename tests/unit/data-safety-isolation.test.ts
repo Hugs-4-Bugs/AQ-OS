@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Data Safety & Tenant Isolation Regression Tests
+// Data Safety & Tenant Isolation Regression Tests
 //
 // Tests prove that application operations cannot accidentally:
 // - delete legitimate data
@@ -96,7 +96,7 @@ function buildPost(url: string, body: unknown): NextRequest {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 1 — CROSS-USER READ ISOLATION
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34] Cross-user read isolation', () => {
+describe('Cross-user read isolation', () => {
   let authModule: MockedAuthModule;
   let tenantA_leadId: string;
   let tenantB_leadId: string;
@@ -175,7 +175,7 @@ describe('[Phase 34] Cross-user read isolation', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 2 — CROSS-USER DELETE ISOLATION
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34] Cross-user delete isolation', () => {
+describe('Cross-user delete isolation', () => {
   let tenantA_leadId: string;
   let tenantB_leadId: string;
 
@@ -240,7 +240,7 @@ describe('[Phase 34] Cross-user delete isolation', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 3 — PLAN DOWNGRADE DATA PRESERVATION
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34] Plan downgrade data preservation', () => {
+describe('Plan downgrade data preservation', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestUser(TENANT_A);
@@ -286,7 +286,7 @@ describe('[Phase 34] Plan downgrade data preservation', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 4 — RESTART PERSISTENCE (DB-level)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34] Restart persistence', () => {
+describe('Restart persistence', () => {
   it('REAL: Data persists across DB reconnection (simulating restart)', async () => {
     await ensureTestUser(TENANT_A);
 
@@ -312,7 +312,7 @@ describe('[Phase 34] Restart persistence', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 5 — CLEAR-DATA IS USER-SCOPED
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34] clear-data is user-scoped', () => {
+describe('clear-data is user-scoped', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await ensureTestUser(TENANT_A);
@@ -349,7 +349,7 @@ describe('[Phase 34] clear-data is user-scoped', () => {
 // ═══════════════════════════════════════════════════════════════════
 // TEST 6 — DB SAFETY (counts before/after)
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 34] DB safety — counts preserved', () => {
+describe('DB safety — counts preserved', () => {
   it('REAL: Existing data counts are preserved after all tests', async () => {
     const counts = {
       User: await db.user.count(),

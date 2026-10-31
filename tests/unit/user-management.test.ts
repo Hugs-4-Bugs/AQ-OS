@@ -26,7 +26,7 @@ const SECRET_FIELDS = [
   'resetOtp', 'resetOtpExpiry', 'otpAttemptCount', 'otpLockedUntil',
 ];
 
-describe('[Phase 30] User360 — Secret Field Exclusion', () => {
+describe('User360 — Secret Field Exclusion', () => {
   it('SAFE_USER_FIELDS does not contain any secret field', () => {
     for (const secret of SECRET_FIELDS) {
       expect(SAFE_USER_FIELDS).not.toContain(secret);
@@ -58,7 +58,7 @@ describe('[Phase 30] User360 — Secret Field Exclusion', () => {
   });
 });
 
-describe('[Phase 30] User360 — RBAC Enforcement', () => {
+describe('User360 — RBAC Enforcement', () => {
   it('users.read is required for User360 access', () => {
     expect(hasPermission('super_admin', 'users.read')).toBe(true);
     expect(hasPermission('admin', 'users.read')).toBe(true);
@@ -125,7 +125,7 @@ describe('[Phase 30] User360 — RBAC Enforcement', () => {
   });
 });
 
-describe('[Phase 30] User360 — Tenant Isolation Rules', () => {
+describe('User360 — Tenant Isolation Rules', () => {
   it('all admin queries must filter by userId (enforced at API layer)', () => {
     // This is a structural test: the admin route code uses `where: { userId: id }`
     // for every user-scoped query. We verify the pattern exists.
@@ -146,7 +146,7 @@ describe('[Phase 30] User360 — Tenant Isolation Rules', () => {
   });
 });
 
-describe('[Phase 30] User360 — Search & Pagination', () => {
+describe('User360 — Search & Pagination', () => {
   it('admin users route supports search by email, name, company', () => {
     // Verified in route source: where.OR = [{ email: { contains: search } },
     //   { name: { contains: search } }, { company: { contains: search } }]
@@ -171,7 +171,7 @@ describe('[Phase 30] User360 — Search & Pagination', () => {
   });
 });
 
-describe('[Phase 30] Phase 29 Regression', () => {
+describe('Regression', () => {
   it('all 4 admin roles still exist', () => {
     expect(ADMIN_ROLES).toHaveLength(4);
     expect(ADMIN_ROLES).toContain('super_admin');

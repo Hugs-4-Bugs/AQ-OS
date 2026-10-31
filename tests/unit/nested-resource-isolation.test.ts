@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 34 — Gap 5: Extended Nested-Resource Tenant Isolation
+// Gap 5: Extended Nested-Resource Tenant Isolation
 //
-// Closes the explicit Phase 34 acceptance gap:
+// Closes the explicit acceptance gap:
 //   "Extend real production-path tests to the relevant nested resources
 //    actually present in the current application:
 //      - workflow executions
@@ -127,7 +127,7 @@ function buildAuthRequest(
   });
 }
 
-describe('[Phase 34 Gap 5] Nested-resource tenant isolation across production paths', () => {
+describe('Nested-resource tenant isolation across production paths', () => {
   let tenantA_leadId: string;
   let tenantB_leadId: string;
   let tenantA_workflowId: string;
