@@ -45,6 +45,19 @@ EXPECTED_NEW_COLUMNS = {
     ],
     "DataExport": ["type"],
     "WorkflowLog": ["retryAttempt"],
+    "AutopilotWorkflow": [
+        "profileMappings", "timezone", "eventTriggers", "businessId",
+        "executionPolicy", "approvalPolicy", "permissionsPolicy",
+        "modelStrategyConfig",
+    ],
+    "AutopilotRun": [
+        "triggerType", "triggerEventId", "runKey", "idempotencyKey",
+        "correlationId", "executionId", "leadsCompleted", "leadsFailed",
+        "leaseOwner", "leaseExpiresAt", "currentAgentKey", "currentAction",
+        "currentCheckpoint", "retryCount", "maxRetries", "nextRetryAt",
+        "waitingCondition", "nextWakeAt", "errorCategory", "businessId",
+        "updatedAt",
+    ],
 }
 
 def run(cmd, **kw):

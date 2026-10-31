@@ -102,3 +102,21 @@ ALTER TABLE "DataExport" ADD COLUMN "type" TEXT;
 -- WorkflowLog: retry-attempt counter (DLQ retry path).
 -- ───────────────────────────────────────────────────────────────────
 ALTER TABLE "WorkflowLog" ADD COLUMN "retryAttempt" INTEGER;
+
+-- ───────────────────────────────────────────────────────────────────
+-- AutopilotWorkflow + AutopilotRun additive columns are NOT included
+-- in this migration because the Autopilot tables themselves are not
+-- created by any existing migration — they exist in the canonical
+-- production DB (created historically via `prisma db push`) but a
+-- fresh `prisma migrate deploy` would not have the tables to ALTER.
+--
+-- The Autopilot ADD COLUMNs are applied directly to the production DB
+-- via scripts/phase34_apply_autopilot_drift.py (idempotent — uses
+-- PRAGMA table_info to skip columns that already exist). The script
+-- is safe: pure additive ALTER TABLE, no DROP, no RENAME, no UPDATE.
+--
+-- A future migration pass that captures the full Autopilot table
+-- CREATE statements (plus the rest of the broader drift) will supersede
+-- this script. That pass is tracked as migration-chain debt in the
+-- Phase 34 final closure report.
+-- ───────────────────────────────────────────────────────────────────
