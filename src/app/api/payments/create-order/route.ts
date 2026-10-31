@@ -261,6 +261,36 @@ export const POST = withMonitoring(async (request: NextRequest) => {
           couponCode: couponCode || null,
           idempotencyKey: idempotencyKey || undefined,
         },
+      }).catch(async (createErr: unknown) => {
+        // Race-condition backstop: PaymentOrder.idempotencyKey has a DB UNIQUE
+        // index. If a concurrent duplicate request with the same idempotencyKey
+        // inserted first, our insert loses with P2002. Instead of surfacing a
+        // generic 500, re-read the winning pending order and return it as an
+        // idempotent replay — matching the sequential-replay contract.
+        if (
+          idempotencyKey &&
+          createErr &&
+          typeof createErr === 'object' &&
+          'code' in createErr &&
+          (createErr as { code?: string }).code === 'P2002'
+        ) {
+          const existing = await db.paymentOrder.findFirst({
+            where: { userId: user.id, status: 'pending', idempotencyKey },
+          });
+          if (existing) {
+            return existing;
+          }
+          // P2002 fired but no pending row found — the winner may have already
+          // transitioned status. Re-read without the status filter as a last
+          // resort so we still return the canonical order for this key.
+          const anyExisting = await db.paymentOrder.findFirst({
+            where: { userId: user.id, idempotencyKey },
+          });
+          if (anyExisting) {
+            return anyExisting;
+          }
+        }
+        throw createErr;
       });
 
       // Now that we have the order ID, create provider-specific orders

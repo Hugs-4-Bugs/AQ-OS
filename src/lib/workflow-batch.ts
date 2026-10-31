@@ -356,9 +356,37 @@ export async function executeWorkflowBatch(
     };
 
     if (typeof (db as unknown as { $transaction?: unknown }).$transaction === 'function') {
-      await (db as unknown as {
-        $transaction: (fn: (tx?: typeof db) => Promise<void>) => Promise<void>;
-      }).$transaction(async (tx) => createExecutionRecord((tx as typeof db) ?? db));
+      try {
+        await (db as unknown as {
+          $transaction: (fn: (tx?: typeof db) => Promise<void>) => Promise<void>;
+        }).$transaction(async (tx) => createExecutionRecord((tx as typeof db) ?? db));
+      } catch (txErr) {
+        // Race-condition backstop: the DB UNIQUE index on
+        // WorkflowExecution(workflowId, idempotencyKey) rejected our insert
+        // because a concurrent duplicate trigger won. Re-read the winning
+        // execution row and treat this call as a replay of that run — never
+        // create a second history row, never spawn a second background run.
+        if (
+          options.idempotencyKey &&
+          txErr &&
+          typeof txErr === 'object' &&
+          'code' in txErr &&
+          (txErr as { code?: string }).code === 'P2002'
+        ) {
+          const winner = await db.workflowExecution.findFirst({
+            where: { idempotencyKey: options.idempotencyKey, workflowId },
+            select: { id: true, status: true, currentStep: true },
+          });
+          if (winner) {
+            existingExecution = winner;
+            createdExecution = null;
+          } else {
+            throw txErr;
+          }
+        } else {
+          throw txErr;
+        }
+      }
     } else {
       await createExecutionRecord(db);
     }
