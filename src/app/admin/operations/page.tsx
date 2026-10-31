@@ -66,6 +66,74 @@ interface SystemHealthData {
   overallHealth: string;
 }
 
+// ─── Phase 32 hardening: new data types ──────────────────────────────
+interface UnifiedOverviewData {
+  timestamp: string;
+  overallStatus: string;
+  subsystems: {
+    database: { state: string; latencyMs: number | null };
+    api: { state: string; version: string };
+    authentication: { state: string; activeSessions: number };
+    email: { state: string; configured: boolean };
+    ai: { state: string; configuredProviders: number };
+    payment: { state: string; configured: boolean };
+    scheduler: { state: string; verified: boolean };
+    workflows: { state: string; running: number; failed24h: number; stale: number };
+    autopilot: { state: string; running: number; failed24h: number; schedulerVerified: boolean };
+    deployment: { state: string; version: string; uptimeSeconds: number };
+  };
+  recentIncidents: {
+    unresolvedEvents: number;
+    criticalEvents24h: number;
+    workflowFailures24h: number;
+    signinFailures24h: number;
+  };
+}
+
+interface WorkflowsData {
+  executions: {
+    id: string; workflowId: string; workflowName: string; userId: string;
+    status: string; currentStep: number; totalSteps: number;
+    startedAt: string; completedAt: string | null; durationMs: number | null;
+    error: string | null; retryCount: number; maxRetries: number;
+    deadLettered: boolean; deadLetterReason: string | null; isStale: boolean;
+    createdAt: string;
+  }[];
+  total: number;
+  byStatus: { status: string; count: number }[];
+  staleCount: number;
+}
+
+interface AutopilotData {
+  runs: {
+    id: string; autopilotId: string; userId: string; status: string;
+    trigger: string; triggerType: string | null; startedAt: string;
+    completedAt: string | null; durationMs: number | null; isStale: boolean;
+    createdAt: string;
+  }[];
+  total: number;
+  byStatus: { status: string; count: number }[];
+  staleCount: number;
+  schedulerVerified: boolean;
+}
+
+interface CronJobsData {
+  jobs: {
+    name: string; route: string; purpose: string;
+    lastRunAt: string | null; lastRunAgo: string | null;
+    recentRunCount: number; state: string;
+  }[];
+  observedRecentlyCount: number;
+  neverObservedCount: number;
+}
+
+interface DeploymentHealthData {
+  version: string; environment: string; gitSha: string | null; buildId: string | null;
+  uptimeSeconds: number; nodeVersion: string; platform: string; pid: number;
+  timestamp: string;
+  database: { connected: boolean; latencyMs: number | null };
+}
+
 interface OperationalEventsData {
   events: {
     id: string;
@@ -205,6 +273,11 @@ export default function AdminOperationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationsData | null>(null);
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [overview, setOverview] = useState<UnifiedOverviewData | null>(null);
+  const [workflows, setWorkflows] = useState<WorkflowsData | null>(null);
+  const [autopilot, setAutopilot] = useState<AutopilotData | null>(null);
+  const [cronJobs, setCronJobs] = useState<CronJobsData | null>(null);
+  const [deployment, setDeployment] = useState<DeploymentHealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -214,14 +287,20 @@ export default function AdminOperationsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [h, ev, integ, aud, met] = await Promise.all([
+      const [h, ev, integ, aud, met, ov, wf, ap, cron, dep] = await Promise.all([
         fetchAction<SystemHealthData>('/api/admin/operations/system-health'),
         fetchAction<OperationalEventsData>('/api/admin/operations/events?limit=20'),
         fetchAction<IntegrationsData>('/api/admin/operations/integrations'),
         fetchAction<AuditData>('/api/admin/operations/audit?limit=20'),
         fetchAction<MetricsData>('/api/admin/operations/metrics'),
+        fetchAction<UnifiedOverviewData>('/api/admin/operations/overview'),
+        fetchAction<WorkflowsData>('/api/admin/operations/workflows?limit=10'),
+        fetchAction<AutopilotData>('/api/admin/operations/autopilot?limit=10'),
+        fetchAction<CronJobsData>('/api/admin/operations/cron-jobs'),
+        fetchAction<DeploymentHealthData>('/api/admin/operations/deployment-health'),
       ]);
       setHealth(h); setEvents(ev); setIntegrations(integ); setAudit(aud); setMetrics(met);
+      setOverview(ov); setWorkflows(wf); setAutopilot(ap); setCronJobs(cron); setDeployment(dep);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load operational data');
     } finally {
@@ -560,6 +639,249 @@ export default function AdminOperationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Phase 32 hardening: Unified Operations Overview ─── */}
+      {overview && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              Unified Operations Overview
+              <span className="ml-auto text-[11px] text-muted-foreground">Overall:</span>
+              {healthBadge(overview.overallStatus)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {Object.entries(overview.subsystems).map(([name, sub]) => (
+                <div key={name} className="rounded-md border p-2">
+                  <p className="text-[10px] uppercase text-muted-foreground">{name}</p>
+                  <div className="mt-1">{healthBadge(sub.state)}</div>
+                  {'latencyMs' in sub && sub.latencyMs != null && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">{sub.latencyMs}ms</p>
+                  )}
+                  {'activeSessions' in sub && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">{sub.activeSessions} sessions</p>
+                  )}
+                  {'running' in sub && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">{(sub as { running: number }).running} running</p>
+                  )}
+                  {'verified' in sub && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">{(sub as { verified: boolean }).verified ? 'verified' : 'unverified'}</p>
+                  )}
+                  {'version' in sub && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">v{(sub as { version: string }).version}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[10px] text-muted-foreground">
+              Every status is backed by real DB queries or provider checks. UNKNOWN means insufficient evidence — never HEALTHY from env-var presence alone.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── Phase 32 hardening: Workflow Monitoring ─── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <Activity className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            Workflow Execution Monitoring
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              {workflows?.total ?? 0} total · {workflows?.staleCount ?? 0} stale
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          {!workflows || workflows.executions.length === 0 ? (
+            <p className="px-6 pb-4 text-xs text-muted-foreground">No workflow executions recorded.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Workflow</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Step</TableHead>
+                  <TableHead className="text-right">Retries</TableHead>
+                  <TableHead className="text-right">Duration</TableHead>
+                  <TableHead className="pr-6 text-right">Started</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {workflows.executions.slice(0, 10).map((w) => (
+                  <TableRow key={w.id}>
+                    <TableCell className="pl-6">
+                      <p className="text-xs font-medium truncate max-w-[160px]">{w.workflowName}</p>
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{w.id}</p>
+                    </TableCell>
+                    <TableCell>
+                      {w.isStale ? (
+                        <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[11px] dark:text-amber-400">STALE</Badge>
+                      ) : w.deadLettered ? (
+                        <Badge variant="outline" className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[11px] dark:text-rose-400">dead_letter</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[11px]">{w.status}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-xs tabular-nums">{w.currentStep}/{w.totalSteps}</TableCell>
+                    <TableCell className="text-right text-xs tabular-nums">{w.retryCount}/{w.maxRetries}</TableCell>
+                    <TableCell className="text-right text-xs tabular-nums">{w.durationMs != null ? `${Math.round(w.durationMs / 1000)}s` : '—'}</TableCell>
+                    <TableCell className="pr-6 text-right text-xs text-muted-foreground">{fmtDateTime(w.startedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Phase 32 hardening: Autopilot Monitoring ─── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <Activity className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            Autopilot Monitoring
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              Scheduler: {autopilot?.schedulerVerified ? 'verified (recent audit evidence)' : 'UNVERIFIED (no recent audit evidence)'}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          {!autopilot || autopilot.runs.length === 0 ? (
+            <p className="px-6 pb-4 text-xs text-muted-foreground">No autopilot runs recorded. Scheduler state: {autopilot?.schedulerVerified ? 'VERIFIED' : 'UNVERIFIED — cannot prove scheduler is running'}.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Run ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Trigger</TableHead>
+                  <TableHead className="pr-6 text-right">Started</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {autopilot.runs.slice(0, 10).map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="pl-6 text-xs font-medium truncate max-w-[180px]">{r.id}</TableCell>
+                    <TableCell>
+                      {r.isStale ? (
+                        <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[11px] dark:text-amber-400">STALE</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[11px]">{r.status}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.triggerType || r.trigger}</TableCell>
+                    <TableCell className="pr-6 text-right text-xs text-muted-foreground">{fmtDateTime(r.startedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Phase 32 hardening: Cron / Job Monitoring ─── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <ServerCog className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            Cron / Job Monitoring
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              {cronJobs?.observedRecentlyCount ?? 0} observed recently · {cronJobs?.neverObservedCount ?? 0} never observed
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          {!cronJobs || cronJobs.jobs.length === 0 ? (
+            <p className="px-6 pb-4 text-xs text-muted-foreground">No cron jobs registered.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Job</TableHead>
+                  <TableHead>Purpose</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead className="text-right">Recent (24h)</TableHead>
+                  <TableHead className="pr-6 text-right">Last Run</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cronJobs.jobs.map((j) => (
+                  <TableRow key={j.name}>
+                    <TableCell className="pl-6 text-xs font-medium">{j.name}</TableCell>
+                    <TableCell className="text-[11px] text-muted-foreground truncate max-w-[240px]">{j.purpose}</TableCell>
+                    <TableCell>
+                      {j.state === 'OBSERVED_RECENTLY' ? (
+                        <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[11px] dark:text-emerald-400">OBSERVED_RECENTLY</Badge>
+                      ) : j.state === 'OBSERVED_HISTORICALLY' ? (
+                        <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[11px] dark:text-amber-400">OBSERVED_HISTORICALLY</Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted text-muted-foreground text-[11px]">NEVER_OBSERVED</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-xs tabular-nums">{j.recentRunCount}</TableCell>
+                    <TableCell className="pr-6 text-right text-xs text-muted-foreground">{j.lastRunAgo || 'never'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <p className="px-6 pb-3 pt-2 text-[10px] text-muted-foreground">
+            Job state is derived from AuditLog evidence. NEVER_OBSERVED means no audit entries match this job — we explicitly cannot prove it has executed.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* ─── Phase 32 hardening: Deployment Health ─── */}
+      {deployment && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <ServerCog className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              Deployment / Runtime Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Version</p>
+                <p className="text-sm font-semibold">{deployment.version}</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Environment</p>
+                <p className="text-sm font-semibold">{deployment.environment}</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Uptime</p>
+                <p className="text-sm font-semibold tabular-nums">{Math.round(deployment.uptimeSeconds / 60)}m</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">DB Connected</p>
+                <p className="text-sm font-semibold">
+                  {deployment.database.connected ? '✓' : '✗'} {deployment.database.latencyMs != null ? `${deployment.database.latencyMs}ms` : ''}
+                </p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Node Version</p>
+                <p className="text-sm font-semibold">{deployment.nodeVersion}</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Platform</p>
+                <p className="text-sm font-semibold">{deployment.platform}</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Git SHA</p>
+                <p className="text-xs font-mono truncate">{deployment.gitSha || '—'}</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Build ID</p>
+                <p className="text-xs font-mono truncate">{deployment.buildId || '—'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
