@@ -103,15 +103,17 @@ export async function POST(
         console.error('Async restore error:', err);
       });
 
-      // Audit log
-      await db.auditLog.create({
-        data: {
-          userId: user.id,
-          action: 'backup_restore_initiated',
-          details: JSON.stringify({ backupId: id, backupType, dryRun }),
-          resource: 'backup',
-          resourceId: id,
-        },
+      // Audit log — BLOCKER 2 FIX: use recordAuditEvent
+      const { recordAuditEvent: _raBk1 } = await import('@/lib/security/audit-chain');
+      await _raBk1({
+        actorId: user.id,
+        action: 'backup_restore_initiated',
+        resource: 'backup',
+        resourceId: id,
+        details: { backupId: id, backupType, dryRun },
+        severity: 'HIGH',
+        outcome: 'success',
+        securityEventType: 'backup_restore_initiated',
       });
 
       return NextResponse.json({
@@ -155,15 +157,17 @@ export async function DELETE(
       // Delete the database record
       await db.dataExport.delete({ where: { id } });
 
-      // Audit log
-      await db.auditLog.create({
-        data: {
-          userId: user.id,
-          action: 'backup_deleted',
-          details: JSON.stringify({ backupId: id, type: backup.exportType }),
-          resource: 'backup',
-          resourceId: id,
-        },
+      // Audit log — BLOCKER 2 FIX: use recordAuditEvent
+      const { recordAuditEvent: _raBk2 } = await import('@/lib/security/audit-chain');
+      await _raBk2({
+        actorId: user.id,
+        action: 'backup_deleted',
+        resource: 'backup',
+        resourceId: id,
+        details: { backupId: id, type: backup.exportType },
+        severity: 'HIGH',
+        outcome: 'success',
+        securityEventType: 'backup_deleted',
       });
 
       return NextResponse.json({
@@ -207,15 +211,17 @@ async function runRestoreAsync(
       { timeout: 600000, env: { ...process.env, BACKUP_DIR: backupDir } }
     );
 
-    // Audit the restore
-    await db.auditLog.create({
-      data: {
-        userId,
-        action: dryRun ? 'backup_restore_dry_run' : 'backup_restore_completed',
-        details: JSON.stringify({ backupId, backupType, dryRun, stderr: stderr?.substring(0, 200) }),
-        resource: 'backup',
-        resourceId: backupId,
-      },
+    // Audit the restore — BLOCKER 2 FIX: use recordAuditEvent
+    const { recordAuditEvent: _raBk3 } = await import('@/lib/security/audit-chain');
+    await _raBk3({
+      actorId: userId,
+      action: dryRun ? 'backup_restore_dry_run' : 'backup_restore_completed',
+      resource: 'backup',
+      resourceId: backupId,
+      details: { backupId, backupType, dryRun, stderr: stderr?.substring(0, 200) },
+      severity: 'HIGH',
+      outcome: 'success',
+      securityEventType: dryRun ? 'backup_restore_dry_run' : 'backup_restore_completed',
     });
   } catch (error) {
     await db.dataExport.update({
@@ -226,14 +232,17 @@ async function runRestoreAsync(
       },
     });
 
-    await db.auditLog.create({
-      data: {
-        userId,
-        action: 'backup_restore_failed',
-        details: JSON.stringify({ backupId, error: error instanceof Error ? error.message : 'Unknown error' }),
-        resource: 'backup',
-        resourceId: backupId,
-      },
+    // Audit log — BLOCKER 2 FIX: use recordAuditEvent
+    const { recordAuditEvent: _raBk4 } = await import('@/lib/security/audit-chain');
+    await _raBk4({
+      actorId: userId,
+      action: 'backup_restore_failed',
+      resource: 'backup',
+      resourceId: backupId,
+      details: { backupId, error: error instanceof Error ? error.message : 'Unknown error' },
+      severity: 'HIGH',
+      outcome: 'failed',
+      securityEventType: 'backup_restore_failed',
     });
   }
 }

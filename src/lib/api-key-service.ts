@@ -874,14 +874,17 @@ async function logApiKeyEvent(params: {
   details: string;
 }): Promise<void> {
   try {
-    await db.auditLog.create({
-      data: {
-        userId: params.userId,
-        action: params.action,
-        details: params.details,
-        resource: 'api_key',
-        resourceId: params.apiKeyId,
-      },
+    // BLOCKER 2 FIX: use recordAuditEvent (tamper-evident chain writer)
+    const { recordAuditEvent } = await import('@/lib/security/audit-chain');
+    await recordAuditEvent({
+      actorId: params.userId,
+      action: params.action,
+      resource: 'api_key',
+      resourceId: params.apiKeyId,
+      details: { details: params.details },
+      severity: params.action.includes('revoke') || params.action.includes('delete') ? 'HIGH' : 'MEDIUM',
+      outcome: 'success',
+      securityEventType: params.action,
     });
   } catch {
     // Never block main flow due to audit logging failure

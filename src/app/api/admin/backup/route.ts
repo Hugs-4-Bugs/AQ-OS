@@ -168,15 +168,17 @@ async function runBackupAsync(recordId: string, type: string, note: string, user
       },
     });
 
-    // Audit log
-    await db.auditLog.create({
-      data: {
-        userId,
-        action: 'backup_created',
-        details: JSON.stringify({ type, note, recordId, fileSize }),
-        resource: 'backup',
-        resourceId: recordId,
-      },
+    // Audit log — BLOCKER 2 FIX: use recordAuditEvent (tamper-evident)
+    const { recordAuditEvent: _raBk } = await import('@/lib/security/audit-chain');
+    await _raBk({
+      actorId: user.id,
+      action: 'backup_created',
+      resource: 'backup',
+      resourceId: recordId,
+      details: { type, note, recordId, fileSize },
+      severity: 'MEDIUM',
+      outcome: 'success',
+      securityEventType: 'backup_created',
     });
   } catch (error) {
     await db.dataExport.update({

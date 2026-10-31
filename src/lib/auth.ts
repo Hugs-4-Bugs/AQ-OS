@@ -811,16 +811,20 @@ export async function logAuthEvent(params: {
   resourceId?: string;
 }): Promise<void> {
   try {
-    await db.auditLog.create({
-      data: {
-        userId: params.userId,
-        action: params.action,
-        details: params.details || null,
-        ipAddress: params.ipAddress || null,
-        userAgent: params.userAgent || null,
-        resource: params.resource || 'auth',
-        resourceId: params.resourceId || null,
-      },
+    // BLOCKER 2 FIX: use recordAuditEvent (tamper-evident chain writer)
+    const { recordAuditEvent } = await import('@/lib/security/audit-chain');
+    const isSecurityEvent = ['signin', 'signin_failed', 'signup', 'signout', 'google_oauth_login', 'auth_failure'].includes(params.action);
+    await recordAuditEvent({
+      actorId: params.userId,
+      action: params.action,
+      resource: params.resource || 'auth',
+      resourceId: params.resourceId,
+      details: params.details ? JSON.parse(params.details) : undefined,
+      ipAddress: params.ipAddress,
+      userAgent: params.userAgent,
+      severity: params.action === 'signin_failed' ? 'MEDIUM' : 'LOW',
+      outcome: params.action === 'signin_failed' ? 'failed' : 'success',
+      securityEventType: isSecurityEvent ? params.action : undefined,
     });
   } catch (error) {
     // Never fail the main flow due to audit logging failure

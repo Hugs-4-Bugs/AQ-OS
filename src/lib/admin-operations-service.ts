@@ -446,24 +446,26 @@ export async function resolveOperationalEvent(
       data: { resolved: true, resolvedAt: now },
     });
 
-    // Audit log
+    // Audit log — BLOCKER 2 FIX: use recordAuditEvent (tamper-evident chain)
     try {
-      await db.auditLog.create({
-        data: {
-          userId: options.adminId,
-          action: 'event_resolved',
-          resource: 'system_event',
-          resourceId: event.id,
-          details: JSON.stringify({
-            eventType: event.type,
-            eventSource: event.source,
-            eventMessage: event.message,
-            note: options.note || null,
-            adminEmail: options.adminEmail,
-          }),
-          ipAddress: options.ipAddress || null,
-          userAgent: options.userAgent || null,
+      const { recordAuditEvent } = await import('@/lib/security/audit-chain');
+      await recordAuditEvent({
+        actorId: options.adminId,
+        action: 'event_resolved',
+        resource: 'system_event',
+        resourceId: event.id,
+        details: {
+          eventType: event.type,
+          eventSource: event.source,
+          eventMessage: event.message,
+          note: options.note || null,
+          adminEmail: options.adminEmail,
         },
+        ipAddress: options.ipAddress || null,
+        userAgent: options.userAgent || null,
+        severity: 'MEDIUM',
+        outcome: 'success',
+        securityEventType: 'event_resolved',
       });
     } catch (auditError) {
       // Never fail the main action due to audit logging failure
@@ -827,11 +829,11 @@ export async function retryFailedOperation(
     const now = new Date();
 
     // Look for a prior audit entry with this idempotency key.
-    // The metadata field stores JSON including the idempotency key.
+    // recordAuditEvent stores idempotency key in the details JSON.
     const priorAttempts = await db.auditLog.findMany({
       where: {
         action: 'operation_retried',
-        metadata: { contains: options.idempotencyKey },
+        details: { contains: options.idempotencyKey },
       },
       orderBy: { createdAt: 'desc' },
       take: 1,
@@ -861,26 +863,26 @@ export async function retryFailedOperation(
       };
     }
 
-    // Write an audit entry marking the retry as started.
-    await db.auditLog.create({
-      data: {
-        userId: options.adminId,
-        action: 'operation_retried',
-        resource: 'operation',
-        resourceId: options.targetId || options.operationType,
-        details: JSON.stringify({
-          operationType: options.operationType,
-          targetId: options.targetId || null,
-          status: 'started',
-          adminEmail: options.adminEmail,
-          startedAt: now.toISOString(),
-        }),
-        metadata: JSON.stringify({
-          idempotencyKey: options.idempotencyKey,
-        }),
-        ipAddress: options.ipAddress || null,
-        userAgent: options.userAgent || null,
+    // Write an audit entry — BLOCKER 2 FIX: use recordAuditEvent (tamper-evident)
+    const { recordAuditEvent: _recAudit1 } = await import('@/lib/security/audit-chain');
+    const _auditRes1 = await _recAudit1({
+      actorId: options.adminId,
+      action: 'operation_retried',
+      resource: 'operation',
+      resourceId: options.targetId || options.operationType,
+      details: {
+        operationType: options.operationType,
+        targetId: options.targetId || null,
+        status: 'started',
+        adminEmail: options.adminEmail,
+        startedAt: now.toISOString(),
+        idempotencyKey: options.idempotencyKey,
       },
+      ipAddress: options.ipAddress || undefined,
+      userAgent: options.userAgent || undefined,
+      severity: 'MEDIUM',
+      outcome: 'success',
+      securityEventType: 'operation_retried',
     });
 
     return {
@@ -1518,10 +1520,11 @@ export async function executeRealRetry(
     const now = new Date();
 
     // Idempotency check: look for prior completed retry with same key
+    // recordAuditEvent stores idempotency key in the details JSON.
     const prior = await db.auditLog.findFirst({
       where: {
         action: 'operation_retried',
-        metadata: { contains: options.idempotencyKey },
+        details: { contains: options.idempotencyKey },
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, details: true, createdAt: true },
@@ -1594,25 +1597,27 @@ export async function executeRealRetry(
       // Actually invoke the real retry mechanism
       const result = await retryExecution(options.targetId, executionUserId);
 
-      // Record audit entry with the actual result
-      await db.auditLog.create({
-        data: {
-          userId: options.adminId,
-          action: 'operation_retried',
-          resource: 'workflow_execution',
-          resourceId: options.targetId,
-          details: JSON.stringify({
-            operationType: options.operationType,
-            targetId: options.targetId,
-            status: 'executed',
-            result,
-            adminEmail: options.adminEmail,
-            executedAt: now.toISOString(),
-          }),
-          metadata: JSON.stringify({ idempotencyKey: options.idempotencyKey }),
-          ipAddress: options.ipAddress || null,
-          userAgent: options.userAgent || null,
+      // Record audit entry — BLOCKER 2 FIX: use recordAuditEvent (tamper-evident)
+      const { recordAuditEvent: _recAudit2 } = await import('@/lib/security/audit-chain');
+      await _recAudit2({
+        actorId: options.adminId,
+        action: 'operation_retried',
+        resource: 'workflow_execution',
+        resourceId: options.targetId,
+        details: {
+          operationType: options.operationType,
+          targetId: options.targetId,
+          status: 'executed',
+          result,
+          adminEmail: options.adminEmail,
+          executedAt: now.toISOString(),
+          idempotencyKey: options.idempotencyKey,
         },
+        ipAddress: options.ipAddress || undefined,
+        userAgent: options.userAgent || undefined,
+        severity: 'MEDIUM',
+        outcome: 'success',
+        securityEventType: 'operation_retried',
       });
 
       return {
@@ -1725,7 +1730,7 @@ export async function executeRealIntegrationAction(
       const prior = await db.auditLog.findFirst({
         where: {
           action: 'integration_controlled',
-          metadata: { contains: options.idempotencyKey },
+          details: { contains: options.idempotencyKey },
         },
         orderBy: { createdAt: 'desc' },
         select: { id: true, details: true, createdAt: true },
@@ -1775,25 +1780,26 @@ export async function executeRealIntegrationAction(
       };
     }
 
-    // Record audit entry with REAL provider result
-    const auditEntry = await db.auditLog.create({
-      data: {
-        userId: options.adminId,
-        action: 'integration_controlled',
-        resource: 'integration',
-        resourceId: options.provider,
-        details: JSON.stringify({
-          provider: options.provider,
-          action: options.action,
-          adminEmail: options.adminEmail,
-          providerResult,
-          idempotencyKey: options.idempotencyKey || null,
-          executedAt: now.toISOString(),
-        }),
-        metadata: JSON.stringify({ idempotencyKey: options.idempotencyKey || null }),
-        ipAddress: options.ipAddress || null,
-        userAgent: options.userAgent || null,
+    // Record audit entry — BLOCKER 2 FIX: use recordAuditEvent (tamper-evident)
+    const { recordAuditEvent: _recAudit3 } = await import('@/lib/security/audit-chain');
+    const _auditRes3 = await _recAudit3({
+      actorId: options.adminId,
+      action: 'integration_controlled',
+      resource: 'integration',
+      resourceId: options.provider,
+      details: {
+        provider: options.provider,
+        action: options.action,
+        adminEmail: options.adminEmail,
+        providerResult,
+        idempotencyKey: options.idempotencyKey || null,
+        executedAt: now.toISOString(),
       },
+      ipAddress: options.ipAddress || undefined,
+      userAgent: options.userAgent || undefined,
+      severity: 'MEDIUM',
+      outcome: 'success',
+      securityEventType: 'integration_controlled',
     });
 
     return {
@@ -1802,7 +1808,7 @@ export async function executeRealIntegrationAction(
       provider: options.provider,
       action: options.action,
       providerResult,
-      auditId: auditEntry.id,
+      auditId: _auditRes3?.id || 'none',
       executedAt: now,
     };
   } catch (error) {

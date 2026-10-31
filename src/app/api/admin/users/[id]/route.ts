@@ -42,16 +42,23 @@ async function writeAdminAudit(
   userAgent: string
 ): Promise<void> {
   try {
-    await db.auditLog.create({
-      data: {
-        userId: adminId,
-        action,
-        resource: 'user',
-        resourceId: targetUserId,
-        details: JSON.stringify(details),
-        ipAddress,
-        userAgent,
-      },
+    // BLOCKER 2 FIX: use recordAuditEvent (tamper-evident chain writer)
+    const { recordAuditEvent } = await import('@/lib/security/audit-chain');
+    const before = (details as any).previousState;
+    const after = (details as any).newState ?? (details as any).newRole ?? (details as any).newActive;
+    await recordAuditEvent({
+      actorId: adminId,
+      action,
+      resource: 'user',
+      resourceId: targetUserId,
+      details,
+      ipAddress,
+      userAgent,
+      severity: action.includes('ban') || action.includes('restrict') ? 'HIGH' : 'MEDIUM',
+      outcome: 'success',
+      securityEventType: action.startsWith('admin_') ? action : `admin_${action}`,
+      beforeState: before !== undefined ? { value: before } : undefined,
+      afterState: after !== undefined ? { value: after } : undefined,
     });
   } catch (error) {
     // Never fail the main action due to audit logging failure
