@@ -32,6 +32,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { recordSystemEvent } from '@/lib/system-event-service';
 import { startDiscoveryJob } from '@/lib/lead-discovery-service';
 import { executeWorkflowBatch, retryBatchExecution, resumeBatchExecution } from '@/lib/workflow-batch';
 import { checkCreditSufficiency, CREDIT_COSTS } from '@/lib/credit-service';
@@ -871,6 +872,21 @@ export async function executeAutopilotRun(
         data: { discovered, saved, processed, executionsCreated },
       }).catch(() => {});
     }
+    // Phase 32: Record operational SystemEvent for autopilot failure
+    // (separate from AuditLog — operational visibility, not admin accountability)
+    void recordSystemEvent({
+      type: 'error',
+      source: 'autopilot_runner',
+      message: `Autopilot run failed: ${String(message).slice(0, 100)}`,
+      details: {
+        runId,
+        autopilotId,
+        errorPreview: String(message).slice(0, 200),
+      },
+    }).catch(() => {
+      // Never fail the autopilot path because of event logging
+    });
+
     return {
       runId, status: 'FAILED', discovered, saved, processed, executionsCreated,
       executionId,

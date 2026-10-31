@@ -70,6 +70,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[WorkflowSchedulerCron] Failed:', error);
+    // Phase 32: Record operational SystemEvent for cron failure
+    const { recordSystemEvent } = await import('@/lib/system-event-service');
+    void recordSystemEvent({
+      type: 'error',
+      source: 'cron.workflow_scheduler',
+      message: `Workflow scheduler cron failed: ${error instanceof Error ? error.message.slice(0, 100) : 'unknown'}`,
+      details: {
+        cronRoute: '/api/cron/workflow-scheduler',
+        errorPreview: String(error instanceof Error ? error.message : String(error)).slice(0, 200),
+      },
+    }).catch(() => {});
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Scheduler failed' },
       { status: 500 }
