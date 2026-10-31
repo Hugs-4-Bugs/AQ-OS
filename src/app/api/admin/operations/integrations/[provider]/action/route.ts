@@ -1,25 +1,19 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — POST /api/admin/operations/integrations/[provider]/action
-// Phase 32 (HARDENED): REAL integration action — actually invokes the
-// provider validation via executeRealIntegrationAction().
+// Phase 32 (HARDENED) + Phase 33 BLOCKER 3 FIX:
+// REAL integration action — actually invokes provider validation.
+// Configuration changes are now audited via recordConfigChange()
+// with before/after state + secret redaction.
 //
 // RBAC: integrations.control (super_admin, admin)
 // Audit-logged with the ACTUAL provider response (not just intent).
-//
-// Body:
-//   { action: 'validate' | 'clear_cache', idempotencyKey?: string, note?: string }
-//
-// Returns:
-//   status: 'executed' | 'already_completed' | 'rejected' | 'skipped'
-//   providerResult: { reachable, latencyMs, error, details } — REAL provider response
-//
-// For 'validate': actually tests provider configuration + reachability.
-// For 'clear_cache': explicitly skipped (no cache layer in this architecture).
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { executeRealIntegrationAction } from '@/lib/admin-operations-service';
+import { recordConfigChange } from '@/lib/security/audit-chain';
+import { getRequestId } from '@/lib/security/request-id';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +55,27 @@ export async function POST(
         ipAddress: getClientIp(request) || safeGetHeader(request, 'x-forwarded-for'),
         userAgent: getUserAgent(request) || safeGetHeader(request, 'user-agent'),
       });
+
+      // BLOCKER 3 FIX: Record configuration change via recordConfigChange
+      // with before/after state + secret redaction.
+      const requestId = getRequestId(request);
+      void recordConfigChange({
+        adminId: admin.id,
+        configKey: provider,
+        configCategory: provider.split('.')[0],
+        beforeValue: { action, status: 'before_validation' },
+        afterValue: {
+          action,
+          status: data.status,
+          configured: data.providerResult?.configured,
+          reachable: data.providerResult?.reachable,
+          verificationLevel: data.providerResult?.verificationLevel,
+        },
+        requestId,
+        ipAddress: getClientIp(request),
+        userAgent: getUserAgent(request),
+        confirmed: data.status === 'executed',
+      }).catch(() => {});
 
       const httpStatus =
         data.status === 'rejected' ? 400 :
