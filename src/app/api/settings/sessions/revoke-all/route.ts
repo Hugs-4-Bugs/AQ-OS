@@ -46,6 +46,20 @@ export async function POST(request: NextRequest) {
       userAgent: getUserAgent(request),
     });
 
+    // ── Configuration change audit (BLOCKER 3) ─────────────────────
+    const { recordConfigChange } = await import('@/lib/security/audit-chain');
+    const { getRequestId } = await import('@/lib/security/request-id');
+    void recordConfigChange({
+      adminId: authUser.id,
+      configKey: 'sessions.revoke_all',
+      configCategory: 'security',
+      beforeValue: { activeSessions: result.count },
+      afterValue: { activeSessions: 0 },
+      requestId: getRequestId(request),
+      ipAddress: getClientIp(request),
+      userAgent: getUserAgent(request),
+    }).catch(() => {});
+
     return NextResponse.json({
       message: `Revoked ${result.count} session(s)`,
       revokedCount: result.count,

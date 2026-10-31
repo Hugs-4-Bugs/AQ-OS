@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/auth';
+import { getAuthUser, getClientIp, getUserAgent } from '@/lib/auth';
 import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -60,6 +60,20 @@ export async function PATCH(request: NextRequest) {
       data: { developerAccessEnabled: enabled },
       select: { developerAccessEnabled: true },
     });
+
+    // ── Configuration change audit (BLOCKER 3) ─────────────────────
+    const { recordConfigChange } = await import('@/lib/security/audit-chain');
+    const { getRequestId } = await import('@/lib/security/request-id');
+    void recordConfigChange({
+      adminId: authUser.id,
+      configKey: 'developer.access',
+      configCategory: 'security',
+      beforeValue: { enabled: !enabled },
+      afterValue: { enabled },
+      requestId: getRequestId(request),
+      ipAddress: getClientIp(request),
+      userAgent: getUserAgent(request),
+    }).catch(() => {});
 
     return NextResponse.json({ developerAccessEnabled: updated.developerAccessEnabled });
   } catch (error) {
