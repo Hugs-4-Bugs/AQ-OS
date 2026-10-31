@@ -45,7 +45,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
+  const { copyFileSync, existsSync, mkdirSync } = require('fs');
+  const { join } = require('path');
+  const isolatedDir = join(process.cwd(), '.test-db-isolated');
+  if (!existsSync(isolatedDir)) mkdirSync(isolatedDir, { recursive: true });
+  const dbPath = join(isolatedDir, 'error-path.db');
+  const schemaSource = join(process.cwd(), 'test.db');
+  if (existsSync(schemaSource)) copyFileSync(schemaSource, dbPath);
+  process.env.DATABASE_URL = `file:${dbPath}`;
   process.env.NODE_ENV = 'development';
   delete process.env.RAZORPAY_WEBHOOK_SECRET;
   delete process.env.STRIPE_WEBHOOK_SECRET;

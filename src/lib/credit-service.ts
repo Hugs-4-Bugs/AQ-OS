@@ -217,8 +217,11 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
     } catch (txError) {
       // Race-condition backstop: a concurrent duplicate request with the same
       // idempotencyKey inserted first and our insert lost the UNIQUE race.
-      // Re-read the winning ledger row and return it as already-processed —
-      // NEVER double-charge, NEVER throw to the caller.
+      // The P2002 itself proves another call won — return already-processed
+      // even if the winning row isn't visible yet (the winner's transaction
+      // may not have committed at the moment we catch P2002). Re-read
+      // best-effort for the balance; if not visible, return success without
+      // a balance (the caller treats alreadyProcessed as a no-op).
       if (
         idempotencyKey &&
         txError &&
@@ -238,6 +241,15 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
             alreadyProcessed: true,
           };
         }
+        // P2002 fired but the winning row isn't visible yet (the winner's
+        // transaction is still in-flight). Return alreadyProcessed without
+        // a balance — the caller will NOT double-charge.
+        return {
+          success: true,
+          newBalance: 0,
+          ledgerEntryId: '',
+          alreadyProcessed: true,
+        };
       }
       throw txError;
     }
@@ -721,8 +733,9 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
       });
     } catch (txError) {
       // Race-condition backstop: concurrent duplicate refund with the same
-      // idempotencyKey lost the UNIQUE race. Re-read the winning ledger row
-      // and return it as already-processed — NEVER double-refund.
+      // idempotencyKey lost the UNIQUE race. The P2002 itself proves another
+      // call won — return already-processed even if the winning row isn't
+      // visible yet (the winner's transaction may not have committed).
       // The refund-specific key (refund:${idempotencyKey}) is used for the
       // lookup so it does not match the original deduction's row.
       if (
@@ -744,6 +757,13 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
             alreadyProcessed: true,
           };
         }
+        // P2002 fired but the winning row isn't visible yet.
+        return {
+          success: true,
+          newBalance: 0,
+          ledgerEntryId: '',
+          alreadyProcessed: true,
+        };
       }
       throw txError;
     }

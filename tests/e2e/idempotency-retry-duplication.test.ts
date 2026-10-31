@@ -44,14 +44,19 @@ import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vites
 import { NextRequest, NextResponse } from 'next/server';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
-  // Webhook route skips signature verification only in development mode
+  // Use an ISOLATED test database (not custom.db) to avoid parallel-write
+  // contention and to never touch production data.
+  const { copyFileSync, existsSync, mkdirSync } = require('fs');
+  const { join } = require('path');
+  const isolatedDir = join(process.cwd(), '.test-db-isolated');
+  if (!existsSync(isolatedDir)) mkdirSync(isolatedDir, { recursive: true });
+  const dbPath = join(isolatedDir, 'idempotency.db');
+  const schemaSource = join(process.cwd(), 'test.db');
+  if (existsSync(schemaSource)) copyFileSync(schemaSource, dbPath);
+  process.env.DATABASE_URL = `file:${dbPath}`;
   process.env.NODE_ENV = 'development';
-  // Ensure no real Razorpay/Stripe credentials interfere
   delete process.env.RAZORPAY_WEBHOOK_SECRET;
   delete process.env.STRIPE_WEBHOOK_SECRET;
-  // A stable JWT secret so generateAccessToken produces tokens the withAuth
-  // middleware can verify. Must match what the app resolves at runtime.
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'acquisitionos-dev-secret-change-in-production';
 });
 
@@ -460,7 +465,7 @@ describe('[Idempotency E2E] Duplicate operations must not produce duplicate busi
       const creditsAfter = (await db.user.findUnique({ where: { id: u.userId }, select: { credits: true } }))!.credits;
       expect(creditsAfter - creditsBefore).toBe(3); // refunded exactly once
 
-      const ledgerCount = await db.creditsLedger.count({ where: { userId: u.userId, idempotencyKey: key } });
+      const ledgerCount = await db.creditsLedger.count({ where: { userId: u.userId, idempotencyKey: `refund:${key}` } });
       expect(ledgerCount).toBe(1);
     });
   });
