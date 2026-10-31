@@ -48,7 +48,7 @@ vi.hoisted(() => {
   const isolatedDir = join(process.cwd(), '.test-db-isolated');
   if (!existsSync(isolatedDir)) mkdirSync(isolatedDir, { recursive: true });
   const dbPath = join(isolatedDir, 'acquisition-lifecycle.db');
-  const schemaSource = join(process.cwd(), 'test.db');
+  const schemaSource = join(process.cwd(), 'test-schema.db');
   if (existsSync(schemaSource)) copyFileSync(schemaSource, dbPath);
   process.env.DATABASE_URL = `file:${dbPath}`;
 });
