@@ -22,6 +22,7 @@ import {
   LifeBuoy,
   ArrowUpRight,
   ServerCog,
+  Lock,
 } from 'lucide-react';
 
 interface AdminNavProps {
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { href: '/admin/users', label: 'Users', icon: Users, exact: false },
   { href: '/admin/billing', label: 'Billing', icon: CreditCard, exact: false },
   { href: '/admin/operations', label: 'Operations', icon: ServerCog, exact: false },
+  { href: '/admin/security', label: 'Security', icon: Lock, exact: false },
   { href: '/admin/feedback', label: 'Feedback', icon: MessageSquareWarning, exact: false },
   { href: '/admin/support', label: 'Support', icon: LifeBuoy, exact: false },
 ];

@@ -666,7 +666,7 @@ describe('[Phase 32 REAL] DB Health — table count conversion correctness', () 
     // The service should return the SAME count (not 0 from bad conversion)
     expect(result.database.tableCount).toBe(actualCount);
     expect(result.database.tableCount).toBeGreaterThan(0); // Must not be 0
-    expect(result.database.tableCount).toBe(115); // Known baseline
+    expect(result.database.tableCount).toBe(116); // Known baseline (115 original + 1 SensitiveActionConfirmation)
   });
 });
 
