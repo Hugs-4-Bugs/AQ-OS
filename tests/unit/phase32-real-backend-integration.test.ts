@@ -13,7 +13,7 @@
 // real DB/state transition → real result.
 // ═══════════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // ── Override DATABASE_URL to use the REAL db/custom.db ──────────────
@@ -93,8 +93,10 @@ async function ensureTestAdminUser() {
 }
 
 async function cleanupTestAdminUser() {
+  // ONLY delete the specific test admin user + its audit entries
+  // NEVER delete users broadly by email pattern (would destroy legitimate test data)
   await db.auditLog.deleteMany({ where: { userId: TEST_ADMIN.id } }).catch(() => {});
-  await db.user.delete({ where: { id: TEST_ADMIN.id } }).catch(() => {});
+  await db.user.deleteMany({ where: { id: TEST_ADMIN.id } }).catch(() => {});
 }
 
 function buildPatch(url: string, body: unknown): NextRequest {
@@ -116,6 +118,11 @@ function buildPost(url: string, body: unknown): NextRequest {
 function buildGet(url: string): NextRequest {
   return new NextRequest(url, { method: 'GET' });
 }
+
+// Top-level cleanup: remove test admin user after ALL tests complete
+afterAll(async () => {
+  await cleanupTestAdminUser();
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // REAL EVENT RESOLUTION TEST
