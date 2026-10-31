@@ -53,6 +53,8 @@ export type Permission =
   | 'integrations.control'
   | 'system.health.read'
   | 'system.logs.read'
+  | 'system.events.resolve'
+  | 'system.operations.retry'
   | 'audit.read'
   | 'security.events.read'
   | 'rbac.read'
@@ -85,6 +87,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission>> = {
     'ai.usage.read',
     'integrations.read', 'integrations.control',
     'system.health.read', 'system.logs.read',
+    'system.events.resolve', 'system.operations.retry',
     'audit.read',
     'security.events.read',
     'rbac.read', 'rbac.assign',
@@ -129,6 +132,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<Permission>> = {
     'ai.usage.read',
     'integrations.read', 'integrations.control',
     'system.health.read', 'system.logs.read',
+    'system.events.resolve', 'system.operations.retry',
     'audit.read',
   ]),
   member: new Set<Permission>([
