@@ -46,6 +46,15 @@ vi.mock('@/lib/auth', () => {
   };
 });
 
+// Mock requireConfirmation — Phase 33 enforces confirmation on event resolution
+vi.mock('@/lib/security/require-confirmation', () => ({
+  requireConfirmation: vi.fn().mockResolvedValue({
+    valid: true,
+    confirmationId: 'mock-confirmation-id',
+    requestId: 'mock-request-id',
+  }),
+}));
+
 const TEST_ADMIN = {
   id: 'test-admin-sys-event',
   email: 'admin-sys-event@test.local',

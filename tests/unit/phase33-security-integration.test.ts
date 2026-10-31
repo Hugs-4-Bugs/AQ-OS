@@ -52,6 +52,17 @@ vi.mock('@/lib/auth', () => {
   };
 });
 
+// Mock requireConfirmation for Phase 33 RBAC tests that need to bypass
+// confirmation to test RBAC layer. Confirmation enforcement is tested
+// separately in the BLOCKER 1 test section.
+vi.mock('@/lib/security/require-confirmation', () => ({
+  requireConfirmation: vi.fn().mockResolvedValue({
+    valid: true,
+    confirmationId: 'mock-confirmation-id',
+    requestId: 'mock-request-id',
+  }),
+}));
+
 const TEST_ADMIN = {
   id: 'test-admin-phase33',
   email: 'admin-p33@test.local',

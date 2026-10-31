@@ -44,6 +44,15 @@ vi.mock('@/lib/auth', () => {
   };
 });
 
+// Mock requireConfirmation — Phase 33 enforces confirmation on refund
+vi.mock('@/lib/security/require-confirmation', () => ({
+  requireConfirmation: vi.fn().mockResolvedValue({
+    valid: true,
+    confirmationId: 'mock-confirmation-id',
+    requestId: 'mock-request-id',
+  }),
+}));
+
 // ── Mock admin-billing-service (handler body stubs) ───────────────────
 vi.mock('@/lib/admin-billing-service', () => ({
   getBillingOverview: vi.fn().mockResolvedValue({

@@ -257,6 +257,16 @@ export async function PATCH(
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const { requireConfirmation } = await import('@/lib/security/require-confirmation');
+      const confirmResult = await requireConfirmation(request, adminUser, {
+        actionType: 'admin_user_action',
+        targetId,
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ error: confirmResult.reason }, { status: 403 });
+      }
+
       // ── Action dispatch ──────────────────────────────────────
 
       // 1) Activate / deactivate -------------------------------------------------

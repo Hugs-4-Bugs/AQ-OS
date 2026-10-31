@@ -74,6 +74,15 @@ export async function POST(
   return withSuperAdmin(request, async (user) => {
     try {
       const { id } = await params;
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const { requireConfirmation } = await import('@/lib/security/require-confirmation');
+      const confirmResult = await requireConfirmation(request, user, {
+        actionType: 'admin_backup_restore',
+        targetId: id,
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ error: confirmResult.reason }, { status: 403 });
+      }
       const body = await request.json().catch(() => ({}));
       const dryRun = body.dryRun || false;
 
@@ -139,6 +148,15 @@ export async function DELETE(
   return withSuperAdmin(request, async (user) => {
     try {
       const { id } = await params;
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const { requireConfirmation } = await import('@/lib/security/require-confirmation');
+      const confirmResult = await requireConfirmation(request, user, {
+        actionType: 'admin_backup_delete',
+        targetId: id,
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ error: confirmResult.reason }, { status: 403 });
+      }
 
       const backup = await db.dataExport.findUnique({ where: { id } });
       if (!backup) {

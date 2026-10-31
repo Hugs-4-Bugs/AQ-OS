@@ -9,12 +9,18 @@ import { withPermission } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { logPaymentEvent, logBillingEvent } from '@/lib/billing-audit';
 import { sendRefundNotificationEmail } from '@/lib/payment-failure-utils';
+import { requireConfirmation } from '@/lib/security/require-confirmation';
+import { recordAuditEvent } from '@/lib/security/audit-chain';
+import { getRequestId } from '@/lib/security/request-id';
+import { getClientIp, getUserAgent } from '@/lib/auth';
 
 interface AdminRefundRequestBody {
   userId: string;
   paymentIntentId: string;
   amount?: number; // In cents. If null, full refund.
   reason: string;
+  confirmationId?: string;
+  token?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -32,6 +38,15 @@ export async function POST(request: NextRequest) {
       }
       if (!reason) {
         return NextResponse.json({ error: 'reason is required' }, { status: 400 });
+      }
+
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const confirmResult = await requireConfirmation(request, adminUser, {
+        actionType: 'admin_refund',
+        targetId: userId,
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ error: confirmResult.reason }, { status: 403 });
       }
 
       // Find the user

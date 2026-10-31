@@ -46,6 +46,16 @@ export async function POST(
         );
       }
 
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const { requireConfirmation } = await import('@/lib/security/require-confirmation');
+      const confirmResult = await requireConfirmation(request, admin, {
+        actionType: 'admin_integration_control',
+        targetId: provider,
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ success: false, error: confirmResult.reason }, { status: 403 });
+      }
+
       const data = await executeRealIntegrationAction({
         provider,
         action,

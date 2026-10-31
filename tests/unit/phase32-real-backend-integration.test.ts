@@ -58,6 +58,17 @@ vi.mock('@/lib/auth', () => {
 // workflow can't fully execute in the test environment.
 // The durable state transition IS the primary evidence of retry scheduling.
 
+// Mock requireConfirmation for real backend tests — the confirmation flow
+// is tested separately in Phase 33 tests. Here we bypass it to test the
+// actual service/DB behavior.
+vi.mock('@/lib/security/require-confirmation', () => ({
+  requireConfirmation: vi.fn().mockResolvedValue({
+    valid: true,
+    confirmationId: 'mock-confirmation-id',
+    requestId: 'mock-request-id',
+  }),
+}));
+
 // Mock email service (config check only — no real SMTP call)
 vi.mock('@/lib/email', () => ({
   isEmailServiceConfigured: vi.fn().mockReturnValue(true),
@@ -350,9 +361,10 @@ describe('[Phase 32 REAL] Retry Execution — real DB state transitions', () => 
       where: { id: testExecutionId },
       select: { status: true, retryCount: true, lastRetryAt: true },
     });
-    // Status should be 'queued' (retryExecution set it) OR 'running' (processExecution
-    // started async). Either proves the retry was genuinely scheduled.
-    expect(['queued', 'running']).toContain(after?.status);
+    // Status should be 'queued' (retryExecution set it), 'running' (processExecution
+    // started async), or 'completed' (processExecution finished). Any of these
+    // proves the retry was genuinely scheduled for execution.
+    expect(['queued', 'running', 'completed']).toContain(after?.status);
     expect(after?.retryCount).toBe(before!.retryCount + 1); // Incremented from 0 to 1
     expect(after?.lastRetryAt).not.toBeNull(); // Set to now
     expect(after?.lastRetryAt instanceof Date).toBe(true);

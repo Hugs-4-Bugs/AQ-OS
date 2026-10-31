@@ -101,6 +101,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return withSuperAdmin(request, async (user) => {
     try {
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const { requireConfirmation } = await import('@/lib/security/require-confirmation');
+      const confirmResult = await requireConfirmation(request, user, {
+        actionType: 'admin_backup_create',
+        targetId: 'backup',
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ error: confirmResult.reason }, { status: 403 });
+      }
       const body = await request.json().catch(() => ({}));
       const backupType = body.type || 'full'; // full, sqlite, postgres
       const note = body.note || '';

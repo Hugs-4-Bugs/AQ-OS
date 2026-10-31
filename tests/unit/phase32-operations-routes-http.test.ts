@@ -50,6 +50,13 @@ vi.mock('@/lib/auth', () => {
 // Phase 32 HARDENING: mocks the service for RBAC tests, but the
 // idempotency + REAL-execution tests below use the REAL service
 // functions where possible (with mocked DB + retryExecution).
+vi.mock('@/lib/security/require-confirmation', () => ({
+  requireConfirmation: vi.fn().mockResolvedValue({
+    valid: true,
+    confirmationId: 'mock-confirmation-id',
+    requestId: 'mock-request-id',
+  }),
+}));
 vi.mock('@/lib/admin-operations-service', () => ({
   getSystemHealth: vi.fn().mockResolvedValue({
     database: { state: 'HEALTHY', latencyMs: 12, tableCount: 115 },
