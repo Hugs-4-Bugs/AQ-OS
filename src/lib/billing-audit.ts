@@ -63,7 +63,7 @@ export interface BillingAuditResult {
 
 /**
  * Log a billing event to the AuditLog with resource='billing'.
- * Extends the existing logAuthEvent pattern with billing-specific fields.
+ * BLOCKER 2 FIX: Uses recordAuditEvent (tamper-evident chain writer).
  * Silently fails if logging errors — never blocks the main flow.
  */
 export async function logBillingEvent(params: BillingAuditParams): Promise<BillingAuditResult> {
@@ -72,19 +72,21 @@ export async function logBillingEvent(params: BillingAuditParams): Promise<Billi
       ? JSON.stringify({ ...(params.details ? { description: params.details } : {}), ...params.metadata })
       : params.details || null;
 
-    const auditLog = await db.auditLog.create({
-      data: {
-        userId: params.userId,
-        action: params.action,
-        details,
-        ipAddress: params.ipAddress || null,
-        userAgent: params.userAgent || null,
-        resource: 'billing',
-        resourceId: params.resourceId || null,
-      },
+    const { recordAuditEvent } = await import('@/lib/security/audit-chain');
+    const result = await recordAuditEvent({
+      actorId: params.userId,
+      action: params.action,
+      resource: 'billing',
+      resourceId: params.resourceId || undefined,
+      details: details ? JSON.parse(details) : undefined,
+      ipAddress: params.ipAddress,
+      userAgent: params.userAgent,
+      severity: 'MEDIUM',
+      outcome: 'success',
+      securityEventType: params.action,
     });
 
-    return { success: true, auditLogId: auditLog.id };
+    return { success: result !== null, auditLogId: result?.id || '' };
   } catch (error) {
     // Never fail the main flow due to audit logging failure
     console.error('[BillingAudit] Failed to log billing event:', error);

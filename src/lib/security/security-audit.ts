@@ -242,19 +242,21 @@ export async function auditSecurityEvent(params: {
     trackFailedAuth(params.ipAddress, params.userId);
   }
 
-  // Persist to database
+  // Persist to database — BLOCKER 3 FIX: use authoritative tamper-evident path
   try {
     if (params.userId) {
-      await db.auditLog.create({
-        data: {
-          userId: params.userId,
-          action: params.eventType,
-          details: params.details || null,
-          ipAddress: params.ipAddress || null,
-          userAgent: params.userAgent || null,
-          resource: params.resource || null,
-          resourceId: params.resourceId || null,
-        },
+      const { recordAuditEvent } = await import('@/lib/security/audit-chain');
+      await recordAuditEvent({
+        actorId: params.userId,
+        action: params.eventType,
+        resource: params.resource,
+        resourceId: params.resourceId,
+        details: params.details ? JSON.parse(params.details) : undefined,
+        ipAddress: params.ipAddress,
+        userAgent: params.userAgent,
+        severity: severity.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+        outcome: 'denied',
+        securityEventType: params.eventType,
       });
     }
   } catch (error) {

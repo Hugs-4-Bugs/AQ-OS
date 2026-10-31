@@ -63,6 +63,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
+      // BLOCKER 1: Server-enforced sensitive action confirmation
+      const { requireConfirmation } = await import('@/lib/security/require-confirmation');
+      const confirmResult = await requireConfirmation(request, admin, {
+        actionType: 'admin_operation_retry',
+        targetId,
+      });
+      if (!confirmResult.valid) {
+        return NextResponse.json({ success: false, error: confirmResult.reason }, { status: 403 });
+      }
+
       const data = await executeRealRetry({
         idempotencyKey,
         operationType,
