@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
+import { recordSystemEvent } from '@/lib/system-event-service';
 import { resolveLeadForExecution } from '@/lib/lead-resolution';
 import { executeAction } from '@/lib/workflow-actions';
 import { publishWorkflowEvent } from '@/lib/realtime-engine';
@@ -350,6 +351,26 @@ export async function processExecution(
         stepName: step.title,
         error: lastError,
         isDeadLetter,
+      });
+
+      // Phase 32: Record operational SystemEvent for workflow failure
+      // (separate from AuditLog — operational visibility, not admin accountability)
+      void recordSystemEvent({
+        type: isDeadLetter ? 'critical' : 'error',
+        source: 'workflow_executor',
+        message: `Workflow execution failed: ${workflow.name || workflow.id}`,
+        details: {
+          executionId,
+          workflowId: workflow.id,
+          workflowName: workflow.name,
+          stepName: step.title,
+          isDeadLetter,
+          // error is already stored in the WorkflowExecution row — here we
+          // include a bounded, sanitized version for operational visibility
+          errorPreview: String(lastError || '').slice(0, 200),
+        },
+      }).catch(() => {
+        // Never fail the execution path because of event logging
       });
 
       return;
