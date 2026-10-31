@@ -719,11 +719,13 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityDete
   }
 
   // Rule B: SENSITIVE_ACTION_FAILURE_BURST — ≥3 sensitive action failures in 10 min
+  // Matches events where securityEventType contains 'sensitive_action' AND outcome='denied'
+  // (requireConfirmation uses outcome='denied' for rejected confirmations)
   const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
   const sensitiveFailures = await db.auditLog.findMany({
     where: {
-      action: { contains: 'sensitive_action' },
-      outcome: 'failed',
+      securityEventType: { contains: 'sensitive_action' },
+      outcome: 'denied',
       createdAt: { gte: tenMinAgo },
     },
     select: { userId: true, createdAt: true },
