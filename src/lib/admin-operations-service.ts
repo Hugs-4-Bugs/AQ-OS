@@ -1656,9 +1656,19 @@ export interface RealIntegrationActionResult {
   status: 'executed' | 'already_completed' | 'rejected' | 'skipped';
   provider: string;
   action: string;
-  // REAL provider response — actual reachability/health result
+  // REAL provider response — honest classification of what was actually verified
   providerResult?: {
+    // configured: env vars / DB config exist (boolean — did we find credentials?)
+    configured: boolean;
+    // reachable: REAL runtime connectivity verified (NOT just config presence)
+    //   - true only if we made a real transport/API call OR have recent successful events
+    //   - false if configuration-only check or no evidence
     reachable: boolean;
+    // verificationLevel: what was actually tested
+    //   - 'CONFIGURATION_ONLY': env vars/DB config checked, no transport test
+    //   - 'RUNTIME_VERIFIED': real API/transport call made OR recent successful events
+    //   - 'UNKNOWN': no evidence available
+    verificationLevel: 'CONFIGURATION_ONLY' | 'RUNTIME_VERIFIED' | 'UNKNOWN';
     latencyMs: number | null;
     error: string | null;
     details: string;
@@ -1738,13 +1748,15 @@ export async function executeRealIntegrationAction(
       }
     }
 
-    // Execute the real action
-    let providerResult: RealIntegrationActionResult['providerResult'];
+    // ── Execute the real action ──
+    let providerResult: NonNullable<RealIntegrationActionResult['providerResult']>;
 
     if (options.action === 'clear_cache') {
       // No real cache layer in this architecture — explicitly skipped
       providerResult = {
+        configured: false,
         reachable: false,
+        verificationLevel: 'UNKNOWN',
         latencyMs: null,
         error: null,
         details: 'No cache layer in this architecture — action skipped',
@@ -1800,8 +1812,19 @@ export async function executeRealIntegrationAction(
 }
 
 /**
- * REAL provider validation — actually tests provider configuration +
- * reachability. Returns real reachability/latency/error, not fake status.
+ * REAL provider validation — honestly classifies what was actually verified.
+ *
+ * SEMANTICS (per Phase 32 final gate requirement):
+ *   - configured: env vars / DB config exist (boolean)
+ *   - reachable: REAL runtime connectivity verified — NOT just config presence.
+ *     TRUE only if we made a real transport/API call OR have recent successful
+ *     events proving the provider responded. FALSE for configuration-only checks.
+ *   - verificationLevel: what was actually tested:
+ *     'CONFIGURATION_ONLY' — env vars/DB checked, no transport test
+ *     'RUNTIME_VERIFIED' — real API/transport call made OR recent successful events
+ *     'UNKNOWN' — no evidence available
+ *
+ * isConfigured() === true does NOT automatically become reachable=true.
  */
 async function validateProviderReal(provider: string): Promise<NonNullable<RealIntegrationActionResult['providerResult']>> {
   const t0 = Date.now();
@@ -1812,54 +1835,94 @@ async function validateProviderReal(provider: string): Promise<NonNullable<RealI
       const entry = status.providers.find((p) => p.provider === provider.split('.')[1]);
       if (!entry) {
         return {
+          configured: false,
           reachable: false,
+          verificationLevel: 'UNKNOWN',
           latencyMs: Date.now() - t0,
           error: 'Provider not found in status',
           details: 'Configuration not registered',
         };
       }
-      // REACHABLE if there's any recent webhook event OR if configured
-      const reachable = entry.configState === 'CONFIGURED';
+      const configured = entry.configState === 'CONFIGURED';
+      // REACHABLE only if there are recent webhook events (real provider interaction evidence)
+      // NOT just because configState=CONFIGURED
+      const reachable = configured && entry.recentEvents > 0;
+      const verificationLevel: 'CONFIGURATION_ONLY' | 'RUNTIME_VERIFIED' | 'UNKNOWN' =
+        entry.recentEvents > 0 ? 'RUNTIME_VERIFIED' :
+        configured ? 'CONFIGURATION_ONLY' :
+        'UNKNOWN';
       return {
+        configured,
         reachable,
+        verificationLevel,
         latencyMs: Date.now() - t0,
-        error: entry.configState === 'CONFIGURED' ? null : 'Not configured',
-        details: `config=${entry.configState}, health=${entry.health}, recentEvents=${entry.recentEvents}`,
+        error: configured ? null : 'Not configured',
+        details: `config=${entry.configState}, health=${entry.health}, recentEvents=${entry.recentEvents}, recentFailures=${entry.recentFailures}`,
       };
     }
 
     if (provider === 'email.smtp_imap') {
-      // REAL: import isEmailServiceConfigured + count EmailAccount
+      // isEmailServiceConfigured() only checks env var presence — NOT SMTP connectivity.
+      // Honest classification: CONFIGURATION_ONLY (reachable=false until real SMTP NOOP test)
       const { isEmailServiceConfigured } = await import('@/lib/email');
       const configured = isEmailServiceConfigured();
       const emailCount = await db.emailAccount.count().catch(() => 0);
+      // reachable = FALSE — we did NOT make a real SMTP connection test.
+      // isEmailServiceConfigured() only verifies env vars exist, not that the SMTP
+      // server is actually reachable. Honest: CONFIGURATION_ONLY.
       return {
-        reachable: configured,
+        configured,
+        reachable: false, // NOT reachable — config check only, no transport test
+        verificationLevel: configured ? 'CONFIGURATION_ONLY' : 'UNKNOWN',
         latencyMs: Date.now() - t0,
         error: configured ? null : 'SMTP not configured (env vars missing)',
-        details: `configured=${configured}, emailAccounts=${emailCount}`,
+        details: configured
+          ? `Configuration present (env vars verified), emailAccounts=${emailCount}. Reachability NOT tested — no SMTP NOOP/transport check performed.`
+          : `Not configured, emailAccounts=${emailCount}`,
       };
     }
 
     if (provider === 'messaging.telegram') {
+      // TelegramConfig.isConnected is a user-set flag, not a transport check.
+      // Honest: CONFIGURATION_ONLY unless there's recent webhook evidence.
       const telegram = await db.telegramConfig.findFirst().catch(() => null);
-      const reachable = telegram?.isConnected || false;
+      const configured = !!telegram?.isConnected;
+      // REACHABLE only if there's a recent webhook event (real Telegram delivery evidence)
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const hasRecentWebhook = telegram?.lastWebhookAt && new Date(telegram.lastWebhookAt) > twentyFourHoursAgo;
+      const reachable = configured && !!hasRecentWebhook;
+      const verificationLevel: 'CONFIGURATION_ONLY' | 'RUNTIME_VERIFIED' | 'UNKNOWN' =
+        hasRecentWebhook ? 'RUNTIME_VERIFIED' :
+        configured ? 'CONFIGURATION_ONLY' :
+        'UNKNOWN';
       return {
+        configured,
         reachable,
+        verificationLevel,
         latencyMs: Date.now() - t0,
-        error: reachable ? null : 'Telegram not connected',
-        details: `connected=${reachable}, lastWebhookAt=${telegram?.lastWebhookAt || 'never'}`,
+        error: configured ? null : 'Telegram not connected',
+        details: `configured=${configured}, lastWebhookAt=${telegram?.lastWebhookAt || 'never'}, recentWebhook=${!!hasRecentWebhook}`,
       };
     }
 
     if (provider === 'messaging.whatsapp') {
+      // WhatsappConfig.isConnected is a user-set flag, not a transport check.
       const whatsapp = await db.whatsappConfig.findFirst().catch(() => null);
-      const reachable = whatsapp?.isConnected || false;
+      const configured = !!whatsapp?.isConnected;
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const hasRecentHealthCheck = whatsapp?.lastHealthCheckAt && new Date(whatsapp.lastHealthCheckAt) > twentyFourHoursAgo;
+      const reachable = configured && !!hasRecentHealthCheck;
+      const verificationLevel: 'CONFIGURATION_ONLY' | 'RUNTIME_VERIFIED' | 'UNKNOWN' =
+        hasRecentHealthCheck ? 'RUNTIME_VERIFIED' :
+        configured ? 'CONFIGURATION_ONLY' :
+        'UNKNOWN';
       return {
+        configured,
         reachable,
+        verificationLevel,
         latencyMs: Date.now() - t0,
-        error: reachable ? null : 'WhatsApp not connected',
-        details: `connected=${reachable}, lastHealthCheckAt=${whatsapp?.lastHealthCheckAt || 'never'}`,
+        error: configured ? null : 'WhatsApp not connected',
+        details: `configured=${configured}, lastHealthCheckAt=${whatsapp?.lastHealthCheckAt || 'never'}, recentCheck=${!!hasRecentHealthCheck}`,
       };
     }
 
@@ -1867,14 +1930,16 @@ async function validateProviderReal(provider: string): Promise<NonNullable<RealI
       const key = process.env.GOOGLE_SEARCH_API_KEY;
       const cx = process.env.GOOGLE_SEARCH_CX;
       const configured = !!(key && cx);
-      // We do NOT make an actual API call here (would consume quota).
-      // Configuration verification only — explicit.
+      // We do NOT make an actual API call (would consume quota).
+      // Honest: CONFIGURATION_ONLY — reachable=false
       return {
-        reachable: configured,
+        configured,
+        reachable: false, // NOT reachable — no API call made
+        verificationLevel: configured ? 'CONFIGURATION_ONLY' : 'UNKNOWN',
         latencyMs: Date.now() - t0,
         error: configured ? null : 'Google Search API key/CX not configured',
         details: configured
-          ? 'Configuration present (no API call made — would consume quota)'
+          ? 'Configuration present (env vars verified). Reachability NOT tested — no API call made (would consume quota).'
           : 'Not configured',
       };
     }
@@ -1883,25 +1948,33 @@ async function validateProviderReal(provider: string): Promise<NonNullable<RealI
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
       const configured = !!(clientId && clientSecret);
+      // We do NOT initiate an OAuth flow (would require interactive login).
+      // Honest: CONFIGURATION_ONLY — reachable=false
       return {
-        reachable: configured,
+        configured,
+        reachable: false, // NOT reachable — no OAuth flow initiated
+        verificationLevel: configured ? 'CONFIGURATION_ONLY' : 'UNKNOWN',
         latencyMs: Date.now() - t0,
         error: configured ? null : 'Google OAuth credentials not configured',
         details: configured
-          ? 'Configuration present (no OAuth flow initiated — would require interactive login)'
+          ? 'Configuration present (env vars verified). Reachability NOT tested — no OAuth flow initiated (would require interactive login).'
           : 'Not configured',
       };
     }
 
     return {
+      configured: false,
       reachable: false,
+      verificationLevel: 'UNKNOWN',
       latencyMs: Date.now() - t0,
       error: 'Unknown provider',
       details: `Provider ${provider} not supported`,
     };
   } catch (error) {
     return {
+      configured: false,
       reachable: false,
+      verificationLevel: 'UNKNOWN',
       latencyMs: Date.now() - t0,
       error: error instanceof Error ? error.message : 'Unknown error',
       details: 'Validation threw an error',

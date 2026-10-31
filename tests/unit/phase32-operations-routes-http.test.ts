@@ -155,13 +155,19 @@ vi.mock('@/lib/admin-operations-service', () => ({
     if (opts.action === 'clear_cache') {
       return {
         accepted: true, status: 'skipped', provider: opts.provider, action: opts.action,
-        providerResult: { reachable: false, latencyMs: null, error: null, details: 'No cache layer' },
+        providerResult: {
+          configured: false, reachable: false, verificationLevel: 'UNKNOWN',
+          latencyMs: null, error: null, details: 'No cache layer',
+        },
         auditId: 'audit-1', executedAt: new Date(),
       };
     }
     return {
       accepted: true, status: 'executed', provider: opts.provider, action: opts.action,
-      providerResult: { reachable: true, latencyMs: 5, error: null, details: 'Configuration verified' },
+      providerResult: {
+        configured: true, reachable: false, verificationLevel: 'CONFIGURATION_ONLY',
+        latencyMs: 5, error: null, details: 'Configuration verified, reachability NOT tested',
+      },
       auditId: 'audit-1', executedAt: new Date(),
     };
   }),
@@ -1038,16 +1044,23 @@ describe('[Phase 32 HTTP] REAL integration action — provider validation', () =
     POST = mod.POST;
   });
 
-  it('validate payment.stripe → 200 with REAL providerResult', async () => {
+  it('validate payment.stripe → 200 with REAL providerResult (honest semantics)', async () => {
     const req = buildPost('http://localhost:3000/api/admin/operations/integrations/payment.stripe/action', { action: 'validate' });
     const res = await POST(req, { params: Promise.resolve({ provider: 'payment.stripe' }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.status).toBe('executed');
     expect(body.data.providerResult).toBeDefined();
+    // Honest semantics: configured + reachable + verificationLevel
+    expect(body.data.providerResult).toHaveProperty('configured');
     expect(body.data.providerResult).toHaveProperty('reachable');
+    expect(body.data.providerResult).toHaveProperty('verificationLevel');
     expect(body.data.providerResult).toHaveProperty('latencyMs');
     expect(body.data.providerResult).toHaveProperty('details');
+    // configured=true but reachable=false (CONFIGURATION_ONLY — no runtime test)
+    expect(body.data.providerResult.configured).toBe(true);
+    expect(body.data.providerResult.reachable).toBe(false);
+    expect(body.data.providerResult.verificationLevel).toBe('CONFIGURATION_ONLY');
   });
 
   it('clear_cache → 200 with status=skipped (no cache layer)', async () => {
