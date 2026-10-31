@@ -69,6 +69,13 @@ export async function POST(request: NextRequest) {
         data: outreachMessage,
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to dispatch outreach';
+      // The service throws 'Lead not found' when the lead doesn't exist OR
+      // when it belongs to another tenant (no existence leak). Return 404
+      // so the client gets a proper 4xx instead of a misleading 500.
+      if (message.includes('Lead not found')) {
+        return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      }
       console.error('[AutonomousOutreach] Dispatch endpoint error:', error);
       return NextResponse.json(
         { error: 'Failed to dispatch outreach' },
