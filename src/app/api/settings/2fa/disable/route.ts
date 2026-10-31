@@ -103,6 +103,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // ── Configuration change audit (BLOCKER 3) ─────────────────────
+    const { recordConfigChange } = await import('@/lib/security/audit-chain');
+    const { getRequestId } = await import('@/lib/security/request-id');
+    void recordConfigChange({
+      adminId: authUser.id,
+      configKey: 'mfa.enabled',
+      configCategory: 'security',
+      beforeValue: { enabled: true },
+      afterValue: { enabled: false },
+      requestId: getRequestId(request),
+      ipAddress: getClientIp(request),
+      userAgent: getUserAgent(request),
+    }).catch(() => {});
+
     // ── Audit log ─────────────────────────────────────────────────
     await logAuthEvent({
       userId: authUser.id,

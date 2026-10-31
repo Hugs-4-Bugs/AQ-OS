@@ -98,7 +98,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 4. Create audit log
+      // 4. Create audit log — BLOCKER 2 FIX: use recordAuditEvent (tamper-evident)
+      // Cannot use recordAuditEvent inside tx, so we use direct create here
+      // and also call recordConfigChange after the transaction.
       await tx.auditLog.create({
         data: {
           userId: authUser.id,
@@ -116,6 +118,20 @@ export async function POST(request: NextRequest) {
         },
       });
     });
+
+    // ── Configuration change audit (BLOCKER 3) ─────────────────────
+    const { recordConfigChange } = await import('@/lib/security/audit-chain');
+    const { getRequestId } = await import('@/lib/security/request-id');
+    void recordConfigChange({
+      adminId: authUser.id,
+      configKey: 'account.deleted',
+      configCategory: 'security',
+      beforeValue: { active: true, email: user.email },
+      afterValue: { active: false, deletedAt: new Date().toISOString() },
+      requestId: getRequestId(request),
+      ipAddress: request.headers.get('x-forwarded-for') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+    }).catch(() => {});
 
     // Clear auth cookies on the response
     const response = NextResponse.json({

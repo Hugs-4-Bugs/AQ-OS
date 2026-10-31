@@ -207,6 +207,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // ── Configuration change audit (BLOCKER 3) ─────────────────────
+    // Secrets are NEVER stored — only safe metadata (configured=true)
+    const { recordConfigChange } = await import('@/lib/security/audit-chain');
+    const { getRequestId } = await import('@/lib/security/request-id');
+    void recordConfigChange({
+      adminId: user.id,
+      configKey: 'auth.password',
+      configCategory: 'security',
+      beforeValue: { configured: true }, // Never store the actual hash
+      afterValue: { configured: true },  // Never store the actual hash
+      requestId: getRequestId(request),
+      ipAddress: ip,
+      userAgent: ua,
+    }).catch(() => {});
+
     // Reset OTP attempts
     await resetOtpAttempts(user.id);
 
