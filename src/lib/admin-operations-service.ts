@@ -237,11 +237,15 @@ export async function getSystemHealth(): Promise<SystemHealthResult> {
       const t0 = Date.now();
       await db.$queryRaw`SELECT 1`;
       dbLatencyMs = Date.now() - t0;
-      tableCount = await db.$queryRawUnsafe(
-        `SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
-      ) as unknown as number;
-      // $queryRawUnsafe returns bigint[]/object on SQLite — coerce to number
-      tableCount = Number(tableCount) || 0;
+      // SQLite $queryRawUnsafe returns an array of objects with BigInt values.
+      // Extract the count from the first row's first column and convert BigInt→number.
+      const rows = await db.$queryRawUnsafe(
+        `SELECT count(*) as cnt FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+      ) as Array<{ cnt: bigint }>;
+      if (Array.isArray(rows) && rows.length > 0) {
+        const cnt = rows[0].cnt;
+        tableCount = typeof cnt === 'bigint' ? Number(cnt) : Number(cnt) || 0;
+      }
       dbState = dbLatencyMs < 500 ? 'HEALTHY' : dbLatencyMs < 2000 ? 'DEGRADED' : 'DEGRADED';
     } catch (err) {
       console.error('[AdminOps] DB ping failed:', err);
@@ -250,7 +254,7 @@ export async function getSystemHealth(): Promise<SystemHealthResult> {
 
     // ── Sessions ────────────────────────────────────────────────────
     const [activeSessions, sessions24h] = await Promise.all([
-      db.userSession.count({ where: { revokedAt: null, expiresAt: { gt: now } } }).catch(() => 0),
+      db.userSession.count({ where: { isRevoked: false, expiresAt: { gt: now } } }).catch(() => 0),
       db.userSession.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }).catch(() => 0),
     ]);
 
@@ -923,7 +927,7 @@ export async function getOperationalMetrics(): Promise<OperationalMetricsResult>
       db.systemEvent.count({ where: { type: 'critical' } }).catch(() => 0),
       db.supportTicket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_USER'] } } }).catch(() => 0),
       db.apiKey.count({ where: { isActive: true, revokedAt: null } }).catch(() => 0),
-      db.userSession.count({ where: { revokedAt: null, expiresAt: { gt: now } } }).catch(() => 0),
+      db.userSession.count({ where: { isRevoked: false, expiresAt: { gt: now } } }).catch(() => 0),
       db.auditLog.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
       db.user.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
       db.auditLog.count({ where: { action: 'signin', createdAt: { gte: twentyFourHoursAgo } } }),
@@ -1179,7 +1183,7 @@ export async function getAutopilotMonitoring(
     const now = Date.now();
     const tenMinutesAgo = new Date(now - 10 * 60 * 1000);
 
-    const [runs, total, byStatusGroups, recentSchedulerTicks] = await Promise.all([
+    const [runs, total, byStatusGroups, recentSchedulerActivity] = await Promise.all([
       db.autopilotRun.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -1187,7 +1191,9 @@ export async function getAutopilotMonitoring(
         skip: offset,
         select: {
           id: true, autopilotId: true, userId: true, status: true,
-          trigger: true, triggerType: true, createdAt: true,
+          trigger: true, createdAt: true,
+          // NOTE: triggerType is declared in schema but not migrated to the
+          // operational DB. Omitting it here to avoid Prisma errors.
         },
       }),
       db.autopilotRun.count({ where }),
@@ -1196,16 +1202,14 @@ export async function getAutopilotMonitoring(
         _count: { status: true },
         where,
       }),
-      // REAL scheduler verification: look for recent audit entries from
-      // the autopilot scheduler. If found, schedulerVerified=true.
-      // If AuditLog shows no recent scheduler activity, schedulerVerified=false
-      // (NOT "HEALTHY from absence") — we explicitly cannot prove the
-      // scheduler is running.
-      db.auditLog.count({
-        where: {
-          action: { contains: 'scheduler' },
-          createdAt: { gte: tenMinutesAgo },
-        },
+      // REAL scheduler verification: look for AutopilotRun rows created
+      // in the last 10 minutes. This is REAL evidence the scheduler is
+      // actually running — NOT just an audit entry with 'scheduler' in
+      // the action (the scheduler route itself doesn't write audit).
+      // If no recent AutopilotRun exists, schedulerVerified=false —
+      // we explicitly CANNOT prove the scheduler is running.
+      db.autopilotRun.count({
+        where: { createdAt: { gte: tenMinutesAgo } },
       }).catch(() => 0),
     ]);
 
@@ -1215,7 +1219,7 @@ export async function getAutopilotMonitoring(
         r.status === 'RUNNING' &&
         now - new Date(r.createdAt).getTime() > AUTOPILOT_STALE_MS;
       if (isStale) staleCount++;
-      const completedAt = null; // AutopilotRun doesn't expose completedAt in select; derived downstream if needed
+      const completedAt = null;
       const durationMs = null;
       return {
         id: r.id,
@@ -1223,7 +1227,7 @@ export async function getAutopilotMonitoring(
         userId: r.userId,
         status: r.status,
         trigger: r.trigger,
-        triggerType: r.triggerType,
+        triggerType: null, // Not available in operational DB (schema extension not migrated)
         startedAt: r.createdAt,
         completedAt,
         durationMs,
@@ -1237,7 +1241,7 @@ export async function getAutopilotMonitoring(
       total,
       byStatus: byStatusGroups.map((g) => ({ status: g.status, count: g._count.status })),
       staleCount,
-      schedulerVerified: recentSchedulerTicks > 0,
+      schedulerVerified: recentSchedulerActivity > 0,
     };
   } catch (error) {
     console.error('[AdminOps] Failed to get autopilot monitoring:', error);
@@ -1251,13 +1255,13 @@ export interface CronJobEntry {
   name: string;
   route: string;
   purpose: string;
-  // REAL last-run evidence: derived from AuditLog entries with action
-  // containing the cron name. If no audit entry exists, lastRunAt=null
-  // and we explicitly report "never observed" rather than "healthy".
+  // REAL last-run evidence: derived from ACTUAL downstream outcomes
+  // (AutopilotRun rows, WorkflowExecution rows, or specific audit actions).
+  // If no evidence source exists, state=NOT_TRACEABLE.
   lastRunAt: Date | null;
   lastRunAgo: string | null;
   recentRunCount: number;
-  state: 'OBSERVED_RECENTLY' | 'OBSERVED_HISTORICALLY' | 'NEVER_OBSERVED';
+  state: 'OBSERVED_RECENTLY' | 'OBSERVED_HISTORICALLY' | 'NEVER_OBSERVED' | 'NOT_TRACEABLE';
 }
 
 export interface CronJobMonitoringResult {
@@ -1268,28 +1272,46 @@ export interface CronJobMonitoringResult {
 
 // Known cron routes — derived from src/app/api/cron/* directory.
 // Each is invoked externally (by a real scheduler/cron daemon) with
-// CRON_SECRET. We verify execution by looking for audit entries.
-const KNOWN_CRON_JOBS: Array<{ name: string; route: string; purpose: string; auditActionPrefix: string }> = [
-  { name: 'autopilot-scheduler', route: '/api/cron/autopilot-scheduler', purpose: 'Autopilot scheduler tick + stuck-run recovery', auditActionPrefix: 'autopilot' },
-  { name: 'workflow-scheduler', route: '/api/cron/workflow-scheduler', purpose: 'Workflow execution scheduler', auditActionPrefix: 'workflow' },
-  { name: 'meeting-reminders', route: '/api/cron/meeting-reminders', purpose: 'Send meeting reminder notifications', auditActionPrefix: 'meeting' },
-  { name: 'hot-lead-scan', route: '/api/cron/hot-lead-scan', purpose: 'Scan for hot leads + trigger outreach', auditActionPrefix: 'hot_lead' },
-  { name: 'renew-subscriptions', route: '/api/cron/renew-subscriptions', purpose: 'Process subscription renewals', auditActionPrefix: 'subscription' },
-  { name: 'process-gmail-replies', route: '/api/cron/process-gmail-replies', purpose: 'Poll Gmail for replies + dispatch', auditActionPrefix: 'gmail' },
-  { name: 'payment-reconciliation', route: '/api/cron/payment-reconciliation', purpose: 'Reconcile pending payment orders', auditActionPrefix: 'payment' },
-  { name: 'autonomous-outreach', route: '/api/cron/autonomous-outreach', purpose: 'Autonomous outreach dispatch', auditActionPrefix: 'outreach' },
-  { name: 'credit-renewal', route: '/api/cron/credit-renewal', purpose: 'Renew monthly credits for active subscriptions', auditActionPrefix: 'credit' },
-  { name: 'end-of-period', route: '/api/cron/end-of-period', purpose: 'End-of-period subscription handling', auditActionPrefix: 'period' },
+// CRON_SECRET. We verify execution by looking for the ACTUAL downstream
+// evidence each cron produces — NOT by looking for the cron's own name
+// in AuditLog (the cron routes themselves don't write audit entries).
+//
+// evidenceSource: what each cron ACTUALLY produces when it runs:
+//   - 'autopilot_run': AutopilotRun row created by the scheduler
+//   - 'workflow_execution': WorkflowExecution row created by the scheduler
+//   - 'audit_action': specific AuditLog action written by downstream work
+//   - 'none': no traceable evidence in the current architecture
+const KNOWN_CRON_JOBS: Array<{
+  name: string;
+  route: string;
+  purpose: string;
+  evidenceSource: { type: 'autopilot_run' } | { type: 'workflow_execution' } | { type: 'audit_action'; prefix: string } | { type: 'none' };
+}> = [
+  { name: 'autopilot-scheduler', route: '/api/cron/autopilot-scheduler', purpose: 'Autopilot scheduler tick + stuck-run recovery', evidenceSource: { type: 'autopilot_run' } },
+  { name: 'workflow-scheduler', route: '/api/cron/workflow-scheduler', purpose: 'Workflow execution scheduler', evidenceSource: { type: 'workflow_execution' } },
+  { name: 'meeting-reminders', route: '/api/cron/meeting-reminders', purpose: 'Send meeting reminder notifications', evidenceSource: { type: 'audit_action', prefix: 'meeting' } },
+  { name: 'hot-lead-scan', route: '/api/cron/hot-lead-scan', purpose: 'Scan for hot leads + trigger outreach', evidenceSource: { type: 'none' } },
+  { name: 'renew-subscriptions', route: '/api/cron/renew-subscriptions', purpose: 'Process subscription renewals', evidenceSource: { type: 'audit_action', prefix: 'subscription' } },
+  { name: 'process-gmail-replies', route: '/api/cron/process-gmail-replies', purpose: 'Poll Gmail for replies + dispatch', evidenceSource: { type: 'none' } },
+  { name: 'payment-reconciliation', route: '/api/cron/payment-reconciliation', purpose: 'Reconcile pending payment orders', evidenceSource: { type: 'audit_action', prefix: 'payment' } },
+  { name: 'autonomous-outreach', route: '/api/cron/autonomous-outreach', purpose: 'Autonomous outreach dispatch', evidenceSource: { type: 'workflow_execution' } },
+  { name: 'credit-renewal', route: '/api/cron/credit-renewal', purpose: 'Renew monthly credits for active subscriptions', evidenceSource: { type: 'audit_action', prefix: 'credit' } },
+  { name: 'end-of-period', route: '/api/cron/end-of-period', purpose: 'End-of-period subscription handling', evidenceSource: { type: 'none' } },
 ];
 
 /**
- * REAL cron/job monitoring — derives last-run evidence from AuditLog.
+ * REAL cron/job monitoring — derives last-run evidence from ACTUAL
+ * downstream outcomes, not from the cron route's own audit entries.
  *
- * We do NOT report "HEALTHY" merely because a cron route exists in code.
- * For each known cron job, we look for AuditLog entries whose action
- * contains the job's audit prefix. If found recently (last 24h),
- * state=OBSERVED_RECENTLY. If found historically but not recently,
- * state=OBSERVED_HISTORICALLY. If never found, state=NEVER_OBSERVED.
+ * Each cron produces different evidence when it runs:
+ *   - autopilot-scheduler → creates AutopilotRun rows
+ *   - workflow-scheduler → creates WorkflowExecution rows
+ *   - credit-renewal → writes 'credits_deducted' audit entries
+ *   - payment-reconciliation → writes 'payment_*' audit entries
+ *   - some crons produce NO traceable evidence in the current architecture
+ *
+ * state: OBSERVED_RECENTLY (last 24h) / OBSERVED_HISTORICALLY /
+ *        NEVER_OBSERVED / NOT_TRACEABLE (no evidence source exists)
  */
 export async function getCronJobMonitoring(): Promise<CronJobMonitoringResult> {
   try {
@@ -1297,39 +1319,63 @@ export async function getCronJobMonitoring(): Promise<CronJobMonitoringResult> {
 
     const jobs: CronJobEntry[] = await Promise.all(
       KNOWN_CRON_JOBS.map(async (job) => {
-        // Find the most recent audit entry matching this job's action prefix.
-        const recent = await db.auditLog.findFirst({
-          where: {
-            action: { contains: job.auditActionPrefix },
-            createdAt: { gte: twentyFourHoursAgo },
-          },
-          orderBy: { createdAt: 'desc' },
-          select: { createdAt: true },
-        }).catch(() => null);
-
-        const recentRunCount = await db.auditLog.count({
-          where: {
-            action: { contains: job.auditActionPrefix },
-            createdAt: { gte: twentyFourHoursAgo },
-          },
-        }).catch(() => 0);
-
-        const historical = await db.auditLog.findFirst({
-          where: {
-            action: { contains: job.auditActionPrefix },
-          },
-          orderBy: { createdAt: 'desc' },
-          select: { createdAt: true },
-        }).catch(() => null);
-
         let lastRunAt: Date | null = null;
+        let recentRunCount = 0;
         let state: CronJobEntry['state'] = 'NEVER_OBSERVED';
-        if (recent) {
-          lastRunAt = recent.createdAt;
-          state = 'OBSERVED_RECENTLY';
-        } else if (historical) {
-          lastRunAt = historical.createdAt;
-          state = 'OBSERVED_HISTORICALLY';
+
+        if (job.evidenceSource.type === 'autopilot_run') {
+          // Look for recent AutopilotRun rows — proves the scheduler fired
+          const recent = await db.autopilotRun.findFirst({
+            where: { createdAt: { gte: twentyFourHoursAgo } },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          }).catch(() => null);
+          recentRunCount = await db.autopilotRun.count({
+            where: { createdAt: { gte: twentyFourHoursAgo } },
+          }).catch(() => 0);
+          const historical = await db.autopilotRun.findFirst({
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          }).catch(() => null);
+          if (recent) { lastRunAt = recent.createdAt; state = 'OBSERVED_RECENTLY'; }
+          else if (historical) { lastRunAt = historical.createdAt; state = 'OBSERVED_HISTORICALLY'; }
+        } else if (job.evidenceSource.type === 'workflow_execution') {
+          // Look for recent WorkflowExecution rows
+          const recent = await db.workflowExecution.findFirst({
+            where: { startedAt: { gte: twentyFourHoursAgo } },
+            orderBy: { startedAt: 'desc' },
+            select: { startedAt: true },
+          }).catch(() => null);
+          recentRunCount = await db.workflowExecution.count({
+            where: { startedAt: { gte: twentyFourHoursAgo } },
+          }).catch(() => 0);
+          const historical = await db.workflowExecution.findFirst({
+            orderBy: { startedAt: 'desc' },
+            select: { startedAt: true },
+          }).catch(() => null);
+          if (recent) { lastRunAt = recent.startedAt; state = 'OBSERVED_RECENTLY'; }
+          else if (historical) { lastRunAt = historical.startedAt; state = 'OBSERVED_HISTORICALLY'; }
+        } else if (job.evidenceSource.type === 'audit_action') {
+          // Look for audit entries with the specific action prefix
+          const prefix = job.evidenceSource.prefix;
+          const recent = await db.auditLog.findFirst({
+            where: { action: { contains: prefix }, createdAt: { gte: twentyFourHoursAgo } },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          }).catch(() => null);
+          recentRunCount = await db.auditLog.count({
+            where: { action: { contains: prefix }, createdAt: { gte: twentyFourHoursAgo } },
+          }).catch(() => 0);
+          const historical = await db.auditLog.findFirst({
+            where: { action: { contains: prefix } },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          }).catch(() => null);
+          if (recent) { lastRunAt = recent.createdAt; state = 'OBSERVED_RECENTLY'; }
+          else if (historical) { lastRunAt = historical.createdAt; state = 'OBSERVED_HISTORICALLY'; }
+        } else {
+          // evidenceSource.type === 'none' — no traceable evidence
+          state = 'NOT_TRACEABLE';
         }
 
         const lastRunAgo = lastRunAt
@@ -1351,7 +1397,7 @@ export async function getCronJobMonitoring(): Promise<CronJobMonitoringResult> {
     return {
       jobs,
       observedRecentlyCount: jobs.filter((j) => j.state === 'OBSERVED_RECENTLY').length,
-      neverObservedCount: jobs.filter((j) => j.state === 'NEVER_OBSERVED').length,
+      neverObservedCount: jobs.filter((j) => j.state === 'NEVER_OBSERVED' || j.state === 'NOT_TRACEABLE').length,
     };
   } catch (error) {
     console.error('[AdminOps] Failed to get cron job monitoring:', error);
@@ -1505,7 +1551,12 @@ export async function executeRealRetry(
       // but we want to return a structured rejection rather than throwing)
       const execution = await db.workflowExecution.findUnique({
         where: { id: options.targetId },
-        select: { id: true, status: true, userId: true },
+        select: {
+          id: true,
+          status: true,
+          // userId is on the related WorkflowDefinition, not on WorkflowExecution directly
+          workflow: { select: { userId: true } },
+        },
       });
 
       if (!execution) {
@@ -1514,6 +1565,17 @@ export async function executeRealRetry(
           idempotencyKey: options.idempotencyKey,
           status: 'rejected_not_found',
           rejectionReason: `WorkflowExecution ${options.targetId} not found`,
+          executedAt: now,
+        };
+      }
+
+      const executionUserId = execution.workflow?.userId;
+      if (!executionUserId) {
+        return {
+          accepted: false,
+          idempotencyKey: options.idempotencyKey,
+          status: 'rejected_not_found',
+          rejectionReason: `WorkflowExecution ${options.targetId} has no associated user`,
           executedAt: now,
         };
       }
@@ -1530,7 +1592,7 @@ export async function executeRealRetry(
       }
 
       // Actually invoke the real retry mechanism
-      const result = await retryExecution(options.targetId, execution.userId);
+      const result = await retryExecution(options.targetId, executionUserId);
 
       // Record audit entry with the actual result
       await db.auditLog.create({
