@@ -41,7 +41,7 @@ const mockPrisma = vi.hoisted(() => ({
   workflowDefinition: { findFirst: vi.fn() },
   discoveryJob: { findUnique: vi.fn(), create: vi.fn() },
   lead: { findFirst: vi.fn() },
-  // Phase 18 — the detached settle watcher polls the parent execution.
+  // the detached settle watcher polls the parent execution.
   workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
   workflowExecutionLead: { findMany: vi.fn() },
   __ledger: new Set<string>(),
@@ -107,8 +107,8 @@ beforeEach(() => {
   mockPrisma.workflowDefinition.findFirst.mockResolvedValue({ id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF' });
   mockPrisma.autopilotRun.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotRun.update.mockResolvedValue({});
-  // Phase 21 test repair — the runner reads the live run row (runKey/
-  // status) while executing; this mock predated Phase 18 and lacked it.
+  // test repair — the runner reads the live run row (runKey/
+  // status) while executing; this mock predated and lacked it.
   mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
     if (where && typeof where.runKey === 'string') return null;
     return { id: where?.id || 'run1', status: 'RUNNING', runKey: 'rk-1', executionId: null };

@@ -182,7 +182,7 @@ describe('Autopilot config validation', () => {
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
       expect(parsed.value.niches).toEqual(['Dental', 'Hospital']);
-      // Phase 21 — legacy single-country input now persists through the
+      // legacy single-country input now persists through the
       // canonical selection service as the countries[] shape (identical
       // discovery behavior; the runner honors both shapes).
       expect(parsed.value.geography).toEqual({ city: 'Mumbai', countries: ['India'] });

@@ -68,7 +68,7 @@ vi.mock('@/lib/workflow-credits', () => ({
 
 import { POST as executeRoute } from '@/app/api/workflows/[id]/execute/route';
 
-// A valid 2-step definition (passes Phase 3 Run Now validation).
+// A valid 2-step definition (passes Run Now validation).
 const VALID_STEPS = [
   { id: 's1', type: 'action', name: 'Note', order: 1, config: JSON.stringify({ actionType: 'add_note', content: 'hello' }) },
   { id: 's2', type: 'action', name: 'Email', order: 2, config: JSON.stringify({ actionType: 'send_email', subject: 's', body: 'b' }) },

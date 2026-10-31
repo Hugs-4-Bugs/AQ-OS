@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 22 Runner/Schedule Integration Unit Tests
+// AcquisitionOS — Runner/Schedule Integration Unit Tests
 //
 // runAutopilot × Phase 22: scheduler-trigger runs through the SAME
 // canonical runner · deterministic slot runKey convergence (no second
@@ -39,7 +39,7 @@ const mockPrisma = vi.hoisted(() => ({
   workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
   workflowExecutionLead: { findMany: vi.fn() },
   businessProfile: { findFirst: vi.fn() },
-  // Phase 23 — defense-in-depth entitlement gate inside runAutopilot
+  // defense-in-depth entitlement gate inside runAutopilot
   // calls resolveUserPlan(userId) → db.user.findUnique.
   user: { findUnique: vi.fn() },
   __ledger: new Set<string>(),
@@ -117,7 +117,7 @@ beforeEach(() => {
   (mockPrisma.__ledger as Set<string>).clear();
   mockCheckCreditSufficiency.mockResolvedValue({ sufficient: true, balance: 1000, shortfall: 0 });
   mockPrisma.workflowDefinition.findFirst.mockResolvedValue({ id: 'wf1', userId: 'u1', status: 'active', name: 'Test WF', profileId: 'bp1' });
-  // Phase 23 — default Pro plan so the runAutopilot defense-in-depth gate
+  // default Pro plan so the runAutopilot defense-in-depth gate
   // passes; ineligible plans are exercised in autopilot-entitlements.test.ts.
   mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'pro', subscriptions: [] });
   mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue(autopilotRow());
@@ -161,7 +161,7 @@ beforeEach(() => {
   });
 });
 
-describe('Phase 22 runAutopilot — scheduler trigger (same canonical path)', () => {
+describe('runAutopilot — scheduler trigger (same canonical path)', () => {
   it('a scheduled run carries the deterministic slot runKey and ONE flat charge (category 21)', async () => {
     const slotKey = 'scheduled:ap1:1790000000000';
     const result = await runAutopilot('ap1', 'u1', 'scheduler', { runKey: slotKey });
@@ -188,7 +188,7 @@ describe('Phase 22 runAutopilot — scheduler trigger (same canonical path)', ()
     const config = JSON.parse((configUpdate![0] as { data: { config: string } }).data.config);
     expect(config.schedule).toEqual(parsePersistedSchedule(CANONICAL_JSON));
     expect(config.schedule).toMatchObject({ every: 1, unit: 'DAYS', timezone: 'Asia/Kolkata', startAt: '09:30' });
-    // Phase 21 country snapshot still rides along.
+    // country snapshot still rides along.
     expect(config.countries).toEqual(['India']);
     expect(config.worldwide).toBe(false);
   });
@@ -204,7 +204,7 @@ describe('Phase 22 runAutopilot — scheduler trigger (same canonical path)', ()
   });
 });
 
-describe('Phase 22 runAutopilot — duplicate invocation convergence (categories 15 · 24)', () => {
+describe('runAutopilot — duplicate invocation convergence (categories 15 · 24)', () => {
   it('a replayed slot runKey returns the EXISTING run — no second run, no second charge', async () => {
     mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
       if (where && where.runKey === 'scheduled:ap1:1790000000000') {
@@ -226,7 +226,7 @@ describe('Phase 22 runAutopilot — duplicate invocation convergence (categories
   });
 });
 
-describe('Phase 22 runAutopilot — manual runs (categories 12 · 17)', () => {
+describe('runAutopilot — manual runs (categories 12 · 17)', () => {
   it('a manual run works on an ACTIVE autopilot and NEVER mutates nextRunAt', async () => {
     const result = await runAutopilot('ap1', 'u1', 'manual');
     expect(result.ok).toBe(true);
@@ -276,7 +276,7 @@ describe('Phase 22 runAutopilot — manual runs (categories 12 · 17)', () => {
   });
 });
 
-describe('Phase 22 runAutopilot — failure recovery (category 22)', () => {
+describe('runAutopilot — failure recovery (category 22)', () => {
   it('insufficient credits → honest FAILED outcome, schedule state untouched (no nextRunAt mutation)', async () => {
     mockCheckCreditSufficiency.mockResolvedValue({ sufficient: false, balance: 0, shortfall: 5 });
     const result = await runAutopilot('ap1', 'u1', 'scheduler', { runKey: 'scheduled:ap1:1790000000003' });

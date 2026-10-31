@@ -27,7 +27,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ─── Mock Prisma (per Phase 26 v3 test pattern) ──────────────────────
+// ─── Mock Prisma (per v3 test pattern) ──────────────────────
 //
 // vitest 4 auto-hoists top-level `const` declarations whose name
 // starts with `mock` (case-insensitive) so they're available when the

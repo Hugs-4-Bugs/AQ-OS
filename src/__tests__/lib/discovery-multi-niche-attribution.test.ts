@@ -6,13 +6,13 @@
 // the REAL dedup core and the REAL merge-fill logic end-to-end.
 //
 // Covers:
-//   Phase 8 — "hospital, dentist" produces per-lead niche attribution
+//   "hospital, dentist" produces per-lead niche attribution
 //             (never the comma-joined string), cross-niche duplicates
 //             resolve to ONE lead with preserved attribution.
-//   Phase 9 — multi-country runs attribute each lead to its combo country.
-//   Phase 7 — the five outcome states, malformed provider payloads,
+//   multi-country runs attribute each lead to its combo country.
+//   the five outcome states, malformed provider payloads,
 //             partial-result retention.
-//   Phase 10 — cross-run dedup against existing leads, non-destructive
+//   cross-run dedup against existing leads, non-destructive
 //             merge-fill, run metadata persistence.
 // ═══════════════════════════════════════════════════════════════════
 
@@ -201,7 +201,7 @@ beforeEach(() => {
 
 // ─── PHASE 8 — multi-niche attribution ─────────────────────────────
 
-describe('Phase 8 — "hospital, dentist" attribution (the bug fix)', () => {
+describe('"hospital, dentist" attribution (the bug fix)', () => {
   const hospitalDentistScenario: SdkScenario = {
     webSearch: () => okSearch(3),
     extract: (ctx, callIndex) => {
@@ -303,7 +303,7 @@ describe('Phase 8 — "hospital, dentist" attribution (the bug fix)', () => {
 
 // ─── PHASE 9 — multi-country attribution ───────────────────────────
 
-describe('Phase 9 — multi-country targeting', () => {
+describe('multi-country targeting', () => {
   const multiCountryScenario: SdkScenario = {
     webSearch: () => okSearch(2),
     extract: (ctx, callIndex) => {
@@ -388,7 +388,7 @@ describe('Phase 9 — multi-country targeting', () => {
 
 // ─── PHASE 7 — the five outcome states ─────────────────────────────
 
-describe('Phase 7 — outcome classification', () => {
+describe('outcome classification', () => {
   it('clean zero-results run → completed + zero_results', async () => {
     const scenario: SdkScenario = {
       webSearch: () => [], // provider healthy, genuinely nothing found
@@ -487,7 +487,7 @@ describe('Phase 7 — outcome classification', () => {
 
 // ─── PHASE 10 — cross-run dedup & non-destructive merge ────────────
 
-describe('Phase 10 — cross-run deduplication', () => {
+describe('cross-run deduplication', () => {
   async function seedExistingLead(): Promise<void> {
     dbState.leads.push({
       id: 'lead-existing',

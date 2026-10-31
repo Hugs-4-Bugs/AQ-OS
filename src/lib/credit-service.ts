@@ -159,8 +159,15 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
       }
     }
 
-    // Atomic transaction: check balance, deduct, create ledger entry
-    const result = await db.$transaction(async (tx) => {
+    // Atomic transaction: check balance, deduct, create ledger entry.
+    // The DB UNIQUE index on CreditsLedger(userId, idempotencyKey) is the
+    // race-condition backstop: if two concurrent calls with the same
+    // idempotencyKey both pass the findFirst pre-check above and both reach
+    // this transaction, only one create succeeds; the loser throws P2002 and
+    // is handled below by re-reading the existing ledger row.
+    let result: { newBalance: number; ledgerEntryId: string; plan: string };
+    try {
+      result = await db.$transaction(async (tx) => {
       // Get current user with lock-like behavior (read within transaction)
       const user = await tx.user.findUnique({
         where: { id: userId },
@@ -190,6 +197,8 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
       // (`${action}_idempotent_${idempotencyKey}`). Writing the plain `action` here
       // was the root cause of a double-charge bug: the lookup could never match a
       // real row, so replays/retries deducted again.
+      // The idempotencyKey column is also set so the DB UNIQUE index can catch
+      // concurrent duplicate inserts that won the findFirst race.
       const ledgerAction = idempotencyKey ? `${action}_idempotent_${idempotencyKey}` : action;
       const ledgerEntry = await tx.creditsLedger.create({
         data: {
@@ -199,11 +208,39 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
           balance: newBalance,
           description: description || `Deducted ${cost} credits for ${action}`,
           referenceId: referenceId || null,
+          idempotencyKey: idempotencyKey || null,
         },
       });
 
       return { newBalance, ledgerEntryId: ledgerEntry.id, plan: user.plan };
-    });
+      });
+    } catch (txError) {
+      // Race-condition backstop: a concurrent duplicate request with the same
+      // idempotencyKey inserted first and our insert lost the UNIQUE race.
+      // Re-read the winning ledger row and return it as already-processed —
+      // NEVER double-charge, NEVER throw to the caller.
+      if (
+        idempotencyKey &&
+        txError &&
+        typeof txError === 'object' &&
+        'code' in txError &&
+        (txError as { code?: string }).code === 'P2002'
+      ) {
+        const prior = await db.creditsLedger.findFirst({
+          where: { userId, idempotencyKey },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (prior) {
+          return {
+            success: true,
+            newBalance: prior.balance,
+            ledgerEntryId: prior.id,
+            alreadyProcessed: true,
+          };
+        }
+      }
+      throw txError;
+    }
 
     // Log audit event
     await logCreditEvent(userId, 'credits_deducted', {
@@ -640,7 +677,9 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
       }
     }
 
-    const result = await db.$transaction(async (tx) => {
+    let result: { newBalance: number; ledgerEntryId: string };
+    try {
+      result = await db.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: userId },
         select: { credits: true },
@@ -660,6 +699,9 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
 
       // Create refund ledger entry (composite action when idempotency key given,
       // so the pre-check above can match it on retries)
+      // The idempotencyKey column is also set so the DB UNIQUE index on
+      // CreditsLedger(userId, idempotencyKey) catches concurrent duplicate
+      // refund attempts that won the findFirst race.
       const ledgerEntry = await tx.creditsLedger.create({
         data: {
           userId,
@@ -668,11 +710,38 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
           balance: newBalance,
           description: description || `Refund: ${amount} credits returned for failed ${originalAction}`,
           referenceId: referenceId || null,
+          idempotencyKey: idempotencyKey || null,
         },
       });
 
       return { newBalance, ledgerEntryId: ledgerEntry.id };
-    });
+      });
+    } catch (txError) {
+      // Race-condition backstop: concurrent duplicate refund with the same
+      // idempotencyKey lost the UNIQUE race. Re-read the winning ledger row
+      // and return it as already-processed — NEVER double-refund.
+      if (
+        idempotencyKey &&
+        txError &&
+        typeof txError === 'object' &&
+        'code' in txError &&
+        (txError as { code?: string }).code === 'P2002'
+      ) {
+        const prior = await db.creditsLedger.findFirst({
+          where: { userId, idempotencyKey },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (prior) {
+          return {
+            success: true,
+            newBalance: prior.balance,
+            ledgerEntryId: prior.id,
+            alreadyProcessed: true,
+          };
+        }
+      }
+      throw txError;
+    }
 
     // Log audit event
     await logCreditEvent(userId, 'credits_refunded', {

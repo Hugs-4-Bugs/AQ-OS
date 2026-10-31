@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Unit Tests: Phase 3 — Workflow Builder / Configuration Integrity
+// Unit Tests: Workflow Builder / Configuration Integrity
 //
 // Covers:
 //   1. Per-action configuration rules (required fields, anyOf aliases).
@@ -88,7 +88,7 @@ async function callExecuteRoute(body: unknown) {
 // 1. Per-action configuration rules
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 3 — action configuration rules', () => {
+describe('action configuration rules', () => {
   it('derives rules only from action types the registries actually support', () => {
     // Registry-supported types (main engine switch + legacy aliases)
     const expected = [
@@ -147,7 +147,7 @@ describe('Phase 3 — action configuration rules', () => {
 // 2. Definition validation — legacy / malformed handling
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 3 — definition validation', () => {
+describe('definition validation', () => {
   it('rejects a workflow with zero steps (no silent 0-step execution)', () => {
     const v = validateDefinition([], null);
     expect(v.valid).toBe(false);
@@ -202,7 +202,7 @@ describe('Phase 3 — definition validation', () => {
 // 3. Service gates — save & enable
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 3 — workflow-service gates', () => {
+describe('workflow-service gates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.db.workflowDefinition.findFirst.mockReset();
@@ -297,7 +297,7 @@ describe('Phase 3 — workflow-service gates', () => {
 // 4. Template instantiation gate
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 3 — template instantiation gate', () => {
+describe('template instantiation gate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.db.workflowTemplate.findFirst.mockReset();
@@ -339,7 +339,7 @@ describe('Phase 3 — template instantiation gate', () => {
 // 5. Run Now pre-flight (422 before any execution record)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 3 — Run Now pre-flight validation', () => {
+describe('Run Now pre-flight validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.executeWorkflow.mockReset();

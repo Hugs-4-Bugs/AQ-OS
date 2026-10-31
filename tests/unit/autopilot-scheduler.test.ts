@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 22 Autopilot Scheduler Unit Tests
+// AcquisitionOS — Autopilot Scheduler Unit Tests
 //
 // runAutopilotSchedulerTick: due discovery · disabled/paused respect ·
 // atomic claim races (duplicate/concurrent ticks) · deterministic slot
@@ -22,7 +22,7 @@ const mockPrisma = vi.hoisted(() => ({
     findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(),
     create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn(),
   },
-  // Phase 23 — resolveUserPlan() looks up the user's plan at tick time.
+  // resolveUserPlan() looks up the user's plan at tick time.
   user: { findUnique: vi.fn() },
 }));
 
@@ -79,7 +79,7 @@ beforeEach(() => {
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});
   mockPrisma.autopilotRun.findFirst.mockResolvedValue(null);
   mockPrisma.autopilotRun.findUnique.mockResolvedValue(null);
-  // Phase 23 — default to a Pro plan so existing Phase 22 tick tests pass
+  // default to a Pro plan so existing tick tests pass
   // through the new entitlement gate (Pro/Elite are eligible; Free/Starter
   // are tested separately in autopilot-entitlements.test.ts). Per-test
   // overrides for the eligibility scenarios are set inside those tests.
@@ -92,7 +92,7 @@ beforeEach(() => {
   });
 });
 
-describe('Phase 22 scheduler tick — due discovery', () => {
+describe('scheduler tick — due discovery', () => {
   it('queries ONLY ACTIVE rows with a due nextRunAt (paused/disabled never fire)', async () => {
     await runAutopilotSchedulerTick();
     const where = mockPrisma.autopilotWorkflow.findMany.mock.calls[0][0].where;
@@ -137,7 +137,7 @@ describe('Phase 22 scheduler tick — due discovery', () => {
   });
 });
 
-describe('Phase 22 scheduler tick — pause / disable respected (categories 9 · 11)', () => {
+describe('scheduler tick — pause / disable respected (categories 9 · 11)', () => {
   it('a PAUSED row is never even fetched (status filter)', async () => {
     await runAutopilotSchedulerTick();
     expect(mockRunAutopilot).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe('Phase 22 scheduler tick — pause / disable respected (categories 9 ·
   });
 });
 
-describe('Phase 22 scheduler tick — duplicate prevention (categories 15 · 16 · 24)', () => {
+describe('scheduler tick — duplicate prevention (categories 15 · 16 · 24)', () => {
   it('a racing tick that loses the ACTIVE→RUNNING claim never starts a run', async () => {
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow()]);
     // First updateMany (the claim) returns 0 — another tick won it.
@@ -182,7 +182,7 @@ describe('Phase 22 scheduler tick — duplicate prevention (categories 15 · 16 
     );
     expect(release).toBeTruthy();
     expect((release![0] as { where: { id: string; status: string } }).where).toEqual({ id: 'ap1', status: 'RUNNING' });
-    // Phase 22 self-heal: nextRunAt advances PAST the already-handled
+    // self-heal: nextRunAt advances PAST the already-handled
     // slot (computed from the SLOT instant — the grid stays exact), so
     // a crashed-then-recovered run can never churn as due forever.
     const heal = mockPrisma.autopilotWorkflow.update.mock.calls.find(
@@ -221,7 +221,7 @@ describe('Phase 22 scheduler tick — duplicate prevention (categories 15 · 16 
   });
 });
 
-describe('Phase 22 scheduler tick — scheduled/manual race + open-run guard (category 17)', () => {
+describe('scheduler tick — scheduled/manual race + open-run guard (category 17)', () => {
   it('an unfinished previous run blocks a new scheduled run and releases the claim', async () => {
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow()]);
     mockPrisma.autopilotRun.findFirst.mockResolvedValue({ id: 'run_open' });
@@ -249,7 +249,7 @@ describe('Phase 22 scheduler tick — scheduled/manual race + open-run guard (ca
   });
 });
 
-describe('Phase 22 scheduler tick — failure recovery (category 22)', () => {
+describe('scheduler tick — failure recovery (category 22)', () => {
   it('a FAILED run outcome still persists the next occurrence (schedule survives)', async () => {
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow()]);
     mockRunAutopilot.mockResolvedValue({
@@ -271,7 +271,7 @@ describe('Phase 22 scheduler tick — failure recovery (category 22)', () => {
   });
 });
 
-describe('Phase 22 scheduler tick — restart persistence (categories 13 · 14)', () => {
+describe('scheduler tick — restart persistence (categories 13 · 14)', () => {
   it('a nextRunAt persisted by an earlier process is picked up by a fresh tick (scheduler restart)', async () => {
     // Simulate: previous process wrote nextRunAt 5 minutes in the past,
     // then died. A NEW process starts (fresh module state) and ticks.
@@ -300,7 +300,7 @@ describe('Phase 22 scheduler tick — restart persistence (categories 13 · 14)'
   });
 });
 
-describe('Phase 22 scheduler tick — legacy schedules keep working', () => {
+describe('scheduler tick — legacy schedules keep working', () => {
   it('a legacy "daily" row schedules next = now + 24h through the canonical engine', async () => {
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow({ schedule: 'daily' })]);
     await runAutopilotSchedulerTick();
@@ -314,7 +314,7 @@ describe('Phase 22 scheduler tick — legacy schedules keep working', () => {
     expect(ms).toBeLessThan(25 * 60 * 60 * 1000);
   });
 
-  it('Phase 21 configuration rides along untouched (geography preserved in the row)', async () => {
+  it('configuration rides along untouched (geography preserved in the row)', async () => {
     const row = dueRow({ geography: '{"countries":["India","United Arab Emirates"]}' });
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([row]);
     await runAutopilotSchedulerTick();

@@ -254,7 +254,7 @@ describe('callZAI X-Token authentication', () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe('provider fallback integrity', () => {
-  it('does NOT silently fall back to OpenAI when z-ai gateway rejects auth (Phase 26 v2 / Workstream B §8)', async () => {
+  it('does NOT silently fall back to OpenAI when z-ai gateway rejects auth ', async () => {
     // PHASE 26 v2 / WORKSTREAM B §8 (per user spec Part 3): production
     // was DELIBERATELY changed to NOT silently fall back from Z-AI to
     // OpenAI when the gateway rejects auth. The previous behaviour tried
@@ -303,7 +303,7 @@ describe('provider fallback integrity', () => {
     const openaiCalls = captured.filter((c) => c.url.startsWith('https://api.openai.com/v1'));
     // Z-AI was retried 3 times (maxRetries=2 → 3 attempts) before giving up.
     expect(zaiCalls.length).toBe(3);
-    // CRITICAL: OpenAI was NEVER called — no silent fallback (Phase 26 v2).
+    // CRITICAL: OpenAI was NEVER called — no silent fallback .
     expect(openaiCalls.length).toBe(0);
     // The X-Token header was still attached on every Z-AI attempt (the
     // gateway MOCK returns 401 regardless — the header attachment is the

@@ -12,7 +12,7 @@ vi.hoisted(() => {
   process.env.AUTOPILOT_EXECUTION_PACING_MS = '0';
   process.env.AUTOPILOT_NICHE_PACING_MS = '0';
   process.env.AUTOPILOT_JOB_POLL_MS = '10';
-  // Phase 18 — settle watcher must not hang the test worker.
+  // settle watcher must not hang the test worker.
   process.env.AUTOPILOT_EXECUTION_SETTLE_POLL_MS = '1';
   process.env.AUTOPILOT_EXECUTION_SETTLE_TIMEOUT_MS = '150';
 });
@@ -33,11 +33,11 @@ const mockPrisma = vi.hoisted(() => ({
   workflowDefinition: { findFirst: vi.fn() },
   discoveryJob: { findUnique: vi.fn(), create: vi.fn() },
   lead: { findFirst: vi.fn() },
-  // Phase 18 — parent execution + per-lead items + profile resolution.
+  // parent execution + per-lead items + profile resolution.
   workflowExecution: { findUnique: vi.fn(), update: vi.fn() },
   workflowExecutionLead: { findMany: vi.fn() },
   businessProfile: { findFirst: vi.fn() },
-  // Phase 23 — defense-in-depth entitlement gate inside runAutopilot
+  // defense-in-depth entitlement gate inside runAutopilot
   // calls resolveUserPlan(userId) → db.user.findUnique.
   user: { findUnique: vi.fn() },
   __ledger: new Set<string>(),
@@ -45,7 +45,7 @@ const mockPrisma = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', () => ({ db: mockPrisma }));
 
-// Phase 18 — the runner snapshots the run's profile via the Phase 11–17
+// the runner snapshots the run's profile via the Phase 11–17
 // resolution chain (workflow profile → user default). Mocked so tests can
 // assert the snapshot without hitting the (mocked) DB.
 const mockResolveBusinessProfileForUser = vi.hoisted(() => vi.fn());
@@ -121,18 +121,18 @@ beforeEach(() => {
   mockPrisma.autopilotRun.update.mockResolvedValue({});
   mockPrisma.autopilotWorkflow.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.autopilotWorkflow.update.mockResolvedValue({});
-  // Phase 23 — default Pro plan so the runAutopilot defense-in-depth
-  // entitlement gate passes and the existing Phase 18 run tests stay
+  // default Pro plan so the runAutopilot defense-in-depth
+  // entitlement gate passes and the existing run tests stay
   // focused on the run pipeline. Ineligible-plan scenarios are exercised
   // in tests/unit/autopilot-entitlements.test.ts.
   mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'pro', subscriptions: [] });
-  // Phase 18 — findUnique by runKey → null (no replay); by id → the live
+  // findUnique by runKey → null (no replay); by id → the live
   // run row the runner reads while executing.
   mockPrisma.autopilotRun.findUnique.mockImplementation(async ({ where }: { where: { id?: string; runKey?: string } }) => {
     if (where && typeof where.runKey === 'string') return null;
     return { id: where?.id || 'run1', status: 'RUNNING', runKey: 'rk-1', executionId: null };
   });
-  // Phase 18 — parent execution is terminal by default so the detached
+  // parent execution is terminal by default so the detached
   // settle watcher finishes instantly and never hangs the worker.
   mockPrisma.workflowExecution.findUnique.mockResolvedValue({ status: 'completed' });
   mockPrisma.workflowExecution.update.mockResolvedValue({});
@@ -140,7 +140,7 @@ beforeEach(() => {
     { leadId: 'lead-bright', status: 'completed', error: null },
     { leadId: 'lead-cityh', status: 'failed', error: 'send failed' },
   ]);
-  // Phase 18 — profile resolution: workflow's own profile wins (Tier 2).
+  // profile resolution: workflow's own profile wins (Tier 2).
   mockResolveBusinessProfileForUser.mockResolvedValue({
     profile: { id: 'bp1', name: 'Profile A', preferredTone: 'professional', preferredLanguage: 'English', cta: 'Book a call' },
     source: 'workflow',
@@ -179,7 +179,7 @@ beforeEach(() => {
 });
 
 describe('executeAutopilotRun', () => {
-  it('executes exactly ONE parent workflow execution for the WHOLE run (Phase 18 model)', async () => {
+  it('executes exactly ONE parent workflow execution for the WHOLE run ', async () => {
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('COMPLETED');
     // BOTH niches discover the SAME two leads; the AutopilotLead unique
@@ -320,7 +320,7 @@ describe('executeAutopilotRun', () => {
     mockStartDiscoveryJob.mockResolvedValue({ jobId: '', status: 'failed', message: 'provider down' });
     const outcome = await executeAutopilotRun(AUTOPILOT_ROW, 'run1', 'manual');
     expect(outcome.status).toBe('FAILED');
-    // Finalization is status-guarded (Phase 18): still-RUNNING → FAILED.
+    // Finalization is status-guarded : still-RUNNING → FAILED.
     expect(mockPrisma.autopilotRun.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'run1', status: 'RUNNING' }, data: expect.objectContaining({ status: 'FAILED' }) })
     );
@@ -423,11 +423,11 @@ describe('recoverStuckAutopilotRuns', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Phase 18 — Autopilot Core: runKey idempotency, cancellation,
+// Autopilot Core: runKey idempotency, cancellation,
 // settle finalizer, single-charge billing, failure isolation.
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 18: runKey idempotency (duplicate invocation protection)', () => {
+describe('runKey idempotency (duplicate invocation protection)', () => {
   it('a replayed runKey returns the EXISTING run — no second run, no second execution', async () => {
     mockPrisma.autopilotWorkflow.findFirst.mockResolvedValue({ ...AUTOPILOT_ROW, status: 'ACTIVE' });
     mockPrisma.autopilotRun.findFirst.mockResolvedValue(null); // no open run
@@ -479,7 +479,7 @@ describe('Phase 18: runKey idempotency (duplicate invocation protection)', () =>
   });
 });
 
-describe('Phase 18: run cancellation', () => {
+describe('run cancellation', () => {
   it('cancels a QUEUED run atomically — the runner claim then loses honestly', async () => {
     mockPrisma.autopilotRun.findFirst.mockResolvedValue({ id: 'run-q', status: 'QUEUED', executionId: null, autopilotId: 'ap1' });
     mockPrisma.autopilotRun.updateMany.mockResolvedValue({ count: 1 }); // flip wins
@@ -545,7 +545,7 @@ describe('Phase 18: run cancellation', () => {
   });
 });
 
-describe('Phase 18: settleRunExecutionOutcome (per-lead tracking finalizer)', () => {
+describe('settleRunExecutionOutcome (per-lead tracking finalizer)', () => {
   it('settles ledger + run aggregates from the execution lead items', async () => {
     mockPrisma.workflowExecution.findUnique.mockResolvedValue({ status: 'partial' });
     mockPrisma.workflowExecutionLead.findMany.mockResolvedValue([
@@ -597,7 +597,7 @@ describe('Phase 18: settleRunExecutionOutcome (per-lead tracking finalizer)', ()
   });
 });
 
-describe('Phase 18: single-charge billing for the ONE parent execution', () => {
+describe('single-charge billing for the ONE parent execution', () => {
   it('exactly ONE 5-credit charge for one run — regardless of lead count or niche count', async () => {
     // Two niches, TWO DIFFERENT leads each (4 unique leads total).
     mockPrisma.lead.findFirst.mockImplementation(async ({ where }: { where: { website?: string; businessName?: string } }) => {
@@ -679,13 +679,13 @@ describe('Phase 18: single-charge billing for the ONE parent execution', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Phase 20 — Autopilot Niches: per-niche discovery attribution, niche →
+// Autopilot Niches: per-niche discovery attribution, niche →
 // Business Profile mapping resolution, per-lead profile map for the
 // batch engine, run-config snapshot, and unchanged billing for
 // multi-niche runs.
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 20: niche attribution + profile mapping', () => {
+describe('niche attribution + profile mapping', () => {
   const MAPPED_ROW = {
     ...AUTOPILOT_ROW,
     profileMappings: JSON.stringify({ dental: 'bp-dental', hospital: 'bp-hosp' }),
@@ -781,7 +781,7 @@ describe('Phase 20: niche attribution + profile mapping', () => {
     });
   });
 
-  it('LEGACY rows without profileMappings pass NO per-lead map (byte-identical Phase 18 behavior)', async () => {
+  it('LEGACY rows without profileMappings pass NO per-lead map (byte-identical behavior)', async () => {
     const legacyRow = { ...AUTOPILOT_ROW } as Record<string, unknown>;
     delete legacyRow.profileMappings;
     await executeAutopilotRun(legacyRow as typeof AUTOPILOT_ROW, 'run-p20d', 'manual');

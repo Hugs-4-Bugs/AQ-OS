@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 23 Autopilot Entitlements Unit Tests
+// AcquisitionOS — Autopilot Entitlements Unit Tests
 //
 // Canonical entitlement contract · scheduler entitlement gate ·
 // defense-in-depth manual-run gate · downgrade/upgrade behavior ·
 // blocked-execution-is-zero-credits invariant · cross-user isolation.
 //
-// These tests assert ONLY the Phase 23 surface area:
+// These tests assert ONLY the surface area:
 //   · getUserEntitlements(userId) — the canonical user-resolved snapshot
 //   · isAutopilotPlanEligible(plan) — the quick plan boolean
 //   · resolveUserPlan(userId) — the no-counts plan resolver
@@ -18,13 +18,13 @@
 // countries / niches / profile mapping) is exercised by the dedicated
 // Phase 18–22 test files (autopilot-runner, autopilot-schedule,
 // autopilot-scheduler, autopilot-countries, autopilot-niches,
-// autopilot-workflow-selector, autopilot) — Phase 23 must NOT regress
+// autopilot-workflow-selector, autopilot) — must NOT regress
 // those, and the new tests below focus on the entitlement layer.
 // ═══════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ── Mock DB (Prisma-shaped subset that Phase 23 code touches). ──
+// ── Mock DB (Prisma-shaped subset that code touches). ──
 const mockPrisma = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
   autopilotWorkflow: {
@@ -166,7 +166,7 @@ beforeEach(() => {
 // STEP 15 — Group 1: Canonical getUserEntitlements(userId) resolution
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — getUserEntitlements(userId) canonical resolution', () => {
+describe('getUserEntitlements(userId) canonical resolution', () => {
   it('Free plan: autopilot NOT allowed, profile limit = 1, workflow NOT eligible', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     const ent = await getUserEntitlements('u1');
@@ -286,7 +286,7 @@ describe('Phase 23 — getUserEntitlements(userId) canonical resolution', () => 
 // STEP 15 — Group 2: isAutopilotPlanEligible(plan) quick boolean
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — isAutopilotPlanEligible(plan) quick boolean', () => {
+describe('isAutopilotPlanEligible(plan) quick boolean', () => {
   it('free → false (Free is NOT eligible)', () => {
     expect(isAutopilotPlanEligible('free')).toBe(false);
   });
@@ -305,7 +305,7 @@ describe('Phase 23 — isAutopilotPlanEligible(plan) quick boolean', () => {
 // STEP 15 — Group 3: resolveUserPlan(userId) no-counts resolver
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — resolveUserPlan(userId) no-counts resolver', () => {
+describe('resolveUserPlan(userId) no-counts resolver', () => {
   it('resolves the user.plan when no active subscription exists', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'elite', subscriptions: [] });
     const { plan, source } = await resolveUserPlan('u1');
@@ -329,10 +329,10 @@ describe('Phase 23 — resolveUserPlan(userId) no-counts resolver', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// STEP 15 — Group 4: Scheduler entitlement gate (the major Phase 23 gap)
+// STEP 15 — Group 4: Scheduler entitlement gate (the major gap)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — scheduler entitlement gate (downgrade gap closure)', () => {
+describe('scheduler entitlement gate (downgrade gap closure)', () => {
   it('Free plan: due ACTIVE autopilot is SKIPPED, NOT claimed, NOT deleted', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow()]);
@@ -469,7 +469,7 @@ describe('Phase 23 — scheduler entitlement gate (downgrade gap closure)', () =
 //                    (no ledger row written, no charge, no refund needed)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — blocked execution = 0 credits (billing invariant)', () => {
+describe('blocked execution = 0 credits (billing invariant)', () => {
   it('Scheduler-skipped (free plan) run NEVER calls chargeWorkflowExecutionFee', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow()]);
@@ -498,7 +498,7 @@ describe('Phase 23 — blocked execution = 0 credits (billing invariant)', () =>
 //              in tests/unit/autopilot-entitlements-runner.test.ts.)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — scheduler cross-user tick scope', () => {
+describe('scheduler cross-user tick scope', () => {
   it('scheduler tick uses the autopilot row\'s userId (not a hypothetical attacker)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'uA', plan: 'pro', subscriptions: [] });
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([dueRow({ id: 'apA', userId: 'uA' })]);
@@ -512,7 +512,7 @@ describe('Phase 23 — scheduler cross-user tick scope', () => {
 // ═══════════════════════════════════════════════════════════════════
 // STEP 15 — Group 8: Existing 5-credit execution invariant preserved
 //                    (covered by the existing autopilot-runner.test.ts
-//                     Phase 18 suite; this file does not duplicate the
+//                     suite; this file does not duplicate the
 //                     full charge path — see that file for the assertion
 //                     that one run = one 5-credit charge via
 //                     chargeWorkflowExecutionFee(chargeKey).)
@@ -524,7 +524,7 @@ describe('Phase 23 — scheduler cross-user tick scope', () => {
 //                     trigger businessProfile.delete — read-only)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 23 — no destructive profile deletion on downgrade', () => {
+describe('no destructive profile deletion on downgrade', () => {
   it('getUserEntitlements counts profiles via businessProfile.count (READ-ONLY, NEVER delete)', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'u1', plan: 'free', subscriptions: [] });
     mockPrisma.businessProfile.count.mockResolvedValue(5); // 5 active profiles, free plan allows 1

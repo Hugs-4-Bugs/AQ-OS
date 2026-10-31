@@ -356,9 +356,37 @@ export async function executeWorkflowBatch(
     };
 
     if (typeof (db as unknown as { $transaction?: unknown }).$transaction === 'function') {
-      await (db as unknown as {
-        $transaction: (fn: (tx?: typeof db) => Promise<void>) => Promise<void>;
-      }).$transaction(async (tx) => createExecutionRecord((tx as typeof db) ?? db));
+      try {
+        await (db as unknown as {
+          $transaction: (fn: (tx?: typeof db) => Promise<void>) => Promise<void>;
+        }).$transaction(async (tx) => createExecutionRecord((tx as typeof db) ?? db));
+      } catch (txErr) {
+        // Race-condition backstop: the DB UNIQUE index on
+        // WorkflowExecution(workflowId, idempotencyKey) rejected our insert
+        // because a concurrent duplicate trigger won. Re-read the winning
+        // execution row and treat this call as a replay of that run — never
+        // create a second history row, never spawn a second background run.
+        if (
+          options.idempotencyKey &&
+          txErr &&
+          typeof txErr === 'object' &&
+          'code' in txErr &&
+          (txErr as { code?: string }).code === 'P2002'
+        ) {
+          const winner = await db.workflowExecution.findFirst({
+            where: { idempotencyKey: options.idempotencyKey, workflowId },
+            select: { id: true, status: true, currentStep: true },
+          });
+          if (winner) {
+            existingExecution = winner;
+            createdExecution = null;
+          } else {
+            throw txErr;
+          }
+        } else {
+          throw txErr;
+        }
+      }
     } else {
       await createExecutionRecord(db);
     }
@@ -1442,8 +1470,38 @@ export async function retryBatchExecution(
     return { success: false, error: stepLoad.error };
   }
 
-  // Reset the failed leads (and leads skipped by a cancellation) to
-  // pending. Completed leads are NEVER reset — no duplicate outreach.
+  // Atomic status claim — guarantees only ONE concurrent retry call wins.
+  // The updateMany filter (`status in retriable`) ensures the first call
+  // flips status to 'running', so a concurrent second call's filter no
+  // longer matches and its count is 0. The winner then (and only then)
+  // resets lead items and spawns runBatchSteps — the loser returns without
+  // touching lead items, preventing duplicate step execution.
+  const claim = await db.workflowExecution.updateMany({
+    where: { id: executionId, status: { in: retriable } },
+    data: {
+      status: 'running',
+      error: null,
+      completedAt: null,
+      retryCount: { increment: 1 },
+      lastRetryAt: new Date(),
+    },
+  });
+  if (claim.count === 0) {
+    const fresh = await db.workflowExecution.findUnique({
+      where: { id: executionId },
+      select: { status: true },
+    });
+    return {
+      success: false,
+      error: fresh
+        ? `Cannot retry execution — another retry is in progress or status is '${fresh.status}'`
+        : 'Execution not found',
+    };
+  }
+
+  // Only the winner reaches here — reset the failed leads (and leads
+  // skipped by a cancellation) to pending. Completed leads are NEVER
+  // reset — no duplicate outreach.
   await db.workflowExecutionLead.updateMany({
     where: { executionId, status: 'failed' },
     data: { status: 'pending', error: null },
@@ -1454,17 +1512,6 @@ export async function retryBatchExecution(
       data: { status: 'pending', error: null },
     });
   }
-
-  await db.workflowExecution.update({
-    where: { id: executionId },
-    data: {
-      status: 'running',
-      error: null,
-      completedAt: null,
-      retryCount: { increment: 1 },
-      lastRetryAt: new Date(),
-    },
-  });
 
   await runBatchSteps(executionId, execution.workflowId, userId, {
     timeoutMs: execution.timeoutMs ?? defaultTimeoutMs(),

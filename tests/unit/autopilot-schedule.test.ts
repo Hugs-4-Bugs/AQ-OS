@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Phase 22 Autopilot Schedule Unit Tests
+// AcquisitionOS — Autopilot Schedule Unit Tests
 //
 // Canonical schedule module: validation (interval/unit/timezone/start),
 // persistence round-trip + legacy compatibility, timezone-aware
@@ -73,7 +73,7 @@ const at = (iso: string) => new Date(iso);
 // 1. Input validation (categories 3 · 19 · 20)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 22 schedule validation', () => {
+describe('schedule validation', () => {
   it('accepts every legacy whitelist string with interval-mode equivalents', () => {
     expect(parseScheduleInput('hourly')).toEqual({
       ok: true, config: { every: 1, unit: 'HOURS', timezone: 'UTC', startAt: null, anchorDate: null, enabled: true },
@@ -182,7 +182,7 @@ describe('Phase 22 schedule validation', () => {
 // 2. Persistence round-trip + legacy reads (category 2 · 6)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 22 schedule persistence', () => {
+describe('schedule persistence', () => {
   it('round-trips a canonical config through serialize → parsePersistedSchedule', () => {
     const config: ScheduleConfig = {
       every: 3, unit: 'HOURS', timezone: 'Asia/Kolkata', startAt: '09:30',
@@ -238,7 +238,7 @@ describe('Phase 22 schedule persistence', () => {
 // 3. Next-run engine (categories 4 · 5 · 7 · 8 + DST edges)
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Phase 22 next-run engine — interval mode (legacy semantics)', () => {
+describe('next-run engine — interval mode (legacy semantics)', () => {
   it('hourly: next = from + 1h (category 4)', () => {
     const cfg: ScheduleConfig = { every: 1, unit: 'HOURS', timezone: 'UTC', startAt: null, anchorDate: null, enabled: true };
     expect(computeNextRunAt(cfg, at('2026-10-24T10:00:00Z')).toISOString()).toBe('2026-10-24T11:00:00.000Z');
@@ -255,7 +255,7 @@ describe('Phase 22 next-run engine — interval mode (legacy semantics)', () => 
   });
 });
 
-describe('Phase 22 next-run engine — anchored mode (start time, category 8)', () => {
+describe('next-run engine — anchored mode (start time, category 8)', () => {
   // Asia/Kolkata = UTC+5:30 (no DST). 09:30 IST = 04:00Z.
   const ist = (over: Partial<ScheduleConfig> = {}): ScheduleConfig => ({
     every: 3, unit: 'HOURS', timezone: 'Asia/Kolkata', startAt: '09:30',
@@ -304,7 +304,7 @@ describe('Phase 22 next-run engine — anchored mode (start time, category 8)', 
   });
 });
 
-describe('Phase 22 next-run engine — timezone differences (category 7)', () => {
+describe('next-run engine — timezone differences (category 7)', () => {
   it('the same wall-clock start yields different UTC instants per timezone', () => {
     const kolkata: ScheduleConfig = { every: 1, unit: 'DAYS', timezone: 'Asia/Kolkata', startAt: '09:30', anchorDate: '2026-10-24', enabled: true };
     const newYork: ScheduleConfig = { every: 1, unit: 'DAYS', timezone: 'America/New_York', startAt: '09:30', anchorDate: '2026-10-24', enabled: true };
@@ -319,7 +319,7 @@ describe('Phase 22 next-run engine — timezone differences (category 7)', () =>
   });
 });
 
-describe('Phase 22 next-run engine — DST edge cases', () => {
+describe('next-run engine — DST edge cases', () => {
   it('fall-back (America/New_York 2026-11-01): daily 09:30 stays 09:30 local (UTC instant shifts +1h)', () => {
     const cfg: ScheduleConfig = { every: 1, unit: 'DAYS', timezone: 'America/New_York', startAt: '09:30', anchorDate: '2026-10-30', enabled: true };
     // 10-30 09:30 EDT = 13:30Z; 10-31 09:30 EDT = 13:30Z; 11-01 09:30 EST = 14:30Z.
@@ -351,8 +351,8 @@ describe('Phase 22 next-run engine — DST edge cases', () => {
   });
 });
 
-describe('Phase 22 initial-run semantics (activation)', () => {
-  it('interval mode keeps the Phase 18 ~60s activation grace', () => {
+describe('initial-run semantics (activation)', () => {
+  it('interval mode keeps the ~60s activation grace', () => {
     const cfg: ScheduleConfig = { every: 6, unit: 'HOURS', timezone: 'UTC', startAt: null, anchorDate: null, enabled: true };
     const t0 = Date.now();
     const first = computeInitialRunAt(cfg, at('2026-10-24T10:00:00Z'));
@@ -367,7 +367,7 @@ describe('Phase 22 initial-run semantics (activation)', () => {
   });
 });
 
-describe('Phase 22 schedule labels + display', () => {
+describe('schedule labels + display', () => {
   it('labels interval and anchored configs', () => {
     expect(scheduleLabel({ every: 3, unit: 'HOURS', timezone: 'UTC', startAt: null, anchorDate: null, enabled: true })).toBe('Every 3 hours');
     expect(scheduleLabel({ every: 1, unit: 'DAYS', timezone: 'UTC', startAt: null, anchorDate: null, enabled: true })).toBe('Daily');
@@ -410,7 +410,7 @@ beforeEach(() => {
   }));
 });
 
-describe('Phase 22 service — createAutopilot schedule handling', () => {
+describe('service — createAutopilot schedule handling', () => {
   it('persists the canonical schedule JSON + timezone (categories 1 · 2 · 6)', async () => {
     const result = await createAutopilot('u1', null, 'pro', {
       ...CREATE_INPUT,
@@ -474,7 +474,7 @@ describe('Phase 22 service — createAutopilot schedule handling', () => {
   });
 });
 
-describe('Phase 22 service — updateAutopilotFields schedule handling', () => {
+describe('service — updateAutopilotFields schedule handling', () => {
   const row = (over: Record<string, unknown> = {}) => ({
     id: 'ap1', userId: 'u1', orgId: null, name: 'AP', status: 'ACTIVE',
     niches: JSON.stringify(['Dental']), geography: JSON.stringify({ countries: ['India'] }),
@@ -546,7 +546,7 @@ describe('Phase 22 service — updateAutopilotFields schedule handling', () => {
   });
 });
 
-describe('Phase 22 service — pause / resume / disable transitions (categories 9 · 10 · 11)', () => {
+describe('service — pause / resume / disable transitions (categories 9 · 10 · 11)', () => {
   const baseRow = (over: Record<string, unknown> = {}) => ({
     id: 'ap1', userId: 'u1', orgId: null, name: 'AP', status: 'ACTIVE',
     niches: JSON.stringify(['Dental']), geography: '{}', profileMappings: '{}', workflowId: 'wf1',
@@ -617,7 +617,7 @@ describe('Phase 22 service — pause / resume / disable transitions (categories 
   });
 });
 
-describe('Phase 22 service — list serialization exposes the canonical config', () => {
+describe('service — list serialization exposes the canonical config', () => {
   it('listAutopilots returns scheduleConfig + scheduleLabel (API surface)', async () => {
     mockPrisma.autopilotWorkflow.findMany.mockResolvedValue([
       {
@@ -643,7 +643,7 @@ describe('Phase 22 service — list serialization exposes the canonical config',
     // Legacy rows serialize through the tolerant parse.
     expect(items[1].scheduleConfig).toMatchObject({ every: 1, unit: 'DAYS', timezone: 'UTC' });
     expect(items[1].scheduleLabel).toBe('Daily');
-    // Phase 21 geography is untouched alongside the new fields.
+    // geography is untouched alongside the new fields.
     expect(items[0].geography).toEqual({ countries: ['India'] });
   });
 });

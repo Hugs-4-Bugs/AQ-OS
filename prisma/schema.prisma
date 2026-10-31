@@ -387,11 +387,22 @@ model CreditsLedger {
   balance     Int // balance after transaction
   description String?
   referenceId String? // ID of related entity (lead, deal, etc.)
+  // DB-enforced idempotency backstop. When a caller passes an
+  // idempotencyKey to deductCredits/refundCredits/addCredits, the key is
+  // persisted here so a concurrent duplicate request that wins the
+  // application-level findFirst pre-check race is rejected by the UNIQUE
+  // index (P2002) and the loser re-reads the existing ledger row instead of
+  // double-charging. Nullable: historical rows and non-idempotent writes
+  // keep NULL. SQLite treats NULLs as distinct under UNIQUE, so multiple
+  // NULLs coexist. Scoped to (userId, idempotencyKey) so keys cannot leak
+  // across tenants.
+  idempotencyKey String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
+  @@unique([userId, idempotencyKey])
   @@index([userId])
   @@index([action])
   @@index([createdAt])
@@ -1410,6 +1421,16 @@ model WorkflowExecution {
   @@index([startedAt])
   @@index([idempotencyKey])
   @@index([deadLettered])
+  // DB-enforced idempotency backstop for workflow execution. When a caller
+  // supplies an idempotencyKey (target.runId, batch runBatchId, trigger
+  // stableEventId, autopilot runId), the (workflowId, idempotencyKey) pair
+  // must be unique so a concurrent duplicate trigger cannot create a second
+  // execution row for the same logical run. SQLite treats NULLs as distinct
+  // under UNIQUE, so legacy/autonomous executions without a key keep NULL
+  // without colliding. The application-level findFirst pre-check remains as
+  // the fast path; this constraint is the race loser's safety net (P2002 →
+  // re-read existing execution).
+  @@unique([workflowId, idempotencyKey])
 }
 
 // Multi-lead execution model: ONE WorkflowExecution row represents the whole

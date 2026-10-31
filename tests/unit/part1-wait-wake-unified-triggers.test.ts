@@ -120,7 +120,7 @@ describe('[Part 1] Unified trigger — schedule path', () => {
 
     // Second tick — the first tick advanced nextRunAt to the future, so the
     // second tick finds no due automations and creates/reuses ZERO new rows.
-    // (The Phase 18 idempotency at the runKey level is exercised separately
+    // (The idempotency at the runKey level is exercised separately
     // via the createOrFetchInvocation test that proves duplicate slot keys
     // converge on the same row.) The invariant here: only ONE run exists.
     const second = await scheduleTriggerTick({ now: new Date() });
