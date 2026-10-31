@@ -1,28 +1,30 @@
 // ═══════════════════════════════════════════════════════════════════
 // AcquisitionOS — POST /api/admin/operations/retry
-// Phase 32: Idempotent retry of a failed operation.
+// Phase 32 (HARDENED): REAL retry execution — actually invokes the
+// underlying retry mechanism via executeRealRetry().
+//
 // RBAC: system.operations.retry (super_admin, admin)
-// Audit-logged.
+// Audit-logged with the ACTUAL result (not just intent).
 //
 // Body:
 //   {
 //     idempotencyKey: string (>= 4 chars, required),
 //     operationType: string (>= 3 chars, required),
-//     targetId?: string,
+//     targetId: string (required for real retry execution),
 //     note?: string
 //   }
 //
 // Returns:
-//   { status: 'started' | 'already_completed' | 'already_in_progress' }
+//   status: 'executed' | 'already_completed' | 'rejected_non_retryable' | 'rejected_not_found'
 //
-// The actual retry execution is performed by the existing operation
-// service that owns the operation. This route records the retry intent
-// + audit entry and returns the dispatch status.
+// The retry ACTUALLY executes (calls retryExecution() for workflow_reexecute)
+// or is explicitly rejected with a structured reason. Intent-only recording
+// is NEVER the success path.
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
-import { retryFailedOperation } from '@/lib/admin-operations-service';
+import { executeRealRetry } from '@/lib/admin-operations-service';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -54,8 +56,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { status: 400 }
         );
       }
+      if (!targetId) {
+        return NextResponse.json(
+          { success: false, error: 'targetId is required for real retry execution' },
+          { status: 400 }
+        );
+      }
 
-      const data = await retryFailedOperation({
+      const data = await executeRealRetry({
         idempotencyKey,
         operationType,
         targetId,
@@ -65,9 +73,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userAgent: getUserAgent(request) || safeGetHeader(request, 'user-agent'),
       });
 
-      return NextResponse.json({ success: true, data });
+      // Map execution status to HTTP status:
+      // - executed / already_completed → 200
+      // - rejected_non_retryable → 409 (Conflict — state doesn't allow retry)
+      // - rejected_not_found → 404
+      const httpStatus =
+        data.status === 'rejected_not_found' ? 404 :
+        data.status === 'rejected_non_retryable' ? 409 :
+        200;
+
+      return NextResponse.json({ success: data.accepted, data }, { status: httpStatus });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to record retry';
+      const message = error instanceof Error ? error.message : 'Failed to execute retry';
       console.error('[AdminOpsAPI] retry error:', error);
       return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
