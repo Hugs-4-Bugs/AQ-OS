@@ -24,8 +24,11 @@ vi.mock('next/headers', () => ({
 }));
 
 // Mock environment
-// Use absolute path so the Prisma query engine (Rust binary) resolves
-// the DB correctly regardless of its internal working directory.
+// Use absolute path to the shared test database. The Prisma query engine
+// (Rust binary) resolves relative paths differently than Node.js, so an
+// absolute path ensures correct resolution.
+// Note: tests that require isolation from parallel writes use their own
+// per-file DB via vi.hoisted (see tests/e2e/*.test.ts).
 process.env.DATABASE_URL = 'file:' + process.cwd() + '/test.db';
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only-min-32-chars';
 process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';

@@ -17,6 +17,16 @@ export default defineConfig({
     },
     testTimeout: 30000,
     hookTimeout: 30000,
+    // Externalize @prisma/client so vitest does NOT transform/cache it.
+    // The Prisma client has its own runtime (Rust engine) and should be
+    // loaded as-is from node_modules. Transforming it can corrupt the
+    // DMMF (field definitions) when the shared node_modules is regenerated
+    // from a different schema (e.g., the main repo's schema).
+    server: {
+      deps: {
+        external: [/^@prisma\/client/, /^\.prisma\/client/, /^@prisma\/engines/],
+      },
+    },
   },
   resolve: {
     alias: {
