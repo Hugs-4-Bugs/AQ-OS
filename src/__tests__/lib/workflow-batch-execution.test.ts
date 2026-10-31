@@ -246,7 +246,13 @@ function primeStores() {
       let count = 0;
       for (const row of sim.state.executions.values()) {
         if (matchesWhere(row, where)) {
-          Object.assign(row, data);
+          for (const [k, v] of Object.entries(data)) {
+            if (v && typeof v === 'object' && 'increment' in (v as Record<string, unknown>)) {
+              row[k] = Number(row[k] ?? 0) + (v as { increment: number }).increment;
+            } else {
+              row[k] = v;
+            }
+          }
           count++;
         }
       }

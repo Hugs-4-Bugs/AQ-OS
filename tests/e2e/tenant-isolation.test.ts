@@ -33,7 +33,14 @@ import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vites
 import { NextRequest, NextResponse } from 'next/server';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
+  const { copyFileSync, existsSync, mkdirSync } = require('fs');
+  const { join } = require('path');
+  const isolatedDir = join(process.cwd(), '.test-db-isolated');
+  if (!existsSync(isolatedDir)) mkdirSync(isolatedDir, { recursive: true });
+  const dbPath = join(isolatedDir, 'tenant-isolation.db');
+  const schemaSource = join(process.cwd(), 'test.db');
+  if (existsSync(schemaSource)) copyFileSync(schemaSource, dbPath);
+  process.env.DATABASE_URL = `file:${dbPath}`;
 });
 
 import { db } from '@/lib/db';

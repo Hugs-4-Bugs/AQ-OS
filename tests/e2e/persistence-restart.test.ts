@@ -53,7 +53,14 @@ import { join } from 'path';
 import { PrismaClient } from '@prisma/client';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
+  const { copyFileSync, existsSync, mkdirSync } = require('fs');
+  const { join } = require('path');
+  const isolatedDir = join(process.cwd(), '.test-db-isolated');
+  if (!existsSync(isolatedDir)) mkdirSync(isolatedDir, { recursive: true });
+  const dbPath = join(isolatedDir, 'persistence.db');
+  const schemaSource = join(process.cwd(), 'test.db');
+  if (existsSync(schemaSource)) copyFileSync(schemaSource, dbPath);
+  process.env.DATABASE_URL = `file:${dbPath}`;
   process.env.NODE_ENV = 'development';
   delete process.env.RAZORPAY_WEBHOOK_SECRET;
   delete process.env.STRIPE_WEBHOOK_SECRET;
@@ -134,7 +141,7 @@ function readViaChildProcess(ids: Record<string, string>): any {
   try {
     const output = execFileSync('node', [READER_SCRIPT, idsFile], {
       cwd: process.cwd(),
-      env: { ...process.env, DATABASE_URL: 'file:/home/z/my-project/db/custom.db' },
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
       timeout: 30000,
       encoding: 'utf-8',
     });

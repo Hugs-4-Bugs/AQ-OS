@@ -102,6 +102,7 @@ const mocks = vi.hoisted(() => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       count: vi.fn(async () => 0),
     },
     workflowLog: { create: vi.fn(async () => ({})) },
@@ -201,6 +202,19 @@ function primeExecutionStore() {
       const row = sim.state.executions.get(where.id);
       if (row) Object.assign(row, data);
       return row ?? {};
+    },
+  );
+  mocks.db.workflowExecution.updateMany.mockImplementation(
+    async ({ where, data }: { where: { id: string; status?: unknown }; data: Record<string, unknown> }) => {
+      const row = sim.state.executions.get(where.id);
+      if (!row) return { count: 0 };
+      // Simulate the atomic status claim: only succeed if current status is retriable
+      const retriable = ['failed', 'cancelled', 'exhausted'];
+      if (retriable.includes(row.status as string)) {
+        Object.assign(row, data);
+        return { count: 1 };
+      }
+      return { count: 0 };
     },
   );
 }

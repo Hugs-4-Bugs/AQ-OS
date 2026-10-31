@@ -24,6 +24,8 @@ vi.mock('next/headers', () => ({
 }));
 
 // Mock environment
-process.env.DATABASE_URL = 'file:./test.db';
+// Use absolute path so the Prisma query engine (Rust binary) resolves
+// the DB correctly regardless of its internal working directory.
+process.env.DATABASE_URL = 'file:' + process.cwd() + '/test.db';
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only-min-32-chars';
 process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
