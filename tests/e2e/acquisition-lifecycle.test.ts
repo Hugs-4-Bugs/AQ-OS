@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// Phase 35 — Integrated Business Flow E2E Test
+// Integrated Business Flow E2E Test
 //
 // Walks a single test tenant through the COMPLETE AcquisitionOS
 // lifecycle, proving that the output of each stage becomes the valid
@@ -175,7 +175,7 @@ async function cleanupTestTenant() {
 // ═══════════════════════════════════════════════════════════════════
 // THE INTEGRATED FLOW
 // ═══════════════════════════════════════════════════════════════════
-describe('[Phase 35] Integrated business flow — Signup → Admin', () => {
+describe('Integrated acquisition lifecycle — Signup to Admin', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await cleanupTestTenant();
@@ -354,7 +354,7 @@ describe('[Phase 35] Integrated business flow — Signup → Admin', () => {
       buildRequest('http://localhost/api/business-profiles', 'POST', {
         name: 'Phase35 Profile A',
         industry: 'B2B SaaS',
-        description: 'Test profile for Phase 35',
+        description: 'Test profile for E2E test',
         offers: 'Premium consulting',
         targetAudience: 'Mid-market tech companies',
         valueProposition: 'Faster sales cycles',
@@ -424,7 +424,7 @@ describe('[Phase 35] Integrated business flow — Signup → Admin', () => {
   //
   // The auth rate limiter is 5/min per-IP (src/lib/security/rate-limiter.ts
   // 'auth' bucket). Running 8 separate tests that each call POST /api/auth/signup
-  // from 127.0.0.1 exceeds the limit after the 5th attempt. Per the Phase 35
+  // from 127.0.0.1 exceeds the limit after the 5th attempt. Per the
   // spec Step 8 (Preferred: "One continuous test scenario with explicit state
   // passed from stage to stage"), stages 6-16 are merged into ONE test that
   // does signup once and flows state through Discovery → Lead → Workflow →
