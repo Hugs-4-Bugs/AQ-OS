@@ -880,7 +880,7 @@ export async function executeAutopilotRun(
       message: `Autopilot run failed: ${String(message).slice(0, 100)}`,
       details: {
         runId,
-        autopilotId,
+        autopilotId: autopilot.id,
         errorPreview: String(message).slice(0, 200),
       },
     }).catch(() => {

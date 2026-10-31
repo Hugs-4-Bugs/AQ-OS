@@ -699,9 +699,12 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
 
       // Create refund ledger entry (composite action when idempotency key given,
       // so the pre-check above can match it on retries)
-      // The idempotencyKey column is also set so the DB UNIQUE index on
-      // CreditsLedger(userId, idempotencyKey) catches concurrent duplicate
-      // refund attempts that won the findFirst race.
+      // The idempotencyKey column is set to a refund-specific value
+      // (prefixed with `refund:`) so it does NOT collide with the original
+      // deduction's idempotencyKey in the DB UNIQUE index on
+      // CreditsLedger(userId, idempotencyKey). A deduction and a refund for
+      // the same logical operation are DIFFERENT ledger rows — they must
+      // not share the same idempotencyKey column value.
       const ledgerEntry = await tx.creditsLedger.create({
         data: {
           userId,
@@ -710,7 +713,7 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
           balance: newBalance,
           description: description || `Refund: ${amount} credits returned for failed ${originalAction}`,
           referenceId: referenceId || null,
-          idempotencyKey: idempotencyKey || null,
+          idempotencyKey: idempotencyKey ? `refund:${idempotencyKey}` : null,
         },
       });
 
@@ -720,6 +723,8 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
       // Race-condition backstop: concurrent duplicate refund with the same
       // idempotencyKey lost the UNIQUE race. Re-read the winning ledger row
       // and return it as already-processed — NEVER double-refund.
+      // The refund-specific key (refund:${idempotencyKey}) is used for the
+      // lookup so it does not match the original deduction's row.
       if (
         idempotencyKey &&
         txError &&
@@ -728,7 +733,7 @@ export async function refundCredits(params: RefundCreditsParams): Promise<Refund
         (txError as { code?: string }).code === 'P2002'
       ) {
         const prior = await db.creditsLedger.findFirst({
-          where: { userId, idempotencyKey },
+          where: { userId, idempotencyKey: `refund:${idempotencyKey}` },
           orderBy: { createdAt: 'asc' },
         });
         if (prior) {
