@@ -188,6 +188,7 @@ model User {
   feedbackReports          FeedbackReport[]
   supportTickets           SupportTicket[]
   kbArticleFeedbacks       KbArticleFeedback[]
+  sensitiveActionConfirmations SensitiveActionConfirmation[]
 
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
@@ -1566,11 +1567,28 @@ model AuditLog {
   createdAt DateTime @default(now())
   metadata  String?
 
+  // Phase 33 — tamper-evident audit chain + security classification
+  // All optional — existing rows get null (additive, no data loss)
+  sequence         Int?     // sequential chain position
+  previousHash     String?  // hash of the previous audit event
+  eventHash        String?  // hash of this event's canonical payload
+  severity         String?  // LOW, MEDIUM, HIGH, CRITICAL
+  requestId        String?  // correlation ID
+  outcome          String?  // success, denied, failed, confirmed
+  beforeState      String?  // JSON snapshot of previous state (sanitized)
+  afterState       String?  // JSON snapshot of resulting state (sanitized)
+  securityEventType String? // authz_permission_denied, authz_role_change, etc.
+  confirmed        Boolean? // whether sensitive action was confirmed
+
   @@index([userId])
   @@index([action])
   @@index([resource])
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([severity])
+  @@index([requestId])
+  @@index([securityEventType])
+  @@index([sequence])
 }
 
 model SystemEvent {
@@ -4040,4 +4058,38 @@ model AutomationCheckpoint {
   @@index([invocationId, status])
   @@index([userId, businessId])
   @@index([status, nextWakeAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PHASE 33 — Admin Audit & Security Operations
+//
+// Additive fields on AuditLog for tamper-evident chain + security
+// classification + before/after state + correlation ID.
+// All fields are optional — existing rows (2231) get null.
+// ═══════════════════════════════════════════════════════════════════
+
+// Phase 33 audit chain fields (added to AuditLog via db push)
+// These are NOT in the model above — they're added as a separate
+// extension to avoid schema migration conflicts.
+
+model SensitiveActionConfirmation {
+  id            String    @id @default(cuid())
+  actionType    String    // e.g. 'rbac_assign_role', 'config_change'
+  targetId      String    // e.g. userId being modified
+  adminId       String    // the admin requesting confirmation
+  tokenHash     String    @unique // SHA-256 hash of the confirmation token (never store plaintext)
+  status        String    @default("pending") // pending, approved, rejected, expired, used
+  requestId     String?   // correlation ID
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime  // short-lived (5 minutes)
+  usedAt        DateTime?
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([status])
+  @@index([actionType])
+  @@index([expiresAt])
 }
