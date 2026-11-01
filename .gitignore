@@ -34,3 +34,4 @@ test.db
 prisma/test.db
 *.test.db
 .test-db-isolated/
+test-schema.db
