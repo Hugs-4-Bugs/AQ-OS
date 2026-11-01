@@ -818,11 +818,23 @@ describe('[BLOCKER 1] Server-enforced confirmation on rbac/assign', () => {
     const confirmMod = await import('@/app/api/admin/security/confirmation/request/route');
     confirmReqPOST = confirmMod.POST;
 
-    // Create a target user for role assignment
-    const target = await db.user.create({
-      data: {
+    // Create or reuse a target user for role assignment.
+    // Uses upsert so that if a previous test's cleanup failed to delete
+    // the user (FK constraints can block deletion), the test still
+    // proceeds instead of failing with "Unique constraint failed".
+    const target = await db.user.upsert({
+      where: { email: 'rbac-target@test.local' },
+      create: {
         email: 'rbac-target@test.local',
         name: 'RBAC Target',
+        role: 'member',
+        plan: 'free',
+        credits: 0,
+        passwordHash: 'test-hash',
+        emailVerified: true,
+        isActive: true,
+      },
+      update: {
         role: 'member',
         plan: 'free',
         credits: 0,
@@ -835,18 +847,42 @@ describe('[BLOCKER 1] Server-enforced confirmation on rbac/assign', () => {
   });
 
   afterEach(async () => {
-    // Clean up target user + ALL dependent records (FK constraint safety)
+    // Clean up target user + ALL dependent records.
+    // The User table has 65+ FK references across the schema. Listing every
+    // dependent table is fragile — new tables are added over time and any
+    // missed FK blocks the user deletion, causing the next test's beforeEach
+    // to fail with "Unique constraint failed (email)".
+    //
+    // The correct test-only approach: temporarily disable SQLite FK
+    // enforcement, delete the user (orphaned dependent rows are harmless
+    // test data in the isolated per-worker DB), then re-enable FK
+    // enforcement. This does NOT weaken production FK constraints — it is
+    // a test cleanup operation in an isolated test database.
     const uid = targetUserId;
-    await db.auditLog.deleteMany({ where: { resourceId: uid } }).catch(() => {});
-    await db.sensitiveActionConfirmation.deleteMany({ where: { targetId: uid } }).catch(() => {});
-    await db.userSession.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.userSettings.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.loginHistory.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.subscription.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.creditsLedger.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.notification.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.auditLog.deleteMany({ where: { userId: uid } }).catch(() => {});
-    await db.user.deleteMany({ where: { id: uid } }).catch(() => {});
+    if (!uid) return;
+    try {
+      await db.$executeRaw`PRAGMA foreign_keys = OFF`;
+      // Best-effort deletion of known high-traffic dependent tables
+      await db.auditLog.deleteMany({ where: { resourceId: uid } }).catch(() => {});
+      await db.sensitiveActionConfirmation.deleteMany({ where: { targetId: uid } }).catch(() => {});
+      await db.sensitiveActionConfirmation.deleteMany({ where: { adminId: uid } }).catch(() => {});
+      await db.securityAlert.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.userSession.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.userSettings.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.loginHistory.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.subscription.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.creditsLedger.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.notification.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.auditLog.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.mfaConfig.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.orgMember.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.onboardingProgress.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.notificationPreferences.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.knownDevice.deleteMany({ where: { userId: uid } }).catch(() => {});
+      await db.user.deleteMany({ where: { id: uid } }).catch(() => {});
+    } finally {
+      await db.$executeRaw`PRAGMA foreign_keys = ON`;
+    }
   });
 
   function buildAssignPost(body: unknown): NextRequest {

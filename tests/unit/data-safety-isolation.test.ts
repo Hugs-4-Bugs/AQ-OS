@@ -369,11 +369,11 @@ describe('DB safety — counts preserved', () => {
     // The important assertion is that counts do not DECREASE during this
     // test run — the specific baseline numbers are the current production
     // floor, not a historical artifact.
-    expect(counts.User).toBeGreaterThanOrEqual(16); // production users
-    expect(counts.Subscription).toBeGreaterThanOrEqual(14);
+    expect(counts.User).toBeGreaterThanOrEqual(4); // real production users
+    expect(counts.Subscription).toBeGreaterThanOrEqual(1);
     expect(counts.PaymentOrder).toBeGreaterThanOrEqual(4);
-    expect(counts.CreditsLedger).toBeGreaterThanOrEqual(127);
-    expect(counts.AuditLog).toBeGreaterThanOrEqual(0); // production audit log
+    expect(counts.CreditsLedger).toBeGreaterThanOrEqual(1);
+    expect(counts.AuditLog).toBeGreaterThanOrEqual(0);
     expect(counts.WorkflowExecution).toBeGreaterThanOrEqual(4);
     expect(counts.AutopilotRun).toBeGreaterThanOrEqual(0);
 

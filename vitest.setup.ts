@@ -34,7 +34,7 @@ const isolatedDir = join(process.cwd(), '.test-db-isolated');
 if (!existsSync(isolatedDir)) {
   mkdirSync(isolatedDir, { recursive: true });
 }
-const workerDbPath = join(isolatedDir, `unit-${process.pid}.db`);
+const workerDbPath = join(isolatedDir, `unit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`);
 const schemaSource = join(process.cwd(), 'test-schema.db');
 if (existsSync(schemaSource)) {
   copyFileSync(schemaSource, workerDbPath);
