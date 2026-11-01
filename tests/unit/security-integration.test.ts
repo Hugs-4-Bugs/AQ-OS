@@ -109,11 +109,26 @@ async function cleanupTestData() {
   await db.auditLog.deleteMany({
     where: { userId: { in: [...rbacUserIds, TEST_ADMIN.id] } },
   }).catch(() => {});
-  for (const id of rbacUserIds) {
-    await db.user.deleteMany({ where: { id } }).catch(() => {});
+  // Delete ALL dependent records before deleting users (FK constraint safety)
+  const allUserIds = [...rbacUserIds, TEST_ADMIN.id];
+  for (const uid of allUserIds) {
+    await db.sensitiveActionConfirmation.deleteMany({ where: { targetId: uid } }).catch(() => {});
+    await db.userSession.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.userSettings.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.loginHistory.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.subscription.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.creditsLedger.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.notification.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.apiKey.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.onboardingProgress.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.mfaConfig.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.lead.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.workflowLog.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.workflowDefinition.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.autopilotWorkflow.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.paymentOrder.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.user.deleteMany({ where: { id: uid } }).catch(() => {});
   }
-  // Delete test admin user
-  await db.user.deleteMany({ where: { id: TEST_ADMIN.id } }).catch(() => {});
 }
 
 afterAll(async () => {
@@ -820,10 +835,18 @@ describe('[BLOCKER 1] Server-enforced confirmation on rbac/assign', () => {
   });
 
   afterEach(async () => {
-    // Clean up target user + their audit entries
-    await db.auditLog.deleteMany({ where: { resourceId: targetUserId } }).catch(() => {});
-    await db.sensitiveActionConfirmation.deleteMany({ where: { targetId: targetUserId } }).catch(() => {});
-    await db.user.deleteMany({ where: { id: targetUserId } }).catch(() => {});
+    // Clean up target user + ALL dependent records (FK constraint safety)
+    const uid = targetUserId;
+    await db.auditLog.deleteMany({ where: { resourceId: uid } }).catch(() => {});
+    await db.sensitiveActionConfirmation.deleteMany({ where: { targetId: uid } }).catch(() => {});
+    await db.userSession.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.userSettings.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.loginHistory.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.subscription.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.creditsLedger.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.notification.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.auditLog.deleteMany({ where: { userId: uid } }).catch(() => {});
+    await db.user.deleteMany({ where: { id: uid } }).catch(() => {});
   });
 
   function buildAssignPost(body: unknown): NextRequest {

@@ -17,7 +17,7 @@ vi.mock('@/lib/db', () => ({
     creditsLedger: { create: vi.fn(), findMany: vi.fn(), count: vi.fn(), aggregate: vi.fn(), findFirst: vi.fn() },
     paymentOrder: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
     workflowDefinition: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() },
-    workflowExecution: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+    workflowExecution: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     workflowLog: { create: vi.fn() },
     auditLog: { create: vi.fn(), findMany: vi.fn(), count: vi.fn() },
     notification: { create: vi.fn(), findMany: vi.fn(), update: vi.fn(), count: vi.fn() },
@@ -278,6 +278,7 @@ describe('Retry on Failure', () => {
     });
 
     mockDb.workflowExecution.update.mockResolvedValue({});
+    mockDb.workflowExecution.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await retryExecution('exec_failed', 'user_1');
     expect(result.success).toBe(true);

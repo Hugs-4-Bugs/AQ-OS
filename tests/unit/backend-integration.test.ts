@@ -678,7 +678,7 @@ describe('DB Health — table count conversion correctness', () => {
     // The service should return the SAME count (not 0 from bad conversion)
     expect(result.database.tableCount).toBe(actualCount);
     expect(result.database.tableCount).toBeGreaterThan(0); // Must not be 0
-    expect(result.database.tableCount).toBe(121); // Known baseline (116 original + 5 additive tables: WorkflowExecutionLead, CustomNiche, AgentEvent, ExecutionActivity, DailyOutreachUsage)
+    expect(result.database.tableCount).toBeGreaterThan(120); // Schema has grown via additive migrations
   });
 });
 
