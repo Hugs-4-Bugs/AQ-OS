@@ -13,7 +13,7 @@
     "db:migrate": "node scripts/db-safety.mjs snapshot && prisma migrate dev",
     "db:reset": "node scripts/db-safety.mjs guard-reset && prisma migrate reset",
     "postinstall": "prisma generate || true",
-    "test": "vitest run",
+    "test": "prisma generate --schema=prisma/schema.prisma && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "security:scan": "bun run scripts/security-scan.ts",

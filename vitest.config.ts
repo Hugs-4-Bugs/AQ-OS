@@ -17,10 +17,14 @@ export default defineConfig({
     },
     testTimeout: 30000,
     hookTimeout: 30000,
+    // Global setup runs ONCE before all test workers start. It regenerates
+    // the Prisma client from the develop schema so every worker loads a
+    // client with the correct DMMF (including fields like profileMappings
+    // that the main repo's schema lacks). Without this, the shared
+    // node_modules @prisma/client may be stale from the main repo's
+    // postinstall, causing 'Unknown argument' errors in tests.
+    globalSetup: ['./tests/helpers/global-setup.ts'],
     // Disable module cache so each fork re-evaluates modules fresh.
-    // This prevents stale PrismaClient DMMF from being shared across
-    // workers when the shared node_modules is regenerated from a
-    // different schema.
     deps: {
       cacheDir: false,
     },
