@@ -129,6 +129,36 @@ function ensureWritableDatabasePath(): void {
 // Run the FC workaround BEFORE creating PrismaClient
 ensureWritableDatabasePath();
 
+// ═══════════════════════════════════════════════════════════════════
+// CRITICAL: Ensure the Prisma client is generated from THIS repo's
+// schema before creating PrismaClient.
+//
+// When the develop worktree shares node_modules with the main repo
+// (via symlink), the Prisma client may be stale — generated from the
+// main repo's schema which lacks develop-specific fields like
+// profileMappings, isDefault, sequence, etc. This causes
+// PrismaClientValidationError at runtime.
+//
+// This regeneration runs at module load time (before PrismaClient is
+// constructed) and uses the CURRENT repo's schema.prisma. It's
+// idempotent — if the client is already up-to-date, prisma generate
+// completes in <1s. Skipped in production to avoid startup latency.
+// ═══════════════════════════════════════════════════════════════════
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const schemaPath = path.join(process.cwd(), 'prisma', 'schema.prisma');
+    const prismaBin = path.join(process.cwd(), 'node_modules', '.bin', 'prisma');
+    if (fs.existsSync(schemaPath) && fs.existsSync(prismaBin)) {
+      require('child_process').execSync(
+        `"${prismaBin}" generate --schema="${schemaPath}"`,
+        { stdio: 'pipe', timeout: 30000, cwd: process.cwd() }
+      );
+    }
+  } catch {
+    // If regeneration fails, continue with the existing client.
+  }
+}
+
 // ===== QUERY MONITORING STATE =====
 
 interface QueryStats {

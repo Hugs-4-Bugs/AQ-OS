@@ -28,12 +28,6 @@ export default defineConfig({
     deps: {
       cacheDir: false,
     },
-    // Externalize @prisma/client so vitest does NOT transform it.
-    server: {
-      deps: {
-        external: [/^@prisma\/client/, /^\.prisma\/client/, /^@prisma\/engines/],
-      },
-    },
   },
   resolve: {
     alias: {
