@@ -135,6 +135,8 @@ model User {
   outreachSequences        OutreachSequence[]
   workflowDefinitions      WorkflowDefinition[]
   businessProfiles         BusinessProfile[]
+  webProperties            WebProperty[]
+  researchSnapshots        ResearchSnapshot[]
   researchJobs             ResearchJob[]
   competitorAnalyses       CompetitorAnalysis[]
   aiChatSessions           AiChatSession[]
@@ -3219,8 +3221,97 @@ model BusinessProfile {
 
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   workflows WorkflowDefinition[]
+  webProperties WebProperty[]
 
   @@index([userId, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WebProperty — a URL the user claims as their own business web
+// presence. Scoped to a BusinessProfile (which is scoped to a User).
+// Multiple web properties per profile are supported (primary website,
+// portfolio, product page, landing page, etc.).
+// ═══════════════════════════════════════════════════════════════════
+model WebProperty {
+  id               String    @id @default(cuid())
+  businessProfileId String
+  userId           String   // denormalized for fast ownership filtering
+  url              String
+  label            String?  // "Company Website", "Portfolio", "Product Page"
+  propertyType     String   @default("website") // website | portfolio | product | landing_page | personal | other
+  status           String   @default("active") // active | archived
+  lastResearchedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  businessProfile  BusinessProfile   @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  researchSnapshots ResearchSnapshot[]
+
+  @@unique([businessProfileId, url])
+  @@index([userId])
+  @@index([businessProfileId, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ResearchSnapshot — one research execution against one WebProperty.
+// Versioned: each new research creates a new snapshot (version + 1).
+// The latest successful snapshot is the primary source of business
+// intelligence. Failed snapshots are preserved for audit but never
+// replace a prior successful result.
+//
+// Provenance: sourceUrls + researchedAt + researchVersion answer
+// "where did this come from and when?" Structured fields use normal
+// columns; variable-length data uses bounded JSON.
+// ═══════════════════════════════════════════════════════════════════
+model ResearchSnapshot {
+  id               String    @id @default(cuid())
+  webPropertyId    String
+  userId           String   // denormalized for fast ownership filtering
+  status           String   @default("pending") // pending | running | completed | failed
+  researchVersion  Int      @default(1)
+
+  // Structured business intelligence (normal columns for high-value fields)
+  companyDescription  String?
+  valueProposition    String?
+  targetAudience      String?
+  challenges          String?  // JSON array of strings
+  differentiators     String?
+  positioning         String?
+  acquisitionAngles   String?  // JSON array of recommended outreach angles
+
+  // Website quality signals (from website-scorer.ts output)
+  websiteQualityScore Int?     // 0-100
+  seoScore            Int?     // 0-100
+  techStack           String?  // JSON array of detected technologies
+  websiteGaps         String?  // JSON array of identified gaps
+
+  // SWOT (from competitor-intelligence pattern — applicable to self-analysis)
+  swot               String?  // JSON { strengths, weaknesses, opportunities, threats }
+
+  // Pricing and social signals (publicly observable)
+  pricingSignals     String?  // JSON
+  socialProfiles     String?  // JSON
+
+  // Provenance
+  sourceUrls         String?  // JSON array of crawled URLs
+  confidence         String?  // high | medium | low
+  isObserved         Boolean  @default(true) // true = observed fact, false = AI inference
+
+  // Execution metadata
+  startedAt          DateTime?
+  completedAt        DateTime?
+  creditsUsed        Int      @default(0)
+  errorMessage       String?
+
+  createdAt          DateTime @default(now())
+
+  webProperty        WebProperty @relation(fields: [webPropertyId], references: [id], onDelete: Cascade)
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([webPropertyId, researchVersion])
+  @@index([userId, status])
+  @@index([webPropertyId, status, completedAt])
 }
 
 // Research Job — batch deep-research queue over many leads (DiscoveryJob
