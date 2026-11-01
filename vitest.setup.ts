@@ -25,6 +25,29 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
+// ═══════════════════════════════════════════════════════════════════
+// CRITICAL: Clear Node.js require.cache for Prisma modules AND db.ts
+// so each worker loads the freshly generated version from disk.
+//
+// src/lib/db.ts regenerates the Prisma client at module load time.
+// However, the vitest SERVER process may preload @prisma/client AND
+// db.ts at startup (before regeneration runs), caching the stale DMMF.
+// By clearing require.cache for ALL prisma-related modules (including
+// db.ts itself) in each worker's setup, we force the next import to
+// re-execute db.ts (which regenerates the client) and then load the
+// fresh @prisma/client from disk.
+// ═══════════════════════════════════════════════════════════════════
+const prismaCacheKeys = Object.keys(require.cache).filter(
+  (key) =>
+    key.includes('@prisma/client') ||
+    key.includes('.prisma/client') ||
+    key.includes('/lib/db') ||
+    key.includes('\\lib\\db')
+);
+for (const key of prismaCacheKeys) {
+  delete require.cache[key];
+}
+
 // Each vitest worker (fork) gets its OWN isolated SQLite database to
 // eliminate parallel-write contention (SQLite's single-writer lock).
 // The DB is seeded with the schema from test-schema.db (no data) so
