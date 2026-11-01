@@ -125,6 +125,19 @@ export interface LeadIntelligence {
   } | null;
   myContext: PersonalContext;
   myOffer: OfferServiceItem[];
+  /** Business research intelligence (from ResearchSnapshot, if available). */
+  businessResearch?: {
+    companyDescription: string | null;
+    valueProposition: string | null;
+    targetAudience: string | null;
+    differentiators: string | null;
+    positioning: string | null;
+    acquisitionAngles: string[] | null;
+    websiteQualityScore: number | null;
+    techStack: string[] | null;
+    confidence: string | null;
+    researchedAt: string | null;
+  } | null;
   /** Effective outreach defaults AFTER precedence resolution. */
   effective: {
     tone: string | null;
@@ -235,6 +248,60 @@ export interface BuildLeadIntelligenceOptions {
 }
 
 /**
+ * Load the latest successful business research (ResearchSnapshot) for
+ * the resolved BusinessProfile's web properties. Returns null if no
+ * research exists. This is SUPPLEMENTARY to BusinessProfile — it
+ * provides AI-researched facts about the user's own website(s).
+ */
+async function loadBusinessResearch(
+  userId: string,
+  businessProfileId: string | null
+): Promise<LeadIntelligence['businessResearch']> {
+  if (!businessProfileId) return null;
+  try {
+    // Find the latest completed ResearchSnapshot across all web properties
+    // for this business profile.
+    const snapshot = await db.researchSnapshot.findFirst({
+      where: {
+        userId,
+        webProperty: { businessProfileId, status: 'active' },
+        status: 'completed',
+      },
+      orderBy: { completedAt: 'desc' },
+      select: {
+        companyDescription: true,
+        valueProposition: true,
+        targetAudience: true,
+        differentiators: true,
+        positioning: true,
+        acquisitionAngles: true,
+        websiteQualityScore: true,
+        techStack: true,
+        confidence: true,
+        completedAt: true,
+      },
+    });
+    if (!snapshot) return null;
+    return {
+      companyDescription: snapshot.companyDescription,
+      valueProposition: snapshot.valueProposition,
+      targetAudience: snapshot.targetAudience,
+      differentiators: snapshot.differentiators,
+      positioning: snapshot.positioning,
+      acquisitionAngles: snapshot.acquisitionAngles ? JSON.parse(snapshot.acquisitionAngles) : null,
+      websiteQualityScore: snapshot.websiteQualityScore,
+      techStack: snapshot.techStack ? JSON.parse(snapshot.techStack) : null,
+      confidence: snapshot.confidence,
+      researchedAt: snapshot.completedAt?.toISOString() ?? null,
+    };
+  } catch {
+    // If loading fails, continue without research intelligence —
+    // the composer still has BusinessProfile + PersonalContext + Offer.
+    return null;
+  }
+}
+
+/**
  * Build the structured per-lead intelligence. Every lead gets its OWN
  * composed object — the lead's business, niche, geography and signals are
  * embedded, so two leads with different data can never share a context.
@@ -298,6 +365,12 @@ export async function buildLeadIntelligence(
       : null,
     myContext,
     myOffer,
+    // Load business research intelligence (from ResearchSnapshot) if available.
+    // This is supplementary to BusinessProfile — it provides AI-researched
+    // facts about the user's own website, with provenance (sourceUrls,
+    // confidence, isObserved). The composer uses BOTH user-stated and
+    // AI-researched facts, labeled distinctly.
+    businessResearch: await loadBusinessResearch(userId, p?.id ?? null),
     // Effective defaults start from the profile (broadest tier); the
     // workflow / execution tiers are applied by resolveEffectiveSettings.
     effective: {
@@ -430,6 +503,29 @@ export function buildLeadIntelligenceBlock(intel: LeadIntelligence): string {
   if (p?.outreachPreferences) {
     lines.push('── OUTREACH PREFERENCES (obey these) ──');
     lines.push(String(p.outreachPreferences).slice(0, 300));
+  }
+
+  // ── Business Research Intelligence (AI-researched facts about the
+  // sender's OWN website — SUPPLEMENTARY to the BusinessProfile above,
+  // with provenance: this was observed/researched, not user-declared) ──
+  const br = intel.businessResearch;
+  if (br) {
+    lines.push('── BUSINESS RESEARCH INTELLIGENCE (AI-researched from the sender\'s website — supplementary) ──');
+    const brBits = [
+      fmt('Researched description', br.companyDescription, 300),
+      fmt('Researched value proposition', br.valueProposition, 200),
+      fmt('Researched target audience', br.targetAudience, 200),
+      fmt('Researched differentiators', br.differentiators, 200),
+      fmt('Researched positioning', br.positioning, 200),
+      br.websiteQualityScore != null ? `Website quality score: ${br.websiteQualityScore}/100` : null,
+      br.techStack && br.techStack.length > 0 ? `Detected tech stack: ${br.techStack.join(', ')}` : null,
+      br.acquisitionAngles && br.acquisitionAngles.length > 0
+        ? `Recommended acquisition angles: ${br.acquisitionAngles.slice(0, 3).join('; ')}`
+        : null,
+      br.confidence ? `Research confidence: ${br.confidence}` : null,
+      br.researchedAt ? `Research date: ${br.researchedAt}` : null,
+    ].filter((v): v is string => v !== null);
+    lines.push(...brBits);
   }
 
   if (lines.length <= 1) return '';
