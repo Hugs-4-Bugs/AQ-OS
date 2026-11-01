@@ -205,22 +205,20 @@ describe('Nested-resource tenant isolation across production paths', () => {
     });
     tenantB_discoveryJobId = djB.id;
 
-    // Autopilot workflows (use raw SQL because AutopilotWorkflow table
-    // schema is in drift — same reason as Gap 4).
-    const esc = (s: string) => s.replace(/'/g, "''");
+    // Autopilot workflows — now use Prisma create (schema drift resolved,
+    // all columns exist in the DB).
     const makeAutopilot = async (userId: string, marker: string, wfId: string) => {
-      const apId = `gap5-ap-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await db.$executeRawUnsafe(`INSERT INTO AutopilotWorkflow (
-        id, userId, name, status, niches, geography, workflowId, schedule, nextRunAt,
-        runCount, totalDiscovered, totalSaved, totalProcessed, totalExecutions,
-        createdAt, updatedAt
-      ) VALUES (
-        '${esc(apId)}', '${esc(userId)}', '${esc(marker)}', 'ACTIVE',
-        '[]', '{}', '${esc(wfId)}', 'daily', datetime('now', '+1 hour'),
-        0, 0, 0, 0, 0, datetime('now'), datetime('now')
-      )`);
-      return db.autopilotWorkflow.findUnique({
-        where: { id: apId },
+      return db.autopilotWorkflow.create({
+        data: {
+          userId,
+          name: marker,
+          status: 'ACTIVE',
+          niches: '[]',
+          geography: '{}',
+          workflowId: wfId,
+          schedule: 'daily',
+          nextRunAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
         select: { id: true, userId: true, name: true, status: true, workflowId: true },
       });
     };
@@ -229,18 +227,16 @@ describe('Nested-resource tenant isolation across production paths', () => {
     const apB = await makeAutopilot(TENANT_B.id, 'GAP5_AP_B', tenantB_workflowId);
     tenantB_autopilotId = apB!.id;
 
-    // Autopilot runs (raw SQL for the same drift reason).
+    // Autopilot runs — now use Prisma create (schema drift resolved).
     const makeRun = async (userId: string, apId: string, marker: string, status: string) => {
-      const runId = `gap5-run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await db.$executeRawUnsafe(`INSERT INTO AutopilotRun (
-        id, autopilotId, userId, status, trigger, config, discovered, saved,
-        skippedDupes, processed, executionsCreated, createdAt, startedAt, completedAt
-      ) VALUES (
-        '${esc(runId)}', '${esc(apId)}', '${esc(userId)}', '${status}', 'manual', '{}',
-        0, 0, 0, 0, 0, datetime('now'), datetime('now'), datetime('now')
-      )`);
-      return db.autopilotRun.findUnique({
-        where: { id: runId },
+      return db.autopilotRun.create({
+        data: {
+          autopilotId: apId,
+          userId,
+          status,
+          trigger: 'manual',
+          config: '{}',
+        },
         select: { id: true, autopilotId: true, userId: true, status: true },
       });
     };

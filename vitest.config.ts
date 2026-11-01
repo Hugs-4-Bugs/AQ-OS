@@ -17,11 +17,18 @@ export default defineConfig({
     },
     testTimeout: 30000,
     hookTimeout: 30000,
-    // Externalize @prisma/client so vitest does NOT transform/cache it.
-    // The Prisma client has its own runtime (Rust engine) and should be
-    // loaded as-is from node_modules. Transforming it can corrupt the
-    // DMMF (field definitions) when the shared node_modules is regenerated
-    // from a different schema (e.g., the main repo's schema).
+    // Global setup runs ONCE before all test workers start. It regenerates
+    // the Prisma client from the develop schema so every worker loads a
+    // client with the correct DMMF (including fields like profileMappings
+    // that the main repo's schema lacks). Without this, the shared
+    // node_modules @prisma/client may be stale from the main repo's
+    // postinstall, causing 'Unknown argument' errors in tests.
+    globalSetup: ['./tests/helpers/global-setup.ts'],
+    // Disable module cache so each fork re-evaluates modules fresh.
+    deps: {
+      cacheDir: false,
+    },
+    // Externalize @prisma/client so vitest does NOT transform it.
     server: {
       deps: {
         external: [/^@prisma\/client/, /^\.prisma\/client/, /^@prisma\/engines/],

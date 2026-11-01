@@ -120,32 +120,21 @@ async function createActiveAutopilot(userId: string, marker: string) {
   // No WorkflowStep row — empty definition, engine fails fast on
   // loadStepsForExecution ("no executable steps").
 
-  // Use raw SQL so we can target the physical DB schema (which is missing
-  // some schema.prisma columns due to broader drift). The columns we set
-  // here are the ones the engine's runAutopilot / getAutopilotForUser
-  // code path actually reads.
-  const apId = `ap_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  // Use $executeRawUnsafe with manually-escaped values. Prisma's
-  // $executeRaw tagged-template parser mangles JSON-literal string values
-  // like '["test-niche"]' and '{"country":...}' — it interprets the `{}`
-  // as a parameter substitution marker. Unsafe form with explicit escaping
-  // avoids that.
-  const esc = (s: string) => s.replace(/'/g, "''");
-  await db.$executeRawUnsafe(`INSERT INTO AutopilotWorkflow (
-    id, userId, name, status, niches, geography, workflowId, schedule, nextRunAt,
-    runCount, totalDiscovered, totalSaved, totalProcessed, totalExecutions,
-    createdAt, updatedAt
-  ) VALUES (
-    '${esc(apId)}', '${esc(userId)}', '${esc(marker)}', 'ACTIVE',
-    '["test-niche"]', '{"country":"TestCountry","city":"TestCity"}',
-    '${esc(wf.id)}', 'daily', datetime('now', '+1 hour'),
-    0, 0, 0, 0, 0, datetime('now'), datetime('now')
-  )`);
-  const ap = await db.autopilotWorkflow.findUnique({
-    where: { id: apId },
-    select: { id: true, userId: true, name: true, status: true, workflowId: true, schedule: true, nextRunAt: true, runCount: true, lastRunAt: true, niches: true, geography: true },
+  // Now that the DB schema has been synced (all columns added), use
+  // Prisma's create which handles @default values automatically.
+  const ap = await db.autopilotWorkflow.create({
+    data: {
+      userId,
+      name: marker,
+      status: 'ACTIVE',
+      niches: '["test-niche"]',
+      geography: '{"country":"TestCountry","city":"TestCity"}',
+      workflowId: wf.id,
+      schedule: 'daily',
+      nextRunAt: new Date(Date.now() + 60 * 60 * 1000),
+    },
   });
-  return { autopilot: ap!, workflow: wf };
+  return { autopilot: ap, workflow: wf };
 }
 
 function buildAuthRequest(

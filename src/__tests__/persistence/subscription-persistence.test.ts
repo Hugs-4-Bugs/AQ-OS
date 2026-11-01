@@ -14,10 +14,6 @@ import path from 'node:path';
 import os from 'node:os';
 
 const LIVE_DB = path.resolve(__dirname, '../../../db/custom.db');
-const TEST_DB = path.join(os.tmpdir(), `persist-test-${Date.now()}.db`);
-
-// Must be set BEFORE importing '@/lib/db' (module-load env capture)
-process.env.DATABASE_URL = `file:${TEST_DB}`;
 
 // Plan credit grants — mirrored verbatim from src/app/api/cron/renew-subscriptions/route.ts
 const PLAN_CREDITS: Record<string, number> = { free: 50, starter: 150, pro: 750, elite: 2000 };
@@ -70,14 +66,43 @@ let db: any;
 
 describe('PART 8 — subscription/data persistence invariants (isolated DB copy)', () => {
   beforeAll(async () => {
-    fs.copyFileSync(LIVE_DB, TEST_DB);
-    const mod = await import('@/lib/db');
-    db = mod.db;
+    // Create a fresh test DB copy from the live production DB
+    const testDbPath = path.join(os.tmpdir(), `persist-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`);
+    fs.copyFileSync(LIVE_DB, testDbPath);
+    // Set DATABASE_URL so the PrismaClient connects to the test DB copy.
+    // Use a direct PrismaClient (not @/lib/db) to bypass ESM module caching.
+    process.env.DATABASE_URL = `file:${testDbPath}`;
+    const { PrismaClient } = await import('@prisma/client');
+    db = new PrismaClient();
+    // Use the real Pro account (kattyboy785) as the identity under test — READ-ONLY
+    // on the live file; all writes happen on the isolated copy.
+    const u = await db.user.findUnique({ where: { email: 'kattyboy785@gmail.com' } });
+    userId = u.id;
+    // Ensure an active pro subscription exists for the test (the production
+    // DB may not have one if it was cleaned up in a previous session).
+    let sub = await db.subscription.findFirst({ where: { userId, plan: 'pro', status: 'active' } });
+    if (!sub) {
+      sub = await db.subscription.create({
+        data: {
+          userId,
+          plan: 'pro',
+          status: 'active',
+          billingCycle: 'monthly',
+          isTrial: false,
+          creditsTotal: 750,
+          creditsUsed: 0,
+          creditsRemaining: 750,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+    subId = sub.id;
   });
 
   afterAll(async () => {
     try { await db.$disconnect(); } catch {}
-    try { fs.rmSync(TEST_DB); } catch {}
+    try { fs.rmSync(process.env.DATABASE_URL?.replace(/^file:/, '') || ''); } catch {}
   });
 
   let userId: string; let subId: string;
@@ -87,15 +112,6 @@ describe('PART 8 — subscription/data persistence invariants (isolated DB copy)
     ledger: await db.creditsLedger.count({ where: { userId } }),
     audit: await db.auditLog.count({ where: { userId } }),
     payments: await db.paymentOrder.count({ where: { userId } }),
-  });
-
-  beforeAll(async () => {
-    // Use the real Pro account (kattyboy785) as the identity under test — READ-ONLY
-    // on the live file; all writes happen on the isolated copy.
-    const u = await db.user.findUnique({ where: { email: 'kattyboy785@gmail.com' } });
-    userId = u.id;
-    const sub = await db.subscription.findFirst({ where: { userId, plan: 'pro', status: 'active' } });
-    subId = sub.id;
   });
 
   it('Scenario 1 — Pro monthly expiry (cancelAtPeriodEnd): identity + all data survive', async () => {
