@@ -23,6 +23,7 @@ import {
   ArrowUpRight,
   ServerCog,
   Lock,
+  Radar,
 } from 'lucide-react';
 
 interface AdminNavProps {
@@ -31,6 +32,7 @@ interface AdminNavProps {
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin/crm', label: 'CRM', icon: Radar, exact: false },
   { href: '/admin/users', label: 'Users', icon: Users, exact: false },
   { href: '/admin/billing', label: 'Billing', icon: CreditCard, exact: false },
   { href: '/admin/operations', label: 'Operations', icon: ServerCog, exact: false },
