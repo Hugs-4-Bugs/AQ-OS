@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 
 const CRM_SECTIONS = [
   { href: '/admin/crm', label: 'Overview', exact: true },
+  { href: '/admin/crm/sales', label: 'Sales Center', exact: false },
   { href: '/admin/crm/leads', label: 'Leads', exact: false },
   { href: '/admin/crm/pipeline', label: 'Pipeline', exact: false },
   { href: '/admin/crm/deals', label: 'Deals', exact: false },

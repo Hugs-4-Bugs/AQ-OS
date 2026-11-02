@@ -126,7 +126,7 @@ export async function getCrmOverview(): Promise<CrmOverview> {
     safe([] as Array<{ stage: string; _count: { stage: number } }>, () => db.lead.groupBy({ by: ['stage'], _count: { stage: true } })),
     safe([] as Array<{ status: string; _count: { status: number } }>, () => db.outreachMessage.groupBy({ by: ['status'], _count: { status: true } })),
     safe([] as Array<{ channel: string; _count: { channel: number } }>, () => db.outreachMessage.groupBy({ by: ['channel'], _count: { channel: true } })),
-    safe([] as Array<{ channel: string; status: string; _count: { channel_status: number } }>, () => db.outreachMessage.groupBy({ by: ['channel', 'status'], _count: { channel_status: true } })),
+    safe([] as Array<{ channel: string; status: string; _count: { _all: number } }>, () => db.outreachMessage.groupBy({ by: ['channel', 'status'], _count: { _all: true } })),
     safe([] as Array<{ status: string; _count: { status: number } }>, () => db.autopilotRun.groupBy({ by: ['status'], _count: { status: true } })),
     safe([] as Array<{ id: string; userId: string; name: string; status: string; schedule: string; lastRunAt: Date | null; nextRunAt: Date | null; runCount: number; totalDiscovered: number; totalSaved: number; totalProcessed: number; lastError: string | null }>, () => db.autopilotWorkflow.findMany({ orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, userId: true, name: true, status: true, schedule: true, lastRunAt: true, nextRunAt: true, runCount: true, totalDiscovered: true, totalSaved: true, totalProcessed: true, lastError: true } })),
     safe([] as Array<{ id: string; leadId: string; type: string; description: string; createdAt: Date; metadata: string | null; lead: { businessName: string } | null; user: { email: string } | null }>, () => db.leadActivity.findMany({ orderBy: { createdAt: 'desc' }, take: 12, include: { lead: { select: { businessName: true } }, user: { select: { email: true } } } })),
@@ -317,7 +317,7 @@ export async function getCrmOverview(): Promise<CrmOverview> {
   for (const g of outreachChannelStatusGroupsR.value) {
     const ch = g.channel;
     const existing = channelMap.get(ch) || { channel: ch, sent: 0, delivered: 0, opened: 0, replied: 0, failed: 0 };
-    const count = g._count.channel_status;
+    const count = g._count._all;
     existing.sent += count;
     if (['delivered', 'opened', 'replied'].includes(g.status)) existing.delivered += count;
     if (['opened', 'replied'].includes(g.status)) existing.opened += count;
