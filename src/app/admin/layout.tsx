@@ -21,6 +21,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getSuperAdminSession } from '@/lib/admin-guard';
 import AdminNav from '@/components/admin/admin-nav';
+import AdminInactivityTimer from '@/components/admin/admin-inactivity-timer';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AdminNav admin={admin} />
+      <AdminInactivityTimer secondsLeft={admin.inactivitySecondsLeft} />
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {children}
       </main>

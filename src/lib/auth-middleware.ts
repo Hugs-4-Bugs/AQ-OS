@@ -162,6 +162,39 @@ export async function withSuperAdmin(
       );
     }
 
+    // ── 10-minute inactivity timeout for admin APIs ───────────────
+    // Checks the UserSession's lastActivityAt — if older than 10 min,
+    // the admin session is expired and the API returns 401.
+    try {
+      const { db } = await import('@/lib/db');
+      const refreshToken = request.cookies.get('refresh_token')?.value;
+      if (refreshToken) {
+        const session = await db.userSession.findUnique({
+          where: { refreshToken },
+          select: { id: true, lastActivityAt: true, isRevoked: true },
+        });
+        if (!session || session.isRevoked) {
+          return NextResponse.json({ error: 'Session expired' }, { status: 401 });
+        }
+        const now = Date.now();
+        const lastActivity = session.lastActivityAt ? new Date(session.lastActivityAt).getTime() : now;
+        const elapsed = now - lastActivity;
+        const ADMIN_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+        if (elapsed > ADMIN_TIMEOUT) {
+          // Revoke the expired session
+          await db.userSession.update({ where: { id: session.id }, data: { isRevoked: true } }).catch(() => {});
+          return NextResponse.json({ error: 'Session expired due to inactivity', code: 'SESSION_INACTIVE' }, { status: 401 });
+        }
+        // Update lastActivityAt (throttled to every 60s)
+        if (elapsed > 60000) {
+          await db.userSession.update({ where: { id: session.id }, data: { lastActivityAt: new Date(now) } }).catch(() => {});
+        }
+      }
+    } catch {
+      // If the DB query fails, fail CLOSED
+      return NextResponse.json({ error: 'Security verification failed', code: 'SESSION_CHECK_FAILED' }, { status: 503 });
+    }
+
     return handler(user);
   });
 }
