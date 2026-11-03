@@ -596,6 +596,67 @@ export async function touchSessionActivity(sessionId: string): Promise<void> {
 }
 
 /**
+ * Refresh the current session's lastActivityAt to the current time.
+ *
+ * Called from authenticated long-running flows (e.g. MFA enrollment) that
+ * do NOT otherwise advance the session activity timer but DO represent
+ * legitimate authenticated user activity. Without this, a super_admin who
+ * takes >10 min to complete MFA enrollment would have their admin session
+ * revoked by the inactivity timeout (admin-guard.ts) before they can
+ * reach /admin — even though they were actively interacting with the
+ * system the whole time.
+ *
+ * Identification (strongest available mechanism):
+ *   - Reads the `refresh_token` cookie from the request.
+ *   - `refresh_token` is the @unique DB key for UserSession.
+ *   - This is stronger than user-id: it identifies the EXACT session row.
+ *   - The `refresh_token` cookie is scoped to `path='/api/auth'`, so it is
+ *     ONLY sent on `/api/auth/*` requests — including MFA setup/confirm.
+ *
+ * Safety:
+ *   - Does NOT create a second session.
+ *   - Does NOT rotate or revoke the session.
+ *   - Does NOT update other sessions belonging to the user.
+ *   - Does NOT bypass JWT, MFA, role, isActive, or deletedAt checks.
+ *   - Defensive ownership check: verifies session.userId === authUserId.
+ *   - No-op if: no refresh_token cookie, session missing, revoked, or
+ *     belongs to a different user.
+ *
+ * @returns true if refreshed, false otherwise (non-fatal on failure).
+ */
+export async function refreshCurrentSessionActivity(
+  request: NextRequest,
+  authUserId: string
+): Promise<boolean> {
+  try {
+    const refreshToken = request.cookies.get('refresh_token')?.value;
+    if (!refreshToken) return false;
+
+    const session = await db.userSession.findUnique({
+      where: { refreshToken },
+      select: { id: true, userId: true, isRevoked: true },
+    });
+
+    if (!session) return false;
+    if (session.isRevoked) return false;
+    if (session.userId !== authUserId) return false;
+
+    await db.userSession.update({
+      where: { id: session.id },
+      data: { lastActivityAt: new Date() },
+    });
+
+    return true;
+  } catch (error) {
+    console.warn(
+      '[Auth] refreshCurrentSessionActivity failed (non-fatal):',
+      error instanceof Error ? error.message : error
+    );
+    return false;
+  }
+}
+
+/**
  * Read the client-declared "Remember me for 30 days" choice.
  * The auth pages set a SHORT-LIVED (10 min) non-sensitive cookie when the
  * checkbox is checked, so every login channel (password, OTP, magic link,

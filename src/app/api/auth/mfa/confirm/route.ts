@@ -8,6 +8,7 @@ import {
   logAuthEvent,
   getClientIp,
   getUserAgent,
+  refreshCurrentSessionActivity,
 } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -77,6 +78,10 @@ export async function POST(request: NextRequest) {
       ipAddress: ip,
       userAgent: ua,
     });
+
+    // Refresh session activity so the admin inactivity timeout does not
+    // revoke the session between MFA confirmation and the next /admin load.
+    await refreshCurrentSessionActivity(request, authUser.id);
 
     return NextResponse.json({
       message: 'MFA has been enabled successfully. You will need to enter a TOTP code on future logins.',
