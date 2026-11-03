@@ -22,7 +22,7 @@ import {
   FUNNEL_STAGES, TERMINAL_STAGES, STAGE_LABELS,
   mapLeadStageToCanonical, mapDealStatusToCanonical,
   type CanonicalStage,
-} from '../crm-stage-vocabulary';
+} from './crm-stage-vocabulary';
 
 // ── Filter contract ───────────────────────────────────────────────────
 
@@ -446,8 +446,8 @@ export async function getSalesOverview(query: SalesQuery): Promise<SalesOverview
     },
     {
       key: 'replies', label: 'Replies', value: repliedInPeriod, valueFormat: 'int',
-      previousValue: prevReplied, deltaPercent: pctChange(repliedInPeriod, prevReplies),
-      trend: repliedInPeriod > prevReplies ? 'up' : 'flat',
+      previousValue: prevReplied, deltaPercent: pctChange(repliedInPeriod, prevReplied),
+      trend: repliedInPeriod > prevReplied ? 'up' : 'flat',
       sub: outreachSent > 0 ? `${Math.round((repliedInPeriod / outreachSent) * 100)}% reply rate` : 'no outreach sent',
       drilldownHref: '/admin/crm/outreach', icon: 'MessageSquareReply',
     },
