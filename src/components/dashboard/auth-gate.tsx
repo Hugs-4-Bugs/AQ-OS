@@ -901,6 +901,12 @@ export default function AuthGate() {
         setUser(null);
       } finally {
         setInitialized(true);
+        // Super admin redirect: if on the home page and authenticated as
+        // super_admin, redirect to /admin (which enforces MFA server-side).
+        const authedUser = useAuthStore.getState().user;
+        if (authedUser?.role === 'super_admin' && window.location.pathname === '/') {
+          window.location.href = '/admin';
+        }
       }
     };
     init();
@@ -963,7 +969,13 @@ export default function AuthGate() {
   const handleSignInSuccess = useCallback(() => {
     // The signIn in useAuth already sets the user in the store.
     // If MFA was required, the mfaRequired effect above will switch to the MFA page.
-    // If no MFA, the user is set and isAuthenticated becomes true, showing the dashboard.
+    // If no MFA, the user is set and isAuthenticated becomes true.
+    // Super admin redirect: if the authenticated user is super_admin,
+    // redirect to /admin (which enforces MFA enrollment server-side).
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser?.role === 'super_admin') {
+      window.location.href = '/admin';
+    }
   }, []);
 
   // ── Email verified handler: auto-sign-in after verification ──

@@ -893,7 +893,7 @@ export default function DashboardLayout({
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              QuantumFusion Solutions
+              Paragonel Technologies Pvt. Ltd.
             </a>
           </span>
         </div>

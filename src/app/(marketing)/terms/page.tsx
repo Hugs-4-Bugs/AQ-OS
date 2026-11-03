@@ -57,7 +57,7 @@ export default function TermsOfServicePage() {
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                 These Terms of Service (&quot;Terms&quot;) govern your access to and use of
                 AcquisitionOS, an AI-powered B2B lead discovery, enrichment, and outreach
-                platform operated by QuantumFusion Solutions (&quot;Company,&quot; &quot;we,&quot;
+                platform operated by Paragonel Technologies Pvt. Ltd. (&quot;Company,&quot; &quot;we,&quot;
                 &quot;our,&quot; or &quot;us&quot;). By accessing or using the Service, you
                 agree to be bound by these Terms.
               </p>
@@ -433,7 +433,7 @@ export default function TermsOfServicePage() {
               <ul className="text-sm leading-relaxed list-disc pl-6 space-y-2">
                 <li>
                   The Service, including all software, design, text, graphics, and underlying AI
-                  models, is owned by QuantumFusion Solutions and protected by intellectual
+                  models, is owned by Paragonel Technologies Pvt. Ltd. and protected by intellectual
                   property laws.
                 </li>
                 <li>
@@ -564,7 +564,7 @@ export default function TermsOfServicePage() {
                 Indemnification
               </h2>
               <p className="text-sm leading-relaxed">
-                You agree to indemnify, defend, and hold harmless QuantumFusion Solutions and its
+                You agree to indemnify, defend, and hold harmless Paragonel Technologies Pvt. Ltd. and its
                 officers, directors, employees, agents, licensors, and suppliers from and against
                 any claims, actions, demands, liabilities, and settlements including legal fees
                 arising from: (a) your use of the Service; (b) your violation of these Terms; (c)
@@ -698,7 +698,7 @@ export default function TermsOfServicePage() {
                   </a>
                 </li>
                 <li>
-                  <strong>Company:</strong> QuantumFusion Solutions
+                  <strong>Company:</strong> Paragonel Technologies Pvt. Ltd.
                 </li>
               </ul>
             </section>
@@ -708,7 +708,7 @@ export default function TermsOfServicePage() {
             {/* Back to Home */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
               <p className="text-xs text-muted-foreground">
-                &copy; {new Date().getFullYear()} QuantumFusion Solutions. All rights reserved.
+                &copy; {new Date().getFullYear()} Paragonel Technologies Pvt. Ltd.. All rights reserved.
               </p>
               <Link href="/">
                 <Button variant="outline" size="sm" className="gap-2">
