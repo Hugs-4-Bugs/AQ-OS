@@ -22,6 +22,7 @@ export interface AdminSessionUser {
   name: string;
   role: string;
   avatarUrl: string | null;
+  mfaEnrolled: boolean;
 }
 
 /**
@@ -29,6 +30,9 @@ export interface AdminSessionUser {
  * they are an active, non-deleted platform `super_admin`. Returns null
  * for everyone else (unauthenticated, expired token, non-admin roles,
  * deactivated accounts).
+ *
+ * Also loads the admin's MFA enrollment state so the admin layout can
+ * enforce mandatory 2FA enrollment before granting console access.
  */
 export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
   try {
@@ -49,6 +53,7 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
         avatar: true,
         isActive: true,
         deletedAt: true,
+        mfaConfig: { select: { isEnabled: true } },
       },
     });
 
@@ -61,6 +66,7 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
       name: user.name || '',
       role: user.role,
       avatarUrl: user.avatar,
+      mfaEnrolled: !!user.mfaConfig?.isEnabled,
     };
   } catch {
     return null;

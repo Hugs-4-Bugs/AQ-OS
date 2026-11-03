@@ -132,6 +132,36 @@ export async function withSuperAdmin(
     if (user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Super admin access required' }, { status: 403 });
     }
+
+    // ── Mandatory 2FA enforcement for admin APIs ──────────────────
+    // If the super_admin has NOT enrolled in TOTP 2FA, block all admin
+    // API access. The admin must complete enrollment via the web UI at
+    // /auth/mfa-enrollment before any admin API endpoint is usable.
+    // This prevents API access for non-2FA-enrolled admin accounts.
+    try {
+      const { db } = await import('@/lib/db');
+      const mfaConfig = await db.mfaConfig.findUnique({
+        where: { userId: user.id },
+        select: { isEnabled: true },
+      });
+      if (!mfaConfig?.isEnabled) {
+        return NextResponse.json(
+          {
+            error: 'Two-Factor Authentication enrollment required. Complete setup at /auth/mfa-enrollment.',
+            code: 'MFA_ENROLLMENT_REQUIRED',
+          },
+          { status: 403 }
+        );
+      }
+    } catch {
+      // If the DB query fails (e.g., MfaConfig table missing), fail CLOSED
+      // — deny access rather than allowing it without 2FA verification.
+      return NextResponse.json(
+        { error: 'Security verification failed. Please contact support.', code: 'MFA_CHECK_FAILED' },
+        { status: 503 }
+      );
+    }
+
     return handler(user);
   });
 }

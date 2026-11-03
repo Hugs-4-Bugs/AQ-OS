@@ -8,6 +8,13 @@
 //   leaked to non-admins — this is server-side enforcement, not UI hiding.
 // - Org-level `owner`/`admin` roles are deliberately NOT sufficient
 //   (account isolation policy — see withSuperAdmin in auth-middleware).
+//
+// MANDATORY 2FA ENFORCEMENT (Phase: Admin Security):
+// - If the super_admin has NOT enrolled in TOTP 2FA, they are redirected
+//   to /admin/security/enrollment BEFORE any admin console content loads.
+// - The enrollment page is the ONLY admin route accessible without 2FA.
+// - Once enrolled, every future login requires TOTP (handled by the
+//   signin route which checks mfaConfig.isEnabled).
 // ═══════════════════════════════════════════════════════════════════
 
 import type { Metadata } from 'next';
@@ -33,6 +40,20 @@ export default async function AdminLayout({
     // Safe for everyone: authenticated non-admins land in their own app,
     // unauthenticated users get the sign-in flow. Nothing is leaked.
     redirect('/');
+  }
+
+  // ── Mandatory 2FA enforcement ──────────────────────────────────
+  // If the admin hasn't enrolled in 2FA, redirect to the enrollment page.
+  // The enrollment page is the ONLY /admin/* route accessible without 2FA.
+  // All other admin routes (CRM, Users, Billing, Operations, etc.) require
+  // completed 2FA enrollment. This is enforced server-side in the layout,
+  // not just in the UI.
+  if (!admin.mfaEnrolled) {
+    // Allow access to the enrollment page itself
+    // (checked via headers in server component — we can't use usePathname
+    //  here, so we redirect to enrollment unconditionally; the enrollment
+    //  page handles its own rendering)
+    redirect('/auth/mfa-enrollment');
   }
 
   return (
