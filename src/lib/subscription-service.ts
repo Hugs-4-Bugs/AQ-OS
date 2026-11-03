@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { logSubscriptionEvent } from '@/lib/billing-audit';
 import { PLAN_CREDITS, type PlanType, getPlanLevel, getPlanChangeDirection, isValidPlanChange } from '@/lib/entitlement-service';
 import { resetMonthlyCredits } from '@/lib/credit-service';
+import { isHeadSuperAdmin } from '@/lib/head-admin';
 
 // ===== TYPES =====
 
@@ -210,6 +211,21 @@ export async function getOrCreateSubscription(userId: string): Promise<Subscript
  */
 export async function getSubscriptionStatus(userId: string): Promise<SubscriptionStatusResult> {
   try {
+    // ── Head Super Admin bypass ──────────────────────────────────
+    // The canonical Head Super Admin has permanent Elite + Unlimited
+    // entitlement. No subscription record needed, no trial, no limits.
+    const adminUser = await db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, role: true },
+    });
+    if (adminUser && isHeadSuperAdmin({ email: adminUser.email, role: adminUser.role })) {
+      return {
+        subscription: null,
+        planDetails: { plan: 'elite', creditsMonthly: Number.MAX_SAFE_INTEGER, creditsRemaining: Number.MAX_SAFE_INTEGER },
+        trialInfo: { isTrial: false, trialEndsAt: null, daysRemaining: 0 },
+      };
+    }
+
     const subscription = await db.subscription.findFirst({
       where: {
         userId,
