@@ -901,12 +901,15 @@ export default function AuthGate() {
         setUser(null);
       } finally {
         setInitialized(true);
-        // Super admin redirect: if on the home page and authenticated as
-        // super_admin, redirect to /admin (which enforces MFA server-side).
-        const authedUser = useAuthStore.getState().user;
-        if (authedUser?.role === 'super_admin' && window.location.pathname === '/') {
-          window.location.href = '/admin';
-        }
+        // Note: super_admin redirect to /admin is handled ONLY in
+        // handleSignInSuccess (after explicit login), NOT here.
+        // Adding it here causes an infinite redirect loop because:
+        // / → redirect to /admin → admin layout MFA redirect → back to /
+        // The admin layout server-side guard handles all cases correctly:
+        //   - Not authenticated → redirect to /
+        //   - Authenticated non-admin → redirect to /
+        //   - Super admin without MFA → redirect to /auth/mfa-enrollment
+        //   - Super admin with MFA → render admin console
       }
     };
     init();
