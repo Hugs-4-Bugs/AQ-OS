@@ -47,7 +47,7 @@ export default function MfaEnrollmentClient({ adminEmail, adminName }: MfaEnroll
     try {
       const res = await fetch('/api/auth/mfa/setup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include',
         body: JSON.stringify({ password }),
       });
@@ -73,7 +73,7 @@ export default function MfaEnrollmentClient({ adminEmail, adminName }: MfaEnroll
     try {
       const res = await fetch('/api/auth/mfa/confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include',
         body: JSON.stringify({ code: totpCode }),
       });
