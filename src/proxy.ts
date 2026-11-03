@@ -45,6 +45,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/verify-email',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/auth/set-password',
   '/api/auth/refresh',
   '/api/auth/mfa/verify',
   '/api/auth/magic-link',
