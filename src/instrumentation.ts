@@ -26,8 +26,16 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+// NOTE: `fs` and `path` are imported DYNAMICALLY inside parseEnvFile()
+// and loadEnvFiles() (via `await import('fs')`) rather than at the top
+// level. This is REQUIRED because Next.js loads instrumentation.ts in
+// BOTH the Node.js runtime AND the Edge runtime (when proxy/middleware
+// is enabled). Top-level `import * as fs from 'fs'` would crash the Edge
+// runtime at module-evaluation time with `__import_unsupported is not
+// defined`, before the `process.env.NEXT_RUNTIME === 'nodejs'` guard
+// in register() can protect against it. Dynamic imports are only
+// resolved at call time — and the functions are only called inside
+// the Node.js runtime guard, so the Edge runtime never evaluates them.
 
 // ---------------------------------------------------------------------------
 // .env file parser
@@ -43,9 +51,10 @@ import * as path from 'path';
  *   - empty lines
  *   - export KEY=value
  */
-function parseEnvFile(filePath: string): Record<string, string> {
+async function parseEnvFile(filePath: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   try {
+    const fs = await import('fs');
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split('\n');
     for (const line of lines) {
@@ -96,7 +105,8 @@ function parseEnvFile(filePath: string): Record<string, string> {
  * (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, DATABASE_URL, SMTP_*, etc.)
  * get loaded. Without this, all auth fails.
  */
-function loadEnvFiles(): void {
+async function loadEnvFiles(): Promise<void> {
+  const path = await import('path');
   const cwd = process.cwd();
   const candidates = [
     path.join(cwd, '.env.local'),
@@ -113,7 +123,7 @@ function loadEnvFiles(): void {
   // earlier ones — we process in reverse precedence order)
   const merged: Record<string, string> = {};
   for (const file of [...candidates].reverse()) {
-    const parsed = parseEnvFile(file);
+    const parsed = await parseEnvFile(file);
     for (const [k, v] of Object.entries(parsed)) {
       merged[k] = v;
     }
@@ -211,7 +221,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // ── Step 1: Load .env files FIRST ──────────────────────────────
     // This is the CRITICAL step. Without it, FC standalone has no env vars.
-    loadEnvFiles();
+    await loadEnvFiles();
 
     // ── Step 2: Run env safeguard (detect/restore .env corruption) ──
     try {

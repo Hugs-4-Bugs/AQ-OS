@@ -46,6 +46,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/auth/set-password',
+  '/api/auth/signout',   // signout always succeeds — clears cookies + revokes sessions even with expired token
   '/api/auth/refresh',
   '/api/auth/mfa/verify',
   '/api/auth/magic-link',
