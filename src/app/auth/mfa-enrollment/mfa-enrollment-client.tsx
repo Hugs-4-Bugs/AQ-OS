@@ -121,6 +121,9 @@ export default function MfaEnrollmentClient({ adminEmail, adminName }: MfaEnroll
           <p className="text-xs text-muted-foreground">
             Signed in as <span className="font-medium text-foreground">{adminName}</span> ({adminEmail})
           </p>
+          <a href="/auth/create-password" className="text-xs text-primary hover:underline">
+            Don't have a password? Create one →
+          </a>
         </div>
 
         {/* Progress indicator */}
