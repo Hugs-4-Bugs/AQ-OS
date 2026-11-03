@@ -99,6 +99,36 @@ export async function withPermission(
       }
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
+
+    // ── MFA enforcement for super_admin users ──────────────────────
+    // Same check as withSuperAdmin: if the authenticated user is a
+    // super_admin, they MUST have MFA enrolled. This closes the gap
+    // where withPermission routes (admin/users, admin/security/events,
+    // admin/billing, etc.) were accessible without MFA by super_admins
+    // who hadn't completed TOTP enrollment.
+    // Normal users (owner/admin/member/viewer) are NOT affected — MFA
+    // is mandatory only for the platform super_admin role.
+    if (user.role === 'super_admin') {
+      try {
+        const { db } = await import('@/lib/db');
+        const mfaConfig = await db.mfaConfig.findUnique({
+          where: { userId: user.id },
+          select: { isEnabled: true },
+        });
+        if (!mfaConfig?.isEnabled) {
+          return NextResponse.json(
+            { error: 'MFA enrollment required for super_admin access', code: 'MFA_ENROLLMENT_REQUIRED' },
+            { status: 403 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { error: 'Security verification failed', code: 'MFA_CHECK_FAILED' },
+          { status: 503 }
+        );
+      }
+    }
+
     return handler(user);
   });
 }
