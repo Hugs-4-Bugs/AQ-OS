@@ -78,7 +78,7 @@ const COMPANY_DETAILS = {
   // (AcquisitionOS) is rendered separately at the top via PRODUCT_NAME.
   name: process.env.COMPANY_NAME || 'Paragonel Technologies Pvt. Ltd.',
   address: process.env.COMPANY_ADDRESS || '123 Tech Park, Andheri East, Mumbai, Maharashtra 400069',
-  email: process.env.COMPANY_EMAIL || 'billing@quantumfusionsolutions.com',
+  email: process.env.COMPANY_EMAIL || 'billing@acquisitionos.com',
   phone: process.env.COMPANY_PHONE || '+91-80-1234-5678',
   gstNumber: process.env.COMPANY_GST_NUMBER || '27AABCA1234F1Z5',
   taxId: process.env.COMPANY_TAX_ID || '',

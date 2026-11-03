@@ -14,6 +14,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useSubscriptionStore, CREDIT_COSTS, ACTION_LABELS, type CreditAction } from '@/lib/subscription-store';
+import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 
 interface CreditDisplayProps {
@@ -153,8 +154,12 @@ export default function CreditDisplay({
   // local counter the client could disagree with the server about).
   const dailyOutreachUsed = useSubscriptionStore((s) => s.dailyOutreachUsed);
   const dailyOutreachLimit = useSubscriptionStore((s) => s.dailyOutreachLimit);
+  const userRole = useAuthStore((s) => s.user?.role);
 
   const [purchaseOpen, setPurchaseOpen] = useState(false);
+
+  // Head Super Admin: show "Elite — Unlimited" instead of credit quota
+  const isHeadSuperAdmin = userRole === 'super_admin';
 
   const percentage = getCreditPercentage();
   const planDetails = getPlanDetails();
@@ -278,10 +283,19 @@ export default function CreditDisplay({
                 'relative flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all duration-200',
                 'hover:bg-accent cursor-pointer',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                getBgColor()
+                isHeadSuperAdmin ? 'bg-primary/10' : getBgColor()
               )}
-              aria-label={`${credits} of ${creditsMonthly} credits remaining. Click to upgrade.`}
+              aria-label={isHeadSuperAdmin ? 'Elite — Unlimited' : `${credits} of ${creditsMonthly} credits remaining. Click to upgrade.`}
             >
+              {/* Head Super Admin: show Elite — Unlimited badge */}
+              {isHeadSuperAdmin ? (
+                <div className="flex items-center gap-1.5 px-1">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                  <span className="text-xs font-semibold text-primary">Elite</span>
+                  <span className="text-[10px] text-muted-foreground">— Unlimited</span>
+                </div>
+              ) : (
+                <>
               {/* Low credit pulsing warning indicator */}
               {isLowOrZero && (
                 <motion.span
@@ -360,6 +374,8 @@ export default function CreditDisplay({
                 <span className={cn('text-[11px] font-bold tabular-nums', getColor())}>
                   {totalCredits}
                 </span>
+              )}
+                </>
               )}
             </button>
           </TooltipTrigger>
