@@ -11,10 +11,13 @@ import {
   getUserAgent,
   hashPassword,
   verifyPassword,
-  refreshCurrentSessionActivity,
 } from '@/lib/auth';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = withRateLimit(request, 'mfa');
+  if (rateLimitResult) return rateLimitResult;
+
   try {
     // ── Require authentication ──────────────────────────────────
     const authUser = await requireAuth(request);
@@ -110,10 +113,6 @@ export async function POST(request: NextRequest) {
       ipAddress: ip,
       userAgent: ua,
     });
-
-    // Refresh session activity so the admin inactivity timeout does not
-    // revoke the session while the user is completing MFA enrollment.
-    await refreshCurrentSessionActivity(request, authUser.id);
 
     return NextResponse.json({
       message: 'MFA setup initiated. Verify with a TOTP code to complete setup.',

@@ -322,15 +322,8 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
         // Auth cookies are set by the API, refresh auth state
         window.location.reload();
       } else {
-        // Display the error message. If the server included a 'detail'
-        // field (sanitized error description), append it so the user can
-        // see WHAT failed (e.g., "no such table: UserSession") without
-        // needing to open DevTools.
-        const errMsg = data.error || 'Invalid OTP';
-        const detail = data.detail ? ` (${data.detail})` : '';
-        const fullMsg = detail ? `${errMsg}${detail}` : errMsg;
-        setError(fullMsg);
-        toast.error(fullMsg, { duration: 8000 });
+        setError(data.error || 'Invalid OTP');
+        toast.error(data.error || 'Verification failed');
       }
     } catch {
       setError('Network error. Please try again.');
@@ -763,7 +756,7 @@ function AuthenticatedWrapper({
 // Main AuthGate component
 // ══════════════════════════════════════════════════════════════
 export default function AuthGate() {
-  const { isAuthenticated, isLoading, mfaRequired, setUser, setLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, mfaRequired, user, setUser, setLoading } = useAuthStore();
   const { signIn } = useAuth();
 
   // ── Auth page navigation state ───────────────────────────────
@@ -901,15 +894,6 @@ export default function AuthGate() {
         setUser(null);
       } finally {
         setInitialized(true);
-        // Note: super_admin redirect to /admin is handled ONLY in
-        // handleSignInSuccess (after explicit login), NOT here.
-        // Adding it here causes an infinite redirect loop because:
-        // / → redirect to /admin → admin layout MFA redirect → back to /
-        // The admin layout server-side guard handles all cases correctly:
-        //   - Not authenticated → redirect to /
-        //   - Authenticated non-admin → redirect to /
-        //   - Super admin without MFA → redirect to /auth/mfa-enrollment
-        //   - Super admin with MFA → render admin console
       }
     };
     init();
@@ -972,13 +956,7 @@ export default function AuthGate() {
   const handleSignInSuccess = useCallback(() => {
     // The signIn in useAuth already sets the user in the store.
     // If MFA was required, the mfaRequired effect above will switch to the MFA page.
-    // If no MFA, the user is set and isAuthenticated becomes true.
-    // Super admin redirect: if the authenticated user is super_admin,
-    // redirect to /admin (which enforces MFA enrollment server-side).
-    const currentUser = useAuthStore.getState().user;
-    if (currentUser?.role === 'super_admin') {
-      window.location.href = '/admin';
-    }
+    // If no MFA, the user is set and isAuthenticated becomes true, showing the dashboard.
   }, []);
 
   // ── Email verified handler: auto-sign-in after verification ──
@@ -1019,6 +997,17 @@ export default function AuthGate() {
       </>
     );
   }
+
+  // ── Super Admin redirect: send super_admin users to /admin ───
+  // A super_admin WITH MFA enabled is redirected to the Admin Console.
+  // A super_admin WITHOUT MFA sees the normal dashboard but admin API
+  // routes will reject them with MFA_REQUIRED (enforced by withSuperAdmin).
+  // Normal users are unaffected.
+  useEffect(() => {
+    if (isAuthenticated && !mfaRequired && user?.role === 'super_admin' && user.mfaEnabled) {
+      window.location.href = '/admin';
+    }
+  }, [isAuthenticated, mfaRequired, user]);
 
   // ── Authenticated: show dashboard ────────────────────────────
   if (isAuthenticated && !mfaRequired) {

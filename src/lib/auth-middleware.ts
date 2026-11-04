@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUser, AuthError, getClientIp, getUserAgent } from '@/lib/auth';
+import { getAuthUser, AuthError } from '@/lib/auth';
 import { hasPermission, hasAllPermissions, isAdminRole, type Permission, type UserRole } from '@/lib/rbac';
 import type { AuthUser } from '@/lib/auth';
 import { withDualAuth, type ApiKeyScope } from '@/lib/api-key-middleware';
@@ -70,65 +70,8 @@ export async function withPermission(
 ): Promise<NextResponse> {
   return withAuth(request, async (user) => {
     if (!hasPermission(user.role as UserRole, permission)) {
-      // BLOCKER 2 FIX: Record the authorization failure as a security event.
-      // This is awaited (with catch) so it completes before the 403 response,
-      // but failures are caught — they must NOT prevent the 403 response.
-      try {
-        const { recordSecurityEvent } = await import('@/lib/security/audit-chain');
-        const { getRequestId } = await import('@/lib/security/request-id');
-        const requestId = getRequestId(request);
-        const url = new URL(request.url);
-        await recordSecurityEvent({
-          actorId: user.id,
-          securityEventType: 'authz_permission_denied',
-          severity: 'MEDIUM',
-          action: `authz_denied:${permission}`,
-          resource: url.pathname,
-          details: {
-            requiredPermission: permission,
-            actualRole: user.role,
-            route: url.pathname,
-          },
-          ipAddress: getClientIp(request),
-          userAgent: getUserAgent(request),
-          requestId,
-          outcome: 'denied',
-        }).catch(() => {});
-      } catch {
-        // Never fail the 403 response because of audit logging
-      }
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
-
-    // ── MFA enforcement for super_admin users ──────────────────────
-    // Same check as withSuperAdmin: if the authenticated user is a
-    // super_admin, they MUST have MFA enrolled. This closes the gap
-    // where withPermission routes (admin/users, admin/security/events,
-    // admin/billing, etc.) were accessible without MFA by super_admins
-    // who hadn't completed TOTP enrollment.
-    // Normal users (owner/admin/member/viewer) are NOT affected — MFA
-    // is mandatory only for the platform super_admin role.
-    if (user.role === 'super_admin') {
-      try {
-        const { db } = await import('@/lib/db');
-        const mfaConfig = await db.mfaConfig.findUnique({
-          where: { userId: user.id },
-          select: { isEnabled: true },
-        });
-        if (!mfaConfig?.isEnabled) {
-          return NextResponse.json(
-            { error: 'MFA enrollment required for super_admin access', code: 'MFA_ENROLLMENT_REQUIRED' },
-            { status: 403 }
-          );
-        }
-      } catch {
-        return NextResponse.json(
-          { error: 'Security verification failed', code: 'MFA_CHECK_FAILED' },
-          { status: 503 }
-        );
-      }
-    }
-
     return handler(user);
   });
 }
@@ -162,69 +105,12 @@ export async function withSuperAdmin(
     if (user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Super admin access required' }, { status: 403 });
     }
-
-    // ── Mandatory 2FA enforcement for admin APIs ──────────────────
-    // If the super_admin has NOT enrolled in TOTP 2FA, block all admin
-    // API access. The admin must complete enrollment via the web UI at
-    // /auth/mfa-enrollment before any admin API endpoint is usable.
-    // This prevents API access for non-2FA-enrolled admin accounts.
-    try {
-      const { db } = await import('@/lib/db');
-      const mfaConfig = await db.mfaConfig.findUnique({
-        where: { userId: user.id },
-        select: { isEnabled: true },
-      });
-      if (!mfaConfig?.isEnabled) {
-        return NextResponse.json(
-          {
-            error: 'Two-Factor Authentication enrollment required. Complete setup at /auth/mfa-enrollment.',
-            code: 'MFA_ENROLLMENT_REQUIRED',
-          },
-          { status: 403 }
-        );
-      }
-    } catch {
-      // If the DB query fails (e.g., MfaConfig table missing), fail CLOSED
-      // — deny access rather than allowing it without 2FA verification.
+    if (!user.mfaEnabled) {
       return NextResponse.json(
-        { error: 'Security verification failed. Please contact support.', code: 'MFA_CHECK_FAILED' },
-        { status: 503 }
+        { error: 'MFA is mandatory for super admin accounts. Enable MFA in Settings → Security before accessing admin features.', code: 'MFA_REQUIRED' },
+        { status: 403 }
       );
     }
-
-    // ── 10-minute inactivity timeout for admin APIs ───────────────
-    // Checks the UserSession's lastActivityAt — if older than 10 min,
-    // the admin session is expired and the API returns 401.
-    try {
-      const { db } = await import('@/lib/db');
-      const refreshToken = request.cookies.get('refresh_token')?.value;
-      if (refreshToken) {
-        const session = await db.userSession.findUnique({
-          where: { refreshToken },
-          select: { id: true, lastActivityAt: true, isRevoked: true },
-        });
-        if (!session || session.isRevoked) {
-          return NextResponse.json({ error: 'Session expired' }, { status: 401 });
-        }
-        const now = Date.now();
-        const lastActivity = session.lastActivityAt ? new Date(session.lastActivityAt).getTime() : now;
-        const elapsed = now - lastActivity;
-        const ADMIN_TIMEOUT = 10 * 60 * 1000; // 10 minutes
-        if (elapsed > ADMIN_TIMEOUT) {
-          // Revoke the expired session
-          await db.userSession.update({ where: { id: session.id }, data: { isRevoked: true } }).catch(() => {});
-          return NextResponse.json({ error: 'Session expired due to inactivity', code: 'SESSION_INACTIVE' }, { status: 401 });
-        }
-        // Update lastActivityAt (throttled to every 60s)
-        if (elapsed > 60000) {
-          await db.userSession.update({ where: { id: session.id }, data: { lastActivityAt: new Date(now) } }).catch(() => {});
-        }
-      }
-    } catch {
-      // If the DB query fails, fail CLOSED
-      return NextResponse.json({ error: 'Security verification failed', code: 'SESSION_CHECK_FAILED' }, { status: 503 });
-    }
-
     return handler(user);
   });
 }

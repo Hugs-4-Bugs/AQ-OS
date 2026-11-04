@@ -9,8 +9,12 @@ import {
   getClientIp,
   getUserAgent,
 } from '@/lib/auth';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = withRateLimit(request, 'mfa');
+  if (rateLimitResult) return rateLimitResult;
+
   try {
     // ── Require authentication ──────────────────────────────────
     const authUser = await requireAuth(request);

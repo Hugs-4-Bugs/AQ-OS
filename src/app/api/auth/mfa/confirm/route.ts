@@ -8,10 +8,13 @@ import {
   logAuthEvent,
   getClientIp,
   getUserAgent,
-  refreshCurrentSessionActivity,
 } from '@/lib/auth';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = withRateLimit(request, 'mfa');
+  if (rateLimitResult) return rateLimitResult;
+
   try {
     const authUser = await requireAuth(request);
     const body = await request.json();
@@ -78,10 +81,6 @@ export async function POST(request: NextRequest) {
       ipAddress: ip,
       userAgent: ua,
     });
-
-    // Refresh session activity so the admin inactivity timeout does not
-    // revoke the session between MFA confirmation and the next /admin load.
-    await refreshCurrentSessionActivity(request, authUser.id);
 
     return NextResponse.json({
       message: 'MFA has been enabled successfully. You will need to enter a TOTP code on future logins.',
