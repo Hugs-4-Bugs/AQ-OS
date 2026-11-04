@@ -66,13 +66,9 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ── Rate limit (P9): DEDICATED 'signin' bucket keyed by IP+email ──
-    // No longer shares the 5/min 'auth' bucket with OTP/magic-link/refresh,
-    // so unrelated users behind the same preview gateway cannot consume
-    // each other's sign-in quota.
-    const rateLimitResult = withRateLimit(request, 'signin', {
-    });
-    if (rateLimitResult) return rateLimitResult;
+    // Distributed rate limiting is already applied at the top of this handler
+    // (IP-based LOGIN_ATTEMPT_IP_POLICY). The old withRateLimit call here
+    // was removed during the distributed rate-limiter migration.
 
     const ip = getClientIp(request);
     const ua = getUserAgent(request);

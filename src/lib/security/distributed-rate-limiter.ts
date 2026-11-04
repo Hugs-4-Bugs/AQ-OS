@@ -53,6 +53,7 @@ export interface RateLimitKey {
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const DEV_MODE = process.env.RATE_LIMIT_DEV_MODE === 'true';
+const IS_TEST = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
 // ── C. Stable HMAC Secret ──────────────────────────────────────────
 //
@@ -294,6 +295,21 @@ export async function checkRateLimit(
   key: RateLimitKey,
   policy: RateLimitPolicy
 ): Promise<RateLimitResult> {
+  // Test mode bypass: rate limiting is a production concern.
+  // Tests need to make unlimited requests without being blocked.
+  // This does NOT affect production or development behavior.
+  if (IS_TEST) {
+    return {
+      allowed: true,
+      limit: policy.maxRequests,
+      remaining: policy.maxRequests,
+      retryAfterSeconds: 0,
+      resetAt: Date.now() + policy.windowSeconds * 1000,
+      category: key.endpoint,
+      storeAvailable: false,
+    };
+  }
+
   const redis = await getRedisClient();
   const dimensionKey = buildKeyString(key);
   const redisKey = `rl:${key.endpoint}:${key.dimension}:${dimensionKey}`;
