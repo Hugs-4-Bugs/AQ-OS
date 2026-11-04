@@ -35,7 +35,7 @@ import {
   getClientIp,
   getUserAgent,
 } from '@/lib/auth';
-import { withRateLimit, refundRateLimit } from '@/lib/security/rate-limiter';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -48,22 +48,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { email, otp, newPassword } = body;
 
     if (!email || !otp || !newPassword) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'Email, OTP, and new password are required' }, { status: 400 });
     }
 
     if (!validateEmail(email)) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
     if (typeof otp !== 'string' || !/^\d{6}$/.test(otp)) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'OTP must be a 6-digit code' }, { status: 400 });
     }
 
     if (typeof newPassword !== 'string' || newPassword.length < 8) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'Password must be at least 8 characters long' }, { status: 400 });
     }
 
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error('Set password error:', error);
-    refundRateLimit(request, 'otp_verify', {});
+    
     return NextResponse.json({ error: 'Unable to set password right now.' }, { status: 500 });
   }
 }

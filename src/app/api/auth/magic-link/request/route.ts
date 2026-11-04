@@ -10,7 +10,7 @@ import {
 } from '@/lib/auth';
 import { sendMagicLinkEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devMagicLinkDelivery } from '@/lib/dev-auth';
-import { withRateLimit, refundRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 import { getAppUrl } from '@/lib/app-url';
 
 const MAGIC_LINK_EXPIRY_SECONDS = 15 * 60; // 15 minutes
@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
 
     // ── Rate limit (P9): DEDICATED 'magic_link' bucket keyed by IP+email ──
     const rateLimitResult = withRateLimit(request, 'magic_link', {
-      keySuffix: authRateKeySuffix(normalizedEmail),
     });
     if (rateLimitResult) return rateLimitResult;
 
@@ -162,7 +161,7 @@ export async function POST(request: NextRequest) {
     if (!emailConfigured) {
       console.error('[Magic Link] CRITICAL: No real email provider configured (SMTP_USER/SMTP_PASSWORD or RESEND_API_KEY).');
       // P8: do NOT pretend an email was sent.
-      refundRateLimit(request, 'magic_link', { keySuffix: authRateKeySuffix(normalizedEmail) });
+      
       const devDelivery = devMagicLinkDelivery(magicLinkUrl);
       if (devDelivery) {
         // DEV-ONLY sandbox escape hatch (AUTH_DEV_MODE) — undefined in production.
@@ -196,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     // If email delivery genuinely failed, surface a CLEAR failure (P8).
     if (!emailSent) {
-      refundRateLimit(request, 'magic_link', { keySuffix: authRateKeySuffix(normalizedEmail) });
+      
       return NextResponse.json(
         {
           error: 'We could not deliver your sign-in link right now due to a temporary email service issue. Please try again shortly.',
@@ -213,7 +212,7 @@ export async function POST(request: NextRequest) {
     // SAFE error handling: generic message to the browser; stable category
     // code in the server log for diagnosability (no secrets, no stacks).
     console.error(`[Magic Link Request] 500 category=${classifyAuthErrorCategory(error)}`, error instanceof Error ? error.message : error);
-    refundRateLimit(request, 'magic_link', {});
+    
     return NextResponse.json(
       { error: 'Unable to send the sign-in link right now. Please try again in a moment.', code: 'INFRASTRUCTURE_ERROR' },
       { status: 503 }
