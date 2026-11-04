@@ -12,15 +12,35 @@ import {
   hashPassword,
   verifyPassword,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { MFA_SETUP_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  const rateLimitResult = withRateLimit(request, 'mfa');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     // ── Require authentication ──────────────────────────────────
     const authUser = await requireAuth(request);
+
+    // ── Distributed rate limiting: account-based (prevents
+    //    brute-force on the current-password verification step) ──
+    const accountResult = await checkRateLimit(
+      { endpoint: 'mfa_setup', accountIdentifier: authUser.id, dimension: 'account' },
+      MFA_SETUP_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'mfa_setup', accountIdentifier: authUser.id, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && MFA_SETUP_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('mfa_setup');
+      }
+      return rateLimitResponse(accountResult, 'Too many MFA setup attempts.');
+    }
 
     // ── Validate current password ───────────────────────────────
     const body = await request.json();

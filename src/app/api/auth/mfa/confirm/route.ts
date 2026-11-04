@@ -9,14 +9,34 @@ import {
   getClientIp,
   getUserAgent,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { MFA_CONFIRM_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  const rateLimitResult = withRateLimit(request, 'mfa');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const authUser = await requireAuth(request);
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the TOTP confirmation code during setup completion) ────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'mfa_confirm', accountIdentifier: authUser.id, dimension: 'account' },
+      MFA_CONFIRM_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'mfa_confirm', accountIdentifier: authUser.id, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && MFA_CONFIRM_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('mfa_confirm');
+      }
+      return rateLimitResponse(accountResult, 'Too many MFA confirmation attempts.');
+    }
     const body = await request.json();
     const { code } = body;
 

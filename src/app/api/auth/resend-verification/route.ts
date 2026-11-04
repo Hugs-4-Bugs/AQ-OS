@@ -9,13 +9,21 @@ import {
 } from '@/lib/auth';
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  isCooldownActive,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  RESEND_VERIFICATION_ACCOUNT_POLICY,
+  COOLDOWNS,
+} from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  // SECURITY HARDENING: IP-level limit — previously only a per-account
-  // 60s cooldown existed, so one client could email-bomb many accounts.
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const body = await request.json();
@@ -30,6 +38,36 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Distributed rate limiting: account-based (prevents email
+    //    flooding from one client hitting many accounts; previously only a
+    //    per-account 60s cooldown existed) ──────────────────────────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'resend_verification', accountIdentifier: normalizedEmail, dimension: 'account' },
+      RESEND_VERIFICATION_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'resend_verification', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && RESEND_VERIFICATION_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('resend_verification');
+      }
+      return NextResponse.json({
+        message: 'If an account exists and is not yet verified, a new verification code has been sent.',
+      });
+    }
+
+    // ── Email dispatch cooldown: prevent duplicate verification emails within 60s ──
+    const cooldownActive = await isCooldownActive(
+      'verification_email',
+      normalizedEmail,
+      COOLDOWNS.VERIFICATION_EMAIL
+    );
+    if (cooldownActive) {
+      return NextResponse.json(
+        { error: 'A verification email was recently sent. Please wait before requesting another.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
 
     // ── Find user (return generic message regardless) ───────────
     const user = await db.user.findUnique({

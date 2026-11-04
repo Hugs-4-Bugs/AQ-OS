@@ -10,8 +10,18 @@ import {
   isOtpLocked,
   OTP_EXPIRY_SECONDS,
 } from '@/lib/auth';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { OTP_VERIFY_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
+  const clientIP = getTrustedClientIP(request);
+
   try {
     const body = await request.json();
     const { email, otp } = body;
@@ -32,6 +42,21 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the verification OTP before the DB write; the per-user
+    //    otpAttemptCount/lockout remains as a secondary defense) ────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'verify_email', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'verify_email', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('verify_email');
+      }
+      return rateLimitResponse(accountResult, 'Too many email verification attempts.');
+    }
 
     // ── Find user ───────────────────────────────────────────────
     const user = await db.user.findUnique({

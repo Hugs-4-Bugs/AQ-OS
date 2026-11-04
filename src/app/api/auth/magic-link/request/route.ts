@@ -10,12 +10,26 @@ import {
 } from '@/lib/auth';
 import { sendMagicLinkEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devMagicLinkDelivery } from '@/lib/dev-auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  isCooldownActive,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  MAGIC_LINK_REQUEST_ACCOUNT_POLICY,
+  MAGIC_LINK_REQUEST_IP_POLICY,
+  COOLDOWNS,
+} from '@/lib/security/rate-limit-policies';
 import { getAppUrl } from '@/lib/app-url';
 
 const MAGIC_LINK_EXPIRY_SECONDS = 15 * 60; // 15 minutes
 
 export async function POST(request: NextRequest) {
+  const clientIP = getTrustedClientIP(request);
+
   try {
     const body = await request.json();
     const { email, rememberMe } = body;
@@ -37,10 +51,47 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ── Rate limit (P9): DEDICATED 'magic_link' bucket keyed by IP+email ──
-    const rateLimitResult = withRateLimit(request, 'magic_link', {
-    });
-    if (rateLimitResult) return rateLimitResult;
+    // ── Distributed rate limiting: IP + account dimensions (prevents
+    //    email flooding from one client hitting many accounts; previously
+    //    only a per-account 60s cooldown existed) ──────────────────────
+    const ipResult = await checkRateLimit(
+      { endpoint: 'magic_link_request', ip: clientIP, dimension: 'ip' },
+      MAGIC_LINK_REQUEST_IP_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'magic_link_request', ip: clientIP, dimension: 'ip' }, ipResult);
+    if (!ipResult.allowed) {
+      if (!ipResult.storeAvailable && MAGIC_LINK_REQUEST_IP_POLICY.failClosed) {
+        return storeUnavailableResponse('magic_link_request');
+      }
+      return rateLimitResponse(ipResult, 'Too many magic link requests from this IP.');
+    }
+
+    const accountResult = await checkRateLimit(
+      { endpoint: 'magic_link_request', accountIdentifier: normalizedEmail, dimension: 'account' },
+      MAGIC_LINK_REQUEST_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'magic_link_request', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && MAGIC_LINK_REQUEST_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('magic_link_request');
+      }
+      return NextResponse.json({
+        message: 'If an account exists with this email, a magic link has been sent.',
+      });
+    }
+
+    // ── Email dispatch cooldown: prevent duplicate magic-link emails within 60s ──
+    const cooldownActive = await isCooldownActive(
+      'magic_link_email',
+      normalizedEmail,
+      COOLDOWNS.MAGIC_LINK_EMAIL
+    );
+    if (cooldownActive) {
+      return NextResponse.json(
+        { error: 'A magic link was recently sent. Please wait before requesting another.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
 
     // P5: Remember-me travels WITH the link (the click is a fresh GET).
     const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';
