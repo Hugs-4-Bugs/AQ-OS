@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { executeRealIntegrationAction } from '@/lib/admin-operations-service';
 import { recordConfigChange } from '@/lib/security/audit-chain';
 import { getRequestId } from '@/lib/security/request-id';
@@ -27,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ provider: string }> }
 ): Promise<NextResponse> {
   const { provider } = await params;
-  return withPermission(request, 'integrations.control', async (admin) => {
+  return withSuperAdmin(request, async (admin) => {
     try {
       let body: Record<string, unknown>;
       try { body = await request.json(); }

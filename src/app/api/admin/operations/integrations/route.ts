@@ -9,13 +9,13 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { getIntegrationsStatus } from '@/lib/admin-operations-service';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'integrations.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const data = await getIntegrationsStatus();
       return NextResponse.json({ success: true, data });

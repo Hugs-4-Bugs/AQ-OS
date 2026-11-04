@@ -22,7 +22,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
-  return withPermission(request, 'user360.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const user = await db.user.findUnique({
         where: { id },
@@ -228,7 +228,7 @@ export async function PATCH(
   // PATCH uses user360.read as the base authorization — each action
   // then additionally checks its specific permission (users.suspend,
   // users.ban, credits.adjust, etc.) inside the handler.
-  return withPermission(request, 'user360.read', async (adminUser) => {
+  return withSuperAdmin(request, async (adminUser) => {
     try {
       const { searchParams } = new URL(request.url);
       // ID can arrive via the dynamic segment or ?userId= fallback

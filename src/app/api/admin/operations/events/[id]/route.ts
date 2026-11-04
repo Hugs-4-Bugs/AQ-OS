@@ -11,7 +11,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { resolveOperationalEvent } from '@/lib/admin-operations-service';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
@@ -30,7 +30,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id: eventId } = await params;
-  return withPermission(request, 'system.events.resolve', async (admin) => {
+  return withSuperAdmin(request, async (admin) => {
     try {
       if (!eventId || eventId.length < 4) {
         return NextResponse.json(

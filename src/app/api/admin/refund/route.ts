@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { logPaymentEvent, logBillingEvent } from '@/lib/billing-audit';
 import { sendRefundNotificationEmail } from '@/lib/payment-failure-utils';
@@ -24,7 +24,7 @@ interface AdminRefundRequestBody {
 }
 
 export async function POST(request: NextRequest) {
-  return withPermission(request, 'billing.refund', async (adminUser) => {
+  return withSuperAdmin(request, async (adminUser) => {
     try {
       const body = (await request.json()) as AdminRefundRequestBody;
       const { userId, paymentIntentId, amount, reason } = body;

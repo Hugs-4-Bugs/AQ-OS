@@ -7,7 +7,7 @@
 // consumed through the existing confirmAction() mechanism.
 // The confirmation is bound to the exact action+target and is single-use.
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import { canAssignRole, ADMIN_ROLES, type AdminRole } from '@/lib/rbac';
 import { confirmAction, recordAuditEvent, type SensitiveAction } from '@/lib/security/audit-chain';
@@ -15,7 +15,7 @@ import { getRequestId } from '@/lib/security/request-id';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
-  return withPermission(request, 'rbac.assign', async (adminUser) => {
+  return withSuperAdmin(request, async (adminUser) => {
     try {
       const body = await request.json();
       const { userId, role, action, confirmationId, token } = body;

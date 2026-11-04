@@ -1,13 +1,13 @@
 // GET /api/admin/security/events — security events list (filtered by securityEventType)
 // RBAC: security.events.read (super_admin, admin)
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'security.events.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const { searchParams } = new URL(request.url);
       const severity = searchParams.get('severity') || undefined;
