@@ -275,7 +275,7 @@ export function setAuthCookies(
     httpOnly: true,
     secure,
     sameSite: 'lax',
-    path: '/api/auth', // Accessible to refresh + signout endpoints
+    path: '/', // Accessible to refresh + signout endpoints
     ...(persist ? { maxAge: 30 * 24 * 60 * 60 } : {}), // 30d when remembered; session cookie otherwise
   });
 
@@ -297,7 +297,7 @@ export function clearAuthCookies(response: NextResponse): NextResponse {
     httpOnly: true,
     secure,
     sameSite: 'lax',
-    path: '/api/auth',
+    path: '/',
     maxAge: 0,
   });
 
@@ -610,8 +610,8 @@ export async function touchSessionActivity(sessionId: string): Promise<void> {
  *   - Reads the `refresh_token` cookie from the request.
  *   - `refresh_token` is the @unique DB key for UserSession.
  *   - This is stronger than user-id: it identifies the EXACT session row.
- *   - The `refresh_token` cookie is scoped to `path='/api/auth'`, so it is
- *     ONLY sent on `/api/auth/*` requests — including MFA setup/confirm.
+ *   - The `refresh_token` cookie is scoped to `path='/'`, so it is
+ *     sent on all application routes, including admin and MFA routes.
  *
  * Safety:
  *   - Does NOT create a second session.
