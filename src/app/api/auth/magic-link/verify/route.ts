@@ -24,6 +24,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getOriginFromRequest } from '@/lib/app-url';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { OTP_VERIFY_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -441,6 +449,7 @@ export async function GET(request: NextRequest) {
 // ───────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const requestId = `mlv-post-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const clientIP = getTrustedClientIP(request);
   try {
     const body = await request.json();
     const { email, token, rememberMe } = body;
@@ -478,6 +487,20 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase().trim();
     const ip = getClientIp(request);
     const ua = getUserAgent(request);
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the magic-link token before the DB lookup) ──────────────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'magic_link_verify', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'magic_link_verify', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('magic_link_verify');
+      }
+      return rateLimitResponse(accountResult, 'Too many magic link verification attempts.');
+    }
 
     // ── Find user ───────────────────────────────────────────────
     const user = await db.user.findUnique({

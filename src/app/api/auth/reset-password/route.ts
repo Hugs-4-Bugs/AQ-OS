@@ -14,12 +14,17 @@ import {
   resetOtpAttempts,
   isOtpLocked,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { OTP_VERIFY_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const body = await request.json();
@@ -43,6 +48,21 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase().trim();
     const ip = getClientIp(request);
     const ua = getUserAgent(request);
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the reset OTP before the expensive bcrypt hashing/DB writes; the
+    //    per-user otpAttemptCount/lockout remains as a secondary defense) ─
+    const accountResult = await checkRateLimit(
+      { endpoint: 'reset_password', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'reset_password', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('reset_password');
+      }
+      return rateLimitResponse(accountResult, 'Too many password reset attempts.');
+    }
 
     // ── Brute-force protection on reset OTP ─────────────────────
     if (await isAccountLocked(normalizedEmail)) {

@@ -9,15 +9,35 @@ import {
   getClientIp,
   getUserAgent,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { MFA_DISABLE_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  const rateLimitResult = withRateLimit(request, 'mfa');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     // ── Require authentication ──────────────────────────────────
     const authUser = await requireAuth(request);
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the password + TOTP verification step required to disable) ─
+    const accountResult = await checkRateLimit(
+      { endpoint: 'mfa_disable', accountIdentifier: authUser.id, dimension: 'account' },
+      MFA_DISABLE_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'mfa_disable', accountIdentifier: authUser.id, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && MFA_DISABLE_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('mfa_disable');
+      }
+      return rateLimitResponse(accountResult, 'Too many MFA disable attempts.');
+    }
 
     const body = await request.json();
     const { password, code } = body;

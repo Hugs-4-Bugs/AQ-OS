@@ -13,12 +13,22 @@ import {
 import { sendVerificationEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
 import { SIGNUP_REWARD_CREDITS } from '@/lib/credit-service';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  isCooldownActive,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  SIGNUP_IP_POLICY,
+  SIGNUP_ACCOUNT_POLICY,
+  COOLDOWNS,
+} from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP to prevent bulk account creation
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const body = await request.json();
@@ -62,6 +72,44 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Distributed rate limiting: IP + account dimensions ──────
+    const ipResult = await checkRateLimit(
+      { endpoint: 'signup', ip: clientIP, dimension: 'ip' },
+      SIGNUP_IP_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'signup', ip: clientIP, dimension: 'ip' }, ipResult);
+    if (!ipResult.allowed) {
+      if (!ipResult.storeAvailable && SIGNUP_IP_POLICY.failClosed) {
+        return storeUnavailableResponse('signup');
+      }
+      return rateLimitResponse(ipResult, 'Too many signup attempts from this IP.');
+    }
+
+    const accountResult = await checkRateLimit(
+      { endpoint: 'signup', accountIdentifier: normalizedEmail, dimension: 'account' },
+      SIGNUP_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'signup', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && SIGNUP_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('signup');
+      }
+      return rateLimitResponse(accountResult, 'Too many signup attempts for this email.');
+    }
+
+    // ── Email dispatch cooldown: prevent duplicate verification emails within 60s ──
+    const cooldownActive = await isCooldownActive(
+      'verification_email',
+      normalizedEmail,
+      COOLDOWNS.VERIFICATION_EMAIL
+    );
+    if (cooldownActive) {
+      return NextResponse.json(
+        { error: 'A verification email was recently sent. Please wait before requesting another.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
 
     // ── Check for existing user ─────────────────────────────────
     const existing = await db.user.findUnique({

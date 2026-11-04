@@ -1,5 +1,4 @@
 // ═══════════════════════════════════════════════════════════════════
-import { withRateLimit } from '@/lib/security/rate-limiter';
 // AcquisitionOS — Set Password via OTP Verification
 //
 // POST /api/auth/set-password
@@ -36,13 +35,20 @@ import {
   getClientIp,
   getUserAgent,
 } from '@/lib/auth';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { OTP_VERIFY_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const rateLimitResult = withRateLimit(request, 'otp_verify');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const body = await request.json();
@@ -69,6 +75,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the OTP before the bcrypt hash + DB write) ──────────────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'set_password', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'set_password', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('set_password');
+      }
+      return rateLimitResponse(accountResult, 'Too many set-password attempts.');
+    }
+
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
