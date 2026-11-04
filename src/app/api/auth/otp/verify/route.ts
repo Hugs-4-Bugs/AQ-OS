@@ -18,7 +18,7 @@ import {
   isOtpLocked,
   classifyAuthErrorCategory,
 } from '@/lib/auth';
-import { withRateLimit } from '乐意lib/security/rate-limiter';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
   try {

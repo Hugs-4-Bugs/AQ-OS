@@ -146,26 +146,43 @@ export function getTrustedClientIP(request: {
 // ── Redis Store ────────────────────────────────────────────────────
 
 interface RedisLike {
-  eval(script: string, keys: string[], args: string[]): Promise<number>;
-  set(key: string, value: string, mode: string, ttl?: number): Promise<string | null>;
+  // #7: eval returns any (Lua table → array, not number)
+  eval(script: string, keys: string[], args: string[]): Promise<any>;
+  // #3: Correct SET NX EX signature
+  setNXEX(key: string, value: string, ttlSeconds: number): Promise<string | null>;
   ttl(key: string): Promise<number>;
   del(key: string): Promise<number>;
   ping(): Promise<string>;
 }
 
+// #5: Bounded reconnection — retry every REDIS_RETRY_INTERVAL_MS, not permanently cached
 let redisClient: RedisLike | null = null;
-let redisInitAttempted = false;
+let lastRedisAttempt = 0;
+const REDIS_RETRY_INTERVAL_MS = 10_000; // Retry connection every 10s after failure
 
 /**
- * Initialize Redis client. Returns null if:
- * - REDIS_URL is not configured
- * - Connection fails
- *
- * In production without Redis, sensitive fail-closed operations will return 503.
+ * Initialize or reuse Redis client.
+ * #5: Implements bounded reconnection — does NOT permanently cache failures.
+ * Retries every REDIS_RETRY_INTERVAL_MS to recover after transient outages.
  */
 async function getRedisClient(): Promise<RedisLike | null> {
-  if (redisInitAttempted) return redisClient;
-  redisInitAttempted = true;
+  // If we have a client, verify it's still alive
+  if (redisClient) {
+    try {
+      await redisClient.ping();
+      return redisClient;
+    } catch {
+      console.warn('[rate-limiter] Redis ping failed — marking as unavailable, will retry.');
+      redisClient = null;
+    }
+  }
+
+  // Bounded retry: don't attempt reconnection more than once per interval
+  const now = Date.now();
+  if (now - lastRedisAttempt < REDIS_RETRY_INTERVAL_MS) {
+    return null; // Too soon to retry
+  }
+  lastRedisAttempt = now;
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
@@ -192,8 +209,8 @@ async function getRedisClient(): Promise<RedisLike | null> {
     redisClient = {
       // A. Atomic INCR + EXPIRE via Lua script
       eval: (script, keys, args) => client.eval(script, keys.length, ...keys, ...args),
-      // E. Atomic cooldown via SET NX EX
-      set: (key, value, mode, ttl) => client.set(key, value, mode, ttl as any),
+      // #3: Correct SET NX EX — ioredis syntax: client.set(key, val, 'NX', 'EX', ttl)
+      setNXEX: (key, value, ttlSeconds) => client.set(key, value, 'NX', 'EX', ttlSeconds),
       ttl: (key) => client.ttl(key),
       del: (key) => client.del(key),
       ping: () => client.ping(),
@@ -285,22 +302,25 @@ export async function checkRateLimit(
   if (redis) {
     try {
       // A. Atomic INCR + EXPIRE via Lua script
+      // #7: ioredis eval returns Lua table as array [count, ttl]
       const result = await redis.eval(
         RATE_LIMIT_LUA_SCRIPT,
         [redisKey],
         [String(policy.windowSeconds)]
       );
-      const count = Number(result);
-      const ttl = policy.windowSeconds; // Lua returns count and ttl, but ioredis eval returns differently
-      // Actually, ioredis eval returns an array when the script returns a table
-      const actualCount = Array.isArray(result) ? Number(result[0]) : count;
-      const actualTtl = Array.isArray(result) ? Number(result[1]) : ttl;
-      const resetAt = Date.now() + (actualTtl > 0 ? actualTtl * 1000 : policy.windowSeconds * 1000);
+      // #7: Parse Lua response safely — validate for NaN
+      const actualCount = Array.isArray(result) ? Number(result[0]) : Number(result);
+      const actualTtl = Array.isArray(result) ? Number(result[1]) : policy.windowSeconds;
+      if (!Number.isFinite(actualCount) || actualCount < 0) {
+        throw new Error(`Invalid Lua response: count=${actualCount}`);
+      }
+      const safeTtl = Number.isFinite(actualTtl) && actualTtl > 0 ? actualTtl : policy.windowSeconds;
+      const resetAt = Date.now() + (safeTtl * 1000);
 
       if (actualCount > policy.maxRequests) {
         return {
           allowed: false, limit: policy.maxRequests, remaining: 0,
-          retryAfterSeconds: actualTtl > 0 ? actualTtl : policy.windowSeconds,
+          retryAfterSeconds: safeTtl,
           resetAt, category: key.endpoint, storeAvailable: true,
         };
       }
@@ -312,8 +332,9 @@ export async function checkRateLimit(
       };
     } catch (err) {
       console.error('[rate-limiter] Redis Lua error:', err instanceof Error ? err.message : String(err));
-      // Fall through to in-memory or fail-closed
-      if (IS_PRODUCTION && policy.failClosed) {
+      redisClient = null; // #5: Clear client so reconnection is attempted
+      // #4: In production, Redis errors fail-closed for ALL operations
+      if (IS_PRODUCTION && !DEV_MODE) {
         return {
           allowed: false, limit: policy.maxRequests, remaining: 0,
           retryAfterSeconds: policy.windowSeconds,
@@ -324,10 +345,11 @@ export async function checkRateLimit(
     }
   }
 
-  // ── In-memory fallback (dev only, or non-fail-closed in prod) ──
-  // B. storeAvailable is FALSE for in-memory — this is NOT distributed protection
-  if (IS_PRODUCTION && !DEV_MODE && policy.failClosed && !redis) {
-    // Production without Redis: fail-closed for sensitive operations
+  // #4: Production MUST NEVER use in-memory rate limiting.
+  // In production without Redis, ALL operations fail-closed (503).
+  // In-memory is ONLY available with explicit RATE_LIMIT_DEV_MODE=true.
+  if (IS_PRODUCTION && !DEV_MODE) {
+    // Production without Redis: fail-closed for ALL operations
     return {
       allowed: false, limit: policy.maxRequests, remaining: 0,
       retryAfterSeconds: policy.windowSeconds,
@@ -383,8 +405,9 @@ export async function claimCooldown(
 
   if (redis) {
     try {
-      // E. Atomic SET NX EX — returns "OK" if set, null if already exists
-      const result = await redis.set(key, '1', 'NX', cooldownSeconds);
+      // #3: Correct SET NX EX — ioredis: client.set(key, val, 'NX', 'EX', ttl)
+      // Returns 'OK' if set (claim succeeded), null if key exists (cooldown active)
+      const result = await redis.setNXEX(key, '1', cooldownSeconds);
       return { claimed: result === 'OK', storeAvailable: true };
     } catch (err) {
       console.error('[rate-limiter] Cooldown Redis error:', err instanceof Error ? err.message : String(err));

@@ -1,4 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
+import { withRateLimit } from '@/lib/security/rate-limiter';
 // AcquisitionOS — Set Password via OTP Verification
 //
 // POST /api/auth/set-password
