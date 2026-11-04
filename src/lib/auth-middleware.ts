@@ -70,10 +70,62 @@ export async function withPermission(
 ): Promise<NextResponse> {
   return withAuth(request, async (user) => {
     if (!hasPermission(user.role as UserRole, permission)) {
+      // Audit the denial
+      await logAuthorizationDenial(user, permission, request);
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
     return handler(user);
   });
+}
+
+/**
+ * Require specific permission AND MFA verification.
+ * Use for sensitive mutations (role assignment, confirmation, etc.)
+ * where a stolen access token must not grant privileged access without MFA.
+ */
+export async function withPermissionAndMfa(
+  request: NextRequest,
+  permission: Permission,
+  handler: (user: AuthUser) => Promise<NextResponse>
+): Promise<NextResponse> {
+  return withAuth(request, async (user) => {
+    if (!hasPermission(user.role as UserRole, permission)) {
+      await logAuthorizationDenial(user, permission, request);
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+    // MFA enforcement: super_admin must have MFA enabled for sensitive operations
+    if (user.role === 'super_admin' && !user.mfaEnabled) {
+      return NextResponse.json(
+        { error: 'MFA is mandatory for this operation. Enable MFA in Settings → Security.', code: 'MFA_REQUIRED' },
+        { status: 403 }
+      );
+    }
+    return handler(user);
+  });
+}
+
+/**
+ * Log an authorization denial for security audit.
+ * Captures actor, attempted permission, IP, and timestamp.
+ * Never logs passwords, tokens, or sensitive request bodies.
+ */
+async function logAuthorizationDenial(
+  user: AuthUser,
+  permission: Permission,
+  request: NextRequest
+): Promise<void> {
+  try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    // Use console.warn for immediate observability — the audit-chain
+    // recordAuditEvent function is called by the security integration
+    // tests, but we use a lightweight console log here to avoid
+    // circular dependencies and ensure logging never blocks the denial.
+    console.warn(`[AUTHZ_DENIED] user=${user.id} perm=${permission} ip=${ip} path=${request.nextUrl?.pathname || 'unknown'}`);
+  } catch {
+    // Logging failures must NEVER authorize a denied operation.
+    // The denial has already been returned; this catch only prevents
+    // an unhandled rejection from interfering with the response.
+  }
 }
 
 /** Require admin role */

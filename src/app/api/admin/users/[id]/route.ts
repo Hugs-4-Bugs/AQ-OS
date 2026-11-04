@@ -447,7 +447,6 @@ export async function PATCH(
           await db.systemEvent.create({
             data: {
               type: 'warning',
-              category: 'security',
               message: `Unauthorized admin action attempt: ${action} on ${target.email} by ${adminUser.email}`,
               metadata: JSON.stringify({ targetUserId: targetId, adminId: adminUser.id, action, requiredPermission }),
               resolved: false,
@@ -490,7 +489,6 @@ export async function PATCH(
           await db.systemEvent.create({
             data: {
               type: 'warning',
-              category: 'security',
               message: `User banned: ${target.email} by ${adminUser.email}. Reason: ${reason}`,
               metadata: JSON.stringify({ targetUserId: targetId, adminId: adminUser.id, reason }),
               resolved: false,
