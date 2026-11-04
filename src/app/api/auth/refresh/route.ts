@@ -14,7 +14,14 @@ import {
   getUserAgent,
   classifyAuthErrorCategory,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { LOGIN_ATTEMPT_IP_POLICY } from '@/lib/security/rate-limit-policies';
 
 // ── P4 (permanent fix Sep 2026): refresh must DISTINGUISH ───────────
 //   A. valid session            → rotate tokens, 200
@@ -25,11 +32,20 @@ import { withRateLimit } from '@/lib/security/rate-limiter';
 //   F. invalid refresh token    → 401 code=INVALID_TOKEN
 // A temporary database failure must never be reported as "logged out".
 export async function POST(request: NextRequest) {
-  // Dedicated limiter bucket (P9): refresh is automatic client behavior —
-  // it no longer shares the 5/min 'auth' bucket with OTP/magic-link/signin
-  // and cannot be starved by them (or starve them).
-  const rateLimitResult = withRateLimit(request, 'refresh');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
+
+  // Distributed rate limiting: IP-based refresh attempt limit
+  const ipResult = await checkRateLimit(
+    { endpoint: 'refresh', ip: clientIP, dimension: 'ip' },
+    LOGIN_ATTEMPT_IP_POLICY
+  );
+  recordRateLimitMetric({ endpoint: 'refresh', ip: clientIP, dimension: 'ip' }, ipResult);
+  if (!ipResult.allowed) {
+    if (!ipResult.storeAvailable && LOGIN_ATTEMPT_IP_POLICY.failClosed) {
+      return storeUnavailableResponse('refresh');
+    }
+    return rateLimitResponse(ipResult, 'Too many refresh requests.');
+  }
 
   // ── Extract refresh token from cookie ───────────────────────────
   const refreshToken = request.cookies.get('refresh_token')?.value;
