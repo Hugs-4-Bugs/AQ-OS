@@ -2,14 +2,14 @@
 // RBAC: audit.read (super_admin, admin, support, analytics)
 // The verification itself is audited.
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import { verifyAuditIntegrity, recordAuditEvent } from '@/lib/security/audit-chain';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  return withSuperAdmin(request, async (admin) => {
+  return withPermission(request, 'audit.read', async (admin) => {
     try {
       const result = await verifyAuditIntegrity();
 

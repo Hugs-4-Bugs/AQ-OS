@@ -1,14 +1,14 @@
 // POST /api/admin/security/confirmation/request — request sensitive action confirmation
 // RBAC: rbac.assign (super_admin only — only super_admin can request role-change confirmations)
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import { requestConfirmation, SENSITIVE_ACTIONS, type SensitiveAction } from '@/lib/security/audit-chain';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  return withSuperAdmin(request, async (admin) => {
+  return withPermission(request, 'security.events.read', async (admin) => {
     try {
       const body = await request.json();
       const { actionType, targetId } = body;

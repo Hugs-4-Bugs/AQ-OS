@@ -1,7 +1,7 @@
 // GET /api/admin/security/audit/[id] — secure detail view
 // RBAC: audit.read
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
-  return withSuperAdmin(request, async () => {
+  return withPermission(request, 'audit.read', async () => {
     try {
       if (!id || id.length < 4) {
         return NextResponse.json({ success: false, error: 'Valid audit id required' }, { status: 400 });

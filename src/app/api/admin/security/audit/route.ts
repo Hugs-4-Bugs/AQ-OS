@@ -1,13 +1,13 @@
 // GET /api/admin/security/audit — production-grade audit search with filters
 // RBAC: audit.read (super_admin, admin, support, analytics)
 import { NextRequest, NextResponse } from 'next/server';
-import { withSuperAdmin } from '@/lib/auth-middleware';
+import { withPermission } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withSuperAdmin(request, async () => {
+  return withPermission(request, 'audit.read', async () => {
     try {
       const { searchParams } = new URL(request.url);
       const actorId = searchParams.get('actorId') || undefined;
