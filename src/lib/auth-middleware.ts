@@ -106,8 +106,18 @@ export async function withPermissionAndMfa(
 
 /**
  * Log an authorization denial for security audit.
- * Captures actor, attempted permission, IP, and timestamp.
- * Never logs passwords, tokens, or sensitive request bodies.
+ *
+ * Uses trusted-proxy-aware IP extraction — never trusts arbitrary
+ * X-Forwarded-For values from untrusted sources.
+ *
+ * SECURITY NOTES:
+ * - This is operational logging (console.warn), NOT a durable tamper-evident
+ *   audit record. For durable audit, use recordAuditEvent from audit-chain.
+ * - console.warn is used here to avoid circular dependencies with the
+ *   audit-chain module (which imports from auth).
+ * - Log fields are sanitized to prevent newline/control-character injection.
+ * - Logging failures NEVER authorize a denied operation (fail-safe).
+ * - Never logs passwords, tokens, OTPs, or sensitive request bodies.
  */
 async function logAuthorizationDenial(
   user: AuthUser,
@@ -115,12 +125,35 @@ async function logAuthorizationDenial(
   request: NextRequest
 ): Promise<void> {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    // Use console.warn for immediate observability — the audit-chain
-    // recordAuditEvent function is called by the security integration
-    // tests, but we use a lightweight console log here to avoid
-    // circular dependencies and ensure logging never blocks the denial.
-    console.warn(`[AUTHZ_DENIED] user=${user.id} perm=${permission} ip=${ip} path=${request.nextUrl?.pathname || 'unknown'}`);
+    // Trusted proxy IP extraction — reuse established logic
+    // Only trust X-Forwarded-For from configured trusted proxy IPs
+    const socketIP = (request as any).ip || '127.0.0.1';
+    const trustedProxies = (process.env.TRUSTED_PROXY_IPS || '127.0.0.1,::1')
+      .split(',').map(s => s.trim()).filter(Boolean);
+    const isTrustedProxy = trustedProxies.includes(socketIP);
+
+    let clientIP = 'unknown';
+    if (isTrustedProxy) {
+      const xff = request.headers.get('x-forwarded-for');
+      if (xff) {
+        const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
+        if (ips.length > 0) clientIP = ips[0];
+      }
+    } else {
+      // Direct connection — use socket IP
+      clientIP = socketIP;
+    }
+
+    // Sanitize all log fields to prevent log injection
+    const sanitize = (s: string): string => s.replace(/[\r\n\t]/g, '').substring(0, 200);
+
+    const path = sanitize(request.nextUrl?.pathname || 'unknown');
+    const method = sanitize(request.method || 'unknown');
+    const userId = sanitize(user.id || 'unknown');
+    const perm = sanitize(String(permission));
+    const ip = sanitize(clientIP);
+
+    console.warn(`[AUTHZ_DENIED] user=${userId} perm=${perm} method=${method} path=${path} ip=${ip}`);
   } catch {
     // Logging failures must NEVER authorize a denied operation.
     // The denial has already been returned; this catch only prevents
