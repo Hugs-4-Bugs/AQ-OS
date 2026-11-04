@@ -894,6 +894,12 @@ export default function AuthGate() {
         setUser(null);
       } finally {
         setInitialized(true);
+        // FIX: Reset the global loading flag. The auth store starts with
+        // isLoading=true to prevent a flash of unauthenticated UI. The init
+        // effect must reset it to false when done, otherwise the loading
+        // condition (!initialized || isLoading) stays true forever and the
+        // user sees an infinite "Loading AcquisitionOS..." screen.
+        setLoading(false);
       }
     };
     init();
