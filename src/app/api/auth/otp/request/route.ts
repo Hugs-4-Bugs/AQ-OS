@@ -11,9 +11,23 @@ import {
 } from '@/lib/auth';
 import { sendOtpLoginEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
-import { withRateLimit, refundRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  isCooldownActive,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  OTP_REQUEST_ACCOUNT_POLICY,
+  OTP_REQUEST_IP_POLICY,
+  COOLDOWNS,
+} from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
+  const clientIP = getTrustedClientIP(request);
+
   try {
     const body = await request.json();
     const { email } = body;
@@ -35,14 +49,43 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ── Rate limit (P9): DEDICATED 'otp' bucket keyed by IP+email ──
-    // No longer shares the 5/min 'auth' bucket with magic-link/refresh/
-    // signin, so a magic-link user behind the same gateway can no longer
-    // exhaust the OTP quota (and vice versa).
-    const rateLimitResult = withRateLimit(request, 'otp', {
-      keySuffix: authRateKeySuffix(normalizedEmail),
-    });
-    if (rateLimitResult) return rateLimitResult;
+    // ── Distributed rate limiting: IP + account dimensions ──────
+    const ipResult = await checkRateLimit(
+      { endpoint: 'otp_request', ip: clientIP, dimension: 'ip' },
+      OTP_REQUEST_IP_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'otp_request', ip: clientIP, dimension: 'ip' }, ipResult);
+    if (!ipResult.allowed) {
+      if (!ipResult.storeAvailable && OTP_REQUEST_IP_POLICY.failClosed) {
+        return storeUnavailableResponse('otp_request');
+      }
+      return rateLimitResponse(ipResult, 'Too many OTP requests from this IP.');
+    }
+
+    const accountResult = await checkRateLimit(
+      { endpoint: 'otp_request', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_REQUEST_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'otp_request', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_REQUEST_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('otp_request');
+      }
+      return rateLimitResponse(accountResult, 'Too many OTP requests for this account.');
+    }
+
+    // ── Email dispatch cooldown: prevent duplicate OTP emails within 60s ──
+    const cooldownActive = await isCooldownActive(
+      'otp_email',
+      normalizedEmail,
+      COOLDOWNS.OTP_EMAIL
+    );
+    if (cooldownActive) {
+      return NextResponse.json(
+        { error: 'An OTP was recently sent. Please wait before requesting another.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
 
     // ── Find user (return same message regardless of existence) ──
     const user = await db.user.findUnique({
