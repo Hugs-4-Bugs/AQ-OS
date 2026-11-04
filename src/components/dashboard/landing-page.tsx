@@ -303,7 +303,7 @@ export default function LandingPage() {
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"
               >
-                QuantumFusion Solutions
+                Paragonel Technologies Pvt. Ltd.
               </a>
             </div>
           </div>

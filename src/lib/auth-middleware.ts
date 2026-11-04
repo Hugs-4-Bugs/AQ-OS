@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUser, AuthError, getClientIp, getUserAgent } from '@/lib/auth';
+import { getAuthUser, AuthError } from '@/lib/auth';
 import { hasPermission, hasAllPermissions, isAdminRole, type Permission, type UserRole } from '@/lib/rbac';
 import type { AuthUser } from '@/lib/auth';
 import { withDualAuth, type ApiKeyScope } from '@/lib/api-key-middleware';
@@ -70,33 +70,6 @@ export async function withPermission(
 ): Promise<NextResponse> {
   return withAuth(request, async (user) => {
     if (!hasPermission(user.role as UserRole, permission)) {
-      // BLOCKER 2 FIX: Record the authorization failure as a security event.
-      // This is awaited (with catch) so it completes before the 403 response,
-      // but failures are caught — they must NOT prevent the 403 response.
-      try {
-        const { recordSecurityEvent } = await import('@/lib/security/audit-chain');
-        const { getRequestId } = await import('@/lib/security/request-id');
-        const requestId = getRequestId(request);
-        const url = new URL(request.url);
-        await recordSecurityEvent({
-          actorId: user.id,
-          securityEventType: 'authz_permission_denied',
-          severity: 'MEDIUM',
-          action: `authz_denied:${permission}`,
-          resource: url.pathname,
-          details: {
-            requiredPermission: permission,
-            actualRole: user.role,
-            route: url.pathname,
-          },
-          ipAddress: getClientIp(request),
-          userAgent: getUserAgent(request),
-          requestId,
-          outcome: 'denied',
-        }).catch(() => {});
-      } catch {
-        // Never fail the 403 response because of audit logging
-      }
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
     return handler(user);
@@ -131,6 +104,12 @@ export async function withSuperAdmin(
   return withAuth(request, async (user) => {
     if (user.role !== 'super_admin') {
       return NextResponse.json({ error: 'Super admin access required' }, { status: 403 });
+    }
+    if (!user.mfaEnabled) {
+      return NextResponse.json(
+        { error: 'MFA is mandatory for super admin accounts. Enable MFA in Settings → Security before accessing admin features.', code: 'MFA_REQUIRED' },
+        { status: 403 }
+      );
     }
     return handler(user);
   });

@@ -232,7 +232,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const feedbackOpen = feedbackOpenGroups.reduce((s, g) => s + g._count.status, 0);
 
       // ── Recent platform activity (audit trail) ───────────────
-      const recentAudit = await db.auditLog.findMany({
+      // NOTE: Some AuditLog rows have orphaned userId references (users that
+      // were deleted or created via test data). The Prisma relation `user`
+      // is required (not optional), so including it in the select throws
+      // "Field user is required to return data, got null instead" when any
+      // row has an orphaned userId. Fix: fetch without the relation, then
+      // merge user data separately for userIds that still exist.
+      const recentAuditRows = await db.auditLog.findMany({
         orderBy: { createdAt: 'desc' },
         take: 10,
         select: {
@@ -241,9 +247,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           resource: true,
           resourceId: true,
           createdAt: true,
-          user: { select: { email: true, name: true } },
+          userId: true,
         },
       });
+      const auditUserIds = [...new Set(recentAuditRows.map((r) => r.userId).filter(Boolean))];
+      const auditUsers = auditUserIds.length > 0
+        ? await db.user.findMany({ where: { id: { in: auditUserIds } }, select: { id: true, email: true, name: true } })
+        : [];
+      const auditUserMap = new Map(auditUsers.map((u) => [u.id, u]));
+      const recentAudit = recentAuditRows.map((r) => ({
+        id: r.id,
+        action: r.action,
+        resource: r.resource,
+        resourceId: r.resourceId,
+        createdAt: r.createdAt,
+        user: auditUserMap.get(r.userId) ?? null,
+      }));
 
       return NextResponse.json({
         success: true,

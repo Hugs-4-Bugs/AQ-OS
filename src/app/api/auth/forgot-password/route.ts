@@ -9,12 +9,22 @@ import {
 } from '@/lib/auth';
 import { sendPasswordResetEmail, isEmailServiceConfigured } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  isCooldownActive,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  FORGOT_PASSWORD_ACCOUNT_POLICY,
+  FORGOT_PASSWORD_IP_POLICY,
+  COOLDOWNS,
+} from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const body = await request.json();
@@ -29,6 +39,47 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Distributed rate limiting: IP + account dimensions ──────
+    const ipResult = await checkRateLimit(
+      { endpoint: 'forgot_password', ip: clientIP, dimension: 'ip' },
+      FORGOT_PASSWORD_IP_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'forgot_password', ip: clientIP, dimension: 'ip' }, ipResult);
+    if (!ipResult.allowed) {
+      if (!ipResult.storeAvailable && FORGOT_PASSWORD_IP_POLICY.failClosed) {
+        return storeUnavailableResponse('forgot_password');
+      }
+      return rateLimitResponse(ipResult, 'Too many password reset requests from this IP.');
+    }
+
+    const accountResult = await checkRateLimit(
+      { endpoint: 'forgot_password', accountIdentifier: normalizedEmail, dimension: 'account' },
+      FORGOT_PASSWORD_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'forgot_password', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && FORGOT_PASSWORD_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('forgot_password');
+      }
+      // Return same message as success to prevent account enumeration
+      return NextResponse.json({
+        message: 'If an account exists with this email, a reset code has been sent.',
+      });
+    }
+
+    // ── Email dispatch cooldown: prevent duplicate emails within 60s ──
+    const cooldownActive = await isCooldownActive(
+      'password_reset_email',
+      normalizedEmail,
+      COOLDOWNS.PASSWORD_RESET_EMAIL
+    );
+    if (cooldownActive) {
+      return NextResponse.json(
+        { error: 'A reset code was recently sent. Please wait before requesting another.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
 
     // ── Find user (always return same message to prevent enumeration) ──
     const user = await db.user.findUnique({

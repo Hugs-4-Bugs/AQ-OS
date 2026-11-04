@@ -74,7 +74,7 @@ export default function PrivacyPolicyPage() {
                 Introduction
               </h2>
               <p className="text-sm leading-relaxed mb-3">
-                QuantumFusion Solutions (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;)
+                Paragonel Technologies Pvt. Ltd. (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;)
                 respects your privacy and is committed to protecting your personal data. This
                 privacy policy explains how we collect, use, disclose, and safeguard your
                 information when you use AcquisitionOS.
@@ -627,7 +627,7 @@ export default function PrivacyPolicyPage() {
                   </a>
                 </li>
                 <li>
-                  <strong>Company:</strong> QuantumFusion Solutions
+                  <strong>Company:</strong> Paragonel Technologies Pvt. Ltd.
                 </li>
                 <li>
                   <strong>Address:</strong> Jamshedpur, Jharkhand, India
@@ -645,7 +645,7 @@ export default function PrivacyPolicyPage() {
             {/* Back to Home */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
               <p className="text-xs text-muted-foreground">
-                &copy; {new Date().getFullYear()} QuantumFusion Solutions. All rights reserved.
+                &copy; {new Date().getFullYear()} Paragonel Technologies Pvt. Ltd.. All rights reserved.
               </p>
               <Link href="/">
                 <Button variant="outline" size="sm" className="gap-2">

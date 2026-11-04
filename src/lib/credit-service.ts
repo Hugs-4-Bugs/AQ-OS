@@ -134,6 +134,26 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
   try {
     const { userId, action, cost, referenceId, idempotencyKey, description } = params;
 
+    // ── Head Super Admin bypass ──────────────────────────────────
+    // The canonical Head Super Admin (contact@prabhat.online) has
+    // permanent unlimited entitlements. Credit deduction is skipped
+    // entirely — no balance check, no ledger entry, no limit.
+    const headAdmin = await db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, role: true },
+    });
+    if (headAdmin) {
+      const { isHeadSuperAdmin } = await import('@/lib/head-admin');
+      if (isHeadSuperAdmin({ email: headAdmin.email, role: headAdmin.role })) {
+        return {
+          success: true,
+          newBalance: Number.MAX_SAFE_INTEGER,
+          ledgerEntryId: 'head-admin-bypass',
+          alreadyProcessed: false,
+        };
+      }
+    }
+
     // Validate cost
     if (cost <= 0) {
       return { success: false, newBalance: 0, error: 'Cost must be greater than 0' };
@@ -638,8 +658,16 @@ export async function checkCreditSufficiency(
   try {
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { credits: true },
+      select: { credits: true, email: true, role: true },
     });
+
+    // Head Super Admin bypass — always sufficient
+    if (user) {
+      const { isHeadSuperAdmin } = await import('@/lib/head-admin');
+      if (isHeadSuperAdmin({ email: user.email, role: user.role })) {
+        return { sufficient: true, balance: Number.MAX_SAFE_INTEGER, shortfall: 0 };
+      }
+    }
 
     const balance = user?.credits ?? 0;
     const sufficient = balance >= amount;

@@ -74,11 +74,11 @@ const CURRENCY_SYMBOLS: Record<InvoiceCurrency, string> = {
 
 const COMPANY_DETAILS = {
   // FIX 4: The legal entity / company details shown at the bottom of the
-  // invoice is "QuantumFusion Solutions". The product brand name
+  // invoice is "Paragonel Technologies Pvt. Ltd.". The product brand name
   // (AcquisitionOS) is rendered separately at the top via PRODUCT_NAME.
-  name: process.env.COMPANY_NAME || 'QuantumFusion Solutions',
+  name: process.env.COMPANY_NAME || 'Paragonel Technologies Pvt. Ltd.',
   address: process.env.COMPANY_ADDRESS || '123 Tech Park, Andheri East, Mumbai, Maharashtra 400069',
-  email: process.env.COMPANY_EMAIL || 'billing@quantumfusionsolutions.com',
+  email: process.env.COMPANY_EMAIL || 'billing@acquisitionos.com',
   phone: process.env.COMPANY_PHONE || '+91-80-1234-5678',
   gstNumber: process.env.COMPANY_GST_NUMBER || '27AABCA1234F1Z5',
   taxId: process.env.COMPANY_TAX_ID || '',
@@ -516,7 +516,7 @@ function buildPdfBuffer(data: InvoiceData): Promise<Buffer> {
     // Capture the baseline so the right column aligns with the left column.
     const footerBaselineY = y;
 
-    // Left: Company details (QuantumFusion Solutions)
+    // Left: Company details (Paragonel Technologies Pvt. Ltd.)
     doc.fontSize(8).font('Helvetica-Bold').fillColor(GRAY_500).text('COMPANY DETAILS', leftX, y, { width: pageWidth * 0.45 });
     y += 12;
     doc.fontSize(8.5).font('Helvetica').fillColor(GRAY_500);

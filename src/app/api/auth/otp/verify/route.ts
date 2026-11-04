@@ -18,7 +18,7 @@ import {
   isOtpLocked,
   classifyAuthErrorCategory,
 } from '@/lib/auth';
-import { withRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
+import { withRateLimit } from '@/lib/security/rate-limiter';
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
 
     // ── Rate limit (P9): dedicated 'otp_verify' bucket keyed by IP+email ──
     const rateLimitResult = withRateLimit(request, 'otp_verify', {
-      keySuffix: authRateKeySuffix(normalizedEmail),
     });
     if (rateLimitResult) return rateLimitResult;
 

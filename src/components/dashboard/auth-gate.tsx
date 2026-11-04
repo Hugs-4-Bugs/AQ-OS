@@ -322,15 +322,8 @@ function OtpLoginPage({ onBackToSignIn }: { onBackToSignIn: () => void }) {
         // Auth cookies are set by the API, refresh auth state
         window.location.reload();
       } else {
-        // Display the error message. If the server included a 'detail'
-        // field (sanitized error description), append it so the user can
-        // see WHAT failed (e.g., "no such table: UserSession") without
-        // needing to open DevTools.
-        const errMsg = data.error || 'Invalid OTP';
-        const detail = data.detail ? ` (${data.detail})` : '';
-        const fullMsg = detail ? `${errMsg}${detail}` : errMsg;
-        setError(fullMsg);
-        toast.error(fullMsg, { duration: 8000 });
+        setError(data.error || 'Invalid OTP');
+        toast.error(data.error || 'Verification failed');
       }
     } catch {
       setError('Network error. Please try again.');
@@ -763,7 +756,7 @@ function AuthenticatedWrapper({
 // Main AuthGate component
 // ══════════════════════════════════════════════════════════════
 export default function AuthGate() {
-  const { isAuthenticated, isLoading, mfaRequired, setUser, setLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, mfaRequired, user, setUser, setLoading } = useAuthStore();
   const { signIn } = useAuth();
 
   // ── Auth page navigation state ───────────────────────────────
@@ -1004,6 +997,17 @@ export default function AuthGate() {
       </>
     );
   }
+
+  // ── Super Admin redirect: send super_admin users to /admin ───
+  // A super_admin WITH MFA enabled is redirected to the Admin Console.
+  // A super_admin WITHOUT MFA sees the normal dashboard but admin API
+  // routes will reject them with MFA_REQUIRED (enforced by withSuperAdmin).
+  // Normal users are unaffected.
+  useEffect(() => {
+    if (isAuthenticated && !mfaRequired && user?.role === 'super_admin' && user.mfaEnabled) {
+      window.location.href = '/admin';
+    }
+  }, [isAuthenticated, mfaRequired, user]);
 
   // ── Authenticated: show dashboard ────────────────────────────
   if (isAuthenticated && !mfaRequired) {
