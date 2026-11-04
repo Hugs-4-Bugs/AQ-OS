@@ -25,9 +25,33 @@ import {
 } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 import { devOtpDelivery } from '@/lib/dev-auth';
-import { withRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  LOGIN_ATTEMPT_IP_POLICY,
+} from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
+  const clientIP = getTrustedClientIP(request);
+
+  // ── Distributed rate limiting: IP-based login attempt limit ──
+  const ipResult = await checkRateLimit(
+    { endpoint: 'login_attempt', ip: clientIP, dimension: 'ip' },
+    LOGIN_ATTEMPT_IP_POLICY
+  );
+  recordRateLimitMetric({ endpoint: 'login_attempt', ip: clientIP, dimension: 'ip' }, ipResult);
+  if (!ipResult.allowed) {
+    if (!ipResult.storeAvailable && LOGIN_ATTEMPT_IP_POLICY.failClosed) {
+      return storeUnavailableResponse('login_attempt');
+    }
+    return rateLimitResponse(ipResult, 'Too many login attempts from this IP.');
+  }
+
   try {
     const body = await request.json();
     const { email, password, rememberMe } = body;
@@ -42,14 +66,9 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ── Rate limit (P9): DEDICATED 'signin' bucket keyed by IP+email ──
-    // No longer shares the 5/min 'auth' bucket with OTP/magic-link/refresh,
-    // so unrelated users behind the same preview gateway cannot consume
-    // each other's sign-in quota.
-    const rateLimitResult = withRateLimit(request, 'signin', {
-      keySuffix: authRateKeySuffix(normalizedEmail),
-    });
-    if (rateLimitResult) return rateLimitResult;
+    // Distributed rate limiting is already applied at the top of this handler
+    // (IP-based LOGIN_ATTEMPT_IP_POLICY). The old withRateLimit call here
+    // was removed during the distributed rate-limiter migration.
 
     const ip = getClientIp(request);
     const ua = getUserAgent(request);

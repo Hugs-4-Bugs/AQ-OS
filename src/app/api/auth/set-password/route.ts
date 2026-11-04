@@ -35,39 +35,61 @@ import {
   getClientIp,
   getUserAgent,
 } from '@/lib/auth';
-import { withRateLimit, refundRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { OTP_VERIFY_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
+
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const rateLimitResult = withRateLimit(request, 'otp_verify');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
 
   try {
     const body = await request.json();
     const { email, otp, newPassword } = body;
 
     if (!email || !otp || !newPassword) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'Email, OTP, and new password are required' }, { status: 400 });
     }
 
     if (!validateEmail(email)) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
     if (typeof otp !== 'string' || !/^\d{6}$/.test(otp)) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'OTP must be a 6-digit code' }, { status: 400 });
     }
 
     if (typeof newPassword !== 'string' || newPassword.length < 8) {
-      refundRateLimit(request, 'otp_verify', {});
+      
       return NextResponse.json({ error: 'Password must be at least 8 characters long' }, { status: 400 });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Distributed rate limiting: account-based (prevents brute-force
+    //    on the OTP before the bcrypt hash + DB write) ──────────────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'set_password', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'set_password', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('set_password');
+      }
+      return rateLimitResponse(accountResult, 'Too many set-password attempts.');
+    }
+
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
@@ -125,7 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error('Set password error:', error);
-    refundRateLimit(request, 'otp_verify', {});
+    
     return NextResponse.json({ error: 'Unable to set password right now.' }, { status: 500 });
   }
 }

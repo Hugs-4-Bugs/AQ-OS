@@ -18,9 +18,18 @@ import {
   isOtpLocked,
   classifyAuthErrorCategory,
 } from '@/lib/auth';
-import { withRateLimit, authRateKeySuffix } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { OTP_VERIFY_ACCOUNT_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
+  const clientIP = getTrustedClientIP(request);
+
   try {
     const body = await request.json();
     const { email, otp, rememberMe } = body;
@@ -49,11 +58,20 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ── Rate limit (P9): dedicated 'otp_verify' bucket keyed by IP+email ──
-    const rateLimitResult = withRateLimit(request, 'otp_verify', {
-      keySuffix: authRateKeySuffix(normalizedEmail),
-    });
-    if (rateLimitResult) return rateLimitResult;
+    // ── Distributed rate limiting: account dimension (prevents brute-force
+    //    on the OTP code; otpAttemptCount/lockout on the user record also
+    //    applies independently as a secondary defense) ──────────────────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'otp_verify', accountIdentifier: normalizedEmail, dimension: 'account' },
+      OTP_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'otp_verify', accountIdentifier: normalizedEmail, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && OTP_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('otp_verify');
+      }
+      return rateLimitResponse(accountResult, 'Too many OTP verification attempts.');
+    }
 
     // P5: Remember-me carries through the OTP login flow.
     const rememberMeFlag = rememberMe === true || rememberMe === 'true' || rememberMe === '1';

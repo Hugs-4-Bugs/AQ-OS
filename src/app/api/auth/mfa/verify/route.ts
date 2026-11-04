@@ -13,12 +13,34 @@ import {
   verifyPassword,
   verifyTotpCode,
 } from '@/lib/auth';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import {
+  MFA_VERIFY_ACCOUNT_POLICY,
+  MFA_VERIFY_IP_POLICY,
+} from '@/lib/security/rate-limit-policies';
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 auth requests per minute per IP to prevent MFA code brute-force
-  const rateLimitResult = withRateLimit(request, 'mfa');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
+
+  // ── Distributed rate limiting: IP-based (prevents distributed
+  //    brute-force on the 6-digit TOTP code before any work) ───────
+  const ipResult = await checkRateLimit(
+    { endpoint: 'mfa_verify', ip: clientIP, dimension: 'ip' },
+    MFA_VERIFY_IP_POLICY
+  );
+  recordRateLimitMetric({ endpoint: 'mfa_verify', ip: clientIP, dimension: 'ip' }, ipResult);
+  if (!ipResult.allowed) {
+    if (!ipResult.storeAvailable && MFA_VERIFY_IP_POLICY.failClosed) {
+      return storeUnavailableResponse('mfa_verify');
+    }
+    return rateLimitResponse(ipResult, 'Too many MFA verification attempts from this IP.');
+  }
 
   try {
     const body = await request.json();
@@ -51,6 +73,20 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid or expired MFA session token' },
         { status: 401 }
       );
+    }
+
+    // ── Distributed rate limiting: account-based (prevents targeted
+    //    brute-force on a specific account's TOTP/backup codes) ─────
+    const accountResult = await checkRateLimit(
+      { endpoint: 'mfa_verify', accountIdentifier: payload.sub, dimension: 'account' },
+      MFA_VERIFY_ACCOUNT_POLICY
+    );
+    recordRateLimitMetric({ endpoint: 'mfa_verify', accountIdentifier: payload.sub, dimension: 'account' }, accountResult);
+    if (!accountResult.allowed) {
+      if (!accountResult.storeAvailable && MFA_VERIFY_ACCOUNT_POLICY.failClosed) {
+        return storeUnavailableResponse('mfa_verify');
+      }
+      return rateLimitResponse(accountResult, 'Too many MFA verification attempts.');
     }
 
     // ── Find user ───────────────────────────────────────────────
