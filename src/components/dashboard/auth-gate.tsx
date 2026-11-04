@@ -988,6 +988,20 @@ export default function AuthGate() {
   // ── Legal pages dialog (available everywhere) ────────────────
   const legalDialog = <LegalPages />;
 
+  // ── Super Admin redirect: send super_admin users to /admin ───
+  // A super_admin WITH MFA enabled is redirected to the Admin Console.
+  // A super_admin WITHOUT MFA sees the normal dashboard but admin API
+  // routes will reject them with MFA_REQUIRED (enforced by withSuperAdmin).
+  // Normal users are unaffected.
+  // FIX: This hook MUST be called unconditionally (before any conditional
+  // return) to satisfy React Rules of Hooks. The condition is inside the
+  // effect callback, not around the hook itself.
+  useEffect(() => {
+    if (isAuthenticated && !mfaRequired && user?.role === 'super_admin' && user.mfaEnabled) {
+      window.location.href = '/admin';
+    }
+  }, [isAuthenticated, mfaRequired, user]);
+
   // ── Loading state while checking auth ────────────────────────
   if (!initialized || isLoading) {
     return (
@@ -997,17 +1011,6 @@ export default function AuthGate() {
       </>
     );
   }
-
-  // ── Super Admin redirect: send super_admin users to /admin ───
-  // A super_admin WITH MFA enabled is redirected to the Admin Console.
-  // A super_admin WITHOUT MFA sees the normal dashboard but admin API
-  // routes will reject them with MFA_REQUIRED (enforced by withSuperAdmin).
-  // Normal users are unaffected.
-  useEffect(() => {
-    if (isAuthenticated && !mfaRequired && user?.role === 'super_admin' && user.mfaEnabled) {
-      window.location.href = '/admin';
-    }
-  }, [isAuthenticated, mfaRequired, user]);
 
   // ── Authenticated: show dashboard ────────────────────────────
   if (isAuthenticated && !mfaRequired) {
