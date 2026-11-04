@@ -1,4 +1,5 @@
 'use client';
+import { QRCodeSVG } from 'qrcode.react';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
@@ -1641,7 +1642,7 @@ export function MfaSetupPage({ onDisable }: { onDisable?: () => void }) {
       const data = await res.json();
       if (res.ok) {
         setSecret(data.secret);
-        setOtpUri(data.otpUri);
+        setOtpUri(data.qrCodeUrl);
         setBackupCodes(data.backupCodes || []);
         setStep('qr');
       } else {
@@ -1837,7 +1838,7 @@ export function MfaSetupPage({ onDisable }: { onDisable?: () => void }) {
             <div className="flex justify-center">
               <div className="w-48 h-48 bg-background rounded-xl border border-border flex items-center justify-center">
                 {otpUri ? (
-                  <QrCode className="h-32 w-32 text-foreground" />
+                  <QRCodeSVG value={otpUri} size={180} level="M" />
                 ) : (
                   <div className="text-center text-xs text-muted-foreground">
                     QR Code
