@@ -1,3 +1,4 @@
+// Force Node.js runtime (not Edge) — instrumentation uses fs/path
 /**
  * AcquisitionOS — Next.js Instrumentation (ROOT STARTUP HOOK)
  *
