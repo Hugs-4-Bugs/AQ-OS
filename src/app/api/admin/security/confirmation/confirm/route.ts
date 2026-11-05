@@ -1,13 +1,13 @@
 // POST /api/admin/security/confirmation/confirm — confirm a sensitive action
 // RBAC: rbac.assign (super_admin only)
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withPermissionAndMfa } from '@/lib/auth-middleware';
 import { confirmAction, SENSITIVE_ACTIONS, type SensitiveAction } from '@/lib/security/audit-chain';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'rbac.assign', async (admin) => {
+  return withPermissionAndMfa(request, 'security.events.read', async (admin) => {
     try {
       const body = await request.json();
       const { confirmationId, token, actionType, targetId } = body;

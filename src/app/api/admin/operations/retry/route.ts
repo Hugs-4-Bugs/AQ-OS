@@ -23,7 +23,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { executeRealRetry } from '@/lib/admin-operations-service';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
@@ -34,7 +34,7 @@ function safeGetHeader(request: NextRequest, name: string): string | undefined {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'system.operations.retry', async (admin) => {
+  return withSuperAdmin(request, async (admin) => {
     try {
       let body: Record<string, unknown>;
       try { body = await request.json(); }

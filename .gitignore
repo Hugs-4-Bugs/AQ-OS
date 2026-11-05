@@ -15,3 +15,31 @@ tool-results/
 backups/
 investor-prep-kit/
 RECOVERY/
+
+# Secrets — never commit runtime credentials
+.env
+.env.*
+.env.local
+.env.*.local
+*.cookies
+scripts/.repro-cookies*
+scripts/phase3-token.txt
+scripts/.qa-*
+!/.env.example
+
+# Runtime state and local artifacts
+node_modules/
+.next/
+*.log
+*.tsbuildinfo
+db/
+db-backups/
+prisma/db/
+backend/test.db
+test.db
+prisma/test.db
+*.test.db
+.test-db-isolated/
+test-schema.db
+upload/
+download/

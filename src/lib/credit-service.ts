@@ -152,6 +152,17 @@ export async function deductCredits(params: DeductCreditsParams): Promise<Deduct
           alreadyProcessed: false,
         };
       }
+      // ISSUE 8: All platform admins (super_admin, admin) bypass
+      // credit deduction under the centralized platform-admin policy.
+      const { isPlatformAdminWithFullAccess } = await import('@/lib/platform-admin-policy');
+      if (isPlatformAdminWithFullAccess(headAdmin.role)) {
+        return {
+          success: true,
+          newBalance: Number.MAX_SAFE_INTEGER,
+          ledgerEntryId: 'platform-admin-bypass',
+          alreadyProcessed: false,
+        };
+      }
     }
 
     // Validate cost
@@ -665,6 +676,12 @@ export async function checkCreditSufficiency(
     if (user) {
       const { isHeadSuperAdmin } = await import('@/lib/head-admin');
       if (isHeadSuperAdmin({ email: user.email, role: user.role })) {
+        return { sufficient: true, balance: Number.MAX_SAFE_INTEGER, shortfall: 0 };
+      }
+      // ISSUE 8: All platform admins (super_admin, admin) bypass
+      // credit sufficiency checks under the centralized policy.
+      const { isPlatformAdminWithFullAccess } = await import('@/lib/platform-admin-policy');
+      if (isPlatformAdminWithFullAccess(user.role)) {
         return { sufficient: true, balance: Number.MAX_SAFE_INTEGER, shortfall: 0 };
       }
     }

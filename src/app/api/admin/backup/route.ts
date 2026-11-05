@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 
 // ── GET: List Backups ──────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  return withSuperAdmin(request, async () => {
+  return withSuperAdmin(request, async (user) => {
     try {
       const { searchParams } = new URL(request.url);
       const type = searchParams.get('type') || 'all';

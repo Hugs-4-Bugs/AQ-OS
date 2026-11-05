@@ -14,7 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 
@@ -43,7 +43,7 @@ const SAFE_USER_SELECT = {
 } as const;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'users.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const { searchParams } = new URL(request.url);
       const search = (searchParams.get('search') || '').trim();

@@ -68,6 +68,7 @@ const TEST_ADMIN = {
   email: 'admin-p33@test.local',
   role: 'super_admin',
   plan: 'elite',
+  mfaEnabled: true,
 };
 
 async function ensureTestAdminUser() {
@@ -641,7 +642,7 @@ describe('RBAC — Security Routes', () => {
   let confirmationConfirmPOST: (request: NextRequest) => Promise<Response>;
 
   const TEST_USERS = {
-    super_admin: { id: 'su-1', email: 'su@t', role: 'super_admin', plan: 'elite' },
+    super_admin: { id: 'su-1', email: 'su@t', role: 'super_admin', plan: 'elite', mfaEnabled: true },
     admin: { id: 'ad-1', email: 'ad@t', role: 'admin', plan: 'pro' },
     support: { id: 'sp-1', email: 'sp@t', role: 'support', plan: 'free' },
     analytics: { id: 'an-1', email: 'an@t', role: 'analytics', plan: 'free' },

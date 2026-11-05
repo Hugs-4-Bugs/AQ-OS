@@ -6,13 +6,13 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { getOperationalMetrics } from '@/lib/admin-operations-service';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'system.health.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const data = await getOperationalMetrics();
       return NextResponse.json({ success: true, data });

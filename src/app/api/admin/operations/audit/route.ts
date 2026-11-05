@@ -11,13 +11,13 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { getAuditLog } from '@/lib/admin-operations-service';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'audit.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const { searchParams } = new URL(request.url);
       const userId = searchParams.get('userId') || undefined;

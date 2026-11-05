@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { BrandLogo } from '@/components/brand/brand-logo';
 import {
-  Rocket,
   Search,
   Bot,
   BarChart3,
@@ -51,10 +51,7 @@ export default function LandingPage() {
       {/* ===== NAVBAR ===== */}
       <header className="sticky top-0 z-[100] border-b bg-background/80 backdrop-blur-xl">
         <div className="container-app flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Rocket className="h-7 w-7 text-primary" />
-            <span className="text-xl font-bold gradient-text">AcquisitionOS</span>
-          </div>
+          <BrandLogo size="sm" priority href="#top" linkAriaLabel="AcquisitionOS home" />
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
@@ -258,10 +255,7 @@ export default function LandingPage() {
         <div className="container-app">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Rocket className="h-5 w-5 text-primary" />
-                <span className="font-bold gradient-text">AcquisitionOS</span>
-              </div>
+              <BrandLogo variant="monochrome" size="sm" priority />
               <p className="text-xs text-muted-foreground leading-relaxed">AI-powered client acquisition that reveals opportunities, automates outreach, and closes deals.</p>
             </div>
             <div>
@@ -296,15 +290,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} AcquisitionOS. All rights reserved.</p>
             <div className="flex items-center gap-1 text-foreground">
-              Crafted with <span className="text-red-500">❤️</span> by{' '}
-              <a
-                href="https://www.linkedin.com/company/quantumfusion-solutions"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Paragonel Technologies Pvt. Ltd.
-              </a>
+              <span>Acquire smarter. Close faster. Dominate every market.</span>
             </div>
           </div>
         </div>

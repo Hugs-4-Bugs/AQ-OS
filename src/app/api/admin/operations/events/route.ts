@@ -13,7 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withSuperAdmin } from '@/lib/auth-middleware';
 import { getOperationalEvents } from '@/lib/admin-operations-service';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 const VALID_TYPES = ['error', 'warning', 'info', 'critical'] as const;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'system.health.read', async () => {
+  return withSuperAdmin(request, async () => {
     try {
       const { searchParams } = new URL(request.url);
       const typeParam = searchParams.get('type');

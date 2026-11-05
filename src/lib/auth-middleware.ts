@@ -70,10 +70,95 @@ export async function withPermission(
 ): Promise<NextResponse> {
   return withAuth(request, async (user) => {
     if (!hasPermission(user.role as UserRole, permission)) {
+      // Audit the denial
+      await logAuthorizationDenial(user, permission, request);
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
     return handler(user);
   });
+}
+
+/**
+ * Require specific permission AND MFA verification.
+ * Use for sensitive mutations (role assignment, confirmation, etc.)
+ * where a stolen access token must not grant privileged access without MFA.
+ */
+export async function withPermissionAndMfa(
+  request: NextRequest,
+  permission: Permission,
+  handler: (user: AuthUser) => Promise<NextResponse>
+): Promise<NextResponse> {
+  return withAuth(request, async (user) => {
+    if (!hasPermission(user.role as UserRole, permission)) {
+      await logAuthorizationDenial(user, permission, request);
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+    // MFA enforcement: super_admin must have MFA enabled for sensitive operations
+    if (user.role === 'super_admin' && !user.mfaEnabled) {
+      return NextResponse.json(
+        { error: 'MFA is mandatory for this operation. Enable MFA in Settings → Security.', code: 'MFA_REQUIRED' },
+        { status: 403 }
+      );
+    }
+    return handler(user);
+  });
+}
+
+/**
+ * Log an authorization denial for security audit.
+ *
+ * Uses trusted-proxy-aware IP extraction — never trusts arbitrary
+ * X-Forwarded-For values from untrusted sources.
+ *
+ * SECURITY NOTES:
+ * - This is operational logging (console.warn), NOT a durable tamper-evident
+ *   audit record. For durable audit, use recordAuditEvent from audit-chain.
+ * - console.warn is used here to avoid circular dependencies with the
+ *   audit-chain module (which imports from auth).
+ * - Log fields are sanitized to prevent newline/control-character injection.
+ * - Logging failures NEVER authorize a denied operation (fail-safe).
+ * - Never logs passwords, tokens, OTPs, or sensitive request bodies.
+ */
+async function logAuthorizationDenial(
+  user: AuthUser,
+  permission: Permission,
+  request: NextRequest
+): Promise<void> {
+  try {
+    // Trusted proxy IP extraction — reuse established logic
+    // Only trust X-Forwarded-For from configured trusted proxy IPs
+    const socketIP = (request as any).ip || '127.0.0.1';
+    const trustedProxies = (process.env.TRUSTED_PROXY_IPS || '127.0.0.1,::1')
+      .split(',').map(s => s.trim()).filter(Boolean);
+    const isTrustedProxy = trustedProxies.includes(socketIP);
+
+    let clientIP = 'unknown';
+    if (isTrustedProxy) {
+      const xff = request.headers.get('x-forwarded-for');
+      if (xff) {
+        const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
+        if (ips.length > 0) clientIP = ips[0];
+      }
+    } else {
+      // Direct connection — use socket IP
+      clientIP = socketIP;
+    }
+
+    // Sanitize all log fields to prevent log injection
+    const sanitize = (s: string): string => s.replace(/[\r\n\t]/g, '').substring(0, 200);
+
+    const path = sanitize(request.nextUrl?.pathname || 'unknown');
+    const method = sanitize(request.method || 'unknown');
+    const userId = sanitize(user.id || 'unknown');
+    const perm = sanitize(String(permission));
+    const ip = sanitize(clientIP);
+
+    console.warn(`[AUTHZ_DENIED] user=${userId} perm=${perm} method=${method} path=${path} ip=${ip}`);
+  } catch {
+    // Logging failures must NEVER authorize a denied operation.
+    // The denial has already been returned; this catch only prevents
+    // an unhandled rejection from interfering with the response.
+  }
 }
 
 /** Require admin role */

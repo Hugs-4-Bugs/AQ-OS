@@ -16,12 +16,88 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// ── BRANDING METADATA ───────────────────────────────────────────────
+// Official AcquisitionOS brand assets integrated into Next.js App Router
+// metadata conventions. All favicons, platform icons, OG images and the
+// web app manifest reference the official assets in /public/brand/,
+// /public/favicon/, and /public/icons/.
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://acquisitionos.com";
+const OG_IMAGE = `${SITE_URL}/brand/open-graph.png`;
+
 export const metadata: Metadata = {
-  title: "AcquisitionOS — AI-Powered Client Acquisition System",
+  title: {
+    default: "AcquisitionOS — AI-Powered Client Acquisition System",
+    template: "%s — AcquisitionOS",
+  },
   description: "AcquisitionOS is the AI-powered client acquisition system that reveals hidden opportunities, automates outreach, and closes deals faster. Acquire smarter. Close faster. Dominate every market.",
   keywords: ["AcquisitionOS", "Client Acquisition", "AI Lead Intelligence", "Deal Intelligence", "Business Acquisition", "Sales Dashboard", "Pipeline Management", "CRM", "Outreach Automation"],
+  applicationName: "AcquisitionOS",
+  authors: [{ name: "AcquisitionOS" }],
+  creator: "AcquisitionOS",
+  publisher: "AcquisitionOS",
+  // ── Favicons and platform icons ──────────────────────────────
+  // Multiple PNG sizes + ICO + SVG + Apple Touch Icon.
+  // The browser selects the best size automatically.
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      // Android/PWA icons referenced by the manifest
+      { url: "/icons/android-chrome-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/android-chrome-512.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
+  // ── Apple-specific metadata ───────────────────────────────────
+  appleWebApp: {
+    title: "AcquisitionOS",
+    statusBarStyle: "default",
+    capable: true,
+  },
+  // ── Web App Manifest ──────────────────────────────────────────
+  manifest: "/manifest.webmanifest",
+  // ── Open Graph metadata ───────────────────────────────────────
+  openGraph: {
+    title: "AcquisitionOS — AI-Powered Client Acquisition System",
+    description: "AI-powered client acquisition that reveals opportunities, automates outreach, and closes deals. Acquire smarter. Close faster. Dominate every market.",
+    type: "website",
+    siteName: "AcquisitionOS",
+    url: SITE_URL,
+    images: [
+      {
+        url: "/brand/open-graph.png",
+        width: 1200,
+        height: 630,
+        alt: "AcquisitionOS — AI-Powered Client Acquisition System",
+        type: "image/png",
+      },
+    ],
+  },
+  // ── Twitter/X card metadata ───────────────────────────────────
+  twitter: {
+    card: "summary_large_image",
+    title: "AcquisitionOS — AI-Powered Client Acquisition",
+    description: "Acquire smarter. Close faster. Dominate every market.",
+    images: ["/brand/open-graph.png"],
+  },
+  // ── Robots: do not expose auth/admin routes as public social preview
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 
@@ -39,6 +115,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
+  ],
 };
 
 export default function RootLayout({
@@ -51,15 +131,6 @@ export default function RootLayout({
     // with defaultTheme="light" (providers.tsx). Existing users who chose
     // dark keep their stored preference via localStorage.
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta name="theme-color" content="#FFFFFF" />
-        <meta property="og:title" content="AcquisitionOS — AI-Powered Client Acquisition System" />
-        <meta property="og:description" content="AI-powered client acquisition that reveals opportunities, automates outreach, and closes deals." />
-        <meta property="og:type" content="website" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="AcquisitionOS — AI-Powered Client Acquisition" />
-        <meta name="twitter:description" content="Acquire smarter. Close faster. Dominate every market." />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

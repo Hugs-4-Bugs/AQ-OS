@@ -1,12 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { getAppUrl } from '@/lib/app-url';
-import { withRateLimit } from '@/lib/security/rate-limiter';
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  storeUnavailableResponse,
+  getTrustedClientIP,
+  recordRateLimitMetric,
+} from '@/lib/security/distributed-rate-limiter';
+import { LOGIN_ATTEMPT_IP_POLICY } from '@/lib/security/rate-limit-policies';
 
 export async function GET(request: NextRequest) {
-  // Rate limit: 10 Google auth initiations per minute per IP
-  const rateLimitResult = withRateLimit(request, 'auth');
-  if (rateLimitResult) return rateLimitResult;
+  const clientIP = getTrustedClientIP(request);
+
+  // Distributed rate limiting: IP-based Google OAuth initiation limit
+  const ipResult = await checkRateLimit(
+    { endpoint: 'google_oauth', ip: clientIP, dimension: 'ip' },
+    LOGIN_ATTEMPT_IP_POLICY
+  );
+  recordRateLimitMetric({ endpoint: 'google_oauth', ip: clientIP, dimension: 'ip' }, ipResult);
+  if (!ipResult.allowed) {
+    if (!ipResult.storeAvailable && LOGIN_ATTEMPT_IP_POLICY.failClosed) {
+      return storeUnavailableResponse('google_oauth');
+    }
+    return rateLimitResponse(ipResult, 'Too many authentication requests.');
+  }
 
   try {
     // Credentials are validated at token exchange time in the callback route.
