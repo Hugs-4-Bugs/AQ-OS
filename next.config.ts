@@ -226,6 +226,19 @@ const nextConfig: NextConfig = {
 
   // ─── Webpack Optimization (fallback for non-Turbopack builds) ──
   webpack(config, { dev, isServer }) {
+    // Fix: webpack can't resolve Node.js built-ins (path, fs) used by
+    // instrumentation.ts. Setting to false tells webpack they're runtime-
+    // provided, not bundled. This fixes "Module not found: Can't resolve
+    // 'path'" when running with --webpack flag.
+    config.resolve = config.resolve || {};
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      path: false,
+      fs: false,
+      os: false,
+      crypto: false,
+    };
+
     // Split chunks for better caching
     if (!dev && !isServer) {
       if (!config.optimization) {
