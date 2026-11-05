@@ -12,6 +12,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, ArrowRight, Sparkles } from 'lucide-react';
 import { useSubscriptionStore } from '@/lib/subscription-store';
+import { useAuthStore } from '@/lib/auth-store';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -23,8 +24,12 @@ export default function TrialBanner({ onUpgradeClick }: TrialBannerProps) {
   const isTrial = useSubscriptionStore((s) => s.isTrial);
   const trialDaysRemaining = useSubscriptionStore((s) => s.trialDaysRemaining);
   const currentPlan = useSubscriptionStore((s) => s.currentPlan);
+  const userRole = useAuthStore((s) => s.user?.role);
 
-  // Only show for trial users
+  // Super-admin and admin roles have permanent platform access — never show trial banner
+  if (userRole === 'super_admin' || userRole === 'admin') return null;
+
+  // Only show for trial users on free plan
   if (!isTrial || currentPlan !== 'free') return null;
 
   const isUrgent = trialDaysRemaining <= 3;

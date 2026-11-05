@@ -1,4 +1,5 @@
 // Force Node.js runtime (not Edge) — instrumentation uses fs/path
+export const runtime = "nodejs";
 /**
  * AcquisitionOS — Next.js Instrumentation (ROOT STARTUP HOOK)
  *
