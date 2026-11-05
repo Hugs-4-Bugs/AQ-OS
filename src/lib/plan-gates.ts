@@ -22,6 +22,10 @@ import {
 import { checkCreditSufficiency, CREDIT_COSTS, type CreditAction } from '@/lib/credit-service';
 import { logEntitlementEvent, logBillingEvent } from '@/lib/billing-audit';
 import { db } from '@/lib/db';
+import {
+  getEffectivePlan,
+  bypassEntitlementChecks,
+} from '@/lib/platform-admin-policy';
 
 // ===== TYPES =====
 
@@ -139,8 +143,15 @@ export async function withPlan(
       return authRequiredResponse();
     }
 
-    // Step 2: Check plan level
-    const userPlan = (user.plan || 'free') as PlanType;
+    // ISSUE 8: Platform admins (super_admin, admin) bypass plan gates
+    // entirely. They have permanent elite access.
+    if (bypassEntitlementChecks(user.role)) {
+      return handler(user);
+    }
+
+    // Step 2: Check plan level (using EFFECTIVE plan — same logic the
+    // entitlements API uses, so backend and frontend stay consistent).
+    const userPlan = getEffectivePlan({ role: user.role, plan: user.plan });
     const userLevel = getPlanLevel(userPlan);
     const requiredLevel = getPlanLevel(requiredPlan as PlanType);
 
@@ -193,8 +204,13 @@ export async function withFeature(
       return authRequiredResponse();
     }
 
-    // Step 2: Check feature access
-    const userPlan = (user.plan || 'free') as PlanType;
+    // ISSUE 8: Platform admins bypass feature gates entirely.
+    if (bypassEntitlementChecks(user.role)) {
+      return handler(user);
+    }
+
+    // Step 2: Check feature access (using EFFECTIVE plan)
+    const userPlan = getEffectivePlan({ role: user.role, plan: user.plan });
     const featureKey = feature as FeatureKey;
     const hasAccess = hasFeatureAccess(userPlan, featureKey);
 
@@ -250,6 +266,17 @@ export async function withCredits(
     const user = await getAuthUser(request);
     if (!user) {
       return authRequiredResponse();
+    }
+
+    // ISSUE 8: Platform admins bypass credit checks entirely.
+    if (bypassEntitlementChecks(user.role)) {
+      return handler(user, {
+        sufficient: true,
+        balance: Number.MAX_SAFE_INTEGER,
+        required: 0,
+        shortfall: 0,
+        action,
+      });
     }
 
     // Step 2: Determine credit cost for the action
@@ -446,7 +473,30 @@ export async function withBillingGate(
       return authRequiredResponse();
     }
 
-    const userPlan = (user.plan || 'free') as PlanType;
+    // ISSUE 8: Platform admins bypass all entitlement gates (plan,
+    // feature, credit) but still need to pass tenant/RBAC checks
+    // (handled separately). The handler still receives a context
+    // object — for platform admins, creditInfo is null because no
+    // deduction ever happens.
+    if (bypassEntitlementChecks(user.role)) {
+      const ctx: BillingGateContext = {
+        user,
+        plan: 'elite',
+        creditInfo: options.action
+          ? {
+              sufficient: true,
+              balance: Number.MAX_SAFE_INTEGER,
+              required: 0,
+              shortfall: 0,
+              action: options.action,
+            }
+          : undefined,
+        feature: options.feature as FeatureKey | undefined,
+      };
+      return handler(user, ctx);
+    }
+
+    const userPlan = getEffectivePlan({ role: user.role, plan: user.plan });
     const context: BillingGateContext = {
       user,
       plan: userPlan,

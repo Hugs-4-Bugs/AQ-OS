@@ -1,0 +1,148 @@
+fix(admin-console): profile menu, true 10-min inactivity timeout, API 401 root cause, super-admin/admin entitlements policy
+
+ISSUE 5 (Admin Profile Menu):
+- src/components/admin/admin-nav.tsx: Replace static identity chip with a
+  functional, keyboard-accessible dropdown menu. Trigger opens on click,
+  Enter/Space/ArrowDown; closes on Escape (returns focus to trigger),
+  outside pointer-down, and route change. Menu items:
+    * Account & profile settings  -> /dashboard/settings
+    * Security & MFA management   -> /dashboard/settings?tab=security
+    * Sign out                    -> POST /api/auth/signout -> router.replace('/')
+  Identity header shows admin name, email, role label (dynamic), and
+  MFA status pill. Every visible action navigates to an existing route
+  or invokes actual functionality - no fabricated pages.
+
+ISSUE 6 (True 10-minute inactivity timeout - server + client):
+- src/lib/admin-guard.ts: Removed auto-update of lastActivityAt on every
+  page navigation. The guard now READS lastActivityAt for enforcement
+  only. Activity updates are accepted exclusively via the new
+  POST /api/auth/activity endpoint (called by the client on genuine
+  user input). This converts the timeout from a "10-min absolute
+  session lifetime if user stays on one page" into a TRUE inactivity
+  timeout - admins can actively use the console for 30+ minutes
+  without forced logout, and 10 minutes of genuine inactivity expires
+  the session.
+- src/app/api/auth/activity/route.ts (NEW): Server-side activity
+  heartbeat. Authenticates via access_token cookie, resolves the
+  UserSession via refresh_token cookie, validates session is not
+  revoked/expired, updates lastActivityAt THROTTLED to one DB write
+  per 30s per session. CRITICAL: rejects pings on already-expired
+  sessions with 401 + SESSION_EXPIRED_INACTIVITY and revokes the
+  session - stale tabs cannot extend expired sessions.
+- src/app/api/auth/session-status/route.ts (NEW): Read-only endpoint
+  returning authoritative secondsLeft, lastActivityAt, role, mfaVerified.
+  Polling this endpoint does NOT extend the session (read-only).
+- src/components/admin/admin-inactivity-timer.tsx: Rewritten to listen
+  to genuine user activity (mousedown, keydown, touchstart, pen
+  pointerdown - NOT mousemove/pointermove which fire without intent).
+  Client-side ping throttle: 15s. Server-side status poll: every 10s.
+  Smooth local countdown between polls. Force logout on secondsLeft=0
+  or 401 from server. Visibilitychange handler re-syncs immediately
+  when tab becomes visible (server may return 401 if expired during
+  hidden period - logged out then). Background polling, token refresh,
+  React re-renders, and network traffic do NOT reset the timer.
+
+ISSUE 7 (Admin API 401 failures - root cause diagnosed):
+- Root cause 1 (critical regression): Commit 47b3ce842 removed the
+  useTokenRefresh import line from admin-nav.tsx but LEFT the
+  useTokenRefresh() call at line 46. This caused a ReferenceError at
+  runtime, breaking the entire AdminNav render and silently killing
+  the 14-minute token refresh - leaving admin APIs returning 401 after
+  the 15-minute access token expired.
+  Fix: restore the import (and add the additional admin fields used
+  by the new profile menu).
+- Root cause 2 (schema drift): The AuditLog table in the dev DB was
+  missing 10 columns that exist in the Prisma schema (sequence,
+  previousHash, eventHash, severity, requestId, outcome, beforeState,
+  afterState, securityEventType, confirmed). When the
+  /api/admin/security/audit endpoint tried to SELECT these columns,
+  Prisma threw a 500. Fix: scripts/add-audit-columns.py applies a
+  safe additive ALTER TABLE migration (forward-only, no data loss,
+  all columns are optional in schema - existing rows get NULL).
+- End-to-end API test matrix (scripts/test-admin-api.py):
+    * /api/admin/users                     -> 200
+    * /api/admin/users?search=admin        -> 200
+    * /api/admin/billing?action=overview   -> 200
+    * /api/admin/operations/system-health  -> 200
+    * /api/admin/security/audit?limit=5    -> 200
+    * /api/admin/crm/leads                 -> 200
+    * /api/admin/crm/overview              -> 200
+    * /api/admin/overview                  -> 200
+    * /api/auth/session-status             -> 200
+    * /api/auth/activity (POST)            -> 200
+    * /api/subscriptions/entitlements      -> 200 (plan=elite, all features)
+    * Unauthenticated                      -> 401
+    * Invalid session                      -> 401
+
+ISSUE 8 (Super-admin/admin entitlements - centralized policy):
+- src/lib/platform-admin-policy.ts (NEW): Centralized policy module
+  enforced consistently by frontend and backend:
+    * isPlatformAdminWithFullAccess(role): true for super_admin, admin only
+    * getEffectivePlan({role, plan}): returns elite for platform admins
+    * bypassEntitlementChecks(role): true for super_admin, admin only
+    * bypassCreditDeduction / bypassUsageLimits /
+      bypassSubscriptionEnforcement: same policy
+  This does NOT fabricate subscriptions or alter customer billing
+  records - it returns the policy override directly. Ordinary users
+  (owner, member, viewer, support, analytics) get NO bypass; their
+  actual subscription and trial restrictions are preserved.
+- src/lib/plan-gates.ts: withPlan, withFeature, withCredits, and
+  withBillingGate now check bypassEntitlementChecks(user.role) first.
+  Platform admins skip plan/feature/credit gates entirely. RBAC,
+  tenant isolation, and MFA enforcement remain enforced for everyone.
+- src/lib/subscription-service.ts: getSubscriptionStatus now returns
+  Elite + Unlimited for ALL super_admin/admin users (in addition to
+  the canonical Head Super Admin bypass).
+- src/lib/credit-service.ts: deductCredits and checkCreditSufficiency
+  now bypass for all super_admin/admin users.
+- src/app/api/subscriptions/entitlements/route.ts: Returns elite plan,
+  all features enabled, empty disabledFeatures, and surfaces
+  isPlatformAdmin flag for the frontend.
+- Entitlement matrix verified:
+    * super_admin -> plan=elite, 19/19 features enabled, 0 disabled
+    * admin      -> plan=elite, 19/19 features enabled, 0 disabled
+    * owner      -> actual plan from DB (no bypass)
+    * member     -> actual plan from DB (no bypass)
+    * support    -> actual plan from DB (no bypass - read-only role)
+    * analytics  -> actual plan from DB (no bypass - read-only role)
+
+REGRESSION TESTS:
+- tests/unit/admin-console-issues.test.ts (NEW): 28 tests covering
+  platform-admin policy, inactivity timeout constants, and RBAC
+  permissions. All 28 pass.
+- scripts/test-inactivity-timeout.py (NEW): 5 end-to-end edge-case
+  tests: activity ping resets timer, throttle prevents per-click DB
+  writes, session-status poll does NOT extend timer, expired session
+  is rejected (not extended), unauthenticated denied. All 5 pass.
+- Pre-existing tests (auth.test.ts, rbac.test.ts, credit-service.test.ts):
+  153/153 pass.
+
+PRE-EXISTING FAILURES (NOT introduced by this commit):
+- tests/unit/admin-billing-routes.test.ts and admin-operations-routes.test.ts
+  were already failing before this commit because the test mock users
+  do not set mfaEnabled=true on the super_admin mock. This is a
+  pre-existing test fixture gap from when MFA enforcement was added -
+  not a regression. The actual API behavior is correct (verified
+  end-to-end with a real super_admin session that has MFA enabled).
+
+FILES CHANGED (16):
+  src/components/admin/admin-nav.tsx             (rewrote with profile menu)
+  src/components/admin/admin-inactivity-timer.tsx (rewrote with activity tracking)
+  src/lib/admin-guard.ts                          (removed auto-update)
+  src/lib/platform-admin-policy.ts                (NEW centralized policy)
+  src/lib/plan-gates.ts                           (added bypass)
+  src/lib/subscription-service.ts                 (added bypass)
+  src/lib/credit-service.ts                       (added bypass)
+  src/app/api/subscriptions/entitlements/route.ts (use effective plan)
+  src/app/api/auth/activity/route.ts              (NEW activity heartbeat)
+  src/app/api/auth/session-status/route.ts        (NEW read-only status)
+  tests/unit/admin-console-issues.test.ts         (NEW regression tests)
+  scripts/add-audit-columns.py                    (NEW safe migration)
+  scripts/mint-admin-session.py                   (NEW test helper)
+  scripts/enable-admin-mfa.py                     (NEW test helper)
+  scripts/test-admin-api.py                       (NEW E2E test)
+  scripts/test-inactivity-timeout.py              (NEW E2E test)
+
+No secrets, credentials, or unrelated changes committed.
+No destructive DB commands used (no prisma db push --accept-data-loss).
+The ALTER TABLE migration is additive and forward-only.

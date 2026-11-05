@@ -14,6 +14,20 @@
 //
 // ACCOUNT ISOLATION: org-level `owner` / `admin` roles are tenant-scoped
 // and must NEVER reach platform-wide admin pages.
+//
+// ISSUE 6 (True 10-minute inactivity timeout):
+//   The previous implementation updated lastActivityAt on every page
+//   navigation, which conflated "page navigation" with "genuine user
+//   activity". This made the timeout effectively a "10-minute absolute
+//   session lifetime if the user stayed on one page" — the opposite
+//   of what an inactivity timeout should be.
+//
+//   This guard now READS lastActivityAt for enforcement but does NOT
+//   write to it. Activity updates are accepted only via
+//   POST /api/auth/activity, which is called by the client when the
+//   user produces genuine input (mouse click, keyboard, touch). This
+//   ensures the timeout measures true user activity, not page
+//   navigation or background polling.
 // ═══════════════════════════════════════════════════════════════════
 
 import { cookies } from 'next/headers';
@@ -23,8 +37,8 @@ import { verifyToken } from '@/lib/auth';
 /** Admin session inactivity timeout — 10 minutes (server-side enforced). */
 export const ADMIN_INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 
-/** Throttle: only update lastActivityAt every 60s to avoid per-request DB writes. */
-const ACTIVITY_WRITE_THROTTLE_MS = 60 * 1000;
+/** Maximum clock skew tolerated between client and server (ms). */
+const MAX_CLOCK_SKEW_MS = 5 * 1000;
 
 export interface AdminSessionUser {
   id: string;
@@ -44,9 +58,14 @@ export interface AdminSessionUser {
  * everyone else.
  *
  * Enforces ALL security layers: JWT expiry, role check, MFA enrollment,
- * and 10-minute inactivity timeout. The inactivity check reads the
+ * and 10-minute inactivity timeout. The inactivity check READS the
  * `lastActivityAt` column from UserSession (associated via the
  * `refresh_token` cookie) and rejects sessions older than the timeout.
+ *
+ * NOTE: This function does NOT update `lastActivityAt`. Activity
+ * updates are accepted only via `POST /api/auth/activity`, which the
+ * admin client calls on genuine user input. This ensures the timeout
+ * measures true user activity, not page navigation.
  */
 export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
   try {
@@ -74,57 +93,72 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
     if (!user || !user.isActive || user.deletedAt) return null;
     if (user.role !== 'super_admin') return null;
 
-    // ── 10-minute inactivity timeout (server-side) ────────────────
+    // ── 10-minute inactivity timeout (server-side READ) ────────────
     // Look up the UserSession via the refresh_token cookie. If the
     // session's lastActivityAt is older than the timeout, the session
     // is expired — return null (redirects to login).
     const refreshToken = cookieStore.get('refresh_token')?.value;
-    if (refreshToken) {
-      const session = await db.userSession.findUnique({
-        where: { refreshToken },
-        select: { id: true, lastActivityAt: true, isRevoked: true },
-      });
+    if (!refreshToken) return null;
 
-      if (!session || session.isRevoked) return null;
+    const session = await db.userSession.findUnique({
+      where: { refreshToken },
+      select: {
+        id: true,
+        lastActivityAt: true,
+        isRevoked: true,
+        expiresAt: true,
+        absoluteExpiresAt: true,
+      },
+    });
 
-      const now = Date.now();
-      const lastActivity = session.lastActivityAt
-        ? new Date(session.lastActivityAt).getTime()
-        : now;
-      const elapsed = now - lastActivity;
+    if (!session || session.isRevoked) return null;
 
-      if (elapsed > ADMIN_INACTIVITY_TIMEOUT_MS) {
-        // Session expired due to inactivity — revoke it
-        await db.userSession.update({
-          where: { id: session.id },
-          data: { isRevoked: true },
-        }).catch(() => {});
-        return null;
-      }
+    const now = Date.now();
+    const lastActivityMs = session.lastActivityAt
+      ? new Date(session.lastActivityAt).getTime()
+      : now;
+    const elapsed = now - lastActivityMs;
 
-      // Update lastActivityAt (throttled to avoid per-request DB writes)
-      if (elapsed > ACTIVITY_WRITE_THROTTLE_MS) {
-        await db.userSession.update({
-          where: { id: session.id },
-          data: { lastActivityAt: new Date(now) },
-        }).catch(() => {});
-      }
-
-      const secondsLeft = Math.max(0, Math.floor((ADMIN_INACTIVITY_TIMEOUT_MS - elapsed) / 1000));
-
-      return {
-        id: user.id,
-        email: user.email,
-        name: user.name || '',
-        role: user.role,
-        avatarUrl: user.avatar,
-        mfaEnrolled: !!user.mfaConfig?.isEnabled,
-        inactivitySecondsLeft: secondsLeft,
-      };
+    if (elapsed > ADMIN_INACTIVITY_TIMEOUT_MS + MAX_CLOCK_SKEW_MS) {
+      // Session expired due to inactivity — revoke it
+      await db.userSession.update({
+        where: { id: session.id },
+        data: { isRevoked: true },
+      }).catch(() => {});
+      return null;
     }
 
-    // No refresh token cookie — can't verify session activity
-    return null;
+    // Honor absolute session expiry (remember-me ceiling).
+    if (
+      session.absoluteExpiresAt &&
+      now > new Date(session.absoluteExpiresAt).getTime()
+    ) {
+      await db.userSession.update({
+        where: { id: session.id },
+        data: { isRevoked: true },
+      }).catch(() => {});
+      return null;
+    }
+
+    // Honor refresh-token TTL.
+    if (session.expiresAt && now > new Date(session.expiresAt).getTime()) {
+      return null;
+    }
+
+    const secondsLeft = Math.max(
+      0,
+      Math.floor((ADMIN_INACTIVITY_TIMEOUT_MS - elapsed) / 1000)
+    );
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name || '',
+      role: user.role,
+      avatarUrl: user.avatar,
+      mfaEnrolled: !!user.mfaConfig?.isEnabled,
+      inactivitySecondsLeft: secondsLeft,
+    };
   } catch {
     return null;
   }
