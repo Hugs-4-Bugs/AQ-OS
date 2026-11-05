@@ -886,15 +886,7 @@ export default function DashboardLayout({
             <LiveClock />
           </span>
           <span className="flex items-center gap-1 text-foreground shrink-0">
-            Crafted with <span className="text-red-500">❤️</span> by{' '}
-            <a
-              href="https://www.linkedin.com/company/quantumfusion-solutions"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              Paragonel Technologies Pvt. Ltd.
-            </a>
+            <span>AcquisitionOS — AI-Powered Client Acquisition</span>
           </span>
         </div>
       </footer>

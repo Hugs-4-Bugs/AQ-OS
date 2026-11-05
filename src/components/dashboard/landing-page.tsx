@@ -290,15 +290,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} AcquisitionOS. All rights reserved.</p>
             <div className="flex items-center gap-1 text-foreground">
-              Crafted with <span className="text-red-500">❤️</span> by{' '}
-              <a
-                href="https://www.linkedin.com/company/quantumfusion-solutions"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Paragonel Technologies Pvt. Ltd.
-              </a>
+              <span>Acquire smarter. Close faster. Dominate every market.</span>
             </div>
           </div>
         </div>
