@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Rocket, ArrowLeft, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { BrandLogo } from '@/components/brand/brand-logo';
 
 // Shared auth layout wrapper
 function AuthLayout({ children, title, description }: { children: React.ReactNode; title: string; description: string }) {
@@ -16,10 +17,7 @@ function AuthLayout({ children, title, description }: { children: React.ReactNod
       <div className="absolute inset-0 bg-grid opacity-30" />
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <Rocket className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold gradient-text">AcquisitionOS</span>
-          </div>
+          <BrandLogo size="lg" priority className="mb-6" />
           <h1 className="text-2xl font-bold">{title}</h1>
           <p className="text-sm text-muted-foreground mt-1">{description}</p>
         </div>

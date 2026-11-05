@@ -37,6 +37,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAppStore, pathToTab, SIDEBAR_COLLAPSED_STORAGE_KEY } from '@/lib/store';
 import type { TabId } from '@/lib/types';
 import { fetchReminders } from '@/lib/api';
+import { BrandLogo } from '@/components/brand/brand-logo';
 import { useNotificationStore } from '@/lib/store';
 import { useSettingsStore } from '@/lib/settings-store';
 import { useSubscriptionStore } from '@/lib/subscription-store';
@@ -527,8 +528,7 @@ export default function DashboardLayout({
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <SheetDescription className="sr-only">Navigation sidebar</SheetDescription>
             <div className="flex h-14 items-center border-b px-4 gradient-bg-animated">
-              <Rocket className="h-6 w-6 text-primary mr-2" />
-              <span className="font-bold text-lg gradient-text">AcquisitionOS</span>
+              <BrandLogo size="sm" priority />
             </div>
             <ScrollArea className="h-[calc(100vh-3.5rem)]">
               <div className="p-4">
@@ -543,10 +543,7 @@ export default function DashboardLayout({
             </ScrollArea>
           </SheetContent>
         </Sheet>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <Rocket className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          <span className="font-bold text-sm sm:text-base gradient-text">AcquisitionOS</span>
-        </div>
+        <BrandLogo size="sm" priority />
         <div className="ml-auto flex items-center gap-0.5 sm:gap-2">
           <CreditDisplay compact onClick={() => setUpgradeModalOpen(true)} rolloverCredits={rolloverCredits} addonCredits={addonCredits} />
           <NotificationCenter />
@@ -640,8 +637,11 @@ export default function DashboardLayout({
 
           {/* Logo */}
           <div className="flex h-14 items-center gap-2 border-b px-4 gradient-bg-animated shrink-0">
-            <Rocket className="h-6 w-6 text-primary shrink-0" />
-            {!sidebarCollapsed && <span className="font-bold text-lg tracking-tight gradient-text">AcquisitionOS</span>}
+            {sidebarCollapsed ? (
+              <BrandLogo variant="symbol" size="sm" priority />
+            ) : (
+              <BrandLogo size="sm" priority />
+            )}
           </div>
           {/* min-h-0: lets the Radix ScrollArea shrink below its content
               height inside this flex column. Without it the nav list forces

@@ -15,8 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { BrandLogo } from '@/components/brand/brand-logo';
 import {
-  Rocket,
   ArrowLeft,
   Mail,
   Lock,
@@ -137,13 +137,7 @@ function AuthLayout({ children, title, description, showBack, onBack }: AuthLayo
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
         >
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="relative">
-              <Rocket className="h-8 w-8 text-primary" />
-              <div className="absolute -inset-1.5 rounded-full bg-primary/20 animate-pulse-ring" />
-            </div>
-            <span className="text-2xl font-bold gradient-text">AcquisitionOS</span>
-          </div>
+          <BrandLogo size="lg" priority className="mb-6" />
           <h1 className="text-2xl font-bold">{title}</h1>
           <p className="text-sm text-muted-foreground mt-1">{description}</p>
         </motion.div>
@@ -2210,8 +2204,7 @@ export function AuthDemo() {
       <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center gap-3 mb-3">
-            <Rocket className="h-5 w-5 text-primary" />
-            <span className="font-bold gradient-text">AcquisitionOS</span>
+            <BrandLogo size="sm" priority />
             <span className="text-xs text-muted-foreground">Auth Pages Demo</span>
           </div>
           <nav className="flex flex-wrap gap-1.5" role="navigation" aria-label="Auth pages">

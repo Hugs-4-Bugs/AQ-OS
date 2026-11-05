@@ -24,9 +24,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import { useTokenRefresh } from '@/hooks/use-token-refresh';
+import { BrandLogo } from '@/components/brand/brand-logo';
 import { cn } from '@/lib/utils';
 import {
-  Shield,
   LayoutDashboard,
   Users,
   CreditCard,
@@ -180,11 +180,9 @@ export default function AdminNav({ admin }: AdminNavProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
-        {/* Brand */}
+        {/* Brand — official AcquisitionOS symbol + Admin Console label */}
         <Link href="/admin" className="flex items-center gap-2 shrink-0" aria-label="Admin Console home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-            <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
-          </span>
+          <BrandLogo variant="symbol" size="sm" priority />
           <span className="hidden sm:flex sm:flex-col sm:leading-none">
             <span className="text-sm font-semibold">Admin Console</span>
             <span className="text-[11px] text-muted-foreground">AcquisitionOS</span>
