@@ -60,6 +60,7 @@ export default function MfaEnrollmentClient({ adminEmail, adminName }: MfaEnroll
       }
       setQrUrl(data.qrCodeUrl || data.qrUrl || data.totpUri || '');
       setSecret(data.secret || '');
+      setRecoveryCodes(data.backupCodes || data.recoveryCodes || []);
       setStep('qr');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Network error');
