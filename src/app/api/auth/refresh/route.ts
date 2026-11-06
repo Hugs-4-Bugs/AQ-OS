@@ -7,7 +7,6 @@ import {
   createSession,
   revokeSession,
   getSessionState,
-  touchSessionActivity,
   setAuthCookies,
   logAuthEvent,
   getClientIp,
@@ -144,8 +143,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // ── P6 activity tracking: this refresh IS authenticated activity ──
-    await touchSessionActivity(session.id);
+    // ── ISSUE 8: Token refresh must NOT update lastActivityAt. ──
+    // Refreshing an access token is a background operation, not
+    // genuine user activity. The inactivity timeout must measure
+    // real user input (mouse, keyboard, touch) via POST /api/auth/activity.
+    // Previously, touchSessionActivity() was called here, which
+    // extended the session on every 14-minute token refresh.
 
     // ── Revoke old session (token rotation) ──────────────────────
     await revokeSession(refreshToken);

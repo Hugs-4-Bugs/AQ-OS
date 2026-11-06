@@ -69,9 +69,15 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
     }
 
     const now = Date.now();
-    const lastActivityMs = session.lastActivityAt
-      ? new Date(session.lastActivityAt).getTime()
-      : now;
+    // FAIL-CLOSED: Missing lastActivityAt means the session is invalid.
+    if (!session.lastActivityAt) {
+      const response = NextResponse.json(
+        { authenticated: false, code: 'SESSION_INVALID_NO_ACTIVITY' },
+        { status: 401 }
+      );
+      return clearAuthCookies(response);
+    }
+    const lastActivityMs = new Date(session.lastActivityAt).getTime();
     const elapsed = now - lastActivityMs;
 
     // Reject expired sessions.
