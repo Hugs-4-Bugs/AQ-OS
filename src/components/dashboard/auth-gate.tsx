@@ -28,13 +28,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
+import { BrandLogo } from '@/components/brand/brand-logo';
 import {
   Key,
   ArrowLeft,
   Mail,
   Loader2,
   AlertTriangle,
-  Rocket,
   Shield,
   Globe,
   ExternalLink,
@@ -102,13 +102,7 @@ function AuthLayout({ children, title, description, showBack, onBack }: AuthLayo
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
         >
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="relative">
-              <Rocket className="h-8 w-8 text-primary" />
-              <div className="absolute -inset-1.5 rounded-full bg-primary/20 animate-pulse-ring" />
-            </div>
-            <span className="text-2xl font-bold gradient-text">AcquisitionOS</span>
-          </div>
+          <BrandLogo size="lg" priority className="mb-6" />
           <h1 className="text-2xl font-bold">{title}</h1>
           <p className="text-sm text-muted-foreground mt-1">{description}</p>
         </motion.div>
