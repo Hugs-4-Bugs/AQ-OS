@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { QRCodeSVG } from 'qrcode.react';
 import { Shield, Smartphone, Key, CheckCircle2, AlertCircle, Copy, ArrowRight } from 'lucide-react';
 
 interface MfaEnrollmentClientProps {
@@ -57,7 +58,7 @@ export default function MfaEnrollmentClient({ adminEmail, adminName }: MfaEnroll
         setLoading(false);
         return;
       }
-      setQrUrl(data.qrUrl || data.totpUri || '');
+      setQrUrl(data.qrCodeUrl || data.qrUrl || data.totpUri || '');
       setSecret(data.secret || '');
       setStep('qr');
     } catch (e) {
@@ -194,7 +195,7 @@ export default function MfaEnrollmentClient({ adminEmail, adminName }: MfaEnroll
               </p>
               {qrUrl && (
                 <div className="flex justify-center">
-                  <img src={qrUrl} alt="TOTP QR Code" className="rounded-lg border" width={200} height={200} />
+                  <QRCodeSVG value={qrUrl} size={200} level="M" />
                 </div>
               )}
               {secret && (
