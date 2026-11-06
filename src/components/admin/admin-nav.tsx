@@ -303,7 +303,7 @@ export default function AdminNav({ admin }: AdminNavProps) {
                 <Link
                   href="/business-ai/settings"
                   role="menuitem"
-                  onClick={() => useAppStore.getState().setPendingSettingsSection('security')}
+                  onClick={() => useAppStore.getState().requestSettingsSection('security')}
                   className="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
                 >
                   <KeyRound className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
