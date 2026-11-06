@@ -93,10 +93,22 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
     if (!user || !user.isActive || user.deletedAt) return null;
     if (user.role !== 'super_admin') return null;
 
-    // ── 10-minute inactivity timeout (server-side READ) ────────────
+    // ── 10-minute inactivity timeout (server-side) ────────────────
     // Look up the UserSession via the refresh_token cookie. If the
     // session's lastActivityAt is older than the timeout, the session
     // is expired — return null (redirects to login).
+    //
+    // PAGE NAVIGATION IS GENUINE USER ACTIVITY:
+    //   This function is called by the admin layout on every page
+    //   navigation. Navigating to a page IS user activity (the user
+    //   clicked a link or typed a URL). We update lastActivityAt
+    //   here with a 30-second throttle so that:
+    //     - Page navigation resets the inactivity timer (correct)
+    //     - Rapid navigations don't cause per-request DB writes (throttled)
+    //     - Background API polling does NOT go through this function
+    //       (API routes use withSuperAdmin, not getSuperAdminSession)
+    //     - The client-side activity timer ALSO sends pings via
+    //       POST /api/auth/activity for mouse/keyboard/touch input
     const refreshToken = cookieStore.get('refresh_token')?.value;
     if (!refreshToken) return null;
 
@@ -145,9 +157,25 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
       return null;
     }
 
+    // ── Throttled activity update on page navigation ─────────────
+    // Update lastActivityAt if the last update was more than 30 seconds
+    // ago. This ensures page navigation resets the inactivity timer
+    // (genuine user activity) without causing a DB write on every request.
+    const ACTIVITY_WRITE_THROTTLE_MS = 30 * 1000;
+    if (elapsed > ACTIVITY_WRITE_THROTTLE_MS) {
+      await db.userSession.update({
+        where: { id: session.id },
+        data: { lastActivityAt: new Date(now) },
+      }).catch(() => {});
+    }
+
+    // Recalculate secondsLeft using the updated timestamp if we updated it
+    const effectiveLastActivity = elapsed > ACTIVITY_WRITE_THROTTLE_MS
+      ? now
+      : lastActivityMs;
     const secondsLeft = Math.max(
       0,
-      Math.floor((ADMIN_INACTIVITY_TIMEOUT_MS - elapsed) / 1000)
+      Math.floor((ADMIN_INACTIVITY_TIMEOUT_MS - (now - effectiveLastActivity)) / 1000)
     );
 
     return {
