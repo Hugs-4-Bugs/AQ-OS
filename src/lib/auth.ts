@@ -1067,10 +1067,14 @@ export class AuthError extends Error {
 
 /** Extract IP address from request */
 export function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
+  // INFRA-001: Prefer X-Real-IP over X-Forwarded-For.
+  // Both Caddy and nginx OVERWRITE X-Real-IP with the actual peer address
+  // (Caddy: header_up X-Real-IP {remote_host}; nginx: proxy_set_header
+  // X-Real-IP $remote_addr). X-Forwarded-For is only safe when overwritten
+  // by Caddy — nginx uses $proxy_add_x_forwarded_for which APPENDS,
+  // preserving client-supplied values. Do NOT fall back to unverified XFF.
   const realIp = request.headers.get('x-real-ip');
-  if (realIp) return realIp;
+  if (realIp) return realIp.trim();
   return 'unknown';
 }
 

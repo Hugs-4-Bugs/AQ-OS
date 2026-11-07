@@ -132,8 +132,8 @@ export async function withApiKeyAuth(
   const responseTime = Date.now() - startTime;
   const endpoint = new URL(request.url).pathname;
   const method = request.method;
-  const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') || null;
+  // INFRA-001: Use X-Real-IP (overwritten by Caddy/nginx) not XFF (spoofable)
+  const ipAddress = request.headers.get('x-real-ip')?.trim() || null;
 
   // Fire-and-forget usage recording
   recordApiKeyUsage({
