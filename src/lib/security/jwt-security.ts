@@ -13,7 +13,49 @@ import { db } from '@/lib/db';
 
 // ===== CONSTANTS =====
 
-const JWT_SECRET = process.env.JWT_SECRET || 'acquisitionos-dev-secret-change-in-production';
+/**
+ * Development-only fallback JWT secret. This value is public (it is in the
+ * source repository) and MUST NEVER be used to sign or verify tokens in a
+ * production deployment. The runtime guard `ensureJwtSecret()` below
+ * throws if this value would be used when NODE_ENV === 'production'.
+ */
+const DEV_FALLBACK_JWT_SECRET = 'acquisitionos-dev-secret-change-in-production';
+
+/**
+ * Resolve the JWT signing/verification secret. The resolution order matches
+ * `src/lib/auth.ts` exactly so that a deployment configured with any one of
+ * the three standard secret env vars works consistently across both modules:
+ *   1. JWT_SECRET   (preferred)
+ *   2. AUTH_SECRET   (NextAuth-compatible)
+ *   3. NEXTAUTH_SECRET (NextAuth-compatible)
+ *   4. DEV_FALLBACK_JWT_SECRET (development only — guarded by ensureJwtSecret)
+ */
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  DEV_FALLBACK_JWT_SECRET;
+
+/**
+ * Runtime guard: never sign or verify JWTs with the dev fallback secret in
+ * production. This function MUST be called before any jwt.sign() or
+ * jwt.verify() call in this module. It throws (does not return a soft
+ * failure) so that the error propagates to the caller rather than being
+ * silently converted into an ordinary invalid-token response.
+ *
+ * This mirrors the same guard in `src/lib/auth.ts` — both modules use the
+ * identical DEV_FALLBACK_JWT_SECRET value and the identical production
+ * check, ensuring consistent fail-closed behavior across all JWT paths.
+ */
+function ensureJwtSecret(): void {
+  if (process.env.NODE_ENV === 'production' && JWT_SECRET === DEV_FALLBACK_JWT_SECRET) {
+    throw new Error(
+      'FATAL: JWT_SECRET (or AUTH_SECRET or NEXTAUTH_SECRET) environment variable is not set in production. '
+      + 'Refusing to sign/verify tokens with the insecure dev fallback secret.'
+    );
+  }
+}
+
 const ALLOWED_ALGORITHMS: jwt.Algorithm[] = ['HS256'];
 const BLACKLIST_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
 const MAX_SUSPICIOUS_ACTIVITIES = 5; // Per hour before alerting
@@ -83,6 +125,13 @@ export interface SecureJwtVerifyResult {
  * - Issuer and audience validation
  */
 export function verifyJwtSecure(token: string): SecureJwtVerifyResult {
+  // SECURITY-001: Fail closed BEFORE the try block so the guard error
+  // propagates to the caller. If this were inside the try/catch below,
+  // the throw would be silently converted into an ordinary
+  // { valid: false, error: 'Token verification failed' } response —
+  // hiding a critical production misconfiguration as a routine
+  // invalid-token rejection.
+  ensureJwtSecret();
   try {
     // Verify with strict algorithm whitelist
     const decoded = jwt.verify(token, JWT_SECRET, {
@@ -393,6 +442,10 @@ export function generateSecureAccessToken(user: {
   isTrial: boolean;
   trialEndsAt: Date | null;
 }): string {
+  // SECURITY-001: Fail closed before signing. A production deployment
+  // without a configured secret must NEVER sign tokens with the public
+  // dev fallback.
+  ensureJwtSecret();
   const jti = crypto.randomUUID();
   return jwt.sign(
     {
