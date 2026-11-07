@@ -610,13 +610,26 @@ describe('Brute Force Protection', () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe('Request Helpers', () => {
-  it('should extract IP from x-forwarded-for header', () => {
-    const req = { headers: { get: (name: string) => name === 'x-forwarded-for' ? '1.2.3.4, 5.6.7.8' : null } } as any;
-    expect(getClientIp(req)).toBe('1.2.3.4');
+  it('should prefer x-real-ip over x-forwarded-for when both present', () => {
+    const req = { headers: { get: (name: string) =>
+      name === 'x-real-ip' ? '203.0.113.1' :
+      name === 'x-forwarded-for' ? '198.51.100.99' : null
+    } } as any;
+    expect(getClientIp(req)).toBe('203.0.113.1');
   });
 
-  it('should fall back to x-real-ip header', () => {
+  it('should return "unknown" when only x-forwarded-for is present (untrusted)', () => {
+    const req = { headers: { get: (name: string) => name === 'x-forwarded-for' ? '1.2.3.4, 5.6.7.8' : null } } as any;
+    expect(getClientIp(req)).toBe('unknown');
+  });
+
+  it('should extract IP from x-real-ip header', () => {
     const req = { headers: { get: (name: string) => name === 'x-real-ip' ? '9.8.7.6' : null } } as any;
+    expect(getClientIp(req)).toBe('9.8.7.6');
+  });
+
+  it('should trim whitespace from x-real-ip', () => {
+    const req = { headers: { get: (name: string) => name === 'x-real-ip' ? '  9.8.7.6  ' : null } } as any;
     expect(getClientIp(req)).toBe('9.8.7.6');
   });
 
