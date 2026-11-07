@@ -411,8 +411,23 @@ export function generateMagicLinkToken(): string {
  * Create a new user session in the database.
  *
  * rememberMe (P5): the session row records the user's choice and a hard
- * 30-day absoluteExpiresAt ceiling. lastActivityAt starts at creation time
- * and is advanced by touchSessionActivity (server-authoritative, P6).
+ * 30-day absoluteExpiresAt ceiling.
+ *
+ * ISSUE-008: `lastActivityAt` defaults to the current time (genuine new
+ * authentication starts a fresh inactivity window). Callers performing
+ * token-refresh rotation MAY pass `lastActivityAt`, `expiresAt`, and
+ * `absoluteExpiresAt` from the previous session to preserve the existing
+ * inactivity window, refresh-token TTL, and absolute expiry across the
+ * rotation — a background refresh must NOT reset any of these.
+ *
+ * When any of the optional preservation params is omitted, the
+ * fresh-session default is used:
+ *   - lastActivityAt    → now
+ *   - expiresAt         → now + 30 days
+ *   - absoluteExpiresAt → now + SESSION_REMEMBER_ABSOLUTE_MS
+ *
+ * Passing `absoluteExpiresAt: null` explicitly preserves a null ceiling
+ * (matches a session that had no absolute expiry).
  */
 export async function createSession(params: {
   userId: string;
@@ -421,13 +436,19 @@ export async function createSession(params: {
   ipAddress?: string;
   userAgent?: string;
   rememberMe?: boolean;
+  lastActivityAt?: Date;
+  expiresAt?: Date;
+  absoluteExpiresAt?: Date | null;
 }): Promise<void> {
   const now = Date.now();
-  // 30-day expiry for BOTH modes: for remembered sessions this IS the
-  // absolute ceiling; for non-remembered sessions this is the normal
-  // server-side lifetime (unchanged from current behavior).
-  const expiresAt = new Date(now + 30 * 24 * 60 * 60 * 1000);
   const rememberMe = !!params.rememberMe;
+  const expiresAt =
+    params.expiresAt ?? new Date(now + 30 * 24 * 60 * 60 * 1000);
+  const lastActivityAt = params.lastActivityAt ?? new Date(now);
+  const absoluteExpiresAt =
+    params.absoluteExpiresAt !== undefined
+      ? params.absoluteExpiresAt
+      : new Date(now + SESSION_REMEMBER_ABSOLUTE_MS);
 
   const data = {
     userId: params.userId,
@@ -438,8 +459,8 @@ export async function createSession(params: {
     expiresAt,
     isRevoked: false,
     rememberMe,
-    lastActivityAt: new Date(now),
-    absoluteExpiresAt: new Date(now + SESSION_REMEMBER_ABSOLUTE_MS),
+    lastActivityAt,
+    absoluteExpiresAt,
   };
 
   // Pre-emptively delete any existing session with the same refreshToken
@@ -568,11 +589,20 @@ export async function getSessionState(refreshToken: string): Promise<{
 }
 
 /**
- * Advance lastActivityAt for a session (P6 activity tracking).
- * Called from the token-refresh endpoint (natural low-traffic hook:
- * at most every 14 minutes per client + on tab focus) — never from a
- * browser heartbeat. Throttled so repeated refreshes within 5 minutes
- * do not write.
+ * @deprecated ISSUE-008: do not call this from background operations.
+ * `touchSessionActivity()` advances `lastActivityAt` on a session, which
+ * extends the 10-minute admin inactivity window. It was previously called
+ * from the token-refresh endpoint, which let a background refresh reset
+ * the inactivity clock every ~14 minutes regardless of genuine user
+ * input. That call has been removed and MUST NOT be reintroduced.
+ *
+ * The only legitimate writer of `lastActivityAt` is
+ * `POST /api/auth/activity`, which the client invokes on genuine user
+ * input (mouse, keyboard, touch). Page navigation, server rendering,
+ * token refresh, and background polling MUST NOT extend the session.
+ *
+ * This function is retained for source compatibility only and currently
+ * has zero callers in the application code. New callers are prohibited.
  */
 export async function touchSessionActivity(sessionId: string): Promise<void> {
   try {
@@ -598,6 +628,19 @@ export async function touchSessionActivity(sessionId: string): Promise<void> {
 /**
  * Refresh the current session's lastActivityAt to the current time.
  *
+ * @deprecated ISSUE-008: do not call this from background operations.
+ * This helper advances `lastActivityAt`, which extends the 10-minute
+ * admin inactivity window. It MUST NOT be invoked from token refresh,
+ * page navigation, server rendering, or background polling — those are
+ * not genuine user activity and must not reset the inactivity clock.
+ *
+ * The only legitimate writer of `lastActivityAt` is
+ * `POST /api/auth/activity`, invoked by the client on genuine user input.
+ *
+ * This function is retained for source compatibility only and currently
+ * has zero callers in the application code. New callers are prohibited.
+ *
+ * Historical note (retained for context only):
  * Called from authenticated long-running flows (e.g. MFA enrollment) that
  * do NOT otherwise advance the session activity timer but DO represent
  * legitimate authenticated user activity. Without this, a super_admin who

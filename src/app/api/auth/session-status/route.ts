@@ -69,7 +69,8 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
     }
 
     const now = Date.now();
-    // FAIL-CLOSED: Missing lastActivityAt means the session is invalid.
+    // FAIL-CLOSED: Missing, malformed, non-finite, or future lastActivityAt
+    // means the session is invalid.
     if (!session.lastActivityAt) {
       const response = NextResponse.json(
         { authenticated: false, code: 'SESSION_INVALID_NO_ACTIVITY' },
@@ -78,6 +79,13 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       return clearAuthCookies(response);
     }
     const lastActivityMs = new Date(session.lastActivityAt).getTime();
+    if (!Number.isFinite(lastActivityMs) || lastActivityMs > now + MAX_CLOCK_SKEW_MS) {
+      const response = NextResponse.json(
+        { authenticated: false, code: 'SESSION_INVALID_NO_ACTIVITY' },
+        { status: 401 }
+      );
+      return clearAuthCookies(response);
+    }
     const elapsed = now - lastActivityMs;
 
     // Reject expired sessions.

@@ -91,22 +91,20 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
     if (!user || !user.isActive || user.deletedAt) return null;
     if (user.role !== 'super_admin') return null;
 
-    // ── 10-minute inactivity timeout (server-side) ────────────────
+    // ── 10-minute inactivity timeout (server-side, READ-ONLY) ──────
     // Look up the UserSession via the refresh_token cookie. If the
     // session's lastActivityAt is older than the timeout, the session
     // is expired — return null (redirects to login).
     //
-    // PAGE NAVIGATION IS GENUINE USER ACTIVITY:
+    // READ-ONLY POLICY (ISSUE-008):
     //   This function is called by the admin layout on every page
-    //   navigation. Navigating to a page IS user activity (the user
-    //   clicked a link or typed a URL). We update lastActivityAt
-    //   here with a 30-second throttle so that:
-    //     - Page navigation resets the inactivity timer (correct)
-    //     - Rapid navigations don't cause per-request DB writes (throttled)
-    //     - Background API polling does NOT go through this function
-    //       (API routes use withSuperAdmin, not getSuperAdminSession)
-    //     - The client-side activity timer ALSO sends pings via
-    //       POST /api/auth/activity for mouse/keyboard/touch input
+    //   navigation, but page navigation is NOT treated as activity.
+    //   The guard READS lastActivityAt for enforcement and NEVER writes
+    //   it. Activity updates are accepted ONLY via POST /api/auth/activity,
+    //   which the client invokes on genuine user input (mouse, keyboard,
+    //   touch). Server rendering, page navigation, token refresh, and
+    //   background polling MUST NOT extend the inactivity window.
+    //   Missing/non-finite/future lastActivityAt is fail-closed (reject).
     const refreshToken = cookieStore.get('refresh_token')?.value;
     if (!refreshToken) return null;
 
@@ -124,12 +122,19 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
     if (!session || session.isRevoked) return null;
 
     const now = Date.now();
-    // FAIL-CLOSED: If lastActivityAt is missing or invalid, reject the
-    // session rather than granting a fresh 10-minute window.
+    // FAIL-CLOSED: If lastActivityAt is missing, malformed, non-finite,
+    // or in the future beyond the documented clock-skew allowance,
+    // reject the session rather than granting a fresh 10-minute window.
     if (!session.lastActivityAt) {
       return null;
     }
     const lastActivityMs = new Date(session.lastActivityAt).getTime();
+    if (!Number.isFinite(lastActivityMs)) {
+      return null;
+    }
+    if (lastActivityMs > now + MAX_CLOCK_SKEW_MS) {
+      return null;
+    }
     const elapsed = now - lastActivityMs;
 
     if (elapsed > ADMIN_INACTIVITY_TIMEOUT_MS + MAX_CLOCK_SKEW_MS) {

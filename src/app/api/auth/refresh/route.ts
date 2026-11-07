@@ -174,7 +174,11 @@ export async function POST(request: NextRequest) {
       trialEndsAt: user.trialEndsAt,
     });
 
-    // ── Create new session (preserving the session's rememberMe mode) ──
+    // ── Create new session (preserving the previous session's timestamps) ──
+    // ISSUE-008: Token rotation must NOT reset the inactivity window, the
+    // refresh-token TTL, or the absolute expiry ceiling. We forward the
+    // previous session's lastActivityAt, expiresAt, and absoluteExpiresAt
+    // to createSession() so the new session row inherits them verbatim.
     const ip = getClientIp(request);
     const ua = getUserAgent(request);
 
@@ -185,6 +189,9 @@ export async function POST(request: NextRequest) {
       ipAddress: ip,
       userAgent: ua,
       rememberMe: session.rememberMe,
+      lastActivityAt: session.lastActivityAt,
+      expiresAt: session.expiresAt,
+      absoluteExpiresAt: session.absoluteExpiresAt,
     });
 
     // ── Audit log ────────────────────────────────────────────────
