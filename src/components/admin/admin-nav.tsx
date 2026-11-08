@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import { useTokenRefresh } from '@/hooks/use-token-refresh';
 import { BrandLogo } from '@/components/brand/brand-logo';
+import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -292,7 +293,7 @@ export default function AdminNav({ admin }: AdminNavProps) {
 
                 {/* Menu items — each navigates to an EXISTING route */}
                 <Link
-                  href="/dashboard/settings"
+                  href="/business-ai/settings"
                   role="menuitem"
                   className="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
                 >
@@ -300,8 +301,9 @@ export default function AdminNav({ admin }: AdminNavProps) {
                   <span>Account &amp; profile settings</span>
                 </Link>
                 <Link
-                  href="/dashboard/settings?tab=security"
+                  href="/business-ai/settings"
                   role="menuitem"
+                  onClick={() => useAppStore.getState().requestSettingsSection('security')}
                   className="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
                 >
                   <KeyRound className="h-4 w-4 text-muted-foreground" aria-hidden="true" />

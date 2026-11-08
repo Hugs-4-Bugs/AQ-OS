@@ -15,19 +15,16 @@
 // ACCOUNT ISOLATION: org-level `owner` / `admin` roles are tenant-scoped
 // and must NEVER reach platform-wide admin pages.
 //
-// ISSUE 6 (True 10-minute inactivity timeout):
-//   The previous implementation updated lastActivityAt on every page
-//   navigation, which conflated "page navigation" with "genuine user
-//   activity". This made the timeout effectively a "10-minute absolute
-//   session lifetime if the user stayed on one page" — the opposite
-//   of what an inactivity timeout should be.
+// ISSUE 8 (Secure 10-minute inactivity timeout):
+//   This guard is READ-ONLY with respect to lastActivityAt.
+//   It validates the session but NEVER updates lastActivityAt.
+//   Activity updates are accepted ONLY via POST /api/auth/activity,
+//   which is called by the client on genuine user input (mouse,
+//   keyboard, touch). Page navigation, server rendering, token
+//   refresh, and background polling must NOT extend the session.
 //
-//   This guard now READS lastActivityAt for enforcement but does NOT
-//   write to it. Activity updates are accepted only via
-//   POST /api/auth/activity, which is called by the client when the
-//   user produces genuine input (mouse click, keyboard, touch). This
-//   ensures the timeout measures true user activity, not page
-//   navigation or background polling.
+//   Missing/invalid lastActivityAt is treated as fail-closed
+//   (session rejected) rather than granting a fresh 10-minute window.
 // ═══════════════════════════════════════════════════════════════════
 
 import { cookies } from 'next/headers';
@@ -64,8 +61,9 @@ export interface AdminSessionUser {
  *
  * NOTE: This function does NOT update `lastActivityAt`. Activity
  * updates are accepted only via `POST /api/auth/activity`, which the
- * admin client calls on genuine user input. This ensures the timeout
- * measures true user activity, not page navigation.
+ * admin client calls on genuine user input. Page navigation, server
+ * rendering, token refresh, and background polling must NOT extend
+ * the session. Missing lastActivityAt is fail-closed (reject).
  */
 export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
   try {
@@ -93,22 +91,20 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
     if (!user || !user.isActive || user.deletedAt) return null;
     if (user.role !== 'super_admin') return null;
 
-    // ── 10-minute inactivity timeout (server-side) ────────────────
+    // ── 10-minute inactivity timeout (server-side, READ-ONLY) ──────
     // Look up the UserSession via the refresh_token cookie. If the
     // session's lastActivityAt is older than the timeout, the session
     // is expired — return null (redirects to login).
     //
-    // PAGE NAVIGATION IS GENUINE USER ACTIVITY:
+    // READ-ONLY POLICY (ISSUE-008):
     //   This function is called by the admin layout on every page
-    //   navigation. Navigating to a page IS user activity (the user
-    //   clicked a link or typed a URL). We update lastActivityAt
-    //   here with a 30-second throttle so that:
-    //     - Page navigation resets the inactivity timer (correct)
-    //     - Rapid navigations don't cause per-request DB writes (throttled)
-    //     - Background API polling does NOT go through this function
-    //       (API routes use withSuperAdmin, not getSuperAdminSession)
-    //     - The client-side activity timer ALSO sends pings via
-    //       POST /api/auth/activity for mouse/keyboard/touch input
+    //   navigation, but page navigation is NOT treated as activity.
+    //   The guard READS lastActivityAt for enforcement and NEVER writes
+    //   it. Activity updates are accepted ONLY via POST /api/auth/activity,
+    //   which the client invokes on genuine user input (mouse, keyboard,
+    //   touch). Server rendering, page navigation, token refresh, and
+    //   background polling MUST NOT extend the inactivity window.
+    //   Missing/non-finite/future lastActivityAt is fail-closed (reject).
     const refreshToken = cookieStore.get('refresh_token')?.value;
     if (!refreshToken) return null;
 
@@ -126,9 +122,19 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
     if (!session || session.isRevoked) return null;
 
     const now = Date.now();
-    const lastActivityMs = session.lastActivityAt
-      ? new Date(session.lastActivityAt).getTime()
-      : now;
+    // FAIL-CLOSED: If lastActivityAt is missing, malformed, non-finite,
+    // or in the future beyond the documented clock-skew allowance,
+    // reject the session rather than granting a fresh 10-minute window.
+    if (!session.lastActivityAt) {
+      return null;
+    }
+    const lastActivityMs = new Date(session.lastActivityAt).getTime();
+    if (!Number.isFinite(lastActivityMs)) {
+      return null;
+    }
+    if (lastActivityMs > now + MAX_CLOCK_SKEW_MS) {
+      return null;
+    }
     const elapsed = now - lastActivityMs;
 
     if (elapsed > ADMIN_INACTIVITY_TIMEOUT_MS + MAX_CLOCK_SKEW_MS) {
@@ -157,25 +163,14 @@ export async function getSuperAdminSession(): Promise<AdminSessionUser | null> {
       return null;
     }
 
-    // ── Throttled activity update on page navigation ─────────────
-    // Update lastActivityAt if the last update was more than 30 seconds
-    // ago. This ensures page navigation resets the inactivity timer
-    // (genuine user activity) without causing a DB write on every request.
-    const ACTIVITY_WRITE_THROTTLE_MS = 30 * 1000;
-    if (elapsed > ACTIVITY_WRITE_THROTTLE_MS) {
-      await db.userSession.update({
-        where: { id: session.id },
-        data: { lastActivityAt: new Date(now) },
-      }).catch(() => {});
-    }
-
-    // Recalculate secondsLeft using the updated timestamp if we updated it
-    const effectiveLastActivity = elapsed > ACTIVITY_WRITE_THROTTLE_MS
-      ? now
-      : lastActivityMs;
+    // ── READ-ONLY: This function must NOT update lastActivityAt. ──
+    // Activity updates are accepted ONLY via POST /api/auth/activity,
+    // which is called by the client on genuine user input (mouse,
+    // keyboard, touch). Page navigation, server rendering, token
+    // refresh, and background polling must NOT extend the session.
     const secondsLeft = Math.max(
       0,
-      Math.floor((ADMIN_INACTIVITY_TIMEOUT_MS - (now - effectiveLastActivity)) / 1000)
+      Math.floor((ADMIN_INACTIVITY_TIMEOUT_MS - elapsed) / 1000)
     );
 
     return {

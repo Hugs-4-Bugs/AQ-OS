@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/boot-recovery.mjs && node node_modules/next/dist/bin/next dev -p 3000 2>&1 | tee dev.log",
+    "dev": "prisma generate && node scripts/boot-recovery.mjs && node node_modules/next/dist/bin/next dev -p 3000 2>&1 | tee dev.log",
     "build": "prisma generate && next build --webpack && node scripts/clean-standalone.js",
     "vercel-build": "prisma generate && next build --webpack && node scripts/clean-standalone.js",
     "start": "node scripts/boot-recovery.mjs && node start.js",

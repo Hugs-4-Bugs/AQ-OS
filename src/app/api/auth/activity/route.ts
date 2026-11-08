@@ -96,9 +96,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const now = Date.now();
-    const lastActivityMs = session.lastActivityAt
-      ? new Date(session.lastActivityAt).getTime()
-      : now;
+    // FAIL-CLOSED: Missing, malformed, non-finite, or future lastActivityAt
+    // means the session is invalid.
+    if (!session.lastActivityAt) {
+      const response = NextResponse.json(
+        { error: 'Session invalid — no activity record', code: 'SESSION_INVALID_NO_ACTIVITY' },
+        { status: 401 }
+      );
+      return clearAuthCookies(response);
+    }
+    const lastActivityMs = new Date(session.lastActivityAt).getTime();
+    if (!Number.isFinite(lastActivityMs) || lastActivityMs > now + MAX_CLOCK_SKEW_MS) {
+      const response = NextResponse.json(
+        { error: 'Session invalid — malformed activity timestamp', code: 'SESSION_INVALID_NO_ACTIVITY' },
+        { status: 401 }
+      );
+      return clearAuthCookies(response);
+    }
     const elapsed = now - lastActivityMs;
 
     // ── REJECT expired sessions (do NOT extend) ───────────────────
@@ -155,11 +169,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // enough for the 10-minute timeout (worst-case drift: 30s).
     let updated = false;
     if (elapsed > ACTIVITY_WRITE_THROTTLE_MS) {
-      await db.userSession.update({
-        where: { id: session.id },
-        data: { lastActivityAt: new Date(now) },
-      }).catch(() => {});
-      updated = true;
+      try {
+        await db.userSession.update({
+          where: { id: session.id },
+          data: { lastActivityAt: new Date(now) },
+        });
+        updated = true;
+      } catch (error) {
+        console.error(
+          '[activity] DB persistence failed:',
+          error instanceof Error ? error.message : error
+        );
+        return NextResponse.json(
+          {
+            error: 'Activity persistence failed',
+            code: 'ACTIVITY_PERSIST_FAILED',
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Compute the authoritative secondsLeft.

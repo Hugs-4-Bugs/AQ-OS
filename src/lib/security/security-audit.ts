@@ -369,8 +369,8 @@ export function withSecurityAudit(action: SecurityEventType): {
       details?: string;
       metadata?: Record<string, unknown>;
     }) => {
-      const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-                 request.headers.get('x-real-ip') || 'unknown';
+      // INFRA-001: Use X-Real-IP (overwritten by Caddy/nginx) not XFF (spoofable)
+      const ip = request.headers.get('x-real-ip')?.trim() || 'unknown';
       const userAgent = request.headers.get('user-agent') || 'unknown';
 
       await auditSecurityEvent({

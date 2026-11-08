@@ -46,10 +46,11 @@ setInterval(() => {
 // ===== CLIENT IP (trusted-proxy model of this app, unchanged) =====
 
 function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
+  // INFRA-001: Prefer X-Real-IP (overwritten by Caddy/nginx) over
+  // X-Forwarded-For (appended by nginx — spoofable). Do NOT fall back
+  // to unverified XFF.
   const realIp = request.headers.get('x-real-ip');
-  if (realIp) return realIp;
+  if (realIp) return realIp.trim();
   return 'unknown';
 }
 

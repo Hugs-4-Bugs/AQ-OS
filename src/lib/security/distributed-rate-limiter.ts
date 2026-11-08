@@ -122,27 +122,19 @@ export function getTrustedClientIP(request: {
   headers: { get(name: string): string | null };
   ip?: string;
 }): string {
-  // The socket IP is the actual direct connection
-  const socketIP = request.ip || '127.0.0.1';
-
-  // Check if the direct connection is from a trusted proxy
-  const isTrustedProxy = TRUSTED_PROXY_IPS.includes(socketIP);
-
-  if (isTrustedProxy) {
-    // Only trust X-Forwarded-For from a verified trusted proxy
-    const xff = request.headers.get('x-forwarded-for');
-    if (xff) {
-      const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
-      if (ips.length > 0) {
-        // Leftmost IP is the original client (set by the trusted proxy)
-        return ips[0];
-      }
-    }
-  }
-
-  // Not a trusted proxy — use the socket IP directly
-  // This means a direct (non-proxied) connection's IP is used as-is
-  return socketIP;
+  // INFRA-001: Next.js 16 does NOT populate request.ip (the adapter
+  // explicitly comments it out). The previous `request.ip || '127.0.0.1'`
+  // fallback always evaluated to '127.0.0.1' — which is in the default
+  // TRUSTED_PROXY_IPS list — making the trusted-proxy check a no-op and
+  // trusting X-Forwarded-For from every request.
+  //
+  // Both Caddy and nginx OVERWRITE X-Real-IP with the actual peer address.
+  // X-Forwarded-For is only safe when overwritten by Caddy — nginx uses
+  // $proxy_add_x_forwarded_for which APPENDS, preserving client-supplied
+  // values. Prefer X-Real-IP; do NOT fall back to unverified XFF.
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+  return 'unknown';
 }
 
 // ── Redis Store ────────────────────────────────────────────────────

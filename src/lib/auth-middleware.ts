@@ -125,24 +125,12 @@ async function logAuthorizationDenial(
   request: NextRequest
 ): Promise<void> {
   try {
-    // Trusted proxy IP extraction — reuse established logic
-    // Only trust X-Forwarded-For from configured trusted proxy IPs
-    const socketIP = (request as any).ip || '127.0.0.1';
-    const trustedProxies = (process.env.TRUSTED_PROXY_IPS || '127.0.0.1,::1')
-      .split(',').map(s => s.trim()).filter(Boolean);
-    const isTrustedProxy = trustedProxies.includes(socketIP);
-
-    let clientIP = 'unknown';
-    if (isTrustedProxy) {
-      const xff = request.headers.get('x-forwarded-for');
-      if (xff) {
-        const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
-        if (ips.length > 0) clientIP = ips[0];
-      }
-    } else {
-      // Direct connection — use socket IP
-      clientIP = socketIP;
-    }
+    // INFRA-001: request.ip is unavailable in Next.js 16. Both Caddy
+    // and nginx OVERWRITE X-Real-IP with the actual peer address.
+    // X-Forwarded-For is appended (not overwritten) by nginx and is
+    // spoofable. Prefer X-Real-IP; do NOT fall back to unverified XFF.
+    const realIp = request.headers.get('x-real-ip');
+    const clientIP = realIp ? realIp.trim() : 'unknown';
 
     // Sanitize all log fields to prevent log injection
     const sanitize = (s: string): string => s.replace(/[\r\n\t]/g, '').substring(0, 200);
@@ -244,7 +232,8 @@ export async function withDualAuthPermission(
     // Record usage asynchronously
     const endpoint = new URL(request.url).pathname;
     const method = request.method;
-    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined;
+    // INFRA-001: Use X-Real-IP (overwritten by proxy) not XFF (spoofable)
+    const ipAddress = request.headers.get('x-real-ip')?.trim() || undefined;
     recordApiKeyUsage({
       apiKeyId: apiKeyInfo.id,
       userId: apiKeyInfo.userId,
@@ -281,7 +270,8 @@ export async function withDualAuthOnly(
   if (apiKeyInfo) {
     const endpoint = new URL(request.url).pathname;
     const method = request.method;
-    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined;
+    // INFRA-001: Use X-Real-IP (overwritten by proxy) not XFF (spoofable)
+    const ipAddress = request.headers.get('x-real-ip')?.trim() || undefined;
     recordApiKeyUsage({
       apiKeyId: apiKeyInfo.id,
       userId: apiKeyInfo.userId,

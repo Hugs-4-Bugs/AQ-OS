@@ -94,7 +94,7 @@ const ALL_TOOLS = [
   { name: 'email.send', label: 'Email Send', category: 'email', defaultPerm: 'send_with_approval' },
 ];
 
-export function AgentsTab() {
+export default function AgentsTab() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);

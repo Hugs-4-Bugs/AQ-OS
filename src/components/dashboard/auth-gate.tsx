@@ -989,7 +989,10 @@ export default function AuthGate() {
   const legalDialog = <LegalPages />;
 
   // ── Super Admin redirect: send super_admin users to /admin ───
-  // A super_admin WITH MFA enabled is redirected to the Admin Console.
+  // A super_admin WITH MFA enabled is redirected to the Admin Console
+  // ONCE on first login. After that, visiting / (e.g., via "Back to app"
+  // or opening the CRM dashboard in a new tab) shows the normal CRM
+  // dashboard — the user is NOT redirected back to /admin.
   // A super_admin WITHOUT MFA sees the normal dashboard but admin API
   // routes will reject them with MFA_REQUIRED (enforced by withSuperAdmin).
   // Normal users are unaffected.
@@ -998,7 +1001,11 @@ export default function AuthGate() {
   // effect callback, not around the hook itself.
   useEffect(() => {
     if (isAuthenticated && !mfaRequired && user?.role === 'super_admin' && user.mfaEnabled) {
-      window.location.href = '/admin';
+      const redirectKey = `aq_admin_redirect_${user.id}`;
+      if (!localStorage.getItem(redirectKey)) {
+        localStorage.setItem(redirectKey, '1');
+        window.location.href = '/admin';
+      }
     }
   }, [isAuthenticated, mfaRequired, user]);
 
