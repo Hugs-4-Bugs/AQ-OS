@@ -1,13 +1,13 @@
 // GET /api/admin/security/config-changes — configuration change history
 // RBAC: audit.read (super_admin, admin, support, analytics)
 import { NextRequest, NextResponse } from 'next/server';
-import { withPermission } from '@/lib/auth-middleware';
+import { withPermissionAndMfa } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  return withPermission(request, 'audit.read', async () => {
+  return withPermissionAndMfa(request, 'audit.read', async () => {
     try {
       const { searchParams } = new URL(request.url);
       const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
