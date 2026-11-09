@@ -356,6 +356,29 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(403);
     });
 
+    it('member → 403 (member lacks audit.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(MEMBER.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
+      const ctx = { params: Promise.resolve({ id: 'log-1' }) };
+      const res = await auditIdRoute.GET(req, ctx);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe('Insufficient permissions');
+      // DB must NOT have been queried because the permission check short-circuits.
+      expect(dbMocks.auditLog.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('viewer → 403 (viewer lacks audit.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(VIEWER.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
+      const ctx = { params: Promise.resolve({ id: 'log-1' }) };
+      const res = await auditIdRoute.GET(req, ctx);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe('Insufficient permissions');
+      expect(dbMocks.auditLog.findUnique).not.toHaveBeenCalled();
+    });
+
     it('unauthenticated → 401', async () => {
       mockGetAuthUser.mockResolvedValue(null);
       const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);

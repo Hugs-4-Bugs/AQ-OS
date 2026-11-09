@@ -1,11 +1,11 @@
 route_path,http_method,auth_wrapper,permission,role_required,mfa_enforced,tested_in
-/api/admin/rbac/roles,GET,withPermission,rbac.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
-/api/admin/security/audit,GET,withPermission,audit.read,super_admin+admin+support+analytics,NO,tests/api/admin-security-routes.test.ts
-/api/admin/security/audit/:id,GET,withPermission,audit.read,super_admin+admin+support+analytics,NO,tests/api/admin-security-routes.test.ts
-/api/admin/security/config-changes,GET,withPermission,audit.read,super_admin+admin+support+analytics,NO,tests/api/admin-security-routes.test.ts
-/api/admin/security/events,GET,withPermission,security.events.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
-/api/admin/security/role-changes,GET,withPermission,rbac.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
-/api/admin/security/suspicious-activity,GET,withPermission,security.events.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
+/api/admin/rbac/roles,GET,withPermissionAndMfa,rbac.read,super_admin only (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
+/api/admin/security/audit,GET,withPermissionAndMfa,audit.read,super_admin+admin+support+analytics (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
+/api/admin/security/audit/:id,GET,withPermissionAndMfa,audit.read,super_admin+admin+support+analytics (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
+/api/admin/security/config-changes,GET,withPermissionAndMfa,audit.read,super_admin+admin+support+analytics (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
+/api/admin/security/events,GET,withPermissionAndMfa,security.events.read,super_admin only (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
+/api/admin/security/role-changes,GET,withPermissionAndMfa,rbac.read,super_admin only (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
+/api/admin/security/suspicious-activity,GET,withPermissionAndMfa,security.events.read,super_admin only (MFA for super_admin),YES,tests/api/admin-security-routes.test.ts
 /api/admin/overview,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
 /api/admin/users,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
 /api/admin/users/:id,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
