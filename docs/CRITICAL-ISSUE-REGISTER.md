@@ -1,8 +1,8 @@
 # AcquisitionOS — Critical Issue Register
 
 **Branch:** `develop`
-**Verified SHA:** `bd7e0f12383f1f588338f908f7515457f9d9654d`
-**Last Updated:** 2026-11-06
+**Verified SHA:** `4ad4bca0a6fe26e272045b6061402ed561581945`
+**Last Updated:** 2026-11-09
 **Source:** Verified against actual `develop` source code
 
 ---
@@ -166,15 +166,28 @@
 
 ## Summary Table
 
-| Issue | Status | Code Fix Committed | Browser Verified |
-|---|---|---|---|
-| ISSUE-001 MFA QR | FIX IMPLEMENTED — NOT VERIFIED | ✅ `2a655f23a` | ❌ |
-| ISSUE-002 Recovery codes | FIX IMPLEMENTED — NOT VERIFIED | ✅ `2fd980adb` | ❌ |
-| ISSUE-003 Security API 500 | FIX IMPLEMENTED — NOT VERIFIED | ✅ `34a93e3ad` | ❌ |
-| ISSUE-004 Back to app | FIX IMPLEMENTED — NOT VERIFIED | ✅ `646596c36` | ❌ |
-| ISSUE-005 Settings 404 | FIX IMPLEMENTED — NOT VERIFIED | ✅ `a16ef0e76` | ❌ |
-| ISSUE-006 Security MFA nav | FIX IMPLEMENTED — NOT VERIFIED | ✅ `bd7e0f123` | ❌ |
-| ISSUE-007 Agents page error | INVESTIGATION REQUIRED | ❌ | ❌ |
-| ISSUE-008 Inactivity timeout | INVESTIGATION REQUIRED | ❌ | ❌ |
+| Issue | Status | Code Fix Committed | Automated Test | Browser Verified |
+|---|---|---|---|---|
+| ISSUE-001 MFA QR | FIX IMPLEMENTED — NOT VERIFIED | ✅ `2a655f23a` | ❌ | ❌ |
+| ISSUE-002 Recovery codes | FIX IMPLEMENTED — NOT VERIFIED | ✅ `2fd980adb` | ❌ | ❌ |
+| ISSUE-003 Security API 500 | RUNTIME VERIFIED (prior session) | ✅ `34a93e3ad` | ❌ | ✅ (HTTP 200 confirmed after `prisma db push`) |
+| ISSUE-004 Back to app | FIX IMPLEMENTED — NOT VERIFIED | ✅ `646596c36` | ❌ | ❌ |
+| ISSUE-004 MFA enforcement gap | AUTOMATED TESTED | ✅ `4ad4bca0a` | ✅ 55 route-level + 17 wrapper-level | ❌ |
+| ISSUE-005 Settings 404 | FIX IMPLEMENTED — NOT VERIFIED | ✅ `a16ef0e76` | ❌ | ❌ |
+| ISSUE-006 Security MFA nav | FIX IMPLEMENTED — NOT VERIFIED | ✅ `bd7e0f123` | ❌ | ❌ |
+| ISSUE-007 Agents page error | AUTOMATED TESTED (root cause proven) | ✅ `223160ff8` | ✅ (default export verified) | ❌ |
+| ISSUE-008 Inactivity timeout | AUTOMATED TESTED | ✅ `3969c59c4` + `0ef752a26` | ✅ 26 inactivity + 19 signout-refresh | ❌ |
+| SECURITY-001 JWT prod guard | AUTOMATED TESTED | ✅ `927e05e69` | ✅ 15 new + 24 existing | ❌ |
+| INFRA-001 X-Real-IP preference | AUTOMATED TESTED | ✅ `6e86c4d83` | ✅ 17 tests | ❌ |
 
-**No issue has been BROWSER VERIFIED.** All six code fixes are committed to `develop` but lack end-to-end test evidence. The sandbox's 4GB RAM limitation prevents persistent server operation for browser testing.
+**Issues with automated test evidence:** ISSUE-003, ISSUE-004 (MFA gap), ISSUE-007, ISSUE-008, SECURITY-001, INFRA-001.
+**Issues still at FIX IMPLEMENTED — NOT VERIFIED:** ISSUE-001, ISSUE-002, ISSUE-004 (back-to-app), ISSUE-005, ISSUE-006.
+**No issue has been BROWSER VERIFIED by an independent reviewer in this session.** The sandbox's 4GB RAM limitation prevents persistent server operation for browser testing. User-reported evidence (OTP working, Redis PONG, admin pages render) is partial and not independently reproduced.
+
+### Notes on the ISSUE-004 ID collision
+
+The ID "ISSUE-004" has been used for TWO different issues in this project's history:
+1. **ISSUE-004 (original, 2026-11-06):** "Back to app" navigation redirect — fix committed in `646596c36`. Status: FIX IMPLEMENTED — NOT VERIFIED.
+2. **ISSUE-004 (current conversation, 2026-11-09):** MFA enforcement gap on 7 admin security GET routes — fix committed in `4ad4bca0a`. Status: AUTOMATED TESTED.
+
+Both are listed in the table above with distinct labels.

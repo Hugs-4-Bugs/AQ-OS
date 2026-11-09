@@ -3,19 +3,32 @@
 //
 // These tests invoke the REAL route handlers (GET/POST/PATCH) imported
 // from the actual Next.js route modules, using REAL NextRequest objects,
-// REAL @/lib/auth-middleware (withPermission), and the REAL @/lib/rbac
+// REAL @/lib/auth-middleware (withSuperAdmin), and the REAL @/lib/rbac
 // permission registry. Only @/lib/auth (getAuthUser) and the DB/service
-// layer are mocked — the auth→permission→HTTP-status pipeline is real.
+// layer are mocked — the auth→role→MFA→HTTP-status pipeline is real.
 //
-// Routes under test :
-//   GET   /api/admin/operations/system-health       → system.health.read
-//   GET   /api/admin/operations/events              → system.health.read
-//   PATCH /api/admin/operations/events/[id]         → system.events.resolve
-//   GET   /api/admin/operations/integrations        → integrations.read
-//   POST  /api/admin/operations/integrations/[provider]/action → integrations.control
-//   GET   /api/admin/operations/audit               → audit.read
-//   POST  /api/admin/operations/retry               → system.operations.retry
-//   GET   /api/admin/operations/metrics             → system.health.read
+// Authorization model (Option A reconciliation):
+//   All operations routes below are protected by withSuperAdmin, which
+//   enforces:
+//     1. user.role === 'super_admin'
+//     2. user.mfaEnabled === true
+//   Any caller failing either check receives HTTP 403.
+//   Unauthenticated requests receive HTTP 401.
+//   The RBAC permissions (system.health.read, audit.read, etc.) granted
+//   to admin/support/analytics in src/lib/rbac.ts are NOT consulted by
+//   these routes — withSuperAdmin bypasses the RBAC matrix.
+//
+// Routes under test (all withSuperAdmin-gated):
+//   GET   /api/admin/operations/system-health       → super_admin + MFA
+//   GET   /api/admin/operations/events              → super_admin + MFA
+//   PATCH /api/admin/operations/events/[id]         → super_admin + MFA
+//   GET   /api/admin/operations/integrations        → super_admin + MFA
+//   POST  /api/admin/operations/integrations/[provider]/action → super_admin + MFA
+//   GET   /api/admin/operations/audit               → super_admin + MFA
+//   POST  /api/admin/operations/retry               → super_admin + MFA
+//   GET   /api/admin/operations/metrics             → super_admin + MFA
+//   + workflows, autopilot, cron-jobs, deployment-health, overview,
+//     users/[id]/support-context (all withSuperAdmin-gated)
 //
 // Every test asserts an actual HTTP status code (200 / 401 / 403 / 400 / 404).
 // ═══════════════════════════════════════════════════════════════════
@@ -223,8 +236,11 @@ vi.mock('@/lib/db', () => {
 });
 
 // ── Test users ────────────────────────────────────────────────────────
-const TEST_USERS: Record<string, { id: string; email: string; role: string; plan: string }> = {
-  super_admin: { id: 'su-1', email: 'su@test.local', role: 'super_admin', plan: 'elite' },
+// super_admin has mfaEnabled:true so withSuperAdmin admits it to the handler.
+// All other roles lack mfaEnabled AND are not super_admin — withSuperAdmin
+// rejects them at the role check (line 178) before MFA is even considered.
+const TEST_USERS: Record<string, { id: string; email: string; role: string; plan: string; mfaEnabled?: boolean }> = {
+  super_admin: { id: 'su-1', email: 'su@test.local', role: 'super_admin', plan: 'elite', mfaEnabled: true },
   admin:       { id: 'ad-1', email: 'ad@test.local', role: 'admin',       plan: 'pro'   },
   support:     { id: 'sp-1', email: 'sp@test.local', role: 'support',     plan: 'free'  },
   analytics:   { id: 'an-1', email: 'an@test.local', role: 'analytics',   plan: 'free'  },
@@ -243,8 +259,7 @@ function buildPost(url: string, body: unknown): NextRequest {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GET /api/admin/operations/system-health  (system.health.read)
-// Granted to: super_admin, admin, support, analytics
+// GET /api/admin/operations/system-health  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/admin/operations/system-health', () => {
   let GET: (request: NextRequest) => Promise<Response>;
@@ -259,9 +274,9 @@ describe('GET /api/admin/operations/system-health', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
-    ['support',     200],
-    ['analytics',   200],
+    ['admin', 403],
+    ['support', 403],
+    ['analytics', 403],
     ['member',      403],
     ['viewer',      403],
   ];
@@ -307,9 +322,9 @@ describe('GET /api/admin/operations/events', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
-    ['support',     200],
-    ['analytics',   200],
+    ['admin', 403],
+    ['support', 403],
+    ['analytics', 403],
     ['member',      403],
     ['viewer',      403],
   ];
@@ -336,8 +351,7 @@ describe('GET /api/admin/operations/events', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// PATCH /api/admin/operations/events/[id]  (system.events.resolve)
-// Granted to: super_admin, admin ONLY
+// PATCH /api/admin/operations/events/[id]  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('PATCH /api/admin/operations/events/[id]', () => {
   let PATCH: (request: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
@@ -352,7 +366,7 @@ describe('PATCH /api/admin/operations/events/[id]', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
+    ['admin', 403],
     ['support',     403],
     ['analytics',   403],
     ['member',      403],
@@ -384,10 +398,9 @@ describe('PATCH /api/admin/operations/events/[id]', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// GET /api/admin/operations/integrations  (integrations.read)
-// Granted to: super_admin, admin, support (analytics does NOT have
-// integrations.read per existing rbac.ts — kept as-is to avoid weakening
-// or broadening existing RBAC).
+// GET /api/admin/operations/integrations  (withSuperAdmin: super_admin + MFA)
+// Note: rbac.ts grants integrations.read to admin/support/analytics, but
+// withSuperAdmin bypasses the RBAC matrix — only super_admin+MFA is admitted.
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/admin/operations/integrations', () => {
   let GET: (request: NextRequest) => Promise<Response>;
@@ -403,8 +416,8 @@ describe('GET /api/admin/operations/integrations', () => {
   // analytics lacks integrations.read in existing rbac.ts — preserve that.
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
-    ['support',     200],
+    ['admin', 403],
+    ['support', 403],
     ['analytics',   403],
     ['member',      403],
     ['viewer',      403],
@@ -426,8 +439,7 @@ describe('GET /api/admin/operations/integrations', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// POST /api/admin/operations/integrations/[provider]/action  (integrations.control)
-// Granted to: super_admin, admin ONLY
+// POST /api/admin/operations/integrations/[provider]/action  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('POST /api/admin/operations/integrations/[provider]/action', () => {
   let POST: (request: NextRequest, ctx: { params: Promise<{ provider: string }> }) => Promise<Response>;
@@ -443,7 +455,7 @@ describe('POST /api/admin/operations/integrations/[provider]/action', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
+    ['admin', 403],
     ['support',     403],
     ['analytics',   403],
     ['member',      403],
@@ -482,8 +494,7 @@ describe('POST /api/admin/operations/integrations/[provider]/action', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// GET /api/admin/operations/audit  (audit.read)
-// Granted to: super_admin, admin, support, analytics
+// GET /api/admin/operations/audit  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/admin/operations/audit', () => {
   let GET: (request: NextRequest) => Promise<Response>;
@@ -498,9 +509,9 @@ describe('GET /api/admin/operations/audit', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
-    ['support',     200],
-    ['analytics',   200],
+    ['admin', 403],
+    ['support', 403],
+    ['analytics', 403],
     ['member',      403],
     ['viewer',      403],
   ];
@@ -527,8 +538,7 @@ describe('GET /api/admin/operations/audit', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// POST /api/admin/operations/retry  (system.operations.retry)
-// Granted to: super_admin, admin ONLY
+// POST /api/admin/operations/retry  (withSuperAdmin: super_admin + MFA)
 // Includes idempotency validation.
 // ═══════════════════════════════════════════════════════════════════
 describe('POST /api/admin/operations/retry', () => {
@@ -550,7 +560,7 @@ describe('POST /api/admin/operations/retry', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
+    ['admin', 403],
     ['support',     403],
     ['analytics',   403],
     ['member',      403],
@@ -634,9 +644,9 @@ describe('GET /api/admin/operations/metrics', () => {
 
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
-    ['support',     200],
-    ['analytics',   200],
+    ['admin', 403],
+    ['support', 403],
+    ['analytics', 403],
     ['member',      403],
     ['viewer',      403],
   ];
@@ -828,7 +838,7 @@ describe('Idempotency — POST /api/admin/operations/retry', () => {
 // ═══════════════════════════════════════════════════════════════════
 // NEW ENDPOINTS — workflow / autopilot / cron-jobs / deployment-health /
 // unified-overview / user-support-context
-// All RBAC-gated at HTTP level via withPermission.
+// All withSuperAdmin-gated at HTTP level (super_admin + MFA).
 // ═══════════════════════════════════════════════════════════════════
 
 describe('GET /api/admin/operations/workflows', () => {
@@ -843,7 +853,7 @@ describe('GET /api/admin/operations/workflows', () => {
   });
 
   const CASES: Array<[string, number]> = [
-    ['super_admin', 200], ['admin', 200], ['support', 200], ['analytics', 200],
+    ['super_admin', 200], ['admin', 403], ['support', 403], ['analytics', 403],
     ['member', 403], ['viewer', 403],
   ];
   for (const [role, expectedStatus] of CASES) {
@@ -872,7 +882,7 @@ describe('GET /api/admin/operations/autopilot', () => {
   });
 
   const CASES: Array<[string, number]> = [
-    ['super_admin', 200], ['admin', 200], ['support', 200], ['analytics', 200],
+    ['super_admin', 200], ['admin', 403], ['support', 403], ['analytics', 403],
     ['member', 403], ['viewer', 403],
   ];
   for (const [role, expectedStatus] of CASES) {
@@ -901,7 +911,7 @@ describe('GET /api/admin/operations/cron-jobs', () => {
   });
 
   const CASES: Array<[string, number]> = [
-    ['super_admin', 200], ['admin', 200], ['support', 200], ['analytics', 200],
+    ['super_admin', 200], ['admin', 403], ['support', 403], ['analytics', 403],
     ['member', 403], ['viewer', 403],
   ];
   for (const [role, expectedStatus] of CASES) {
@@ -930,7 +940,7 @@ describe('GET /api/admin/operations/deployment-health', () => {
   });
 
   const CASES: Array<[string, number]> = [
-    ['super_admin', 200], ['admin', 200], ['support', 200], ['analytics', 200],
+    ['super_admin', 200], ['admin', 403], ['support', 403], ['analytics', 403],
     ['member', 403], ['viewer', 403],
   ];
   for (const [role, expectedStatus] of CASES) {
@@ -959,7 +969,7 @@ describe('GET /api/admin/operations/overview (unified)', () => {
   });
 
   const CASES: Array<[string, number]> = [
-    ['super_admin', 200], ['admin', 200], ['support', 200], ['analytics', 200],
+    ['super_admin', 200], ['admin', 403], ['support', 403], ['analytics', 403],
     ['member', 403], ['viewer', 403],
   ];
   for (const [role, expectedStatus] of CASES) {
@@ -1006,7 +1016,7 @@ describe('GET /api/admin/operations/users/[id]/support-context', () => {
 
   // user360.read granted to: super_admin, admin, support, analytics
   const CASES: Array<[string, number]> = [
-    ['super_admin', 200], ['admin', 200], ['support', 200], ['analytics', 200],
+    ['super_admin', 200], ['admin', 403], ['support', 403], ['analytics', 403],
     ['member', 403], ['viewer', 403],
   ];
   for (const [role, expectedStatus] of CASES) {
@@ -1076,5 +1086,86 @@ describe('REAL integration action — provider validation', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.status).toBe('skipped');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MFA ENFORCEMENT — super_admin WITHOUT MFA must receive 403 MFA_REQUIRED
+// from every withSuperAdmin-gated operations route.
+// ═══════════════════════════════════════════════════════════════════
+describe('MFA enforcement — super_admin without MFA → 403 MFA_REQUIRED', () => {
+  let systemHealthGET: (request: NextRequest) => Promise<Response>;
+  let eventsGET: (request: NextRequest) => Promise<Response>;
+  let integrationsGET: (request: NextRequest) => Promise<Response>;
+  let auditGET: (request: NextRequest) => Promise<Response>;
+  let metricsGET: (request: NextRequest) => Promise<Response>;
+  let retryPOST: (request: NextRequest) => Promise<Response>;
+  let authModule: MockedAuthModule;
+
+  // A super_admin whose MfaConfig.isEnabled is false. withSuperAdmin checks
+  // user.mfaEnabled at line 181 and returns 403 MFA_REQUIRED before the handler runs.
+  const SUPER_ADMIN_NO_MFA = {
+    id: 'su-nomfa',
+    email: 'su-nomfa@test.local',
+    role: 'super_admin',
+    plan: 'elite',
+    // mfaEnabled intentionally omitted (falsy) — simulates MFA not enrolled.
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    authModule = (await import('@/lib/auth')) as MockedAuthModule;
+    authModule.__mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_NO_MFA);
+    systemHealthGET = (await import('@/app/api/admin/operations/system-health/route')).GET;
+    eventsGET = (await import('@/app/api/admin/operations/events/route')).GET;
+    integrationsGET = (await import('@/app/api/admin/operations/integrations/route')).GET;
+    auditGET = (await import('@/app/api/admin/operations/audit/route')).GET;
+    metricsGET = (await import('@/app/api/admin/operations/metrics/route')).GET;
+    retryPOST = (await import('@/app/api/admin/operations/retry/route')).POST;
+  });
+
+  it('GET /api/admin/operations/system-health → 403 MFA_REQUIRED', async () => {
+    const res = await systemHealthGET(buildGet('http://localhost:3000/api/admin/operations/system-health'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+    expect(body.error).toMatch(/MFA is mandatory for super admin/);
+  });
+
+  it('GET /api/admin/operations/events → 403 MFA_REQUIRED', async () => {
+    const res = await eventsGET(buildGet('http://localhost:3000/api/admin/operations/events'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/operations/integrations → 403 MFA_REQUIRED', async () => {
+    const res = await integrationsGET(buildGet('http://localhost:3000/api/admin/operations/integrations'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/operations/audit → 403 MFA_REQUIRED', async () => {
+    const res = await auditGET(buildGet('http://localhost:3000/api/admin/operations/audit'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/operations/metrics → 403 MFA_REQUIRED', async () => {
+    const res = await metricsGET(buildGet('http://localhost:3000/api/admin/operations/metrics'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('POST /api/admin/operations/retry → 403 MFA_REQUIRED (handler never reached)', async () => {
+    const res = await retryPOST(buildPost('http://localhost:3000/api/admin/operations/retry', {
+      operationId: 'op-1', idempotencyKey: 'key-1',
+    }));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
   });
 });
