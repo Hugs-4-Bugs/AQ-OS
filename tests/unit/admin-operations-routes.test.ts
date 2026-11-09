@@ -1088,3 +1088,84 @@ describe('REAL integration action — provider validation', () => {
     expect(body.data.status).toBe('skipped');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// MFA ENFORCEMENT — super_admin WITHOUT MFA must receive 403 MFA_REQUIRED
+// from every withSuperAdmin-gated operations route.
+// ═══════════════════════════════════════════════════════════════════
+describe('MFA enforcement — super_admin without MFA → 403 MFA_REQUIRED', () => {
+  let systemHealthGET: (request: NextRequest) => Promise<Response>;
+  let eventsGET: (request: NextRequest) => Promise<Response>;
+  let integrationsGET: (request: NextRequest) => Promise<Response>;
+  let auditGET: (request: NextRequest) => Promise<Response>;
+  let metricsGET: (request: NextRequest) => Promise<Response>;
+  let retryPOST: (request: NextRequest) => Promise<Response>;
+  let authModule: MockedAuthModule;
+
+  // A super_admin whose MfaConfig.isEnabled is false. withSuperAdmin checks
+  // user.mfaEnabled at line 181 and returns 403 MFA_REQUIRED before the handler runs.
+  const SUPER_ADMIN_NO_MFA = {
+    id: 'su-nomfa',
+    email: 'su-nomfa@test.local',
+    role: 'super_admin',
+    plan: 'elite',
+    // mfaEnabled intentionally omitted (falsy) — simulates MFA not enrolled.
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    authModule = (await import('@/lib/auth')) as MockedAuthModule;
+    authModule.__mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_NO_MFA);
+    systemHealthGET = (await import('@/app/api/admin/operations/system-health/route')).GET;
+    eventsGET = (await import('@/app/api/admin/operations/events/route')).GET;
+    integrationsGET = (await import('@/app/api/admin/operations/integrations/route')).GET;
+    auditGET = (await import('@/app/api/admin/operations/audit/route')).GET;
+    metricsGET = (await import('@/app/api/admin/operations/metrics/route')).GET;
+    retryPOST = (await import('@/app/api/admin/operations/retry/route')).POST;
+  });
+
+  it('GET /api/admin/operations/system-health → 403 MFA_REQUIRED', async () => {
+    const res = await systemHealthGET(buildGet('http://localhost:3000/api/admin/operations/system-health'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+    expect(body.error).toMatch(/MFA is mandatory for super admin/);
+  });
+
+  it('GET /api/admin/operations/events → 403 MFA_REQUIRED', async () => {
+    const res = await eventsGET(buildGet('http://localhost:3000/api/admin/operations/events'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/operations/integrations → 403 MFA_REQUIRED', async () => {
+    const res = await integrationsGET(buildGet('http://localhost:3000/api/admin/operations/integrations'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/operations/audit → 403 MFA_REQUIRED', async () => {
+    const res = await auditGET(buildGet('http://localhost:3000/api/admin/operations/audit'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/operations/metrics → 403 MFA_REQUIRED', async () => {
+    const res = await metricsGET(buildGet('http://localhost:3000/api/admin/operations/metrics'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('POST /api/admin/operations/retry → 403 MFA_REQUIRED (handler never reached)', async () => {
+    const res = await retryPOST(buildPost('http://localhost:3000/api/admin/operations/retry', {
+      operationId: 'op-1', idempotencyKey: 'key-1',
+    }));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+});

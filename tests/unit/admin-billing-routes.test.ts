@@ -523,6 +523,69 @@ describe('POST /api/admin/refund', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// MFA ENFORCEMENT — super_admin WITHOUT MFA must receive 403 MFA_REQUIRED
+// from every withSuperAdmin-gated route in this family.
+// ═══════════════════════════════════════════════════════════════════
+describe('MFA enforcement — super_admin without MFA → 403 MFA_REQUIRED', () => {
+  let billingGET: (request: NextRequest) => Promise<Response>;
+  let webhooksGET: (request: NextRequest) => Promise<Response>;
+  let failedGET: (request: NextRequest) => Promise<Response>;
+  let refundPOST: (request: NextRequest) => Promise<Response>;
+  let authModule: MockedAuthModule;
+
+  // A super_admin whose MfaConfig.isEnabled is false. withSuperAdmin checks
+  // user.mfaEnabled at line 181 and returns 403 MFA_REQUIRED before the handler runs.
+  const SUPER_ADMIN_NO_MFA = {
+    id: 'su-nomfa',
+    email: 'su-nomfa@test.local',
+    role: 'super_admin',
+    plan: 'elite',
+    // mfaEnabled intentionally omitted (falsy) — simulates MFA not enrolled.
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    authModule = (await import('@/lib/auth')) as MockedAuthModule;
+    authModule.__mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_NO_MFA);
+    billingGET = (await import('@/app/api/admin/billing/route')).GET;
+    webhooksGET = (await import('@/app/api/admin/billing/webhooks/route')).GET;
+    failedGET = (await import('@/app/api/admin/billing/failed-payments/route')).GET;
+    refundPOST = (await import('@/app/api/admin/refund/route')).POST;
+  });
+
+  it('GET /api/admin/billing?action=overview → 403 MFA_REQUIRED', async () => {
+    const res = await billingGET(buildGet('http://localhost:3000/api/admin/billing?action=overview'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+    expect(body.error).toMatch(/MFA is mandatory for super admin/);
+  });
+
+  it('GET /api/admin/billing/webhooks → 403 MFA_REQUIRED', async () => {
+    const res = await webhooksGET(buildGet('http://localhost:3000/api/admin/billing/webhooks'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('GET /api/admin/billing/failed-payments → 403 MFA_REQUIRED', async () => {
+    const res = await failedGET(buildGet('http://localhost:3000/api/admin/billing/failed-payments'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+
+  it('POST /api/admin/refund → 403 MFA_REQUIRED (handler never reached)', async () => {
+    const res = await refundPOST(buildPost('http://localhost:3000/api/admin/refund', {
+      userId: 'user-123', paymentIntentId: 'pi_test', amount: 5000, reason: 'test',
+    }));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe('MFA_REQUIRED');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // SECRET PROTECTION — verify route responses never contain secrets
 // (these are still real HTTP route invocations)
 // ═══════════════════════════════════════════════════════════════════

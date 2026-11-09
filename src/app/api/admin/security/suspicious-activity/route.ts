@@ -1,5 +1,5 @@
 // GET /api/admin/security/suspicious-activity — deterministic suspicious activity detection
-// RBAC: security.events.read (super_admin, admin)
+// RBAC: security.events.read (super_admin only — rbac.ts grants this permission ONLY to super_admin)
 import { NextRequest, NextResponse } from 'next/server';
 import { withPermissionAndMfa } from '@/lib/auth-middleware';
 import { detectSuspiciousActivity } from '@/lib/security/audit-chain';

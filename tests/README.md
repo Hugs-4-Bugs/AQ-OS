@@ -174,23 +174,35 @@ npm run test:coverage
   reserved but not yet populated. A real test would need two persisted
   users in different `orgId` values against an isolated SQLite DB.
 
-## Coverage matrix (this batch)
+## Coverage matrix
 
 | Suite | Tests | Status |
 |---|---|---|
 | `tests/security/mfa-enforcement-gap.test.ts` | 17 | ✅ passing |
 | `tests/rbac/permission-matrix.test.ts` | 35 | ✅ passing |
-| `tests/api/admin-security-routes.test.ts` | 32 | ✅ passing |
+| `tests/api/admin-security-routes.test.ts` | 55 | ✅ passing (post-ISSUE-004 + member/viewer) |
 | `tests/auth/otp-flow.test.ts` | 22 | ✅ passing |
 | `tests/auth/inactivity-timeout.test.ts` | 26 | ✅ passing |
 | `tests/auth/signout-refresh.test.ts` | 19 | ✅ passing |
-| **Total new tests** | **151** | **✅ all passing** |
+| `tests/unit/admin-billing-routes.test.ts` | 68 | ✅ passing (Option A reconciliation + MFA enforcement) |
+| `tests/unit/admin-operations-routes.test.ts` | 127 | ✅ passing (Option A reconciliation + MFA enforcement) |
+| **Total** | **369** | **✅ all passing** |
 
-## Bugs discovered (with evidence)
+The `admin-security-routes.test.ts` count grew from 32 → 53 (ISSUE-004
+fix) → 55 (member/viewer negative cells added for audit/:id).
+The `admin-billing-routes.test.ts` count grew from 64 → 68 (added 4
+super_admin-without-MFA enforcement tests).
+The `admin-operations-routes.test.ts` count grew from 121 → 127 (added
+6 super_admin-without-MFA enforcement tests).
 
-### MEDIUM — MFA enforcement gap on 7 admin security GET routes
+## Resolved bugs
 
-**Affected routes:**
+### MEDIUM — MFA enforcement gap on 7 admin security GET routes — RESOLVED
+
+**Status:** ✅ FIXED in commit `4ad4bca0a6fe26e272045b6061402ed561581945`
+(ISSUE-004).
+
+**Affected routes (all now use `withPermissionAndMfa`):**
 - `/api/admin/rbac/roles` (rbac.read)
 - `/api/admin/security/audit` (audit.read)
 - `/api/admin/security/audit/:id` (audit.read)
@@ -199,34 +211,28 @@ npm run test:coverage
 - `/api/admin/security/role-changes` (rbac.read)
 - `/api/admin/security/suspicious-activity` (security.events.read)
 
-**Root cause:** These routes use `withPermission()` from
-`src/lib/auth-middleware.ts:65–79`, which checks RBAC permission but
-does NOT check `user.mfaEnabled`. Compare with `withSuperAdmin()`
-(lines 173–189) and `withPermissionAndMfa()` (lines 86–105), both of
-which enforce MFA for super_admin.
+**Fix:** Swapped the wrapper from `withPermission` to
+`withPermissionAndMfa` in each route file. `withPermissionAndMfa`
+(`src/lib/auth-middleware.ts:86–105`) enforces MFA for super_admin
+at line 97 (`if (user.role === 'super_admin' && !user.mfaEnabled)`).
 
-**Evidence:** `tests/security/mfa-enforcement-gap.test.ts` proves
-that `withPermission('audit.read')` returns 200 for a super_admin
-WITHOUT MFA, while `withPermissionAndMfa('audit.read')` correctly
-returns 403 `MFA_REQUIRED`.
+**Behavior after the fix:**
+- super_admin WITH MFA + permission → 200 (unchanged)
+- super_admin WITHOUT MFA + permission → **403 `MFA_REQUIRED`** (was 200)
+- admin/support/analytics with `audit.read` → 200 (unchanged; MFA only
+  enforced for super_admin per `withPermissionAndMfa:97`)
+- admin/support/analytics lacking the permission → 403 (unchanged)
+- owner/member/viewer → 403 (unchanged)
+- unauthenticated → 401 (unchanged)
 
-**Practical impact:** A super_admin whose `MfaConfig.isEnabled` is
-false (e.g., enrollment was rolled back, or a stolen access token is
-in use) can directly call these 7 endpoints via fetch/curl and
-retrieve audit logs, security events, role-change history, and the
-full RBAC role/permission matrix — all without MFA. The admin
-layout's MFA-enrollment gate (`src/app/admin/layout.tsx:52–58`) only
-fires on page navigation; it does NOT protect direct API calls.
+**Test evidence:** `tests/api/admin-security-routes.test.ts` invokes
+all 7 route handlers directly across 8 caller classes (super_admin±MFA,
+admin, support, analytics, owner, member, viewer, unauthenticated).
+55 tests, all passing.
 
-**Recommended fix:** Change the 7 routes from `withPermission` to
-`withPermissionAndMfa` (a drop-in replacement that adds the MFA
-check). This is a one-line change per route file. **However**, this
-would also enforce MFA for `admin`/`support`/`analytics` roles that
-hold `audit.read` — those roles do NOT currently require MFA. If MFA
-should be enforced only for super_admin (matching `withSuperAdmin`'s
-behavior), the fix should be applied selectively or a new wrapper
-should be introduced. **Awaiting product owner decision before
-implementing.**
+**Wrapper-level test retained:** `tests/security/mfa-enforcement-gap.test.ts`
+(17 tests) still tests `withPermission` directly — `withPermission`'s
+behavior is unchanged, so it remains a valid regression baseline.
 
 ### LOW — Stale RBAC comment on `security.events.read` routes
 
@@ -258,10 +264,18 @@ permission set in `rbac.ts`. **Awaiting product owner decision.**
 - **Browser-level verification** of all 7 affected routes per the
   Phase C verification checklist (block A super_admin+MFA positive
   control, block B unauthenticated negative, block C non-super_admin
-  negative, block D super_admin-without-MFA gap confirmation).
+  negative, block D super_admin-without-MFA — now expected to return
+  403 `MFA_REQUIRED`, confirming the fix). The route-level tests prove
+  the wrapper logic, but a real browser session against a non-MFA
+  super_admin account would provide end-to-end HTTP evidence.
 - **Real-Redis integration test** for the distributed rate limiter
   (the mocked tests prove the wrapper logic, not the Redis path).
 - **Real-SMTP integration test** for OTP email delivery.
 - **Multi-tenant isolation test** with two persisted users in
   different `orgId` values.
 - **Frontend E2E** via Playwright (not yet installed).
+- **Pre-existing `tests/unit/security-integration.test.ts` failures**
+  (67 tests fail due to missing `test-schema.db` fixture). Verified
+  to fail identically on the baseline commit before ISSUE-004 —
+  not a regression. Fixing this requires running `prisma db push`
+  against a test DB, which is out of scope for ISSUE-004.
