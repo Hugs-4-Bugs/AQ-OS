@@ -1,0 +1,46 @@
+route_path,http_method,auth_wrapper,permission,role_required,mfa_enforced,tested_in
+/api/admin/rbac/roles,GET,withPermission,rbac.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
+/api/admin/security/audit,GET,withPermission,audit.read,super_admin+admin+support+analytics,NO,tests/api/admin-security-routes.test.ts
+/api/admin/security/audit/:id,GET,withPermission,audit.read,super_admin+admin+support+analytics,NO,tests/api/admin-security-routes.test.ts
+/api/admin/security/config-changes,GET,withPermission,audit.read,super_admin+admin+support+analytics,NO,tests/api/admin-security-routes.test.ts
+/api/admin/security/events,GET,withPermission,security.events.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
+/api/admin/security/role-changes,GET,withPermission,rbac.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
+/api/admin/security/suspicious-activity,GET,withPermission,security.events.read,super_admin only,NO,tests/api/admin-security-routes.test.ts
+/api/admin/overview,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/users,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/users/:id,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/billing,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/billing/failed-payments,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/billing/webhooks,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/crm/leads,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/crm/overview,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/crm/sales,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/feedback,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/feedback/:id,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/feedback/analytics,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/feedback/crashes,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/audit,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/autopilot,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/cron-jobs,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/deployment-health,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/events,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/integrations,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/metrics,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/overview,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/system-health,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/users/:id/support-context,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/operations/workflows,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/support/tickets,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/backup,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/admin/backup/:id,GET,withSuperAdmin,(super_admin only),super_admin only,YES,not tested
+/api/auth/otp/request,POST,(public + rate-limited),-,NO,tests/auth/otp-flow.test.ts
+/api/auth/otp/verify,POST,(public + rate-limited),-,NO,tests/auth/otp-flow.test.ts
+/api/auth/signout,POST,(authenticated),any,NO,tests/auth/signout-refresh.test.ts
+/api/auth/refresh,POST,(public + rate-limited),-,NO,tests/auth/signout-refresh.test.ts
+/api/auth/activity,POST,(authenticated via cookies),any,NO,tests/auth/inactivity-timeout.test.ts
+/api/auth/session-status,GET,(authenticated via cookies),any,NO,not tested
+/api/auth/me,GET,(authenticated),any,NO,not tested
+/api/auth/mfa/setup,POST,requireAuth,authenticated,NO,not tested
+/api/auth/mfa/confirm,POST,requireAuth,authenticated,NO,not tested
+/api/auth/mfa/verify,POST,(public + rate-limited),-,NO,not tested
+/api/auth/mfa/disable,POST,requireAuth,authenticated,NO,not tested
