@@ -3,18 +3,28 @@
 //
 // These tests invoke the REAL route handlers (GET/POST) imported from
 // the actual Next.js route modules, using REAL NextRequest objects,
-// REAL @/lib/auth-middleware (withPermission), and the REAL @/lib/rbac
+// REAL @/lib/auth-middleware (withSuperAdmin), and the REAL @/lib/rbac
 // permission registry. Only @/lib/auth (getAuthUser) and the DB/service
-// layer are mocked — the auth→permission→HTTP-status pipeline is real.
+// layer are mocked — the auth→role→MFA→HTTP-status pipeline is real.
+//
+// Authorization model (Option A reconciliation):
+//   All four routes below are protected by withSuperAdmin, which enforces:
+//     1. user.role === 'super_admin'
+//     2. user.mfaEnabled === true
+//   Any caller failing either check receives HTTP 403.
+//   Unauthenticated requests receive HTTP 401.
+//   The RBAC permissions (billing:read, billing.refund) granted to
+//   admin/support/analytics in src/lib/rbac.ts are NOT consulted by
+//   these routes — withSuperAdmin bypasses the RBAC matrix.
 //
 // Every test asserts an actual HTTP status code (200 / 403 / 401 / 400 /
-// 404 / 500 / 503) returned by the route handler.
+// 404 / 409 / 503) returned by the route handler.
 //
-// Routes under test:
-//   GET  /api/admin/billing                  → billing:read
-//   GET  /api/admin/billing/webhooks         → billing:read
-//   GET  /api/admin/billing/failed-payments  → billing:read
-//   POST /api/admin/refund                   → billing.refund (super_admin ONLY)
+// Routes under test (all withSuperAdmin-gated):
+//   GET  /api/admin/billing                  → super_admin + MFA
+//   GET  /api/admin/billing/webhooks         → super_admin + MFA
+//   GET  /api/admin/billing/failed-payments  → super_admin + MFA
+//   POST /api/admin/refund                   → super_admin + MFA
 // ═══════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -156,8 +166,11 @@ vi.mock('@/lib/entitlement-service', () => ({
 }));
 
 // ── Test users (one per role) ─────────────────────────────────────────
-const TEST_USERS: Record<string, { id: string; email: string; role: string; plan: string }> = {
-  super_admin: { id: 'su-1', email: 'su@test.local', role: 'super_admin', plan: 'elite' },
+// super_admin has mfaEnabled:true so withSuperAdmin admits it to the handler.
+// All other roles lack mfaEnabled AND are not super_admin — withSuperAdmin
+// rejects them at the role check (line 178) before MFA is even considered.
+const TEST_USERS: Record<string, { id: string; email: string; role: string; plan: string; mfaEnabled?: boolean }> = {
+  super_admin: { id: 'su-1', email: 'su@test.local', role: 'super_admin', plan: 'elite', mfaEnabled: true },
   admin:       { id: 'ad-1', email: 'ad@test.local', role: 'admin',       plan: 'pro'   },
   support:     { id: 'sp-1', email: 'sp@test.local', role: 'support',     plan: 'free'  },
   analytics:   { id: 'an-1', email: 'an@test.local', role: 'analytics',   plan: 'free'  },
@@ -179,7 +192,7 @@ function buildPost(url: string, body: unknown): NextRequest {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GET /api/admin/billing  (action dispatch — billing:read required)
+// GET /api/admin/billing  (action dispatch — withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/admin/billing', () => {
   let GET: (request: NextRequest) => Promise<Response>;
@@ -192,17 +205,18 @@ describe('GET /api/admin/billing', () => {
     GET = mod.GET;
   });
 
-  // Role × expected status matrix (billing:read granted to super_admin, admin, analytics)
+  // Role × expected status matrix (withSuperAdmin: only super_admin+MFA allowed)
+  // admin/analytics/support/member/viewer all 403 because they are not super_admin.
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
+    ['admin',       403],
     ['support',     403],
-    ['analytics',   200],
+    ['analytics',   403],
     ['member',      403],
     ['viewer',      403],
   ];
 
-  // Test every action the route dispatches to — verify each gets the SAME RBAC gate.
+  // Test every action the route dispatches to — verify each gets the SAME withSuperAdmin gate.
   const ACTIONS = ['overview', 'webhooks', 'failed-payments', 'invoices', 'metrics'];
 
   for (const action of ACTIONS) {
@@ -218,7 +232,7 @@ describe('GET /api/admin/billing', () => {
     });
   }
 
-  // Revenue requires startDate/endDate — for allowed roles, missing params → 400 (still proves route ran)
+  // Revenue requires startDate/endDate — for the allowed super_admin, missing params → 400 (proves handler ran)
   describe('?action=revenue (missing dates)', () => {
     it('super_admin → 400 (handler reached, validation kicked in)', async () => {
       authModule.__mockGetAuthUser.mockResolvedValue(TEST_USERS.super_admin);
@@ -226,7 +240,7 @@ describe('GET /api/admin/billing', () => {
       const res = await GET(req);
       expect(res.status).toBe(400);
     });
-    it('viewer → 403 (RBAC gate fires before validation)', async () => {
+    it('viewer → 403 (withSuperAdmin rejects non-super_admin before validation)', async () => {
       authModule.__mockGetAuthUser.mockResolvedValue(TEST_USERS.viewer);
       const req = buildGet('http://localhost:3000/api/admin/billing?action=revenue');
       const res = await GET(req);
@@ -234,7 +248,7 @@ describe('GET /api/admin/billing', () => {
     });
   });
 
-  // Unknown action — allowed role gets 400 from default switch case
+  // Unknown action — allowed super_admin gets 400 from default switch case
   it('?action=nonexistent → 400 for super_admin (default branch)', async () => {
     authModule.__mockGetAuthUser.mockResolvedValue(TEST_USERS.super_admin);
     const req = buildGet('http://localhost:3000/api/admin/billing?action=nonexistent');
@@ -252,7 +266,7 @@ describe('GET /api/admin/billing', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// GET /api/admin/billing/webhooks  (billing:read required)
+// GET /api/admin/billing/webhooks  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/admin/billing/webhooks', () => {
   let GET: (request: NextRequest) => Promise<Response>;
@@ -265,11 +279,12 @@ describe('GET /api/admin/billing/webhooks', () => {
     GET = mod.GET;
   });
 
+  // withSuperAdmin: only super_admin+MFA → 200; all other roles → 403.
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
+    ['admin',       403],
     ['support',     403],
-    ['analytics',   200],
+    ['analytics',   403],
     ['member',      403],
     ['viewer',      403],
   ];
@@ -303,7 +318,7 @@ describe('GET /api/admin/billing/webhooks', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// GET /api/admin/billing/failed-payments  (billing:read required)
+// GET /api/admin/billing/failed-payments  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/admin/billing/failed-payments', () => {
   let GET: (request: NextRequest) => Promise<Response>;
@@ -316,11 +331,12 @@ describe('GET /api/admin/billing/failed-payments', () => {
     GET = mod.GET;
   });
 
+  // withSuperAdmin: only super_admin+MFA → 200; all other roles → 403.
   const CASES: Array<[string, number]> = [
     ['super_admin', 200],
-    ['admin',       200],
+    ['admin',       403],
     ['support',     403],
-    ['analytics',   200],
+    ['analytics',   403],
     ['member',      403],
     ['viewer',      403],
   ];
@@ -353,7 +369,7 @@ describe('GET /api/admin/billing/failed-payments', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// POST /api/admin/refund  (billing.refund — super_admin ONLY)
+// POST /api/admin/refund  (withSuperAdmin: super_admin + MFA)
 // ═══════════════════════════════════════════════════════════════════
 describe('POST /api/admin/refund', () => {
   let POST: (request: NextRequest) => Promise<Response>;
@@ -372,10 +388,10 @@ describe('POST /api/admin/refund', () => {
     POST = mod.POST;
   });
 
-  // Role × expected status matrix (billing.refund granted to super_admin ONLY)
+  // withSuperAdmin: only super_admin+MFA → 200; all other roles → 403.
   const CASES: Array<[string, number]> = [
     ['super_admin', 200], // allowed — handler runs, stubbed stripe returns success
-    ['admin',       403], // billing.refund NOT granted to admin
+    ['admin',       403], // not super_admin
     ['support',     403],
     ['analytics',   403],
     ['member',      403],
