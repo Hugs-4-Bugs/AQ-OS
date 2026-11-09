@@ -106,6 +106,10 @@ import {
   SUPER_ADMIN_WITHOUT_MFA,
   OWNER,
   ADMIN,
+  SUPPORT,
+  ANALYTICS,
+  MEMBER,
+  VIEWER,
 } from '../helpers/rbac-fixtures';
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -140,15 +144,18 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(200);
     });
 
-    it('super_admin WITHOUT MFA → 200 (GAP — withPermission does not enforce MFA)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED — withPermissionAndMfa enforces MFA for super_admin)', async () => {
       mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await rbacRolesRoute.GET(req);
-      // ⚠️ This is the documented gap — 200 instead of 403 MFA_REQUIRED.
-      expect(res.status).toBe(200);
+      // ✅ Fixed: withPermissionAndMfa enforces MFA for super_admin.
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe('MFA is mandatory for this operation. Enable MFA in Settings → Security.');
+      expect(body.code).toBe('MFA_REQUIRED');
     });
 
-    it('org owner → 403 Insufficient permissions', async () => {
+    it('org owner → 403 Insufficient permissions (owner lacks rbac.read)', async () => {
       mockGetAuthUser.mockResolvedValue(OWNER.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await rbacRolesRoute.GET(req);
@@ -159,6 +166,34 @@ describe('Admin security routes — authorization matrix', () => {
 
     it('org admin → 403 (admin lacks rbac.read)', async () => {
       mockGetAuthUser.mockResolvedValue(ADMIN.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await rbacRolesRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('support → 403 (support lacks rbac.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await rbacRolesRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('analytics → 403 (analytics lacks rbac.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await rbacRolesRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('member → 403 (member lacks rbac.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(MEMBER.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await rbacRolesRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('viewer → 403 (viewer lacks rbac.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(VIEWER.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await rbacRolesRoute.GET(req);
       expect(res.status).toBe(403);
@@ -183,15 +218,31 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(200);
     });
 
-    it('super_admin WITHOUT MFA → 200 (GAP)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED)', async () => {
       mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await auditRoute.GET(req);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.code).toBe('MFA_REQUIRED');
+    });
+
+    it('org admin → 200 (admin has audit.read; MFA not required for non-super_admin)', async () => {
+      mockGetAuthUser.mockResolvedValue(ADMIN.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await auditRoute.GET(req);
       expect(res.status).toBe(200);
     });
 
-    it('org admin → 200 (admin has audit.read)', async () => {
-      mockGetAuthUser.mockResolvedValue(ADMIN.user);
+    it('support → 200 (support has audit.read; MFA not required for non-super_admin)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await auditRoute.GET(req);
+      expect(res.status).toBe(200);
+    });
+
+    it('analytics → 200 (analytics has audit.read; MFA not required for non-super_admin)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await auditRoute.GET(req);
       expect(res.status).toBe(200);
@@ -242,14 +293,18 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(200);
     });
 
-    it('super_admin WITHOUT MFA → 200 (GAP — no MFA check)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED — no DB lookup reaches)', async () => {
       mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
       dbMocks.auditLog.findUnique.mockResolvedValue(null);
       const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
       const ctx = { params: Promise.resolve({ id: 'log-1' }) };
       const res = await auditIdRoute.GET(req, ctx);
-      // Gap: returns 404 (audit entry not found) instead of 403 MFA_REQUIRED.
-      expect(res.status).toBe(404);
+      // Fixed: returns 403 MFA_REQUIRED before any DB lookup.
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.code).toBe('MFA_REQUIRED');
+      // DB must NOT have been queried because the wrapper short-circuits.
+      expect(dbMocks.auditLog.findUnique).not.toHaveBeenCalled();
     });
 
     it('rejects short ids (< 4 chars) with 400', async () => {
@@ -260,6 +315,39 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(400);
     });
 
+    it('org admin → 200 (admin has audit.read; MFA not required)', async () => {
+      mockGetAuthUser.mockResolvedValue(ADMIN.user);
+      dbMocks.auditLog.findUnique.mockResolvedValue({
+        id: 'log-1', action: 'test', userId: 'u1', createdAt: new Date(), outcome: 'success',
+      });
+      const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
+      const ctx = { params: Promise.resolve({ id: 'log-1' }) };
+      const res = await auditIdRoute.GET(req, ctx);
+      expect(res.status).toBe(200);
+    });
+
+    it('support → 200 (support has audit.read; MFA not required)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      dbMocks.auditLog.findUnique.mockResolvedValue({
+        id: 'log-1', action: 'test', userId: 'u1', createdAt: new Date(), outcome: 'success',
+      });
+      const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
+      const ctx = { params: Promise.resolve({ id: 'log-1' }) };
+      const res = await auditIdRoute.GET(req, ctx);
+      expect(res.status).toBe(200);
+    });
+
+    it('analytics → 200 (analytics has audit.read; MFA not required)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
+      dbMocks.auditLog.findUnique.mockResolvedValue({
+        id: 'log-1', action: 'test', userId: 'u1', createdAt: new Date(), outcome: 'success',
+      });
+      const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
+      const ctx = { params: Promise.resolve({ id: 'log-1' }) };
+      const res = await auditIdRoute.GET(req, ctx);
+      expect(res.status).toBe(200);
+    });
+
     it('org owner → 403', async () => {
       mockGetAuthUser.mockResolvedValue(OWNER.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
@@ -267,31 +355,69 @@ describe('Admin security routes — authorization matrix', () => {
       const res = await auditIdRoute.GET(req, ctx);
       expect(res.status).toBe(403);
     });
+
+    it('unauthenticated → 401', async () => {
+      mockGetAuthUser.mockResolvedValue(null);
+      const req = makeGetRequest(`http://localhost:3000${routePath}/log-1`);
+      const ctx = { params: Promise.resolve({ id: 'log-1' }) };
+      const res = await auditIdRoute.GET(req, ctx);
+      expect(res.status).toBe(401);
+    });
   });
 
   // ─── /api/admin/security/config-changes (audit.read) ───────────
   describe('GET /api/admin/security/config-changes — requires audit.read', () => {
     const routePath = '/api/admin/security/config-changes';
 
-    it('super_admin WITHOUT MFA → 200 (GAP)', async () => {
-      mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
+    it('super_admin WITH MFA → 200', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITH_MFA.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await configChangesRoute.GET(req);
       expect(res.status).toBe(200);
     });
 
-    it('org admin → 200 (admin has audit.read)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await configChangesRoute.GET(req);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.code).toBe('MFA_REQUIRED');
+    });
+
+    it('org admin → 200 (admin has audit.read; MFA not required)', async () => {
       mockGetAuthUser.mockResolvedValue(ADMIN.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await configChangesRoute.GET(req);
       expect(res.status).toBe(200);
     });
 
-    it('org owner → 403', async () => {
+    it('support → 200 (support has audit.read; MFA not required)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await configChangesRoute.GET(req);
+      expect(res.status).toBe(200);
+    });
+
+    it('analytics → 200 (analytics has audit.read; MFA not required)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await configChangesRoute.GET(req);
+      expect(res.status).toBe(200);
+    });
+
+    it('org owner → 403 (owner lacks audit.read)', async () => {
       mockGetAuthUser.mockResolvedValue(OWNER.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await configChangesRoute.GET(req);
       expect(res.status).toBe(403);
+    });
+
+    it('unauthenticated → 401', async () => {
+      mockGetAuthUser.mockResolvedValue(null);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await configChangesRoute.GET(req);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -306,18 +432,39 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(200);
     });
 
-    it('super_admin WITHOUT MFA → 200 (GAP)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED)', async () => {
       mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await eventsRoute.GET(req);
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.code).toBe('MFA_REQUIRED');
     });
 
     it('org admin → 403 (admin lacks security.events.read)', async () => {
       // ⚠️ This is the comment-vs-RBAC discrepancy from the Phase C audit:
       //    the route comment says "(super_admin, admin)" but the RBAC
       //    matrix grants security.events.read ONLY to super_admin.
+      //    The MFA fix does NOT change this — admin still 403s on permission, not MFA.
       mockGetAuthUser.mockResolvedValue(ADMIN.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await eventsRoute.GET(req);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      // Permission check fails BEFORE MFA check, so no MFA_REQUIRED code.
+      expect(body.error).toBe('Insufficient permissions');
+      expect(body.code).toBeUndefined();
+    });
+
+    it('support → 403 (support lacks security.events.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await eventsRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('analytics → 403 (analytics lacks security.events.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await eventsRoute.GET(req);
       expect(res.status).toBe(403);
@@ -349,15 +496,31 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(200);
     });
 
-    it('super_admin WITHOUT MFA → 200 (GAP)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED)', async () => {
       mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await roleChangesRoute.GET(req);
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.code).toBe('MFA_REQUIRED');
     });
 
     it('org admin → 403 (admin lacks rbac.read)', async () => {
       mockGetAuthUser.mockResolvedValue(ADMIN.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await roleChangesRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('support → 403 (support lacks rbac.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await roleChangesRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('analytics → 403 (analytics lacks rbac.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await roleChangesRoute.GET(req);
       expect(res.status).toBe(403);
@@ -368,6 +531,13 @@ describe('Admin security routes — authorization matrix', () => {
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await roleChangesRoute.GET(req);
       expect(res.status).toBe(403);
+    });
+
+    it('unauthenticated → 401', async () => {
+      mockGetAuthUser.mockResolvedValue(null);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await roleChangesRoute.GET(req);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -382,15 +552,31 @@ describe('Admin security routes — authorization matrix', () => {
       expect(res.status).toBe(200);
     });
 
-    it('super_admin WITHOUT MFA → 200 (GAP)', async () => {
+    it('super_admin WITHOUT MFA → 403 MFA_REQUIRED (FIXED)', async () => {
       mockGetAuthUser.mockResolvedValue(SUPER_ADMIN_WITHOUT_MFA.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await suspiciousActivityRoute.GET(req);
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.code).toBe('MFA_REQUIRED');
     });
 
     it('org admin → 403 (admin lacks security.events.read)', async () => {
       mockGetAuthUser.mockResolvedValue(ADMIN.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await suspiciousActivityRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('support → 403 (support lacks security.events.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(SUPPORT.user);
+      const req = makeGetRequest(`http://localhost:3000${routePath}`);
+      const res = await suspiciousActivityRoute.GET(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('analytics → 403 (analytics lacks security.events.read)', async () => {
+      mockGetAuthUser.mockResolvedValue(ANALYTICS.user);
       const req = makeGetRequest(`http://localhost:3000${routePath}`);
       const res = await suspiciousActivityRoute.GET(req);
       expect(res.status).toBe(403);
