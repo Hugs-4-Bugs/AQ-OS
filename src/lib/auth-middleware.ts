@@ -111,10 +111,9 @@ export async function withPermissionAndMfa(
  * X-Forwarded-For values from untrusted sources.
  *
  * SECURITY NOTES:
- * - This is operational logging (console.warn), NOT a durable tamper-evident
- *   audit record. For durable audit, use recordAuditEvent from audit-chain.
- * - console.warn is used here to avoid circular dependencies with the
- *   audit-chain module (which imports from auth).
+ * - Writes a durable tamper-evident AuditLog entry via recordSecurityEvent
+ *   (dynamic import to avoid circular dependency with audit-chain).
+ * - Also emits a console.warn for immediate operational visibility.
  * - Log fields are sanitized to prevent newline/control-character injection.
  * - Logging failures NEVER authorize a denied operation (fail-safe).
  * - Never logs passwords, tokens, OTPs, or sensitive request bodies.
@@ -142,6 +141,27 @@ async function logAuthorizationDenial(
     const ip = sanitize(clientIP);
 
     console.warn(`[AUTHZ_DENIED] user=${userId} perm=${perm} method=${method} path=${path} ip=${ip}`);
+
+    // Write a durable tamper-evident AuditLog entry via dynamic import
+    // (avoids circular dependency: audit-chain imports from auth, but
+    // this dynamic import only runs at call-time, not at module-load time).
+    try {
+      const { recordSecurityEvent } = await import('@/lib/security/audit-chain');
+      await recordSecurityEvent({
+        actorId: user.id,
+        securityEventType: 'authz_permission_denied',
+        severity: 'MEDIUM',
+        action: `authz_denied:${perm}`,
+        resource: path,
+        details: { permission: perm, method, path },
+        ipAddress: clientIP,
+        userAgent: request.headers.get('user-agent') || undefined,
+        outcome: 'denied',
+      });
+    } catch {
+      // Audit write failure is non-fatal — the console.warn above
+      // already recorded the denial. Never block the 403 response.
+    }
   } catch {
     // Logging failures must NEVER authorize a denied operation.
     // The denial has already been returned; this catch only prevents
