@@ -15,6 +15,19 @@
 //   bundled DB file to /tmp/custom.db and redirect DATABASE_URL there.
 //   This preserves existing users/sessions across requests within the
 //   same FC instance lifecycle.
+//
+// DATABASE SAFETY (INC-DB-ISOLATION-001 remediation):
+//   Previously, a missing DATABASE_URL silently fell back to
+//   'file:/home/z/my-project/db/custom.db' — the user's PRODUCTION
+//   database. This caused a P1 data-safety incident where tests ran
+//   destructive queries against production data.
+//
+//   Now, resolveDatabaseUrl() enforces:
+//   - Production: DATABASE_URL MUST be set. If missing → throw.
+//   - Development: falls back to 'file:./dev.db' (safe local path).
+//   - Test: falls back to 'file:./test.db' (safe test path,
+//     overridden by vitest.setup.ts per-worker isolation).
+//   - NEVER uses '/home/z/my-project/db/custom.db'.
 // ═══════════════════════════════════════════════════════════════════
 
 import { PrismaClient } from '@prisma/client'
@@ -22,6 +35,57 @@ import { metricsCollector } from '@/lib/observability/metrics-collector';
 import { logger } from '@/lib/observability/logger';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// ===== DATABASE URL RESOLUTION (SAFE) =====
+
+/**
+ * Resolve the database URL from the environment, with environment-aware
+ * fallback behavior that NEVER uses a production database path.
+ *
+ * Production: DATABASE_URL must be explicitly set. If missing or empty,
+ *   throw a clear actionable error. Never silently fall back.
+ * Development: fall back to 'file:./dev.db' — a safe local SQLite file
+ *   in the project root. This is NOT a production database.
+ * Test: fall back to 'file:./test.db' — a safe test SQLite file. This
+ *   is typically overridden by vitest.setup.ts's per-worker isolation.
+ *
+ * This function is exported so tests can verify the safety behavior.
+ */
+export function resolveDatabaseUrl(): string {
+  const envUrl = process.env.DATABASE_URL;
+
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.trim();
+  }
+
+  const nodeEnv = process.env.NODE_ENV;
+
+  if (nodeEnv === 'production') {
+    throw new Error(
+      'FATAL: DATABASE_URL is not set in production. ' +
+      'Set DATABASE_URL to a valid database connection string ' +
+      '(e.g. file:/app/data/app.db or postgresql://...). ' +
+      'The application will not start without an explicit database URL.'
+    );
+  }
+
+  // Development and test environments: use a safe local fallback.
+  // These paths are in the project root and are gitignored.
+  const fallback = nodeEnv === 'test'
+    ? 'file:./test.db'
+    : 'file:./dev.db';
+
+  // Log once per process (avoid spam on hot reload)
+  if (!process.env.__DB_FALLBACK_WARNED) {
+    process.env.__DB_FALLBACK_WARNED = '1';
+    console.warn(
+      `[DB] DATABASE_URL not set — using safe fallback: ${fallback}. ` +
+      `Set DATABASE_URL explicitly for production or custom development databases.`
+    );
+  }
+
+  return fallback;
+}
 
 // ===== FC READ-ONLY FILESYSTEM WORKAROUND =====
 
@@ -36,7 +100,7 @@ import * as path from 'path';
  * This runs once at module load time, BEFORE PrismaClient is created.
  */
 function ensureWritableDatabasePath(): void {
-  const rawUrl = process.env.DATABASE_URL || 'file:/home/z/my-project/db/custom.db';
+  const rawUrl = resolveDatabaseUrl();
 
   // Only handle SQLite file: URLs
   if (!rawUrl.startsWith('file:')) {

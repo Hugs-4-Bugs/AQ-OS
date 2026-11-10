@@ -44,7 +44,7 @@ import { join } from 'node:path';
 import { db } from '@/lib/db';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
+  process.env.DATABASE_URL = 'file:./.test-db-isolated/redeploy-build-persistence.db';
 });
 
 const REPO = '/home/z/my-project';
