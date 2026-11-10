@@ -27,55 +27,31 @@ import {
   Pencil,
   Mail,
   Scale,
+  History,
 } from 'lucide-react';
-
-interface ConsentRecord {
-  purpose: string;
-  status: 'granted' | 'declined' | 'withdrawn';
-  timestamp: string;
-  noticeVersion: string;
-}
+import {
+  CONSENT_PURPOSES,
+  CONSENT_NOTICE_VERSION,
+  CONSENT_POLICY_EFFECTIVE_DATE,
+  type ConsentRecord,
+  type ConsentHistoryEntry,
+  type ConsentPurpose,
+} from '@/lib/compliance/consent-contract';
 
 interface GdprRequest {
   id: string;
   requestType: 'access' | 'deletion' | 'portability' | 'rectification';
-  status: 'pending' | 'processing' | 'completed' | 'rejected';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   createdAt: string;
-  completedAt?: string;
+  completedAt: string | null;
+  notes: string | null;
 }
-
-const PURPOSE_LABELS: Record<string, { title: string; description: string; essential: boolean }> = {
-  essential_service: {
-    title: 'Essential Service',
-    description: 'Account creation, authentication, billing. Required to provide the core AcquisitionOS service.',
-    essential: true,
-  },
-  ai_processing: {
-    title: 'AI Processing',
-    description: 'Use AI providers to analyze leads, generate outreach, and provide chat assistance. Your prompts and lead data are sent to the configured AI provider.',
-    essential: false,
-  },
-  marketing_communications: {
-    title: 'Marketing Communications',
-    description: 'Product updates, feature announcements, promotional offers. You can unsubscribe at any time.',
-    essential: false,
-  },
-  analytics_telemetry: {
-    title: 'Analytics & Telemetry',
-    description: 'Aggregated, anonymized usage analytics to improve the product. No personal identification.',
-    essential: false,
-  },
-  third_party_integrations: {
-    title: 'Third-Party Integrations',
-    description: 'Connect Gmail, WhatsApp, Telegram, Google Calendar. Each integration shares only the data necessary for that integration.',
-    essential: false,
-  },
-};
 
 export default function PrivacyDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [consents, setConsents] = useState<ConsentRecord[]>([]);
+  const [history, setHistory] = useState<ConsentHistoryEntry[]>([]);
   const [requests, setRequests] = useState<GdprRequest[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,11 +66,12 @@ export default function PrivacyDashboardPage() {
       ]);
       if (consentRes.ok) {
         const data = await consentRes.json();
-        setConsents(data.consents || data.records || []);
+        setConsents(data.consents || []);
+        setHistory(data.history || []);
       }
       if (requestsRes.ok) {
         const data = await requestsRes.json();
-        setRequests(data.requests || data.records || []);
+        setRequests(data.requests || []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load privacy data');
@@ -107,7 +84,10 @@ export default function PrivacyDashboardPage() {
     void fetchData();
   }, [fetchData]);
 
-  const handleConsentAction = async (purpose: string, action: 'grant' | 'withdraw') => {
+  const handleConsentAction = async (
+    purpose: ConsentPurpose,
+    action: 'grant' | 'withdraw'
+  ) => {
     setActionLoading(`${purpose}-${action}`);
     setError(null);
     setSuccess(null);
@@ -115,14 +95,25 @@ export default function PrivacyDashboardPage() {
       const res = await fetch('/api/gdpr/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ purpose, action }),
+        body: JSON.stringify({ purpose, action, source: 'dashboard' }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Failed to ${action} consent`);
       }
-      setSuccess(`Consent ${action === 'grant' ? 'granted' : 'withdrawn'} for ${purpose}`);
-      await fetchData();
+      const data = await res.json();
+      setSuccess(
+        `Consent ${action === 'grant' ? 'granted' : 'withdrawn'} for ${purpose}`
+      );
+      // Update the single consent record + history from response
+      if (data.consent) {
+        setConsents((prev) =>
+          prev.map((c) => (c.purpose === purpose ? data.consent : c))
+        );
+      }
+      if (data.history) {
+        setHistory(data.history);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
     } finally {
@@ -130,7 +121,9 @@ export default function PrivacyDashboardPage() {
     }
   };
 
-  const handleDataRequest = async (requestType: GdprRequest['requestType']) => {
+  const handleDataRequest = async (
+    requestType: GdprRequest['requestType']
+  ) => {
     setActionLoading(`request-${requestType}`);
     setError(null);
     setSuccess(null);
@@ -144,7 +137,9 @@ export default function PrivacyDashboardPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to submit request');
       }
-      setSuccess(`${requestType} request submitted — we will acknowledge within 48 hours`);
+      setSuccess(
+        `${requestType} request submitted — we will acknowledge within 48 hours`
+      );
       await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
@@ -153,10 +148,8 @@ export default function PrivacyDashboardPage() {
     }
   };
 
-  const getConsentStatus = (purpose: string): ConsentRecord['status'] | 'not_set' => {
-    const record = consents.find((c) => c.purpose === purpose);
-    return record?.status || 'not_set';
-  };
+  const getConsent = (purpose: ConsentPurpose): ConsentRecord | undefined =>
+    consents.find((c) => c.purpose === purpose);
 
   if (loading) {
     return (
@@ -173,17 +166,26 @@ export default function PrivacyDashboardPage() {
     <div className="container-app px-4 sm:px-6 py-8 sm:py-12">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')} className="mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/dashboard')}
+            className="mb-4"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
           <div className="flex items-center gap-3 mb-2">
             <Shield className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl sm:text-3xl font-bold">Privacy & Data Protection</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">
+              Privacy & Data Protection
+            </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Manage your consent preferences, exercise your data subject rights under DPDP Act 2023
-            and GDPR, and review the personal data we process.
+            Manage your consent preferences, exercise your data subject rights
+            under DPDP Act 2023 and GDPR, and review the personal data we
+            process. Notice version: {CONSENT_NOTICE_VERSION} (effective{' '}
+            {CONSENT_POLICY_EFFECTIVE_DATE}).
           </p>
         </div>
 
@@ -200,6 +202,7 @@ export default function PrivacyDashboardPage() {
           </div>
         )}
 
+        {/* Consent preferences */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -207,25 +210,32 @@ export default function PrivacyDashboardPage() {
               Consent Preferences
             </CardTitle>
             <CardDescription>
-              Choose which processing activities you consent to. Essential service consent is
-              required to use AcquisitionOS; other consents are optional and can be withdrawn at
-              any time without affecting core functionality.
+              Choose which processing activities you consent to. Essential
+              service consent is required to use AcquisitionOS; other consents
+              are optional and can be withdrawn at any time without affecting
+              core functionality.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {Object.entries(PURPOSE_LABELS).map(([purpose, info]) => {
-              const status = getConsentStatus(purpose);
+            {CONSENT_PURPOSES.map((def) => {
+              const consent = getConsent(def.purpose);
+              const status = consent?.status ?? 'not_set';
               return (
-                <div key={purpose} className="border rounded-md p-4">
+                <div key={def.purpose} className="border rounded-md p-4">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-sm">{info.title}</h3>
-                        {info.essential && (
-                          <Badge variant="secondary" className="text-xs">Required</Badge>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold text-sm">{def.title}</h3>
+                        {def.essential && (
+                          <Badge variant="secondary" className="text-xs">
+                            Required
+                          </Badge>
                         )}
                         {status === 'granted' && (
-                          <Badge variant="default" className="text-xs bg-emerald-600">
+                          <Badge
+                            variant="default"
+                            className="text-xs bg-emerald-600"
+                          >
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             Granted
                           </Badge>
@@ -237,29 +247,47 @@ export default function PrivacyDashboardPage() {
                           </Badge>
                         )}
                         {status === 'withdrawn' && (
-                          <Badge variant="outline" className="text-xs text-amber-600">
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-amber-600"
+                          >
                             Withdrawn
                           </Badge>
                         )}
                         {status === 'not_set' && (
-                          <Badge variant="outline" className="text-xs text-muted-foreground">
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-muted-foreground"
+                          >
                             Not set
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{info.description}</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {def.description}
+                      </p>
+                      {!def.essential && status === 'granted' && (
+                        <p className="text-xs text-muted-foreground italic">
+                          Withdrawal consequence: {def.withdrawalConsequence}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-3">
-                    {!info.essential && (
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {!def.essential && (
                       <>
                         <Button
                           size="sm"
                           variant={status === 'granted' ? 'default' : 'outline'}
-                          onClick={() => handleConsentAction(purpose, 'grant')}
-                          disabled={actionLoading === `${purpose}-grant` || status === 'granted'}
+                          onClick={() =>
+                            handleConsentAction(def.purpose, 'grant')
+                          }
+                          disabled={
+                            actionLoading === `${def.purpose}-grant` ||
+                            status === 'granted'
+                          }
                         >
-                          {actionLoading === `${purpose}-grant` && (
+                          {actionLoading === `${def.purpose}-grant` && (
                             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                           )}
                           Grant
@@ -267,23 +295,27 @@ export default function PrivacyDashboardPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleConsentAction(purpose, 'withdraw')}
+                          onClick={() =>
+                            handleConsentAction(def.purpose, 'withdraw')
+                          }
                           disabled={
-                            actionLoading === `${purpose}-withdraw` ||
+                            actionLoading === `${def.purpose}-withdraw` ||
                             status === 'withdrawn' ||
+                            status === 'declined' ||
                             status === 'not_set'
                           }
                         >
-                          {actionLoading === `${purpose}-withdraw` && (
+                          {actionLoading === `${def.purpose}-withdraw` && (
                             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                           )}
                           Withdraw
                         </Button>
                       </>
                     )}
-                    {info.essential && (
+                    {def.essential && (
                       <p className="text-xs text-muted-foreground italic">
-                        This consent is required and cannot be withdrawn while your account is active.
+                        This consent is required and cannot be withdrawn while
+                        your account is active.
                       </p>
                     )}
                   </div>
@@ -293,6 +325,49 @@ export default function PrivacyDashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Consent history (auditable) */}
+        {history.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Consent History
+              </CardTitle>
+              <CardDescription>
+                Append-only audit trail of every consent change. This records
+                the purpose, action, previous and new status, notice version,
+                timestamp, and source of each change.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {history
+                  .slice()
+                  .reverse()
+                  .slice(0, 20)
+                  .map((entry, idx) => (
+                    <div
+                      key={idx}
+                      className="text-xs border rounded p-2 flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <span className="font-medium">{entry.purpose}</span>
+                        <span className="text-muted-foreground ml-2">
+                          {entry.action} ({entry.previousStatus} →{' '}
+                          {entry.newStatus})
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {new Date(entry.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Data subject rights */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -300,40 +375,66 @@ export default function PrivacyDashboardPage() {
               Your Data Subject Rights
             </CardTitle>
             <CardDescription>
-              Under the DPDP Act 2023 (India) and GDPR (EU), you have the right to access,
-              correct, export, or delete your personal data. Submit a request below — we will
-              acknowledge within 48 hours and respond substantively within the timelines
-              prescribed by applicable law.
+              Under the DPDP Act 2023 (India) and GDPR (EU), you have the right
+              to access, correct, export, or delete your personal data. Submit
+              a request below — we will acknowledge within 48 hours and respond
+              substantively within the timelines prescribed by applicable law.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button variant="outline" onClick={() => handleDataRequest('access')} disabled={actionLoading === 'request-access'} className="justify-start h-auto py-3">
+              <Button
+                variant="outline"
+                onClick={() => handleDataRequest('access')}
+                disabled={actionLoading === 'request-access'}
+                className="justify-start h-auto py-3"
+              >
                 <Eye className="w-4 h-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
                   <div className="font-medium text-sm">Access My Data</div>
-                  <div className="text-xs text-muted-foreground">Receive a copy of your personal data</div>
+                  <div className="text-xs text-muted-foreground">
+                    Receive a copy of your personal data
+                  </div>
                 </div>
               </Button>
-              <Button variant="outline" onClick={() => handleDataRequest('portability')} disabled={actionLoading === 'request-portability'} className="justify-start h-auto py-3">
+              <Button
+                variant="outline"
+                onClick={() => handleDataRequest('portability')}
+                disabled={actionLoading === 'request-portability'}
+                className="justify-start h-auto py-3"
+              >
                 <Download className="w-4 h-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
                   <div className="font-medium text-sm">Export My Data</div>
-                  <div className="text-xs text-muted-foreground">Machine-readable export</div>
+                  <div className="text-xs text-muted-foreground">
+                    Machine-readable export
+                  </div>
                 </div>
               </Button>
-              <Button variant="outline" onClick={() => router.push('/settings')} className="justify-start h-auto py-3">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/settings')}
+                className="justify-start h-auto py-3"
+              >
                 <Pencil className="w-4 h-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
                   <div className="font-medium text-sm">Correct My Data</div>
-                  <div className="text-xs text-muted-foreground">Edit profile in Settings</div>
+                  <div className="text-xs text-muted-foreground">
+                    Edit profile in Settings
+                  </div>
                 </div>
               </Button>
-              <Button variant="outline" onClick={() => router.push('/settings')} className="justify-start h-auto py-3 text-destructive hover:text-destructive">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/settings')}
+                className="justify-start h-auto py-3 text-destructive hover:text-destructive"
+              >
                 <Trash2 className="w-4 h-4 mr-3 flex-shrink-0" />
                 <div className="text-left">
                   <div className="font-medium text-sm">Delete My Account</div>
-                  <div className="text-xs text-muted-foreground">Permanently erase your data</div>
+                  <div className="text-xs text-muted-foreground">
+                    Permanently erase your data
+                  </div>
                 </div>
               </Button>
             </div>
@@ -341,13 +442,17 @@ export default function PrivacyDashboardPage() {
             <div className="text-xs text-muted-foreground">
               <Mail className="w-3 h-3 inline mr-1" />
               For grievances or nomination requests, email{' '}
-              <a href="mailto:dpo@acquisitionos.com" className="text-primary hover:underline">
+              <a
+                href="mailto:dpo@acquisitionos.com"
+                className="text-primary hover:underline"
+              >
                 dpo@acquisitionos.com
               </a>
             </div>
           </CardContent>
         </Card>
 
+        {/* Existing requests */}
         {requests.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
@@ -362,19 +467,30 @@ export default function PrivacyDashboardPage() {
             <CardContent>
               <div className="space-y-3">
                 {requests.map((req) => (
-                  <div key={req.id} className="border rounded-md p-3 flex items-center justify-between">
+                  <div
+                    key={req.id}
+                    className="border rounded-md p-3 flex items-center justify-between"
+                  >
                     <div>
-                      <div className="font-medium text-sm capitalize">{req.requestType} request</div>
+                      <div className="font-medium text-sm capitalize">
+                        {req.requestType} request
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        Submitted {new Date(req.createdAt).toLocaleDateString()}
+                        Submitted{' '}
+                        {new Date(req.createdAt).toLocaleDateString()}
+                        {req.completedAt &&
+                          ` · Completed ${new Date(req.completedAt).toLocaleDateString()}`}
                       </div>
                     </div>
                     <Badge
                       variant={
-                        req.status === 'completed' ? 'default' :
-                        req.status === 'rejected' ? 'destructive' :
-                        req.status === 'processing' ? 'secondary' :
-                        'outline'
+                        req.status === 'completed'
+                          ? 'default'
+                          : req.status === 'failed'
+                            ? 'destructive'
+                            : req.status === 'processing'
+                              ? 'secondary'
+                              : 'outline'
                       }
                     >
                       {req.status}
@@ -386,6 +502,7 @@ export default function PrivacyDashboardPage() {
           </Card>
         )}
 
+        {/* Privacy documentation */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -394,16 +511,37 @@ export default function PrivacyDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <a href="/legal/privacy" className="block text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-              → Privacy Policy (full text, including AI sub-processor disclosure)
+            <a
+              href="/legal/privacy"
+              className="block text-sm text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              → Privacy Policy (full text, including AI sub-processor
+              disclosure)
             </a>
-            <a href="/legal/data-retention" className="block text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+            <a
+              href="/legal/data-retention"
+              className="block text-sm text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               → Data Retention Policy
             </a>
-            <a href="/legal/ai-disclaimer" className="block text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+            <a
+              href="/legal/ai-disclaimer"
+              className="block text-sm text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               → AI Processing Disclaimer
             </a>
-            <a href="/legal/gdpr" className="block text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+            <a
+              href="/legal/gdpr"
+              className="block text-sm text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               → GDPR Data Processing Agreement
             </a>
           </CardContent>

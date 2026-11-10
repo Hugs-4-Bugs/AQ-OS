@@ -1,69 +1,86 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — GDPR Consent API
-// Phase 14.6: Compliance
-// GET/POST: Consent tracking (6 consent categories)
+// AcquisitionOS — GDPR Consent API (rewritten P0 fix)
+//
+// Uses the shared consent contract from @/lib/compliance/consent-contract
+// so the API and the frontend dashboard CANNOT drift.
+//
+// Contract:
+//   GET  /api/gdpr/consent
+//     → ConsentResponse { consents, history, lastUpdated, noticeVersion, policyEffectiveDate }
+//
+//   GET  /api/gdpr/consent?type=requests
+//     → ConsentRequestsResponse { requests: GdprRequest[] }
+//
+//   POST /api/gdpr/consent
+//     body: ConsentUpdateRequest { purpose: ConsentPurpose, action: 'grant'|'withdraw', source? }
+//     → ConsentUpdateResponse { ok, consent, history, updatedAt }
+//
+// Privacy:
+//   - Consent state + history stored in UserSettings.notificationPreferences
+//     under __consentState + __consentHistory keys (namespaced, not
+//     overwriting legacy notification prefs).
+//   - History is append-only — never overwritten.
+//   - Every change audit-logged via AuditLog (tamper-evident chain).
+//   - Essential service consent cannot be withdrawn.
+//   - Optional purposes default to 'declined' (NOT silently granted).
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
+import {
+  CONSENT_NOTICE_VERSION,
+  CONSENT_POLICY_EFFECTIVE_DATE,
+  CONSENT_PURPOSES,
+  getDefaultConsentState,
+  isValidPurpose,
+  isEssentialPurpose,
+  deserializeConsentData,
+  serializeConsentData,
+  applyConsentChange,
+  stateToRecords,
+  type ConsentPurpose,
+  type ConsentState,
+  type ConsentHistoryEntry,
+} from '@/lib/compliance/consent-contract';
 
-// 6 consent categories as specified
-const CONSENT_CATEGORIES = [
-  {
-    key: 'data_processing',
-    label: 'Data Processing',
-    description: 'Required processing of your personal data to provide the AcquisitionOS service.',
-    required: true,
-  },
-  {
-    key: 'marketing_emails',
-    label: 'Marketing Emails',
-    description: 'Receive product updates, feature announcements, and promotional offers.',
-    required: false,
-  },
-  {
-    key: 'analytics_tracking',
-    label: 'Analytics Tracking',
-    description: 'Allow us to collect usage analytics to improve the product experience.',
-    required: false,
-  },
-  {
-    key: 'third_party_integrations',
-    label: 'Third-Party Integrations',
-    description: 'Share data with connected third-party services (Gmail, Slack, etc.).',
-    required: false,
-  },
-  {
-    key: 'ai_data_usage',
-    label: 'AI Data Usage',
-    description: 'Allow your data to be used for AI model improvements and personalization.',
-    required: false,
-  },
-  {
-    key: 'cookie_analytics',
-    label: 'Cookie Analytics',
-    description: 'Use non-essential cookies for analytics and performance monitoring.',
-    required: false,
-  },
-] as const;
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-type ConsentCategory = typeof CONSENT_CATEGORIES[number]['key'];
-
-interface ConsentState {
-  [key: string]: {
-    granted: boolean;
-    grantedAt: string | null;
-    revokedAt: string | null;
-    version: string;
-  };
-}
-
-// ── GET: Get current consent state ─────────────────────────────────
+// ── GET: Get current consent state OR data subject rights requests ─
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
-      // Get user settings which stores consent data
+      const requestType = request.nextUrl.searchParams.get('type');
+
+      // Branch: return GDPR data subject rights request history
+      if (requestType === 'requests') {
+        const gdprRequests = await db.gdprRequest.findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            requestType: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            notes: true,
+          },
+        });
+        return NextResponse.json({
+          requests: gdprRequests.map((r) => ({
+            id: r.id,
+            requestType: r.requestType as 'access' | 'deletion' | 'portability' | 'rectification',
+            status: r.status as 'pending' | 'processing' | 'completed' | 'failed',
+            createdAt: r.createdAt.toISOString(),
+            completedAt: r.completedAt?.toISOString() ?? null,
+            notes: r.notes,
+          })),
+        });
+      }
+
+      // Default branch: return consent state + history
       let settings = await db.userSettings.findUnique({
         where: { userId: user.id },
       });
@@ -73,138 +90,166 @@ export async function GET(request: NextRequest) {
         settings = await db.userSettings.create({
           data: {
             userId: user.id,
-            notificationPreferences: JSON.stringify(getDefaultConsentState()),
+            notificationPreferences: serializeConsentData(
+              getDefaultConsentState(),
+              []
+            ),
           },
         });
       }
 
-      // Parse consent state from notificationPreferences field (repurposed for consent)
-      let consentState: ConsentState;
-      try {
-        consentState = JSON.parse(settings.notificationPreferences || '{}');
-      } catch {
-        consentState = getDefaultConsentState();
-      }
-
-      // Ensure all categories exist
-      const fullConsentState = { ...getDefaultConsentState(), ...consentState };
+      const { state, history } = deserializeConsentData(
+        settings.notificationPreferences
+      );
 
       return NextResponse.json({
-        categories: CONSENT_CATEGORIES.map((cat) => ({
-          ...cat,
-          ...fullConsentState[cat.key],
-        })),
-        lastUpdated: settings.updatedAt,
+        consents: stateToRecords(state),
+        history,
+        lastUpdated: settings.updatedAt.toISOString(),
+        noticeVersion: CONSENT_NOTICE_VERSION,
+        policyEffectiveDate: CONSENT_POLICY_EFFECTIVE_DATE,
       });
     } catch (error) {
       console.error('Get consent error:', error);
-      return NextResponse.json({ error: 'Failed to get consent state' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to get consent state' },
+        { status: 500 }
+      );
     }
   });
 }
 
-// ── POST: Update consent preferences ───────────────────────────────
+// ── POST: Update consent preference (grant or withdraw) ────────────
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
-      const body = await request.json();
-      const updates: Record<string, boolean> = body.consents || {};
+      const body = await request.json().catch(() => ({}));
+      const purpose = typeof body?.purpose === 'string' ? body.purpose : '';
+      const action = typeof body?.action === 'string' ? body.action : '';
+      const source = typeof body?.source === 'string' && (body.source === 'dashboard' || body.source === 'api')
+        ? body.source
+        : 'api';
 
-      // Validate: cannot revoke required consent
-      for (const cat of CONSENT_CATEGORIES) {
-        if (cat.required && updates[cat.key] === false) {
-          return NextResponse.json(
-            { error: `Cannot revoke required consent: ${cat.label}` },
-            { status: 400 }
-          );
-        }
+      // Validate purpose
+      if (!purpose || !isValidPurpose(purpose)) {
+        return NextResponse.json(
+          {
+            error: `Invalid purpose. Valid purposes: ${CONSENT_PURPOSES.map((p) => p.purpose).join(', ')}`,
+          },
+          { status: 400 }
+        );
       }
 
-      // Get current state
+      // Validate action
+      if (action !== 'grant' && action !== 'withdraw') {
+        return NextResponse.json(
+          { error: "Invalid action. Must be 'grant' or 'withdraw'." },
+          { status: 400 }
+        );
+      }
+
+      // Cannot withdraw essential service consent
+      if (action === 'withdraw' && isEssentialPurpose(purpose)) {
+        return NextResponse.json(
+          {
+            error: `Cannot withdraw consent for essential purpose "${purpose}". ` +
+              'This consent is required to provide the core AcquisitionOS service. ' +
+              'To stop essential processing, delete your account via Settings → Delete Account.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const ipAddress =
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+      const userAgent = request.headers.get('user-agent') || null;
+
+      // Load current state + history
       let settings = await db.userSettings.findUnique({
         where: { userId: user.id },
       });
 
       let currentState: ConsentState;
-      try {
-        currentState = JSON.parse(settings?.notificationPreferences || '{}');
-      } catch {
+      let currentHistory: ConsentHistoryEntry[];
+
+      if (!settings) {
         currentState = getDefaultConsentState();
-      }
-
-      const fullCurrentState = { ...getDefaultConsentState(), ...currentState };
-
-      // Apply updates
-      const now = new Date().toISOString();
-      const version = '1.0';
-
-      for (const [key, granted] of Object.entries(updates)) {
-        if (fullCurrentState[key]) {
-          const wasGranted = fullCurrentState[key].granted;
-          fullCurrentState[key] = {
-            ...fullCurrentState[key],
-            granted: granted as boolean,
-            grantedAt: granted ? now : fullCurrentState[key].grantedAt,
-            revokedAt: !granted ? now : null,
-            version,
-          };
-        }
-      }
-
-      // Save updated consent state
-      if (settings) {
-        await db.userSettings.update({
-          where: { userId: user.id },
+        currentHistory = [];
+        settings = await db.userSettings.create({
           data: {
-            notificationPreferences: JSON.stringify(fullCurrentState),
+            userId: user.id,
+            notificationPreferences: serializeConsentData(
+              currentState,
+              currentHistory
+            ),
           },
         });
       } else {
-        await db.userSettings.create({
-          data: {
-            userId: user.id,
-            notificationPreferences: JSON.stringify(fullCurrentState),
-          },
-        });
+        const parsed = deserializeConsentData(settings.notificationPreferences);
+        currentState = parsed.state;
+        currentHistory = parsed.history;
       }
 
-      // Audit log
+      // Apply the change (pure function)
+      const { newState, historyEntry } = applyConsentChange(
+        currentState,
+        purpose as ConsentPurpose,
+        action as 'grant' | 'withdraw',
+        source as 'dashboard' | 'api',
+        { ipAddress: ipAddress ?? undefined, userAgent: userAgent ?? undefined }
+      );
+
+      // Append to history (never overwrite)
+      const newHistory = [...currentHistory, historyEntry];
+
+      // Persist
+      await db.userSettings.update({
+        where: { userId: user.id },
+        data: {
+          notificationPreferences: serializeConsentData(newState, newHistory),
+        },
+      });
+
+      // Audit log (tamper-evident chain)
       await db.auditLog.create({
         data: {
           userId: user.id,
           action: 'gdpr_consent_updated',
-          details: JSON.stringify({ updates, timestamp: now }),
-          resource: 'gdpr',
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
+          details: JSON.stringify({
+            purpose,
+            action,
+            previousStatus: historyEntry.previousStatus,
+            newStatus: historyEntry.newStatus,
+            noticeVersion: CONSENT_NOTICE_VERSION,
+            timestamp: historyEntry.timestamp,
+          }),
+          resource: 'consent',
+          resourceId: purpose,
+          ipAddress,
+          userAgent,
+          severity: 'low',
         },
+      }).catch(() => {
+        // Audit failure must never block the consent update
       });
 
+      // Build response
+      const consentRecord = stateToRecords(newState).find(
+        (c) => c.purpose === purpose
+      )!;
+
       return NextResponse.json({
-        message: 'Consent preferences updated',
-        categories: CONSENT_CATEGORIES.map((cat) => ({
-          ...cat,
-          ...fullCurrentState[cat.key],
-        })),
-        updatedAt: now,
+        ok: true as const,
+        consent: consentRecord,
+        history: newHistory,
+        updatedAt: historyEntry.timestamp,
       });
     } catch (error) {
       console.error('Update consent error:', error);
-      return NextResponse.json({ error: 'Failed to update consent' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to update consent' },
+        { status: 500 }
+      );
     }
   });
-}
-
-function getDefaultConsentState(): ConsentState {
-  const now = new Date().toISOString();
-  const state: ConsentState = {};
-  for (const cat of CONSENT_CATEGORIES) {
-    state[cat.key] = {
-      granted: cat.required, // Required categories are granted by default
-      grantedAt: cat.required ? now : null,
-      revokedAt: null,
-      version: '1.0',
-    };
-  }
-  return state;
 }
