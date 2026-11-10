@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
+import { randomBytes } from 'crypto';
 
 const CONFIRMATION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -41,8 +42,9 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Generate confirmation code
-        const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        // Generate confirmation code using cryptographically secure random
+        // (was Math.random() — insecure for security-sensitive operations)
+        const code = randomBytes(8).toString('hex').toUpperCase();
 
         // Create GDPR deletion request
         const gdprRequest = await db.gdprRequest.create({
