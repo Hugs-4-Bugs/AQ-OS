@@ -68,15 +68,22 @@ services:
     image: grafana/grafana:10.4.1
     container_name: acos-grafana
     restart: unless-stopped
-    ports:
-      - "3001:3000"
+    # SECURITY: Grafana is NOT exposed on a host port by default.
+    # Access via reverse proxy (nginx) with auth, or via SSH tunnel:
+    #   ssh -L 3001:localhost:3000 user@host
+    # To enable direct access for local dev, uncomment the ports block
+    # and set GRAFANA_ADMIN_PASSWORD env var (no insecure default).
+    # ports:
+    #   - "3001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-acos-grafana-admin}
+      # SECURITY: no insecure default password. If GRAFANA_ADMIN_PASSWORD
+      # is not set, Grafana will fail to start with a clear error.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set — no insecure default}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: http://localhost:3001
-      GF_INSTALL_PLUGINS: ""
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+      GF_INSTALL_PLUGINS: ""
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/acos/app-overview.json
     volumes:
       - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
@@ -103,11 +110,15 @@ services:
     image: otel/opentelemetry-collector-contrib:0.96.0
     container_name: acos-otel-collector
     restart: unless-stopped
-    ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8889:8889"   # Prometheus exporter
-      - "8888:8888"   # Collector own metrics
+    # SECURITY: ports NOT exposed to host by default. Access via
+    # internal Docker network only. The app pushes OTLP to the collector
+    # via the `monitoring` network.
+    # For local dev, uncomment to expose:
+    # ports:
+    #   - "4317:4317"
+    #   - "4318:4318"
+    #   - "8889:8889"
+    #   - "8888:8888"
     volumes:
       - ./opentelemetry/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
     networks:
@@ -125,8 +136,10 @@ services:
     image: prom/node-exporter:v1.7.0
     container_name: acos-node-exporter
     restart: unless-stopped
-    ports:
-      - "9100:9100"
+    # SECURITY: port NOT exposed to host. Prometheus scrapes via
+    # internal Docker network.
+    # ports:
+    #   - "9100:9100"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -146,8 +159,10 @@ services:
     image: oliver006/redis_exporter:v1.58.0
     container_name: acos-redis-exporter
     restart: unless-stopped
-    ports:
-      - "9121:9121"
+    # SECURITY: port NOT exposed to host. Prometheus scrapes via
+    # internal Docker network.
+    # ports:
+    #   - "9121:9121"
     environment:
       REDIS_ADDR: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
