@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">
             Privacy Policy
           </h1>
-          <p className="text-xs text-muted-foreground italic">Last updated: March 4, 2026</p>
+          <p className="text-xs text-muted-foreground italic">Last updated: November 10, 2026</p>
           <div className="mt-4 h-1 w-16 rounded-full bg-primary" />
         </div>
 
@@ -105,8 +105,20 @@ export default function PrivacyPolicyPage() {
             <li><strong>Predictive Insights:</strong> Forecasting deal outcomes, pipeline velocity, and revenue projections</li>
             <li><strong>Competitive Analysis:</strong> Analyzing competitor data and market positioning</li>
           </ul>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+            Your data is processed by AI models. The specific providers we integrate with are listed in
+            Section 11A (AI Sub-processors). Each provider is engaged under a data processing arrangement
+            and is contractually obligated to process data solely for our specified purposes.
+          </p>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            Your data is processed by AI models that may be hosted on third-party infrastructure (such as cloud AI providers including OpenAI and Anthropic). These providers are contractually obligated to process data solely for our specified purposes and not to retain or use your data for their own model training unless explicitly consented to.
+            <strong>Company position on AI training.</strong> AcquisitionOS does not sell user data.
+            AcquisitionOS does not use user data to train its own AI models. User data is not used for
+            unrelated personal purposes. User data is not disclosed to third parties for their
+            independent commercial use. Where a third-party AI provider is engaged, the data shared is
+            limited to what is necessary to fulfil the user&apos;s explicit request (e.g. generating an
+            outreach message), and the provider is bound by contractual restrictions on retention and
+            training. The specific technical measures we apply per provider are documented in
+            Section 11A.
           </p>
 
           <h3 className="text-base font-semibold mt-5 mb-2">2.3 Communication</h3>
@@ -214,7 +226,7 @@ export default function PrivacyPolicyPage() {
                 <tr className="border-b"><td className="py-2 pr-4">WhatsApp</td><td className="py-2 pr-4">Phone number, message content, delivery status</td></tr>
                 <tr className="border-b"><td className="py-2 pr-4">Google Calendar</td><td className="py-2 pr-4">Event metadata, availability for scheduling</td></tr>
                 <tr className="border-b"><td className="py-2 pr-4">Google OAuth</td><td className="py-2 pr-4">Email, name, profile picture for sign-in</td></tr>
-                <tr><td className="py-2 pr-4">OpenAI / Anthropic</td><td className="py-2 pr-4">Lead data, prompts for AI analysis (under data processing agreements)</td></tr>
+                <tr><td className="py-2 pr-4">AI providers (see Section 11A)</td><td className="py-2 pr-4">Lead data, prompts, message context necessary to fulfil AI requests (under data processing agreements; per-provider retention measures documented in Section 11A)</td></tr>
               </tbody>
             </table>
           </div>
@@ -325,8 +337,120 @@ export default function PrivacyPolicyPage() {
             <li><strong>Google LLC</strong> — OAuth 2.0 sign-in, Gmail integration, Calendar integration</li>
             <li><strong>Telegram Messenger Inc.</strong> — Notification delivery via Telegram Bot API</li>
             <li><strong>WhatsApp / Meta Platforms, Inc.</strong> — Business messaging via WhatsApp Business API</li>
-            <li><strong>OpenAI / Anthropic</strong> — Natural language processing, lead analysis, and outreach generation</li>
+            <li><strong>AI providers</strong> — see Section 11A for the full list of AI sub-processors, the data shared with each, and the per-provider retention controls applied.</li>
           </ul>
+
+          {/* Section 11A — AI Sub-processors */}
+          <h3 className="text-base font-semibold mt-5 mb-2">11A. AI Sub-processors — Full Disclosure</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+            AcquisitionOS integrates with the following AI model providers. The provider used for a
+            specific request depends on (a) your per-user provider configuration (if you have connected
+            your own API key in Settings → AI Providers), (b) the workflow&apos;s configured provider,
+            or (c) our default provider. When you do not select a provider, our default is the Z-AI
+            gateway.
+          </p>
+          <div className="overflow-x-auto mb-4">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-4 font-semibold">Provider</th>
+                  <th className="text-left py-2 pr-4 font-semibold">Role</th>
+                  <th className="text-left py-2 pr-4 font-semibold">Data shared</th>
+                  <th className="text-left py-2 pr-4 font-semibold">Retention / training controls applied</th>
+                </tr>
+              </thead>
+              <tbody className="text-muted-foreground">
+                <tr className="border-b">
+                  <td className="py-2 pr-4">Z-AI (Zhipu AI)</td>
+                  <td className="py-2 pr-4">Default provider — chat, lead analysis, scoring, outreach, enrichment, agents</td>
+                  <td className="py-2 pr-4">System prompt, lead context (business name, niche, location), outreach channel/tone, message history for the current request</td>
+                  <td className="py-2 pr-4">Provider DPA in place; no-train attestation required from provider. <strong>Status: provider attestation pending — treat as a sub-processor that may retain prompts per its standard policy until attestation is on file.</strong></td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4">OpenAI</td>
+                  <td className="py-2 pr-4">User-selectable provider for chat, analysis, outreach</td>
+                  <td className="py-2 pr-4">Same as Z-AI</td>
+                  <td className="py-2 pr-4"><code>store: false</code> set on every API call (opts out of 30-day retention and model training).</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4">Anthropic</td>
+                  <td className="py-2 pr-4">User-selectable provider</td>
+                  <td className="py-2 pr-4">Same as Z-AI</td>
+                  <td className="py-2 pr-4">Anthropic&apos;s default commercial API policy prohibits use of customer data for model training.</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4">OpenRouter</td>
+                  <td className="py-2 pr-4">User-selectable provider (aggregator)</td>
+                  <td className="py-2 pr-4">Same as Z-AI, plus the referring-app identifier header</td>
+                  <td className="py-2 pr-4">Retention depends on the underlying model provider routed to by OpenRouter. Per-provider attestation required.</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4">Google Gemini</td>
+                  <td className="py-2 pr-4">User-selectable provider</td>
+                  <td className="py-2 pr-4">Same as Z-AI</td>
+                  <td className="py-2 pr-4">Gemini API on Google Cloud: data is processed per Google Cloud&apos;s Customer Data Processing terms. Enterprise tier offers Zero Data Retention.</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4">DeepSeek</td>
+                  <td className="py-2 pr-4">User-selectable provider</td>
+                  <td className="py-2 pr-4">Same as Z-AI</td>
+                  <td className="py-2 pr-4">Per-provider DPA required. <strong>Status: DPA pending — not enabled in production until DPA is in place.</strong></td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4">Local LLM (Ollama / LM Studio)</td>
+                  <td className="py-2 pr-4">Self-hosted fallback (you host the model)</td>
+                  <td className="py-2 pr-4">Same as Z-AI</td>
+                  <td className="py-2 pr-4">No data leaves your infrastructure. You are responsible for the retention policy of your self-hosted model.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+            <strong>What we send to AI providers.</strong> For each AI request, AcquisitionOS sends:
+            the system prompt (instructions), the user&apos;s input or question, and any context
+            needed to generate a useful response. For lead-analysis requests this includes lead
+            attributes (business name, niche, country, website URL). For outreach-generation
+            requests it includes the lead&apos;s name and the desired channel/tone. For AI chat it
+            includes the user-typed message and any lead context the user has explicitly attached.
+          </p>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            <strong>What we do NOT send.</strong> We do not send your password, JWT, API keys, or
+            payment card numbers to any AI provider. We do not send other tenants&apos; data. We do
+            not send emails you have received via the Gmail integration to AI providers unless you
+            explicitly request reply-intelligence analysis on a specific message.
+          </p>
+
+          {/* Section 11B — DPDP Act 2023 */}
+          <h3 className="text-base font-semibold mt-5 mb-2">11B. Digital Personal Data Protection Act, 2023 (India)</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+            AcquisitionOS is subject to the Digital Personal Data Protection Act, 2023 (&quot;DPDP
+            Act&quot;) and the Digital Personal Data Protection Rules, 2025 (&quot;DPDP Rules&quot;)
+            for users in India. The phased enforcement dates per the official notifications are:
+          </p>
+          <ul className="list-disc pl-6 text-sm text-muted-foreground leading-relaxed mb-2 space-y-1">
+            <li><strong>13 November 2025</strong> — initial provisions of the DPDP Act commenced.</li>
+            <li><strong>13 November 2026</strong> — one-year phase, including specified Consent Manager provisions.</li>
+            <li><strong>13 May 2027</strong> — eighteen-month phase, including the principal substantive obligations on Data Fiduciaries.</li>
+          </ul>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+            AcquisitionOS acts as a Data Fiduciary for the personal data you entrust to us. Our
+            obligations under the DPDP Act include:
+          </p>
+          <ul className="list-disc pl-6 text-sm text-muted-foreground leading-relaxed mb-2 space-y-1">
+            <li>Obtaining consent through an affirmative action for each processing purpose that requires consent, before processing begins.</li>
+            <li>Providing a clear and easily understandable notice at the point of collection.</li>
+            <li>Allowing you to withdraw consent as easily as you gave it.</li>
+            <li>Providing a grievance redressal mechanism (contact: <a href="mailto:dpo@acquisitionos.com" className="text-primary hover:underline">dpo@acquisitionos.com</a>).</li>
+            <li>Enabling your rights of access, correction, completion, updating, and erasure.</li>
+            <li>Implementing reasonable security safeguards appropriate to the sensitivity of the data.</li>
+            <li>Notifying affected users and the Data Protection Board of India in the event of a personal data breach, within the timelines specified by the DPDP Rules.</li>
+          </ul>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            For consent withdrawal, account deletion, or data access requests, see Section 7 (Your
+            Privacy Rights) or email <a href="mailto:dpo@acquisitionos.com" className="text-primary hover:underline">dpo@acquisitionos.com</a>.
+            We will acknowledge your request within 48 hours and respond substantively within the
+            timelines prescribed by the DPDP Rules.
+          </p>
         </section>
 
         {/* Section 12 */}

@@ -28,7 +28,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vites
 import { NextRequest, NextResponse } from 'next/server';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
+  process.env.DATABASE_URL = 'file:./.test-db-isolated/logout-login-persistence.db';
 });
 
 import { db } from '@/lib/db';

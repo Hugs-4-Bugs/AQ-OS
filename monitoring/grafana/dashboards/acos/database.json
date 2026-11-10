@@ -1,0 +1,46 @@
+{
+  "annotations": { "list": [] },
+  "description": "AcquisitionOS — Database performance, query latency, connection pool.",
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "type": "timeseries", "title": "DB Query Duration p95 (by operation)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 }, "id": 1,
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(db_query_duration_seconds_bucket[5m])))", "legendFormat": "{{operation}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "stat", "title": "Total Leads (active)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 }, "id": 2,
+      "targets": [{ "expr": "total_leads_total", "refId": "A" }]
+    },
+    {
+      "type": "stat", "title": "Total Workflows Running",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 8 }, "id": 3,
+      "targets": [{ "expr": "total_workflows_running", "refId": "A" }]
+    },
+    {
+      "type": "stat", "title": "Queue Backlog",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 8 }, "id": 4,
+      "targets": [{ "expr": "total_queue_backlog", "refId": "A" }]
+    },
+    {
+      "type": "timeseries", "title": "Postgres Active Connections",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 }, "id": 5,
+      "targets": [{ "expr": "sum(pg_stat_activity_count)", "legendFormat": "active", "refId": "A" }]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["acquisitionos", "database"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "AcquisitionOS — Database",
+  "uid": "acos-database",
+  "version": 1
+}

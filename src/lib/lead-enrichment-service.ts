@@ -148,7 +148,9 @@ export async function enrichLead(leadId: string, userId: string): Promise<Enrich
     }
 
     // Step 3: LLM extraction
-    const enrichmentData = await extractEnrichmentData(zai, lead, searchSnippet, websiteContent);
+    // userId + leadId threaded through for AI audit + usage recording
+    // (DPDP gap #5 fix — previously bypassed executeAICompletion's audit trail).
+    const enrichmentData = await extractEnrichmentData(zai, lead, searchSnippet, websiteContent, userId, leadId);
 
     if (!enrichmentData) {
       return { success: false, leadId, fieldsUpdated: [], error: 'LLM extraction returned no data' };
@@ -250,7 +252,9 @@ async function extractEnrichmentData(
     niche?: string | null;
   },
   searchSnippet: string,
-  websiteContent: string
+  websiteContent: string,
+  userId: string,
+  leadId: string
 ): Promise<EnrichedLeadData | null> {
   const existingInfo = [
     lead.businessName && `Business: ${lead.businessName}`,
@@ -303,6 +307,7 @@ Available fields:
 Return ONLY the JSON object. No explanation, no markdown. Empty object {} if no new data found.`;
 
   try {
+    const aiCallStart = Date.now();
     const response = await zai.chat.completions.create({
       messages: [
         { role: 'system', content: 'You are a precise data extraction assistant. Return only valid JSON. No markdown, no explanations.' },
@@ -311,7 +316,48 @@ Return ONLY the JSON object. No explanation, no markdown. Empty object {} if no 
       model: 'auto',
     });
 
+    const aiLatencyMs = Date.now() - aiCallStart;
     const content = response.choices?.[0]?.message?.content || '{}';
+    const tokensUsed = response.usage?.total_tokens || Math.ceil(content.length / 4);
+
+    // Phase 8 DPDP gap #5 fix: audit + usage recording
+    // Records UsageTracking + AiCostRecord + AuditLog (metadata only,
+    // NEVER the prompt content which contains lead PII).
+    try {
+      const { db } = await import('@/lib/db');
+      await Promise.all([
+        db.aiCostRecord.create({
+          data: {
+            userId,
+            feature: 'lead_enrichment',
+            model: 'z-ai-auto',
+            inputTokens: Math.ceil(prompt.length / 4),
+            outputTokens: tokensUsed,
+            costUsd: (tokensUsed / 1000) * 0.002,
+          },
+        }).catch(() => {/* best-effort */}),
+        db.auditLog.create({
+          data: {
+            userId,
+            action: 'ai_call',
+            resource: 'lead',
+            resourceId: leadId,
+            details: JSON.stringify({
+              provider: 'z-ai',
+              model: 'z-ai-auto',
+              feature: 'lead_enrichment',
+              latencyMs: aiLatencyMs,
+              tokensUsed,
+              success: true,
+              routedVia: 'lead-enrichment-service-direct',
+            }),
+            severity: 'low',
+          },
+        }).catch(() => {/* best-effort */}),
+      ]);
+    } catch (auditErr) {
+      console.warn('[EnrichmentService] AI audit logging failed (non-fatal):', auditErr instanceof Error ? auditErr.message : auditErr);
+    }
 
     let cleaned = content.trim();
     if (cleaned.startsWith('```')) {
@@ -353,6 +399,29 @@ Return ONLY the JSON object. No explanation, no markdown. Empty object {} if no 
     return result;
   } catch (error) {
     console.error('[EnrichmentService] LLM extraction failed:', error);
+    // Phase 8 DPDP: record failed AI call in audit log (metadata only)
+    try {
+      const { db } = await import('@/lib/db');
+      await db.auditLog.create({
+        data: {
+          userId,
+          action: 'ai_call',
+          resource: 'lead',
+          resourceId: leadId,
+          details: JSON.stringify({
+            provider: 'z-ai',
+            model: 'z-ai-auto',
+            feature: 'lead_enrichment',
+            success: false,
+            error: error instanceof Error ? error.message.slice(0, 200) : 'unknown',
+            routedVia: 'lead-enrichment-service-direct',
+          }),
+          severity: 'medium',
+        },
+      }).catch(() => {/* best-effort */});
+    } catch {
+      // Audit failure must never block the error path
+    }
     return null;
   }
 }

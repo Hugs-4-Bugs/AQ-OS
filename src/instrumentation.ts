@@ -255,6 +255,45 @@ export async function register() {
       // Sentry is optional — ignore errors
     }
 
+    // ── Step 4b: Initialize OpenTelemetry SDK ─────────────────────
+    // Wires up the existing tracing.ts which was defined but never called.
+    // Without this, the OTel Collector container receives NO telemetry.
+    try {
+      if (process.env.OTEL_ENABLED !== 'false') {
+        const { initializeTracing } = await import('@/lib/observability/tracing');
+        initializeTracing();
+        console.warn(
+          `[instrumentation] OpenTelemetry initialized (exporter=${process.env.OTEL_EXPORTER || 'console'}, ` +
+          `endpoint=${process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'})`
+        );
+      }
+    } catch (otelErr) {
+      console.error(
+        '[instrumentation] OpenTelemetry init failed (non-fatal — telemetry disabled):',
+        otelErr instanceof Error ? otelErr.message : otelErr
+      );
+    }
+
+    // ── Step 4c: Start the in-process AlertEngine ─────────────────
+    // The AlertEngine was defined but its start() method was never invoked.
+    try {
+      if (process.env.ALERT_ENGINE_DISABLED !== '1') {
+        const { alertEngine } = await import('@/lib/observability/alerts');
+        const intervalMs = Number(process.env.ALERT_ENGINE_INTERVAL_MS || 30000);
+        alertEngine.start(intervalMs);
+        const { wireOpsAlertDispatchers } = await import('@/lib/observability/ops-alerting/wire');
+        wireOpsAlertDispatchers(alertEngine);
+        console.warn(
+          `[instrumentation] AlertEngine started (interval=${intervalMs}ms) — ops dispatchers wired`
+        );
+      }
+    } catch (alertErr) {
+      console.error(
+        '[instrumentation] AlertEngine start failed (non-fatal):',
+        alertErr instanceof Error ? alertErr.message : alertErr
+      );
+    }
+
     // ── Step 5: Log startup event ──────────────────────────────────
     try {
       const logger = await import('@/lib/logger');
@@ -455,6 +494,40 @@ export async function register() {
             console.error(
               '[part1-durable-autopilot] tick failed (non-fatal):',
               part1Err instanceof Error ? part1Err.message : part1Err
+            );
+          }
+
+          // ═══ Phase 8 — DPDP retention enforcement (daily tick) ═══════
+          // Piggybacks on the SAME heartbeat with a 24-hour cooldown so
+          // enforceRetention() runs once per day. Env overrides:
+          //   RETENTION_ENFORCE_DISABLED=1     → opt out entirely
+          //   RETENTION_ENFORCE_INTERVAL_MS    → override cooldown (default 24h)
+          //   RETENTION_ENFORCE_DRY_RUN=true   → log without deleting
+          try {
+            if (process.env.RETENTION_ENFORCE_DISABLED !== '1') {
+              const cooldownMs = Number(process.env.RETENTION_ENFORCE_INTERVAL_MS || 24 * 60 * 60 * 1000);
+              const lastRetentionRun = (globalThis as unknown as { __lastRetentionRun?: number }).__lastRetentionRun || 0;
+              const now = Date.now();
+              if (now - lastRetentionRun >= cooldownMs) {
+                const { enforceRetention } = await import('@/lib/compliance/retention');
+                const dryRun = process.env.RETENTION_ENFORCE_DRY_RUN === 'true';
+                const retentionResult = await enforceRetention({ dryRun, categories: null });
+                (globalThis as unknown as { __lastRetentionRun?: number }).__lastRetentionRun = now;
+                if (retentionResult.totalAffected > 0) {
+                  console.warn(
+                    `[retention-enforce] ${dryRun ? '[DRY RUN] ' : ''}affected ${retentionResult.totalAffected} rows: ` +
+                    Object.entries(retentionResult.details)
+                      .filter(([, v]) => v.affected > 0)
+                      .map(([k, v]) => `${k}=${v.affected}`)
+                      .join(', ')
+                  );
+                }
+              }
+            }
+          } catch (retentionErr) {
+            console.error(
+              '[retention-enforce] tick failed (non-fatal):',
+              retentionErr instanceof Error ? retentionErr.message : retentionErr
             );
           }
         } catch (err) {

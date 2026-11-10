@@ -26,7 +26,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 
 vi.hoisted(() => {
-  process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
+  process.env.DATABASE_URL = 'file:./.test-db-isolated/workflow-engine-isolation.db';
 });
 
 import { db } from '@/lib/db';
