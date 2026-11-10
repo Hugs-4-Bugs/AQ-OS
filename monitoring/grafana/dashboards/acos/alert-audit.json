@@ -1,0 +1,24 @@
+{
+  "annotations": { "list": [] },
+  "description": "AcquisitionOS — Alert audit: shows the delivery audit log from the ops-alerting dispatcher (Telegram/WhatsApp).",
+  "editable": true,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "type": "table", "title": "Recent Alert Deliveries (from /api/admin/operations/alert-audit)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 }, "id": 1,
+      "targets": [
+        { "expr": "anomaly_alerts_total", "legendFormat": "{{rule}} {{severity}}", "refId": "A", "instant": true, "format": "table" }
+      ],
+      "description": "For full delivery audit (with Telegram/WhatsApp delivery status), call GET /api/admin/operations/alert-audit as super_admin."
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["acquisitionos", "alerts", "audit"],
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "AcquisitionOS — Alert Audit",
+  "uid": "acos-alert-audit",
+  "version": 1
+}

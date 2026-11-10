@@ -29,6 +29,7 @@ import {
   methodAllowsBody,
   isValidWebhookMethod,
 } from '@/lib/workflow-webhook';
+import { getCircuitBreaker, BreakerOpenError } from '@/lib/resilience/circuit-breaker';
 
 // ===== TYPES =====
 
@@ -913,35 +914,45 @@ async function executeWebhookCall(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Phase 6 resilience: per-host circuit breaker
+  const hostKey = `webhook:${target.hostname}`;
+  const webhookBreaker = getCircuitBreaker(hostKey, {
+    failureThreshold: 5,
+    cooldownMs: 60_000,
+    timeoutMs: timeoutMs + 1000,
+  });
+
   try {
-    const response = await fetch(target.toString(), {
-      method: httpMethod,
-      headers: {
-        'Content-Type': 'application/json',
-        ...((headers && typeof headers === 'object' ? headers : {}) as Record<string, string>),
-      },
-      ...(methodAllowsBody(httpMethod)
-        ? {
-            body: JSON.stringify(
-              body
-                ? {
-                    ...((typeof body === 'object' ? body : {}) as Record<string, unknown>),
-                    workflowId: context.workflowId,
-                    executionId: context.executionId,
-                    leadId: context.leadId,
-                    triggerData: context.triggerData,
-                  }
-                : {
-                    workflowId: context.workflowId,
-                    executionId: context.executionId,
-                    leadId: context.leadId,
-                    triggerData: context.triggerData,
-                  }
-            ),
-          }
-        : {}),
-      signal: controller.signal,
-    });
+    const response = await webhookBreaker.exec(() =>
+      fetch(target.toString(), {
+        method: httpMethod,
+        headers: {
+          'Content-Type': 'application/json',
+          ...((headers && typeof headers === 'object' ? headers : {}) as Record<string, string>),
+        },
+        ...(methodAllowsBody(httpMethod)
+          ? {
+              body: JSON.stringify(
+                body
+                  ? {
+                      ...((typeof body === 'object' ? body : {}) as Record<string, unknown>),
+                      workflowId: context.workflowId,
+                      executionId: context.executionId,
+                      leadId: context.leadId,
+                      triggerData: context.triggerData,
+                    }
+                  : {
+                      workflowId: context.workflowId,
+                      executionId: context.executionId,
+                      leadId: context.leadId,
+                      triggerData: context.triggerData,
+                    }
+              ),
+            }
+          : {}),
+        signal: controller.signal,
+      })
+    );
 
     let responseBody: unknown;
     try {
@@ -960,10 +971,16 @@ async function executeWebhookCall(
       creditsUsed: 1,
     };
   } catch (error) {
-    // ── Real cause surfacing ────────────────────────────────────────
-    // Node hides the actionable detail in error.cause (ENOTFOUND,
-    // ECONNREFUSED, TLS problems, …). "fetch failed" alone told the user
-    // nothing; the description names the host and the failure class.
+    // ── Real cause surfacing + breaker-open handling ───────────────
+    if (error instanceof BreakerOpenError) {
+      return {
+        success: false,
+        error:
+          `Webhook call skipped: circuit breaker for "${target.hostname}" is open ` +
+          `(cooldown ${Math.round(error.retryAfterMs / 1000)}s remaining). ` +
+          `The endpoint has failed 5 consecutive times — temporarily suspending calls to avoid cascading timeouts.`,
+      };
+    }
     return {
       success: false,
       error: `Webhook call failed: ${describeWebhookFetchError(error, timeoutMs)}`,

@@ -1,0 +1,106 @@
+{
+  "annotations": { "list": [] },
+  "description": "AcquisitionOS — Global application overview: request rate, error rate, latency, active users, queue depth, AI cost. Privacy-safe: no PII.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    { "title": "Runbooks", "url": "https://github.com/Hugs-4-Bugs/AQ-OS/blob/develop/docs/runbooks/", "type": "link", "targetBlank": true },
+    { "title": "Alert Audit", "url": "/d/acos-alert-audit/", "type": "link" }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "stat", "title": "Active Users",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }, "id": 1,
+      "targets": [{ "expr": "active_users_total", "legendFormat": "", "refId": "A" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "yellow", "value": 1000 }, { "color": "red", "value": 10000 }] } } }
+    },
+    {
+      "type": "stat", "title": "Open Sessions",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }, "id": 2,
+      "targets": [{ "expr": "total_open_sessions", "legendFormat": "", "refId": "A" }]
+    },
+    {
+      "type": "stat", "title": "Queue Backlog",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }, "id": 3,
+      "targets": [{ "expr": "total_queue_backlog", "legendFormat": "", "refId": "A" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 200 }] } } }
+    },
+    {
+      "type": "stat", "title": "AI Cost (USD total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }, "id": 4,
+      "targets": [{ "expr": "total_ai_cost_usd", "legendFormat": "", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+    },
+    {
+      "type": "timeseries", "title": "API Request Rate (req/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }, "id": 10,
+      "targets": [{ "expr": "sum(rate(api_requests_total[5m])) by (route)", "legendFormat": "{{route}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "timeseries", "title": "Error Rate (%)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }, "id": 11,
+      "targets": [{ "expr": "sum(rate(api_requests_total{status=~\"5..\"}[5m])) by (route) / clamp_min(sum(rate(api_requests_total[5m])) by (route), 1) * 100", "legendFormat": "{{route}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "type": "timeseries", "title": "p50 / p95 / p99 Latency",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 }, "id": 12,
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p99", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries", "title": "Heap Memory (bytes)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 }, "id": 13,
+      "targets": [
+        { "expr": "process_heap_used_bytes", "legendFormat": "heap used", "refId": "A" },
+        { "expr": "process_heap_total_bytes", "legendFormat": "heap total", "refId": "B" },
+        { "expr": "process_rss_bytes", "legendFormat": "rss", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "timeseries", "title": "Workflow Queue Depth (running vs backlog)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 }, "id": 14,
+      "targets": [
+        { "expr": "total_workflows_running", "legendFormat": "running", "refId": "A" },
+        { "expr": "total_queue_backlog", "legendFormat": "backlog", "refId": "B" }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["acquisitionos", "application", "overview"],
+  "templating": {
+    "list": [
+      {
+        "name": "env", "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(acquisitionos_info, environment)",
+        "refresh": 1, "includeAll": true, "multi": false
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AcquisitionOS — Global Application Overview",
+  "uid": "acos-app-overview",
+  "version": 1,
+  "weekStart": ""
+}

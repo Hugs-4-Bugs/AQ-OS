@@ -21,6 +21,7 @@ import {
   getSmtpPort,
   getSmtpFrom,
 } from '@/lib/email-ethereal';
+import { getCircuitBreaker, BreakerOpenError } from '@/lib/resilience/circuit-breaker';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -309,35 +310,71 @@ export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
   let lastError: string | undefined;
 
   // 1. Try Resend (primary) — only when a REAL API key is configured.
+  //    Wrapped in a circuit breaker so that if Resend is consistently
+  //    failing, we stop hitting them and fall through to SMTP immediately.
   if (isRealResendConfigured()) {
     console.log("[EmailService] Attempting Resend…");
-    const result = await sendViaResend(payload, from);
-    if (result.sent) {
-      console.log(
-        `[EmailService] ✓ Sent via Resend to ${payload.to} (id: ${result.messageId})`,
-      );
-      return result;
+    try {
+      const resendBreaker = getCircuitBreaker('email:resend', {
+        failureThreshold: 5,
+        cooldownMs: 60_000,
+        timeoutMs: 15_000,
+      });
+      const result = await resendBreaker.exec(() => sendViaResend(payload, from));
+      if (result.sent) {
+        console.log(
+          `[EmailService] ✓ Sent via Resend to ${payload.to} (id: ${result.messageId})`,
+        );
+        return result;
+      }
+      lastError = result.error;
+      console.warn("[EmailService] ✗ Resend failed:", lastError);
+    } catch (breakerErr) {
+      if (breakerErr instanceof BreakerOpenError) {
+        console.warn(
+          `[EmailService] Resend circuit breaker is OPEN — skipping to SMTP (cooldown ${Math.round(breakerErr.retryAfterMs / 1000)}s remaining)`
+        );
+        lastError = 'Resend circuit breaker open';
+      } else {
+        lastError = breakerErr instanceof Error ? breakerErr.message : String(breakerErr);
+        console.warn("[EmailService] ✗ Resend breaker threw:", lastError);
+      }
     }
-    lastError = result.error;
-    console.warn("[EmailService] ✗ Resend failed:", lastError);
   }
 
   // 2. Try REAL SMTP — only when real credentials are configured.
-  // Placeholders (`your-email@gmail.com`, `your-app-password`) are skipped so
-  // we don't waste cycles failing Gmail auth.
+  //    Also wrapped in a breaker so a Gmail SMTP outage doesn't pin
+  //    every outbound email thread.
   if (isRealSmtpConfigured()) {
     console.log(
       `[EmailService] Attempting SMTP to ${getSmtpHost()}:${getSmtpPort()}…`,
     );
-    const result = await sendViaSmtp(payload);
-    if (result.sent) {
-      console.log(
-        `[EmailService] ✓ Sent via SMTP to ${payload.to} (id: ${result.messageId})`,
-      );
-      return result;
+    try {
+      const smtpBreaker = getCircuitBreaker('email:smtp', {
+        failureThreshold: 5,
+        cooldownMs: 60_000,
+        timeoutMs: 20_000,
+      });
+      const result = await smtpBreaker.exec(() => sendViaSmtp(payload));
+      if (result.sent) {
+        console.log(
+          `[EmailService] ✓ Sent via SMTP to ${payload.to} (id: ${result.messageId})`,
+        );
+        return result;
+      }
+      lastError = result.error;
+      console.warn("[EmailService] ✗ SMTP failed:", lastError);
+    } catch (breakerErr) {
+      if (breakerErr instanceof BreakerOpenError) {
+        console.warn(
+          `[EmailService] SMTP circuit breaker is OPEN — skipping (cooldown ${Math.round(breakerErr.retryAfterMs / 1000)}s remaining)`
+        );
+        lastError = 'SMTP circuit breaker open';
+      } else {
+        lastError = breakerErr instanceof Error ? breakerErr.message : String(breakerErr);
+        console.warn("[EmailService] ✗ SMTP breaker threw:", lastError);
+      }
     }
-    lastError = result.error;
-    console.warn("[EmailService] ✗ SMTP failed:", lastError);
   }
 
   // 3. If we reach here, a real provider WAS configured but delivery FAILED.

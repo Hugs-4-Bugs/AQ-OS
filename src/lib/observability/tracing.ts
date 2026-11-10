@@ -17,7 +17,7 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-base';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { resourceFromAttributes } from '@opentelemetry/resources';
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION, ATTR_DEPLOYMENT_ENVIRONMENT } from '@opentelemetry/semantic-conventions';
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION, ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions';
 import {
   trace,
   context,
@@ -57,7 +57,7 @@ function initializeTracing(): void {
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: SERVICE_NAME,
       [ATTR_SERVICE_VERSION]: SERVICE_VERSION,
-      [ATTR_DEPLOYMENT_ENVIRONMENT]: DEPLOYMENT_ENV,
+      [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: DEPLOYMENT_ENV,
     });
 
     // Configure trace exporter based on environment
@@ -76,10 +76,15 @@ function initializeTracing(): void {
         })
       : undefined; // Console metric exporter is default
 
-    const metricReader = new PeriodicExportingMetricReader({
-      exporter: metricExporter,
-      exportIntervalMillis: 30000, // Export every 30 seconds
-    });
+    // Configure metric reader only if exporter is defined (console mode
+    // skips metrics export). The OTLPMetricExporter type requires a
+    // non-undefined PushMetricExporter.
+    const metricReader = metricExporter
+      ? new PeriodicExportingMetricReader({
+          exporter: metricExporter,
+          exportIntervalMillis: 30000,
+        })
+      : undefined;
 
     // Create SDK instance
     sdk = new NodeSDK({
@@ -99,10 +104,9 @@ function initializeTracing(): void {
               return url === '/api/health' || url === '/api/health/detailed' || url === '/api/metrics';
             },
           },
-          // Disable Prisma auto-instrumentation if not available
-          '@opentelemetry/instrumentation-prisma': {
-            enabled: true,
-          },
+          // Note: '@opentelemetry/instrumentation-prisma' is not included
+          // in the default auto-instrumentations-node config map. Prisma
+          // query observability is captured via src/lib/db.ts's DbMonitor.
         }),
       ],
     });
@@ -225,9 +229,8 @@ export async function traceDbQuery<T>(
     span.setAttribute('db.system', 'sqlite');
     span.setAttribute('db.operation', operation);
     span.setAttribute('db.model', model);
-    span.setKind(SpanKind.CLIENT);
     return fn();
-  });
+  }, { kind: SpanKind.CLIENT });
 }
 
 /** Trace an AI API call */
@@ -239,9 +242,8 @@ export async function traceAiRequest<T>(
   return withSpan(`ai.${type}`, async (span) => {
     span.setAttribute('ai.type', type);
     span.setAttribute('ai.provider', provider);
-    span.setKind(SpanKind.CLIENT);
     return fn();
-  });
+  }, { kind: SpanKind.CLIENT });
 }
 
 /** Trace an external API call */
@@ -253,9 +255,8 @@ export async function traceExternalCall<T>(
   return withSpan(`external.${service}.${operation}`, async (span) => {
     span.setAttribute('external.service', service);
     span.setAttribute('external.operation', operation);
-    span.setKind(SpanKind.CLIENT);
     return fn();
-  });
+  }, { kind: SpanKind.CLIENT });
 }
 
 /** Trace a workflow execution */

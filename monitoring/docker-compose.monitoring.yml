@@ -15,8 +15,10 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - prometheus-data:/prometheus
+      - ./prometheus/alerts.yml:/etc/prometheus/rules/alerts.yml:ro
+      - ./prometheus-data:/prometheus
+      # Bearer token for /api/metrics/scrape authentication.
+      - ./secrets/metrics_scrape_token:/run/secrets/metrics_scrape_token:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -30,6 +32,31 @@ services:
       - monitoring
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────────
+  # Alertmanager - Routes alerts to Telegram + WhatsApp via the
+  # /api/ops/alerts/webhook endpoint on the AcquisitionOS app.
+  # ─────────────────────────────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: acos-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -50,9 +77,12 @@ services:
       GF_SERVER_ROOT_URL: http://localhost:3001
       GF_INSTALL_PLUGINS: ""
       GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/app-overview.json
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/acos/app-overview.json
     volumes:
       - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro
+      - ./grafana/provisioning/alerting/contact-points.yml:/etc/grafana/provisioning/alerting/contact-points.yml:ro
+      - ./grafana/provisioning/alerting/notification-policies.yml:/etc/grafana/provisioning/alerting/notification-policies.yml:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
@@ -150,6 +180,8 @@ volumes:
   grafana-data:
     driver: local
   loki-data:
+    driver: local
+  alertmanager-data:
     driver: local
 
 # ─────────────────────────────────────────────────────────────────

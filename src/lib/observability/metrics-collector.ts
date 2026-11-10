@@ -72,6 +72,22 @@ const GAUGE_DEFINITIONS: Record<string, string> = {
   credits_remaining: 'Credits remaining across all users',
   queue_depth: 'Current queue depth',
   websocket_connections: 'Current WebSocket connections',
+  // Privacy-safe scrape gauges (added 2026) — integer COUNTS or numeric
+  // SUMS only. No PII in labels or values.
+  active_users_total: 'Total active (non-deleted) user accounts (count, no PII)',
+  total_leads_total: 'Total active lead records across all tenants (count, no PII)',
+  total_workflows_running: 'Workflow executions currently in running state (count)',
+  total_queue_backlog: 'Workflow executions queued/waiting (count, backlog indicator)',
+  total_payment_success_count: 'Total completed payment orders (count only, not amount)',
+  total_payment_failed_count: 'Total failed payment orders (count only, not amount)',
+  total_ai_cost_usd: 'Total AI cost in USD across all tenants (sum, no per-user breakdown)',
+  total_open_sessions: 'Active (non-revoked, non-expired) user sessions (count)',
+  process_heap_used_bytes: 'Process heap used (bytes)',
+  process_heap_total_bytes: 'Process heap total (bytes, v8 limit)',
+  process_rss_bytes: 'Process resident set size (bytes)',
+  process_uptime_seconds: 'Process uptime (seconds)',
+  app_errors_recent: 'Recent application errors (last tracking window)',
+  app_errors_critical: 'Critical application errors (last tracking window)',
 };
 
 // ===== HELPER: Label key =====

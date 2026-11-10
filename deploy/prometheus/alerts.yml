@@ -1,93 +1,279 @@
+# AcquisitionOS — Production Prometheus alert rules
+# Phase 5 thresholds: CPU 75% sustained warning, 90% critical, with `for:`
+# clauses to prevent single-scrape flapping.
+
 groups:
-  - name: acquisitionos_alerts
+  - name: infrastructure_alerts
+    interval: 30s
     rules:
-      # High Error Rate — >5% 5xx over 5 minutes
+      - alert: HighCpuUsage
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)) * 100 > 75
+        for: 5m
+        labels:
+          severity: warning
+          component: cpu
+          team: infrastructure
+        annotations:
+          summary: "CPU usage above 75% on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}% (threshold 75%) sustained for 5 minutes."
+          runbook_url: "https://github.com/Hugs-4-Bugs/AQ-OS/blob/develop/docs/runbooks/cpu-high.md"
+
+      - alert: CriticalCpuUsage
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: cpu
+          team: infrastructure
+        annotations:
+          summary: "CPU usage critical on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}% (threshold 90%) sustained for 5 minutes."
+          runbook_url: "https://github.com/Hugs-4-Bugs/AQ-OS/blob/develop/docs/runbooks/cpu-critical.md"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: memory
+          team: infrastructure
+        annotations:
+          summary: "Memory pressure on {{ $labels.instance }}"
+          description: "Available memory is below 15% for 5 minutes."
+          runbook_url: "https://github.com/Hugs-4-Bugs/AQ-OS/blob/develop/docs/runbooks/memory-high.md"
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: memory
+          team: infrastructure
+        annotations:
+          summary: "Critical memory pressure on {{ $labels.instance }}"
+          description: "Available memory is below 5% — OOM kill risk."
+
+      - alert: LowDiskSpace
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: disk
+          team: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Filesystem {{ $labels.mountpoint }} is {{ $value | printf \"%.1f\" }}% full."
+
+      - alert: CriticalDiskSpace
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          component: disk
+          team: infrastructure
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+
+  - name: application_alerts
+    interval: 30s
+    rules:
       - alert: HighErrorRate
         expr: |
           (
-            sum(rate(api_requests_total{status=~"5.."}[5m]))
+            sum(rate(api_requests_total{status=~"5.."}[5m])) by (route)
             /
-            sum(rate(api_requests_total[5m]))
-          ) > 0.05
-        for: 2m
+            clamp_min(sum(rate(api_requests_total[5m])) by (route), 1)
+          ) * 100 > 5
+        for: 5m
         labels:
           severity: critical
-          team: platform
+          component: api
+          team: application
         annotations:
-          summary: "High API error rate detected"
-          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)"
+          summary: "High 5xx error rate on {{ $labels.route }}"
+          description: "{{ $value | printf \"%.1f\" }}% of requests to {{ $labels.route }} are returning 5xx."
 
-      # High Latency — p95 > 2 seconds
-      - alert: HighLatency
+      - alert: HighLatencyP95
         expr: |
           histogram_quantile(0.95,
-            sum(rate(api_request_duration_seconds_bucket[5m])) by (le)
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (route, le)
           ) > 2
-        for: 5m
+        for: 10m
         labels:
           severity: warning
-          team: platform
+          component: api
+          team: application
         annotations:
-          summary: "High API latency detected"
-          description: "p95 latency is {{ $value }}s (threshold: 2s)"
+          summary: "p95 latency high on {{ $labels.route }}"
+          description: "p95 is {{ $value | humanizeDuration }} (threshold 2s)."
 
-      # Credit Exhaustion — less than 10% credits remaining across system
-      - alert: CreditExhaustion
-        expr: credits_remaining < 50
-        for: 5m
-        labels:
-          severity: warning
-          team: billing
-        annotations:
-          summary: "Low credit balance detected"
-          description: "System-wide credits remaining: {{ $value }} (threshold: 50)"
-
-      # Payment Failure Spike — >5 failures in 10 minutes
-      - alert: PaymentFailureSpike
+      - alert: CriticalLatencyP99
         expr: |
-          increase(payment_failures_total[10m]) > 5
+          histogram_quantile(0.99,
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (route, le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          team: application
+        annotations:
+          summary: "p99 latency critical on {{ $labels.route }}"
+
+      - alert: AppDown
+        expr: up{job="acquisitionos-app"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: app
+          team: infrastructure
+        annotations:
+          summary: "AcquisitionOS app is down"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      - alert: DatabaseSlowQuery
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (operation, le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: application
+        annotations:
+          summary: "Database slow queries detected"
+          runbook_url: "https://github.com/Hugs-4-Bugs/AQ-OS/blob/develop/docs/runbooks/database.md"
+
+      - alert: PostgresExporterDown
+        expr: up{job="postgres"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: infrastructure
+        annotations:
+          summary: "Postgres exporter is down"
+
+      - alert: PostgresConnectionPoolWarning
+        expr: |
+          sum(pg_stat_activity_count) / pg_settings_max_connections > 0.7
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+          team: application
+        annotations:
+          summary: "Postgres connection pool above 70%"
+
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      - alert: RedisDown
+        expr: redis_up == 0
         for: 1m
         labels:
           severity: critical
-          team: billing
+          component: redis
+          team: infrastructure
         annotations:
-          summary: "Payment failure spike detected"
-          description: "{{ $value }} payment failures in the last 10 minutes (threshold: 5)"
+          summary: "Redis is down"
 
-      # Workflow Failure Spike — >10 failed workflows in 15 minutes
-      - alert: WorkflowFailureSpike
+      - alert: RedisHighMemory
         expr: |
-          increase(workflow_executions_total{status="failed"}[15m]) > 10
-        for: 2m
-        labels:
-          severity: warning
-          team: platform
-        annotations:
-          summary: "Workflow failure spike detected"
-          description: "{{ $value }} workflow failures in the last 15 minutes (threshold: 10)"
-
-      # Database Latency — p95 > 500ms
-      - alert: DBLatency
-        expr: |
-          histogram_quantile(0.95,
-            sum(rate(db_query_duration_seconds_bucket[5m])) by (le)
-          ) > 0.5
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 85
         for: 5m
         labels:
           severity: warning
-          team: platform
+          component: redis
+          team: infrastructure
         annotations:
-          summary: "High database latency detected"
-          description: "p95 DB query latency is {{ $value }}s (threshold: 500ms)"
+          summary: "Redis memory usage above 85%"
 
-      # High Memory Usage — heap usage > 85%
-      - alert: HighMemoryUsage
+  - name: queue_alerts
+    interval: 30s
+    rules:
+      - alert: QueueBacklogGrowing
+        expr: total_queue_backlog > 100
+        for: 15m
+        labels:
+          severity: warning
+          component: queue
+          team: application
+        annotations:
+          summary: "Workflow queue backlog above 100"
+          runbook_url: "https://github.com/Hugs-4-Bugs/AQ-OS/blob/develop/docs/runbooks/queue-backlog.md"
+
+      - alert: QueueBacklogCritical
+        expr: total_queue_backlog > 500
+        for: 5m
+        labels:
+          severity: critical
+          component: queue
+          team: application
+        annotations:
+          summary: "Workflow queue backlog critical"
+
+  - name: ai_alerts
+    interval: 60s
+    rules:
+      - alert: AICostSpike
         expr: |
-          process_resident_memory_bytes / process_heap_bytes > 0.85
+          increase(total_ai_cost_usd[1h]) > 10
         for: 5m
         labels:
           severity: warning
-          team: platform
+          component: ai
+          team: application
         annotations:
-          summary: "High memory usage detected"
-          description: "Memory utilization is {{ $value | humanizePercentage }} (threshold: 85%)"
+          summary: "AI cost spike"
+
+  - name: security_alerts
+    interval: 60s
+    rules:
+      - alert: AuthEndpointFailures
+        expr: |
+          sum(rate(api_requests_total{route=~"/api/auth/.*", status=~"5.."}[10m])) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          component: auth
+          team: security
+        annotations:
+          summary: "Auth endpoints returning 5xx"
+
+  - name: backup_alerts
+    interval: 60s
+    rules:
+      - alert: MonitoringStale
+        expr: |
+          time() - prometheus_sd_discovered_targets{job="acquisitionos-app"} > 3600
+        for: 10m
+        labels:
+          severity: warning
+          component: monitoring
+          team: infrastructure
+        annotations:
+          summary: "Monitoring data is stale"
+
+  - name: certificate_alerts
+    interval: 60s
+    rules:
+      - alert: CertificateExpiringSoon
+        expr: |
+          probe_ssl_earliest_cert_expiry - time() < 86400 * 14
+        for: 1h
+        labels:
+          severity: warning
+          component: tls
+          team: infrastructure
+        annotations:
+          summary: "TLS certificate expiring within 14 days"

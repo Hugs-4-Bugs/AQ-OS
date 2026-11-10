@@ -15,6 +15,7 @@
 
 import ZAI from 'z-ai-web-dev-sdk';
 import { readZaiGatewayConfigStatus } from './zai-gateway-config';
+import { getCircuitBreaker, BreakerOpenError } from '@/lib/resilience/circuit-breaker';
 
 // ===== TYPES =====
 
@@ -310,6 +311,11 @@ async function callOpenAI(
       })),
       max_tokens: config.maxTokens || AI_CONFIG.maxTokens,
       temperature: config.temperature ?? AI_CONFIG.defaultTemperature,
+      // DPDP / privacy: opt out of OpenAI's 30-day prompt retention and
+      // model training. Enforces the company position that user data is
+      // NOT used to train AI models at the API contract level.
+      // Ref: https://platform.openai.com/docs/api-reference/chat/create#chat-create-store
+      store: false,
     }),
     signal: AbortSignal.timeout(config.timeout || AI_CONFIG.defaultTimeout),
   });
@@ -655,16 +661,28 @@ export async function executeAICompletion(
       const startTime = Date.now();
 
       try {
-        // Execute with timeout
-        const result = await Promise.race([
-          caller(request.messages, config),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`Provider ${provider} timed out after ${config.timeout}ms`)),
-              config.timeout || AI_CONFIG.defaultTimeout
-            )
-          ),
-        ]);
+        // Phase 6 resilience: per-provider circuit breaker
+        // Wraps the actual provider HTTP call so that when a provider is
+        // consistently failing, the breaker opens and subsequent calls
+        // short-circuit with BreakerOpenError instead of each one waiting
+        // the full timeout. Prevents cascading latency when AI is down.
+        const aiBreaker = getCircuitBreaker(`ai:${provider}`, {
+          failureThreshold: Number(process.env.AI_BREAKER_FAILURE_THRESHOLD || 5),
+          cooldownMs: Number(process.env.AI_BREAKER_COOLDOWN_MS || 30_000),
+          timeoutMs: config.timeout || AI_CONFIG.defaultTimeout,
+        });
+
+        const result = await aiBreaker.exec(() =>
+          Promise.race([
+            caller(request.messages, config),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error(`Provider ${provider} timed out after ${config.timeout}ms`)),
+                config.timeout || AI_CONFIG.defaultTimeout
+              )
+            ),
+          ])
+        );
 
         const latencyMs = Date.now() - startTime;
 
@@ -712,6 +730,18 @@ export async function executeAICompletion(
           latencyMs,
           success: false,
         });
+
+        // Phase 6 resilience: BreakerOpenError handling
+        // If the per-provider circuit breaker is open, do NOT keep retrying
+        // this provider — break out of the per-provider retry loop and
+        // move on to the next provider in the fallback chain.
+        if (error instanceof BreakerOpenError) {
+          console.warn(
+            `[AIProvider] ${provider} circuit breaker is OPEN — skipping remaining retries, ` +
+            `moving to next provider in fallback chain (breaker reopens in ${Math.round(error.retryAfterMs / 1000)}s)`
+          );
+          break;
+        }
 
         // Exponential backoff before retry (skip on last attempt)
         if (attempt < maxRetries) {

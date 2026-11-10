@@ -43,3 +43,8 @@ prisma/test.db
 test-schema.db
 upload/
 download/
+
+# Monitoring secrets — never commit
+monitoring/secrets/*
+!monitoring/secrets/.gitkeep
+!monitoring/secrets/*.example
