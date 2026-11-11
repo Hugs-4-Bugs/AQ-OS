@@ -173,11 +173,10 @@ export async function POST(request: NextRequest) {
 
       // Generate a secure, expiring download token
       const downloadToken = crypto.randomUUID();
+      const tokenHash = crypto.createHash('sha256').update(downloadToken).digest('hex');
       const expiresAt = new Date(Date.now() + EXPORT_EXPIRY_HOURS * 60 * 60 * 1000);
 
-      // Store the export — use the downloadUrl field for the token-based URL
-      // The actual file content is stored in the fileUrl field as base64
-      // (NOT truncated — complete content for download)
+      // Store the export — use the fileUrl field for the complete base64 content
       await db.dataExport.update({
         where: { id: exportRecord.id },
         data: {
@@ -189,15 +188,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Update GdprRequest to completed with expiring download URL
+      // Update GdprRequest to completed with token HASH (not plaintext) + exportId in notes
+      // The plaintext token is returned to the client in the API response but NEVER stored in DB
       await db.gdprRequest.update({
         where: { id: gdprRequest.id },
         data: {
           status: 'completed',
           completedAt: new Date(),
-          downloadUrl: `/api/settings/account/export-download?token=${downloadToken}&requestId=${gdprRequest.id}`,
+          downloadUrl: `/api/settings/account/export-download?requestId=${gdprRequest.id}`,
           expiresAt,
-          notes: `Export generated. ${recordCount} records, ${(fileSizeBytes / 1024).toFixed(1)} KB. Download expires ${expiresAt.toISOString()}.`,
+          notes: JSON.stringify({
+            exportId: exportRecord.id,
+            tokenHash,
+            info: `Export generated. ${recordCount} records, ${(fileSizeBytes / 1024).toFixed(1)} KB. Download expires ${expiresAt.toISOString()}.`,
+          }),
         },
       });
 

@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { db } from '@/lib/db';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 
 const CONFIRMATION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -43,8 +43,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Generate confirmation code using cryptographically secure random
-        // (was Math.random() — insecure for security-sensitive operations)
         const code = randomBytes(8).toString('hex').toUpperCase();
+        // Store HASH of the code (not plaintext) — Phase 6 hardening
+        const codeHash = createHash('sha256').update(code).digest('hex');
 
         // Create GDPR deletion request
         const gdprRequest = await db.gdprRequest.create({
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             requestType: 'deletion',
             status: 'pending',
-            notes: JSON.stringify({ confirmationCode: code }),
+            notes: JSON.stringify({ confirmationCodeHash: codeHash }),
             expiresAt: new Date(Date.now() + CONFIRMATION_WINDOW_MS),
           },
         });
@@ -105,17 +106,41 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Verify confirmation code
-        const storedCode = (() => {
+        // Verify confirmation code via hash comparison (not plaintext) — Phase 6 hardening
+        const storedCodeHash = (() => {
           try {
             const notes = JSON.parse(pendingRequest.notes || '{}');
-            return notes.confirmationCode;
+            return notes.confirmationCodeHash || notes.confirmationCode; // fallback for legacy
           } catch {
             return '';
           }
         })();
 
-        if (confirmationCode !== storedCode) {
+        if (!storedCodeHash) {
+          return NextResponse.json(
+            { error: 'Confirmation code not found. Please start a new deletion request.' },
+            { status: 400 }
+          );
+        }
+
+        // Hash the provided code and compare (constant-time)
+        const providedCodeHash = createHash('sha256').update(confirmationCode).digest('hex');
+        const bufA = Buffer.from(providedCodeHash);
+        const bufB = Buffer.from(storedCodeHash);
+
+        // Support both legacy plaintext (direct compare) and hashed (hash compare)
+        let codeValid = false;
+        if (storedCodeHash.length === 64) {
+          // Hashed mode — constant-time comparison
+          if (bufA.length === bufB.length) {
+            codeValid = timingSafeEqual(bufA, bufB);
+          }
+        } else {
+          // Legacy plaintext mode — direct comparison (backward compat)
+          codeValid = confirmationCode === storedCodeHash;
+        }
+
+        if (!codeValid) {
           return NextResponse.json(
             { error: 'Invalid confirmation code' },
             { status: 400 }
@@ -280,7 +305,7 @@ export async function POST(request: NextRequest) {
             status: 'completed',
             completedAt: new Date(),
             notes: JSON.stringify({
-              confirmationCode: storedCode,
+              confirmationCodeHash: storedCodeHash,
               anonymizedAt: new Date().toISOString(),
               retainedFinancialRecords: true,
             }),
