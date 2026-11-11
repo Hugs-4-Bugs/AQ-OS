@@ -26,30 +26,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=No authorization code received`);
     }
 
-    // Exchange code for tokens
+    // Phase 7B — Validate secure OAuth state (HMAC-signed)
+    // Previously: resolved user by Google account email (insecure — could bind
+    // wrong Google account to wrong application user)
+    // Now: validates signed state to get the initiating application user's ID
     const appUrl = getAppUrl();
+
+    if (!state) {
+      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Missing state parameter')}`);
+    }
+
+    const { validateSecureState } = await import('@/lib/security/oauth-state');
+    const stateResult = validateSecureState(state, 'google', 'calendar');
+    if (!stateResult.valid || !stateResult.userId) {
+      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent(stateResult.error || 'Invalid state parameter')}`);
+    }
+
+    const userId = stateResult.userId;
+
+    // Verify user exists
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('User not found')}`);
+    }
+
+    // Exchange code for tokens (AFTER state validation — don't call Google API if state is invalid)
     const tokenData = await exchangeCodeForTokens(code, appUrl);
 
     if (!tokenData.access_token) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=Failed to exchange code for tokens`);
     }
 
-    // Get user info to find the user
-    const userInfo = await getGoogleUserInfo(tokenData.access_token);
-
-    // Find user by email
-    const user = await db.user.findUnique({
-      where: { email: userInfo.email },
-    });
-
-    if (!user) {
-      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=No user found for ${userInfo.email}`);
-    }
-
     // Phase 7B — Recheck consent before persisting tokens
     try {
       const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
-      if (!(await hasConsent(user.id, 'third_party_integrations'))) {
+      if (!(await hasConsent(userId, 'third_party_integrations'))) {
         return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Third-party integration consent was withdrawn')}`);
       }
     } catch {

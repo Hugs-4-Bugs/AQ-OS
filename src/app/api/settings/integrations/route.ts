@@ -205,6 +205,21 @@ export async function PUT(request: NextRequest) {
         }
 
         if (action === 'send_otp') {
+          // Phase 7B — Consent enforcement for WhatsApp connection creation
+          try {
+            const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+            if (!(await hasConsent(userId, 'third_party_integrations'))) {
+              return NextResponse.json(
+                { error: 'Third-party integration consent is not granted. Please grant consent in Privacy Settings to connect new integrations.' },
+                { status: 403 }
+              );
+            }
+          } catch {
+            return NextResponse.json(
+              { error: 'Unable to verify integration consent. Please try again.' },
+              { status: 500 }
+            );
+          }
           const phoneNumber = body.phoneNumber;
           if (!phoneNumber) {
             return NextResponse.json(
@@ -261,6 +276,21 @@ export async function PUT(request: NextRequest) {
         }
 
         if (action === 'verify_otp') {
+          // Phase 7B — Consent enforcement for WhatsApp connection completion
+          try {
+            const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+            if (!(await hasConsent(userId, 'third_party_integrations'))) {
+              return NextResponse.json(
+                { error: 'Third-party integration consent is not granted. Please grant consent in Privacy Settings to connect new integrations.' },
+                { status: 403 }
+              );
+            }
+          } catch {
+            return NextResponse.json(
+              { error: 'Unable to verify integration consent. Please try again.' },
+              { status: 500 }
+            );
+          }
           const otp = body.otp;
           if (!otp) {
             return NextResponse.json(

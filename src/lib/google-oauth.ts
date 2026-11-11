@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { encrypt, decrypt } from '@/lib/encryption';
+import { createSecureState } from '@/lib/security/oauth-state';
 
 /** Scopes required for Gmail + Calendar integration */
 export const GOOGLE_INTEGRATION_SCOPES = [
@@ -154,8 +155,8 @@ export function buildGoogleIntegrationAuthUrl(userId: string, origin: string): s
 
   console.log(`[Google Integration Auth] clientId=${clientId ? 'SET' : 'MISSING'}, redirectUri=${redirectUri}`);
 
-  // Encode state as base64 JSON
-  const state = Buffer.from(JSON.stringify({ userId, origin })).toString('base64');
+  // Phase 7B — Use cryptographically secure OAuth state (HMAC-signed)
+  const state = createSecureState(userId, 'google', 'integration');
 
   const params = new URLSearchParams({
     client_id: clientId!,
@@ -253,8 +254,8 @@ export function buildGoogleCalendarAuthUrl(userId: string, origin: string): stri
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = `${origin || process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
 
-  // Encode state as base64 JSON
-  const state = Buffer.from(JSON.stringify({ userId, origin, purpose: 'calendar' })).toString('base64');
+  // Phase 7B — Use cryptographically secure OAuth state (HMAC-signed)
+  const state = createSecureState(userId, 'google', 'calendar');
 
   const params = new URLSearchParams({
     client_id: clientId!,

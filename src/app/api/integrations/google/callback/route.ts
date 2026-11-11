@@ -40,29 +40,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Decode state to get userId and origin
-    let userId = '';
-    let origin = process.env.NEXT_PUBLIC_APP_URL || getAppUrl();
+    // Phase 7B — Validate secure OAuth state (HMAC-signed, not base64 JSON)
+    const origin = process.env.NEXT_PUBLIC_APP_URL || getAppUrl();
 
-    if (stateParam) {
-      try {
-        const decoded = JSON.parse(Buffer.from(stateParam, 'base64').toString());
-        userId = decoded.userId || '';
-        origin = decoded.origin || origin;
-      } catch {
-        console.error('[Google Integration] Could not decode state parameter');
-        return NextResponse.redirect(
-          `${origin}/?integration_error=${encodeURIComponent('Invalid state parameter')}`
-        );
-      }
-    }
-
-    if (!userId) {
-      console.error('[Google Integration] No userId in state parameter');
+    if (!stateParam) {
       return NextResponse.redirect(
-        `${origin}/?integration_error=${encodeURIComponent('Authentication required for Google integration')}`
+        `${origin}/?integration_error=${encodeURIComponent('Missing state parameter')}`
       );
     }
+
+    const { validateSecureState } = await import('@/lib/security/oauth-state');
+    const stateResult = validateSecureState(stateParam, 'google');
+    if (!stateResult.valid || !stateResult.userId) {
+      console.error('[Google Integration] State validation failed:', stateResult.error);
+      return NextResponse.redirect(
+        `${origin}/?integration_error=${encodeURIComponent(stateResult.error || 'Invalid state parameter')}`
+      );
+    }
+
+    const userId = stateResult.userId;
 
     // Verify user exists
     const user = await db.user.findUnique({ where: { id: userId } });
