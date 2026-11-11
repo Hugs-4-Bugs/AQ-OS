@@ -73,6 +73,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Phase 7B — Recheck consent before persisting tokens
+    // Consent could have been withdrawn after the user initiated OAuth
+    // but before the provider redirected back.
+    try {
+      const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+      if (!(await hasConsent(userId, 'third_party_integrations'))) {
+        return NextResponse.redirect(
+          `${origin}/?integration_error=${encodeURIComponent('Third-party integration consent was withdrawn')}`
+        );
+      }
+    } catch {
+      // Fail-closed: if consent check fails, don't persist tokens
+      return NextResponse.redirect(
+        `${origin}/?integration_error=${encodeURIComponent('Unable to verify integration consent')}`
+      );
+    }
+
     // Exchange code for tokens
     const tokenData = await exchangeCodeForTokens(code, origin);
 

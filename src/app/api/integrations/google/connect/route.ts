@@ -11,6 +11,22 @@ import { getAppUrl } from '@/lib/app-url';
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
+    // Phase 7B — Consent enforcement for third-party integrations
+    try {
+      const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+      if (!(await hasConsent(user.id, 'third_party_integrations'))) {
+        return NextResponse.json(
+          { error: 'Third-party integration consent is not granted. Please grant consent in Privacy Settings to connect new integrations.' },
+          { status: 403 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: 'Unable to verify integration consent. Please try again.' },
+        { status: 500 }
+      );
+    }
+
     // Verify Google OAuth is configured
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
       return NextResponse.json(
