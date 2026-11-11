@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { validateSecureState } = await import('@/lib/security/oauth-state');
-    const stateResult = validateSecureState(stateParam, 'google');
+    // Enforce flow=integration — reject calendar-flow state
+    const stateResult = await validateSecureState(stateParam, 'google', 'integration');
     if (!stateResult.valid || !stateResult.userId) {
       console.error('[Google Integration] State validation failed:', stateResult.error);
       return NextResponse.redirect(

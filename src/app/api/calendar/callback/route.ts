@@ -1,11 +1,19 @@
 // ═══════════════════════════════════════════════════════════════════
-// AcquisitionOS — Calendar OAuth Callback
+// AcquisitionOS — Calendar OAuth Callback (fixed)
 // GET /api/calendar/callback — Handle Google Calendar OAuth redirect
+//
+// Fixes:
+//   1. userInfo now declared via getGoogleUserInfo (was undefined)
+//   2. Uses /api/calendar/callback redirect URI for token exchange
+//   3. Only creates Calendar tokens — does NOT activate Gmail
+//   4. Validates flow=calendar in OAuth state
+//   5. Validates Calendar scopes before persisting
+//   6. Application user identity from signed state, NOT Google email
 // ═══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { refreshGoogleToken, exchangeCodeForTokens, getGoogleUserInfo } from '@/lib/google-oauth';
+import { exchangeCodeForTokens, getGoogleUserInfo } from '@/lib/google-oauth';
 import { getAppUrl } from '@/lib/app-url';
 
 export async function GET(request: NextRequest) {
@@ -26,10 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=No authorization code received`);
     }
 
-    // Phase 7B — Validate secure OAuth state (HMAC-signed)
-    // Previously: resolved user by Google account email (insecure — could bind
-    // wrong Google account to wrong application user)
-    // Now: validates signed state to get the initiating application user's ID
+    // Phase 7B — Validate secure OAuth state (HMAC-signed, flow=calendar)
     const appUrl = getAppUrl();
 
     if (!state) {
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { validateSecureState } = await import('@/lib/security/oauth-state');
-    const stateResult = validateSecureState(state, 'google', 'calendar');
+    const stateResult = await validateSecureState(state, 'google', 'calendar');
     if (!stateResult.valid || !stateResult.userId) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent(stateResult.error || 'Invalid state parameter')}`);
     }
@@ -50,11 +55,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('User not found')}`);
     }
 
-    // Exchange code for tokens (AFTER state validation — don't call Google API if state is invalid)
-    const tokenData = await exchangeCodeForTokens(code, appUrl);
+    // Exchange code for tokens using the CALENDAR callback redirect URI
+    // (must match the redirect URI used in buildGoogleCalendarAuthUrl)
+    const tokenData = await exchangeCodeForTokens(code, appUrl, '/api/calendar/callback');
 
     if (!tokenData.access_token) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=Failed to exchange code for tokens`);
+    }
+
+    // Validate that granted scopes include Calendar scopes
+    const grantedScopes = tokenData.scope || '';
+    const hasCalendarScope = grantedScopes.includes('calendar') || grantedScopes.includes('calendar.events');
+    if (!hasCalendarScope) {
+      console.error('[Calendar Callback] Granted scopes do not include Calendar:', grantedScopes);
+      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Granted scopes do not include Calendar access')}`);
     }
 
     // Phase 7B — Recheck consent before persisting tokens
@@ -67,10 +81,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Unable to verify integration consent')}`);
     }
 
+    // Get Google account info for metadata (calendarEmail field)
+    // This is NOT used for user resolution — userId comes from signed state
+    const userInfo = await getGoogleUserInfo(tokenData.access_token);
+    if (!userInfo || !userInfo.email) {
+      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Could not retrieve Google account information')}`);
+    }
+
     // Calculate token expiry
     const tokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
 
-    // Store or update Google Calendar token
+    // Store or update Google Calendar token — Calendar flow ONLY
+    // Does NOT create EmailAccount or set Gmail-connected flags
     const existing = await db.googleCalendarToken.findFirst({
       where: { userId: user.id },
     });
@@ -83,6 +105,8 @@ export async function GET(request: NextRequest) {
           refreshToken: tokenData.refresh_token || existing.refreshToken,
           tokenExpiry,
           calendarEmail: userInfo.email,
+          scope: grantedScopes,
+          status: 'active',
           isConnected: true,
         },
       });
@@ -94,6 +118,8 @@ export async function GET(request: NextRequest) {
           refreshToken: tokenData.refresh_token || '',
           tokenExpiry,
           calendarEmail: userInfo.email,
+          scope: grantedScopes,
+          status: 'active',
           isConnected: true,
         },
       });

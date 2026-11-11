@@ -174,13 +174,17 @@ export function buildGoogleIntegrationAuthUrl(userId: string, origin: string): s
 /**
  * Exchange an authorization code for tokens.
  */
-export async function exchangeCodeForTokens(code: string, origin: string): Promise<{
+export async function exchangeCodeForTokens(
+  code: string,
+  origin: string,
+  redirectUriPath: string = '/api/integrations/google/callback'
+): Promise<{
   access_token: string;
   refresh_token?: string;
   expires_in: number;
   scope?: string;
 }> {
-  const redirectUri = `${origin || process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
+  const redirectUri = `${origin || process.env.NEXT_PUBLIC_APP_URL}${redirectUriPath}`;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -252,7 +256,8 @@ export const GOOGLE_CALENDAR_SCOPES = [
  */
 export function buildGoogleCalendarAuthUrl(userId: string, origin: string): string {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = `${origin || process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
+  // Calendar flow uses its own callback endpoint
+  const redirectUri = `${origin || process.env.NEXT_PUBLIC_APP_URL}/api/calendar/callback`;
 
   // Phase 7B — Use cryptographically secure OAuth state (HMAC-signed)
   const state = createSecureState(userId, 'google', 'calendar');

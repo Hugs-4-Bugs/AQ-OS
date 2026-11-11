@@ -87,61 +87,61 @@ describe('Phase 7B Remediation — OAuth state utility', () => {
     expect(state.split('.').length).toBe(2); // payload.hmac
   });
 
-  it('validateSecureState accepts a valid state', () => {
+  it('validateSecureState accepts a valid state', async () => {
     const state = createSecureState('user-123', 'google', 'integration');
-    const result = validateSecureState(state, 'google');
+    const result = await validateSecureState(state, 'google');
     expect(result.valid).toBe(true);
     expect(result.userId).toBe('user-123');
     expect(result.provider).toBe('google');
     expect(result.flow).toBe('integration');
   });
 
-  it('rejects tampered state (HMAC mismatch)', () => {
+  it('rejects tampered state (HMAC mismatch)', async () => {
     const state = createSecureState('user-123', 'google', 'integration');
     // Tamper with the payload
     const [payload, hmac] = state.split('.');
     const tampered = `${payload.slice(0, -2)}XX.${hmac}`;
-    const result = validateSecureState(tampered, 'google');
+    const result = await validateSecureState(tampered, 'google');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('tampered');
   });
 
-  it('rejects wrong provider', () => {
+  it('rejects wrong provider', async () => {
     const state = createSecureState('user-123', 'google', 'integration');
-    const result = validateSecureState(state, 'facebook');
+    const result = await validateSecureState(state, 'facebook');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('provider mismatch');
   });
 
-  it('rejects wrong flow', () => {
+  it('rejects wrong flow', async () => {
     const state = createSecureState('user-123', 'google', 'calendar');
-    const result = validateSecureState(state, 'google', 'integration');
+    const result = await validateSecureState(state, 'google', 'integration');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('flow mismatch');
   });
 
-  it('rejects replayed state (one-time use)', () => {
+  it('rejects replayed state (one-time use)', async () => {
     const state = createSecureState('user-123', 'google', 'integration');
-    const result1 = validateSecureState(state, 'google');
+    const result1 = await validateSecureState(state, 'google');
     expect(result1.valid).toBe(true);
-    const result2 = validateSecureState(state, 'google');
+    const result2 = await validateSecureState(state, 'google');
     expect(result2.valid).toBe(false);
     expect(result2.error).toContain('replay');
   });
 
-  it('rejects malformed state', () => {
-    const result = validateSecureState('not-a-valid-state', 'google');
+  it('rejects malformed state', async () => {
+    const result = await validateSecureState('not-a-valid-state', 'google');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('Malformed');
   });
 
-  it('rejects missing state', () => {
-    const result = validateSecureState('', 'google');
+  it('rejects missing state', async () => {
+    const result = await validateSecureState('', 'google');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('Missing');
   });
 
-  it('user identity cannot be changed by modifying state', () => {
+  it('user identity cannot be changed by modifying state', async () => {
     const state = createSecureState('user-123', 'google', 'integration');
     // Try to decode, change userId, re-encode WITHOUT the HMAC
     const [payloadB64] = state.split('.');
@@ -149,7 +149,7 @@ describe('Phase 7B Remediation — OAuth state utility', () => {
     payload.userId = 'attacker-user';
     const tamperedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const tamperedState = `${tamperedPayload}.fakeHmac`;
-    const result = validateSecureState(tamperedState, 'google');
+    const result = await validateSecureState(tamperedState, 'google');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('tampered');
   });
