@@ -8,6 +8,21 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) {
+    // Phase 7B — Consent enforcement
+    try {
+      const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+      if (!(await hasConsent(authUser.id, 'third_party_integrations'))) {
+        return NextResponse.json(
+          { error: 'Third-party integration consent is not granted. Please grant consent in Privacy Settings to connect new integrations.' },
+          { status: 403 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: 'Unable to verify integration consent. Please try again.' },
+        { status: 500 }
+      );
+    }
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 

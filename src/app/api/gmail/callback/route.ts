@@ -39,6 +39,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Phase 7B — Recheck consent before persisting tokens
+    try {
+      const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+      if (!(await hasConsent(userId, 'third_party_integrations'))) {
+        return NextResponse.redirect(
+          `${DASHBOARD_URL}/?gmail_error=${encodeURIComponent('Third-party integration consent was withdrawn')}`
+        );
+      }
+    } catch {
+      return NextResponse.redirect(
+        `${DASHBOARD_URL}/?gmail_error=${encodeURIComponent('Unable to verify integration consent')}`
+      );
+    }
+
     // Exchange code for tokens and create/update EmailAccount
     const result = await handleOAuthCallback(code);
 

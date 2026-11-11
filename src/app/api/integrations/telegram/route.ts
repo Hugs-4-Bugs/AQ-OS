@@ -89,6 +89,21 @@ export async function POST(request: NextRequest) {
     switch (action) {
       // ── Generate a link code for connecting Telegram ──
       case 'generate_code': {
+        // Phase 7B — Consent enforcement for connection creation
+        try {
+          const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+          if (!(await hasConsent(user.id, 'third_party_integrations'))) {
+            return NextResponse.json(
+              { error: 'Third-party integration consent is not granted. Please grant consent in Privacy Settings to connect new integrations.' },
+              { status: 403 }
+            );
+          }
+        } catch {
+          return NextResponse.json(
+            { error: 'Unable to verify integration consent. Please try again.' },
+            { status: 500 }
+          );
+        }
         const linkCode = crypto.randomBytes(4).toString('hex').toUpperCase();
         const linkCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -127,6 +142,21 @@ export async function POST(request: NextRequest) {
 
       // ── Connect a Telegram chat to the user ──
       case 'connect': {
+        // Phase 7B — Consent enforcement for connection creation
+        try {
+          const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+          if (!(await hasConsent(user.id, 'third_party_integrations'))) {
+            return NextResponse.json(
+              { error: 'Third-party integration consent is not granted. Please grant consent in Privacy Settings to connect new integrations.' },
+              { status: 403 }
+            );
+          }
+        } catch {
+          return NextResponse.json(
+            { error: 'Unable to verify integration consent. Please try again.' },
+            { status: 500 }
+          );
+        }
         const { chatId, username } = body;
 
         if (!chatId) {

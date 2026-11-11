@@ -46,6 +46,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=No user found for ${userInfo.email}`);
     }
 
+    // Phase 7B — Recheck consent before persisting tokens
+    try {
+      const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+      if (!(await hasConsent(user.id, 'third_party_integrations'))) {
+        return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Third-party integration consent was withdrawn')}`);
+      }
+    } catch {
+      return NextResponse.redirect(`${appUrl}/dashboard?calendar_error=${encodeURIComponent('Unable to verify integration consent')}`);
+    }
+
     // Calculate token expiry
     const tokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
 
