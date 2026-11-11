@@ -68,6 +68,31 @@ const ENRICHMENT_TIMEOUT_MS = parseInt(process.env.ENRICHMENT_TIMEOUT_MS || '300
  */
 export async function enrichLead(leadId: string, userId: string): Promise<EnrichmentResult> {
   try {
+    // ── Phase 7 — Consent enforcement for AI processing ────────────
+    // Lead enrichment sends lead PII to Z-AI. Check ai_processing consent
+    // before proceeding. This is a direct Z-AI call that bypasses
+    // executeAICompletion, so a separate consent check is needed here.
+    try {
+      const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+      const aiConsentGranted = await hasConsent(userId, 'ai_processing');
+      if (!aiConsentGranted) {
+        return {
+          success: false,
+          leadId,
+          fieldsUpdated: [],
+          error: 'AI processing consent is not granted. Please grant AI processing consent in Privacy Settings to use lead enrichment.',
+        };
+      }
+    } catch {
+      // Fail-closed: if consent check fails, block enrichment
+      return {
+        success: false,
+        leadId,
+        fieldsUpdated: [],
+        error: 'AI processing consent check failed. Please try again or contact support.',
+      };
+    }
+
     // Fetch lead
     const lead = await db.lead.findFirst({
       where: { id: leadId, isActive: true },

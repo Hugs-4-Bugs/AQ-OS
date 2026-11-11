@@ -609,6 +609,42 @@ export async function executeAICompletion(
 ): Promise<AICompletionResult> {
   const config = { ...DEFAULT_CONFIG, ...request.config };
 
+  // ── Phase 7 — Consent enforcement for AI processing ────────────
+  // Check the initiating user's ai_processing consent before sending
+  // any prompts or user data to an AI provider. Fail-closed: if consent
+  // is absent, declined, withdrawn, or cannot be retrieved, the AI call
+  // is blocked. No credit deduction occurs for blocked calls.
+  // This is the central boundary — all AI calls through executeAICompletion
+  // are covered, including background jobs and internal service calls.
+  try {
+    const { hasConsent } = await import('@/lib/compliance/consent-enforcement');
+    const aiConsentGranted = await hasConsent(userId, 'ai_processing');
+    if (!aiConsentGranted) {
+      return {
+        success: false,
+        content: '',
+        provider: config.provider || 'z-ai',
+        model: config.model || 'unknown',
+        tokensUsed: 0,
+        latencyMs: 0,
+        retries: 0,
+        error: 'AI processing consent is not granted. Please grant AI processing consent in Privacy Settings to use AI-powered features.',
+      };
+    }
+  } catch (consentErr) {
+    // Fail-closed: if consent check itself fails, block the AI call
+    return {
+      success: false,
+      content: '',
+      provider: config.provider || 'z-ai',
+      model: config.model || 'unknown',
+      tokensUsed: 0,
+      latencyMs: 0,
+      retries: 0,
+      error: `AI processing consent check failed: ${consentErr instanceof Error ? consentErr.message : 'unknown error'}`,
+    };
+  }
+
   // ── Phase 26 v2 — provider routing (strict) ──
   // When a provider is EXPLICITLY configured, it is the ONLY provider
   // attempted. No silent fallback to Z-AI (per user spec Part 3:
