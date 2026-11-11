@@ -65,3 +65,9 @@ if (existsSync(schemaSource)) {
 process.env.DATABASE_URL = `file:${workerDbPath}`;
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only-min-32-chars';
 process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
+// Phase 7B: Set a valid 32-byte ENCRYPTION_KEY for AES-256-GCM tests.
+// The fallback key in encryption.ts is 37 bytes (not 32), which causes
+// AES-256-GCM to reject it. Tests that exercise the encrypt() path
+// (Calendar callback, Gmail callback, token refresh) require this.
+// 64-char hex string → decoded to 32 bytes by getEncryptionKey().
+process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';

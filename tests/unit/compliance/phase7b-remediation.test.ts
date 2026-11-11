@@ -78,8 +78,25 @@ function unauthedPost(url: string, body?: unknown): NextRequest {
 // ── OAuth state utility tests ───────────────────────────────────────
 
 describe('Phase 7B Remediation — OAuth state utility', () => {
-  beforeEach(() => _resetConsumedNonces());
-  afterEach(() => _resetConsumedNonces());
+  // Phase 7B Part 2 fix: validateSecureState now fails CLOSED when the
+  // durable nonce-consumption DB write fails. AuditLog.userId has a FK
+  // constraint to User.id, so tests that reach the nonce-consumption step
+  // (valid state, replay) MUST use a real user ID. Tests that fail BEFORE
+  // the DB check (tampered, wrong provider, wrong flow, malformed, missing)
+  // can still use the synthetic 'user-123' because the DB is never consulted.
+  let realUser: { id: string };
+
+  beforeEach(async () => {
+    _resetConsumedNonces();
+    const u = await createTestUser();
+    realUser = { id: u.id };
+  });
+  afterEach(async () => {
+    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.auditLog.deleteMany({ where: { userId: realUser.id } }).catch(() => {});
+    await db.user.delete({ where: { id: realUser.id } }).catch(() => {});
+    _resetConsumedNonces();
+  });
 
   it('createSecureState produces a valid signed token', () => {
     const state = createSecureState('user-123', 'google', 'integration');
@@ -88,10 +105,10 @@ describe('Phase 7B Remediation — OAuth state utility', () => {
   });
 
   it('validateSecureState accepts a valid state', async () => {
-    const state = createSecureState('user-123', 'google', 'integration');
+    const state = createSecureState(realUser.id, 'google', 'integration');
     const result = await validateSecureState(state, 'google');
     expect(result.valid).toBe(true);
-    expect(result.userId).toBe('user-123');
+    expect(result.userId).toBe(realUser.id);
     expect(result.provider).toBe('google');
     expect(result.flow).toBe('integration');
   });
@@ -121,7 +138,7 @@ describe('Phase 7B Remediation — OAuth state utility', () => {
   });
 
   it('rejects replayed state (one-time use)', async () => {
-    const state = createSecureState('user-123', 'google', 'integration');
+    const state = createSecureState(realUser.id, 'google', 'integration');
     const result1 = await validateSecureState(state, 'google');
     expect(result1.valid).toBe(true);
     const result2 = await validateSecureState(state, 'google');
@@ -292,8 +309,19 @@ describe('Phase 7B Remediation — WhatsApp verify-otp consent', () => {
 // ── Google callback secure state ────────────────────────────────────
 
 describe('Phase 7B Remediation — Google callback secure state', () => {
-  beforeEach(() => _resetConsumedNonces());
-  afterEach(() => _resetConsumedNonces());
+  // Phase 7B Part 2 fix: replay tests require a real user for the AuditLog FK.
+  let realUser: { id: string };
+  beforeEach(async () => {
+    _resetConsumedNonces();
+    const u = await createTestUser();
+    realUser = { id: u.id };
+  });
+  afterEach(async () => {
+    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.auditLog.deleteMany({ where: { userId: realUser.id } }).catch(() => {});
+    await db.user.delete({ where: { id: realUser.id } }).catch(() => {});
+    _resetConsumedNonces();
+  });
 
   it('rejects tampered state', async () => {
     const { GET } = await import('@/app/api/integrations/google/callback/route');
@@ -325,7 +353,7 @@ describe('Phase 7B Remediation — Google callback secure state', () => {
 
   it('rejects replayed state', async () => {
     const { GET } = await import('@/app/api/integrations/google/callback/route');
-    const state = createSecureState('user-123', 'google', 'integration');
+    const state = createSecureState(realUser.id, 'google', 'integration');
     // First use
     const req1 = new NextRequest(
       `http://localhost:3000/api/integrations/google/callback?code=fake&state=${state}`,
@@ -346,8 +374,19 @@ describe('Phase 7B Remediation — Google callback secure state', () => {
 // ── Calendar callback secure state ──────────────────────────────────
 
 describe('Phase 7B Remediation — Calendar callback secure state', () => {
-  beforeEach(() => _resetConsumedNonces());
-  afterEach(() => _resetConsumedNonces());
+  // Phase 7B Part 2 fix: replay tests require a real user for the AuditLog FK.
+  let realUser: { id: string };
+  beforeEach(async () => {
+    _resetConsumedNonces();
+    const u = await createTestUser();
+    realUser = { id: u.id };
+  });
+  afterEach(async () => {
+    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.auditLog.deleteMany({ where: { userId: realUser.id } }).catch(() => {});
+    await db.user.delete({ where: { id: realUser.id } }).catch(() => {});
+    _resetConsumedNonces();
+  });
 
   it('rejects missing state', async () => {
     const { GET } = await import('@/app/api/calendar/callback/route');
@@ -389,7 +428,7 @@ describe('Phase 7B Remediation — Calendar callback secure state', () => {
 
   it('rejects replayed state', async () => {
     const { GET } = await import('@/app/api/calendar/callback/route');
-    const state = createSecureState('user-123', 'google', 'calendar');
+    const state = createSecureState(realUser.id, 'google', 'calendar');
     // First use
     const req1 = new NextRequest(
       `http://localhost:3000/api/calendar/callback?code=fake&state=${state}`,

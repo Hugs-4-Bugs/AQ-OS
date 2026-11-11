@@ -15,6 +15,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { exchangeCodeForTokens, getGoogleUserInfo } from '@/lib/google-oauth';
 import { getAppUrl } from '@/lib/app-url';
+import { encrypt, isEncrypted } from '@/lib/encryption';
+
+/**
+ * Encrypt a credential value before database persistence.
+ *
+ * Safety:
+ *   - Returns '' for empty input (never encrypts empty strings redundantly).
+ *   - If the value is ALREADY encrypted (iv:authTag:ciphertext hex format),
+ *     returns it as-is to prevent double-encryption.
+ *   - Otherwise encrypts the plaintext value with AES-256-GCM.
+ *
+ * This helper exists to satisfy two Phase 7B requirements:
+ *   1. Encrypt Calendar access/refresh tokens before persistence.
+ *   2. Never encrypt an already-encrypted value a second time.
+ *
+ * Backward compatibility: existing Calendar records that were stored as
+ * plaintext before this fix are handled by the decrypt() function's
+ * built-in migration path (returns plaintext as-is when the value does
+ * not match the iv:authTag:ciphertext format). This is an explicit,
+ * safe compatibility strategy — decrypt() never guesses; it returns
+ * the input unchanged if it cannot parse the encrypted format.
+ */
+function encryptCredential(value: string): string {
+  if (!value) return '';
+  if (isEncrypted(value)) return value; // Already encrypted — do not double-encrypt
+  return encrypt(value);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,16 +120,26 @@ export async function GET(request: NextRequest) {
 
     // Store or update Google Calendar token — Calendar flow ONLY
     // Does NOT create EmailAccount or set Gmail-connected flags
+    // Phase 7B — Encrypt access and refresh tokens before persistence
+    // (consistent with getValidCalendarAccessToken which decrypts them).
     const existing = await db.googleCalendarToken.findFirst({
       where: { userId: user.id },
     });
 
     if (existing) {
+      // UPDATE path: preserve existing refresh token when Google does not
+      // return a new one. The existing refresh token may already be encrypted
+      // (post-fix records) or plaintext (pre-fix records); encryptCredential
+      // handles both cases without double-encryption.
+      const refreshTokenToStore = tokenData.refresh_token
+        ? encryptCredential(tokenData.refresh_token)
+        : (existing.refreshToken ? encryptCredential(existing.refreshToken) : '');
+
       await db.googleCalendarToken.update({
         where: { id: existing.id },
         data: {
-          accessToken: tokenData.access_token,
-          refreshToken: tokenData.refresh_token || existing.refreshToken,
+          accessToken: encryptCredential(tokenData.access_token),
+          refreshToken: refreshTokenToStore,
           tokenExpiry,
           calendarEmail: userInfo.email,
           scope: grantedScopes,
@@ -111,11 +148,14 @@ export async function GET(request: NextRequest) {
         },
       });
     } else {
+      // CREATE path: encrypt both tokens. If Google did not return a refresh
+      // token (rare for first-time consent with prompt=consent), store empty
+      // string — the user will need to re-connect to obtain one.
       await db.googleCalendarToken.create({
         data: {
           userId: user.id,
-          accessToken: tokenData.access_token,
-          refreshToken: tokenData.refresh_token || '',
+          accessToken: encryptCredential(tokenData.access_token),
+          refreshToken: tokenData.refresh_token ? encryptCredential(tokenData.refresh_token) : '',
           tokenExpiry,
           calendarEmail: userInfo.email,
           scope: grantedScopes,

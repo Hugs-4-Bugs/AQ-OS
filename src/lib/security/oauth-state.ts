@@ -9,9 +9,19 @@
 //   - One-time use (durable database-backed consumption)
 //
 // Replay protection uses the database (AuditLog table) for durable,
-// shared state consumption across instances. A unique-constrained
-// insert ensures atomicity: if two concurrent requests try to
-// consume the same nonce, only one will succeed.
+// shared state consumption across instances. The current AuditLog model
+// does NOT have a database-enforced unique constraint on the consumed
+// nonce — see Phase 7B Part 3 report for the proposed schema change.
+// The INSERT...WHERE NOT EXISTS pattern provides application-level
+// replay protection within a single statement, but database-enforced
+// uniqueness requires a separate schema authorization.
+//
+// FAIL-CLOSED BEHAVIOR (Phase 7B Part 2):
+//   If the durable nonce-consumption operation fails (database
+//   unavailable, connection error, etc.), validation MUST fail closed.
+//   We never return valid:true when durable consumption could not be
+//   established. There is NO process-local fallback — production OAuth
+//   replay protection must be durable and shared across instances.
 //
 // State format: base64url(JSON({userId, provider, flow, ts, nonce})) + "." + HMAC
 // ═══════════════════════════════════════════════════════════════════
@@ -68,52 +78,52 @@ export interface StateValidationResult {
   error?: string;
 }
 
-// In-memory fallback for when database is unavailable
-// (e.g., during unit tests without a DB connection)
-const localConsumedNonces = new Set<string>();
-const MAX_LOCAL_NONCES = 1000;
-
 /**
  * Atomically consume a nonce using the database.
- * Uses a unique-constrained insert via AuditLog to ensure atomicity.
+ * Uses an INSERT...WHERE NOT EXISTS pattern via AuditLog.
  * Returns true if this call successfully consumed the nonce (first use),
  * false if it was already consumed (replay).
+ *
+ * FAIL-CLOSED: If the database operation fails (connection error,
+ * unavailable, etc.), this function throws. The caller
+ * (validateSecureState) catches the throw and returns
+ * { valid: false, error: 'State validation unavailable' }.
+ * Production code MUST NOT fall back to process-local storage —
+ * replay protection must be durable and shared across instances.
  */
 async function consumeNonceDb(nonce: string, userId: string): Promise<boolean> {
-  try {
-    const { db } = await import('@/lib/db');
-    // Atomic insert: INSERT ... WHERE NOT EXISTS
-    // This is a single SQL statement — no race condition possible.
-    // Returns 1 if inserted (first use), 0 if already existed (replay).
-    const { randomUUID } = await import('crypto');
-    const insertId = randomUUID();
-    const result = await db.$executeRaw`
-      INSERT INTO AuditLog (id, userId, action, resourceId, details, resource, severity)
-      SELECT ${insertId}, ${userId}, 'oauth_state_consumed', ${nonce},
-             ${JSON.stringify({ consumedAt: new Date().toISOString() })},
-             'oauth_state', 'low'
-      WHERE NOT EXISTS (
-        SELECT 1 FROM AuditLog
-        WHERE action = 'oauth_state_consumed' AND resourceId = ${nonce}
-      )
-    `;
-    return result > 0; // 1 = consumed (first use), 0 = replay
-  } catch {
-    // Database unavailable — fall back to local
-    if (localConsumedNonces.has(nonce)) return false;
-    localConsumedNonces.add(nonce);
-    if (localConsumedNonces.size > MAX_LOCAL_NONCES) {
-      const first = localConsumedNonces.values().next().value;
-      if (first) localConsumedNonces.delete(first);
-    }
-    return true;
-  }
+  const { db } = await import('@/lib/db');
+  const { randomUUID } = await import('crypto');
+  const insertId = randomUUID();
+  // INSERT ... WHERE NOT EXISTS — application-level replay protection.
+  // NOTE: This is a single SQL statement, but without a database-enforced
+  // unique constraint on (action, resourceId), concurrent requests on
+  // different connections COULD both pass the NOT EXISTS check under
+  // READ COMMITTED isolation (PostgreSQL) or even with SQLite under
+  // specific timing. A unique constraint is required for true
+  // database-enforced uniqueness — see Phase 7B Part 3 report.
+  const result = await db.$executeRaw`
+    INSERT INTO AuditLog (id, userId, action, resourceId, details, resource, severity)
+    SELECT ${insertId}, ${userId}, 'oauth_state_consumed', ${nonce},
+           ${JSON.stringify({ consumedAt: new Date().toISOString() })},
+           'oauth_state', 'low'
+    WHERE NOT EXISTS (
+      SELECT 1 FROM AuditLog
+      WHERE action = 'oauth_state_consumed' AND resourceId = ${nonce}
+    )
+  `;
+  return result > 0; // 1 = consumed (first use), 0 = replay
 }
 
 /**
  * Validate an OAuth state token.
  * Checks: HMAC integrity, expiry, user binding, provider/flow binding, one-time use.
  * Consumes the state (prevents replay) if valid — using durable database storage.
+ *
+ * FAIL-CLOSED: If durable nonce consumption cannot be established (database
+ * error), validation fails closed with a safe error message. We NEVER return
+ * valid:true when durable consumption could not be verified. There is no
+ * process-local fallback — production replay protection must be durable.
  */
 export async function validateSecureState(
   state: string,
@@ -167,8 +177,22 @@ export async function validateSecureState(
     return { valid: false, error: `State flow mismatch (expected ${expectedFlow}, got ${payload.flow})` };
   }
 
-  // Check one-time use (replay protection) — durable database-backed
-  const consumed = await consumeNonceDb(payload.nonce, payload.userId);
+  // Check one-time use (replay protection) — durable database-backed.
+  // FAIL-CLOSED: if the database operation throws, we reject the state
+  // rather than silently falling back to process-local storage.
+  let consumed: boolean;
+  try {
+    consumed = await consumeNonceDb(payload.nonce, payload.userId);
+  } catch (error) {
+    // Durable nonce consumption could not be established.
+    // Fail closed — do NOT fall back to process-local replay protection.
+    // Log a safe (non-sensitive) message; do not expose DB internals.
+    console.error(
+      '[OAuth State] Durable nonce consumption failed — rejecting state (fail-closed):',
+      error instanceof Error ? error.message : 'unknown error'
+    );
+    return { valid: false, error: 'State validation unavailable' };
+  }
   if (!consumed) {
     return { valid: false, error: 'State already consumed (replay detected)' };
   }
@@ -191,7 +215,12 @@ function timingSafeEqualCustom(a: Buffer, b: Buffer): boolean {
   return diff === 0;
 }
 
-// For tests: reset local store
+/**
+ * Test helper — kept as a no-op for backward compatibility with existing
+ * test suites that call it. Production code no longer maintains any
+ * process-local nonce store; replay protection is exclusively durable
+ * (database-backed). Clearing the local store is therefore a no-op.
+ */
 export function _resetConsumedNonces(): void {
-  localConsumedNonces.clear();
+  // No-op — durable DB-only replay protection. There is no local store.
 }
