@@ -8,13 +8,12 @@
 //   - Provider/flow binding (provider + flow embedded, verified on callback)
 //   - One-time use (durable database-backed consumption)
 //
-// Replay protection uses the database (AuditLog table) for durable,
-// shared state consumption across instances. The current AuditLog model
-// does NOT have a database-enforced unique constraint on the consumed
-// nonce — see Phase 7B Part 3 report for the proposed schema change.
-// The INSERT...WHERE NOT EXISTS pattern provides application-level
-// replay protection within a single statement, but database-enforced
-// uniqueness requires a separate schema authorization.
+// Replay protection uses the dedicated OAuthNonceConsumed table with a
+// database-enforced UNIQUE constraint on the `nonce` column. This
+// guarantees that at most one row can exist for any given nonce value,
+// providing a true database-level uniqueness guarantee that works
+// across concurrent requests, multiple application processes, and all
+// database providers (SQLite, PostgreSQL).
 //
 // FAIL-CLOSED BEHAVIOR (Phase 7B Part 2):
 //   If the durable nonce-consumption operation fails (database
@@ -80,39 +79,67 @@ export interface StateValidationResult {
 
 /**
  * Atomically consume a nonce using the database.
- * Uses an INSERT...WHERE NOT EXISTS pattern via AuditLog.
- * Returns true if this call successfully consumed the nonce (first use),
- * false if it was already consumed (replay).
+ * Uses the dedicated OAuthNonceConsumed table with a database-enforced
+ * UNIQUE constraint on the `nonce` column.
  *
- * FAIL-CLOSED: If the database operation fails (connection error,
- * unavailable, etc.), this function throws. The caller
- * (validateSecureState) catches the throw and returns
- * { valid: false, error: 'State validation unavailable' }.
- * Production code MUST NOT fall back to process-local storage —
- * replay protection must be durable and shared across instances.
+ * Returns true if this call successfully consumed the nonce (first use),
+ * false if it was already consumed (replay detected via P2002 unique
+ * constraint violation on the `nonce` column).
+ *
+ * P2002 HANDLING:
+ *   Prisma throws P2002 when a unique constraint is violated. We check
+ *   `error.meta.target` to confirm the violation is on the `nonce` column
+ *   specifically. If the target metadata is unavailable or points to a
+ *   different constraint, we fail closed (throw) rather than incorrectly
+ *   accepting the state as a replay.
+ *
+ * FAIL-CLOSED:
+ *   If the database operation fails for any reason other than a confirmed
+ *   nonce uniqueness violation, this function throws. The caller
+ *   (validateSecureState) catches the throw and returns
+ *   { valid: false, error: 'State validation unavailable' }.
+ *   Production code MUST NOT fall back to process-local storage —
+ *   replay protection must be durable and shared across instances.
  */
-async function consumeNonceDb(nonce: string, userId: string): Promise<boolean> {
+async function consumeNonceDb(
+  nonce: string,
+  userId: string,
+  provider: string,
+  flow: string
+): Promise<boolean> {
   const { db } = await import('@/lib/db');
-  const { randomUUID } = await import('crypto');
-  const insertId = randomUUID();
-  // INSERT ... WHERE NOT EXISTS — application-level replay protection.
-  // NOTE: This is a single SQL statement, but without a database-enforced
-  // unique constraint on (action, resourceId), concurrent requests on
-  // different connections COULD both pass the NOT EXISTS check under
-  // READ COMMITTED isolation (PostgreSQL) or even with SQLite under
-  // specific timing. A unique constraint is required for true
-  // database-enforced uniqueness — see Phase 7B Part 3 report.
-  const result = await db.$executeRaw`
-    INSERT INTO AuditLog (id, userId, action, resourceId, details, resource, severity)
-    SELECT ${insertId}, ${userId}, 'oauth_state_consumed', ${nonce},
-           ${JSON.stringify({ consumedAt: new Date().toISOString() })},
-           'oauth_state', 'low'
-    WHERE NOT EXISTS (
-      SELECT 1 FROM AuditLog
-      WHERE action = 'oauth_state_consumed' AND resourceId = ${nonce}
-    )
-  `;
-  return result > 0; // 1 = consumed (first use), 0 = replay
+  const { Prisma } = await import('@prisma/client');
+
+  try {
+    // Attempt to insert the nonce. The UNIQUE constraint on `nonce`
+    // ensures that only the first request can succeed. Any concurrent
+    // request with the same nonce will receive a P2002 error.
+    await db.oAuthNonceConsumed.create({
+      data: { nonce, userId, provider, flow },
+    });
+    return true; // First use — consumed successfully
+  } catch (error) {
+    // Check if this is a Prisma known error
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // P2002 = unique constraint violation
+      if (error.code === 'P2002') {
+        // Verify the violation is on the `nonce` column specifically.
+        // Prisma populates `meta.target` with the field(s) that violated
+        // the unique constraint. We must confirm it's the nonce field,
+        // not some other constraint, before treating it as a replay.
+        const target = error.meta?.target;
+        if (Array.isArray(target) && target.includes('nonce')) {
+          return false; // Replay — nonce already consumed
+        }
+        // P2002 on an unexpected constraint — fail closed.
+        throw error;
+      }
+      // Other Prisma known errors — fail closed by re-throwing.
+      throw error;
+    }
+    // Non-Prisma errors — fail closed by re-throwing.
+    throw error;
+  }
 }
 
 /**
@@ -182,7 +209,7 @@ export async function validateSecureState(
   // rather than silently falling back to process-local storage.
   let consumed: boolean;
   try {
-    consumed = await consumeNonceDb(payload.nonce, payload.userId);
+    consumed = await consumeNonceDb(payload.nonce, payload.userId, payload.provider, payload.flow);
   } catch (error) {
     // Durable nonce consumption could not be established.
     // Fail closed — do NOT fall back to process-local replay protection.

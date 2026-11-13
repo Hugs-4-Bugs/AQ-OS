@@ -174,7 +174,7 @@ describe('Phase 7B Real Calendar Callback — Success path', () => {
     await db.googleCalendarToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.emailAccount.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.userSettings.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.user.delete({ where: { id: user.id } }).catch(() => {});
     _resetConsumedNonces();
@@ -396,7 +396,7 @@ describe('Phase 7B Real Calendar Callback — Failure paths (no persistence)', (
     await db.googleCalendarToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.emailAccount.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.userSettings.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.user.delete({ where: { id: user.id } }).catch(() => {});
     _resetConsumedNonces();

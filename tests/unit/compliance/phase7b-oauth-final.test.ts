@@ -41,7 +41,7 @@ describe('Phase 7B Final — OAuth flow binding', () => {
     await db.googleCalendarToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.emailAccount.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.userSettings.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.user.delete({ where: { id: user.id } }).catch(() => {});
     _resetConsumedNonces();
@@ -207,7 +207,7 @@ describe('Phase 7B Final — Calendar callback correctness', () => {
   afterEach(async () => {
     await db.googleCalendarToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: user.id } }).catch(() => {});
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.userSettings.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.user.delete({ where: { id: user.id } }).catch(() => {});
     _resetConsumedNonces();
@@ -284,7 +284,7 @@ describe('Phase 7B Final — Durable replay protection', () => {
   });
 
   afterEach(async () => {
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.userSettings.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.user.delete({ where: { id: user.id } }).catch(() => {});
     _resetConsumedNonces();
@@ -295,9 +295,9 @@ describe('Phase 7B Final — Durable replay protection', () => {
     const state = createSecureState(user.id, 'google', 'integration');
     await validateSecureState(state, 'google', 'integration');
 
-    // Verify consumption record exists in AuditLog
-    const records = await db.auditLog.findMany({
-      where: { action: 'oauth_state_consumed', resource: 'oauth_state', userId: user.id },
+    // Verify consumption record exists in OAuthNonceConsumed table (Phase 7B Part 3)
+    const records = await db.oAuthNonceConsumed.findMany({
+      where: { userId: user.id },
     });
     expect(records.length).toBeGreaterThan(0);
   });

@@ -191,6 +191,7 @@ model User {
   supportTickets           SupportTicket[]
   kbArticleFeedbacks       KbArticleFeedback[]
   sensitiveActionConfirmations SensitiveActionConfirmation[]
+  oauthNonceConsumed          OAuthNonceConsumed[]
 
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
@@ -203,6 +204,40 @@ model User {
   @@index([plan])
   @@index([orgId])
   @@index([isActive])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 7B Part 3 — Durable OAuth Nonce Consumption
+//
+// Dedicated table for database-enforced single-use OAuth nonce
+// consumption. The @unique constraint on `nonce` guarantees that
+// at most one row can exist for any given nonce value, providing
+// a true database-level uniqueness guarantee that works across
+// concurrent requests, multiple application processes, and all
+// database providers (SQLite, PostgreSQL).
+//
+// This replaces the previous INSERT...WHERE NOT EXISTS pattern
+// against AuditLog, which was an application-level check and did
+// not constitute a database-enforced uniqueness guarantee.
+//
+// Retention: consumed nonce records should be retained beyond the
+// 10-minute state lifetime to ensure replay detection remains
+// effective. A periodic cleanup job can delete records older than
+// a safe threshold (e.g. 24 hours). No cleanup job is introduced
+// in this task.
+// ═══════════════════════════════════════════════════════════════════
+model OAuthNonceConsumed {
+  id         String   @id @default(cuid())
+  nonce      String   @unique
+  userId     String
+  provider   String
+  flow       String
+  consumedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([consumedAt])
 }
 
 model UserSession {

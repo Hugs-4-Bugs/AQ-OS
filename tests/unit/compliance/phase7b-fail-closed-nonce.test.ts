@@ -5,6 +5,13 @@
 // nonce-consumption operation fails. Production code MUST NOT fall back
 // to process-local replay protection.
 //
+// Phase 7B Part 3 Update:
+//   Nonce consumption now uses the dedicated OAuthNonceConsumed table
+//   with a database-enforced UNIQUE constraint on `nonce`. Tests verify:
+//   - P2002 unique constraint violation on `nonce` is treated as replay.
+//   - P2002 on an unexpected target fails closed (not treated as replay).
+//   - Other Prisma errors fail closed.
+//
 // Coverage:
 //   - Valid state is accepted only after successful durable consumption.
 //   - Replaying a consumed state is rejected.
@@ -16,6 +23,17 @@
 //     are rejected.
 //   - No local-memory fallback can produce a successful validation
 //     when the database is unavailable.
+//   - Prisma P2002 on `nonce` column is handled as replay.
+//   - Prisma P2002 on unexpected target fails closed.
+//   - Unexpected database errors fail closed.
+//
+// BLOCKER: Tests that exercise the actual database UNIQUE constraint
+// (valid state, replay, concurrent, process restart) require the
+// OAuthNonceConsumed table to exist in the test database (test-schema.db).
+// The migration has been created but NOT executed. These tests will
+// pass once the migration is applied to the test schema under separate
+// authorization. Mock-based tests (P2002 handling, DB failure) do not
+// require the table and can run once dependencies are installed.
 // ═══════════════════════════════════════════════════════════════════
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -49,7 +67,8 @@ describe('Phase 7B Fail-Closed Nonce Protection — durable replay protection', 
   });
 
   afterEach(async () => {
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    // Cleanup: OAuthNonceConsumed table (Phase 7B Part 3)
+    await db.oAuthNonceConsumed.deleteMany({ where: { userId: user.id } }).catch(() => {});
     await db.user.delete({ where: { id: user.id } }).catch(() => {});
     _resetConsumedNonces();
   });
@@ -60,11 +79,14 @@ describe('Phase 7B Fail-Closed Nonce Protection — durable replay protection', 
     expect(result.valid).toBe(true);
     expect(result.userId).toBe(user.id);
 
-    // Verify consumption record exists in the database (durable)
-    const records = await db.auditLog.findMany({
-      where: { action: 'oauth_state_consumed', resource: 'oauth_state', userId: user.id },
+    // Verify consumption record exists in OAuthNonceConsumed table (durable)
+    const records = await db.oAuthNonceConsumed.findMany({
+      where: { userId: user.id },
     });
     expect(records.length).toBeGreaterThan(0);
+    expect(records[0].nonce).toBeTruthy();
+    expect(records[0].provider).toBe('google');
+    expect(records[0].flow).toBe('integration');
   });
 
   it('replaying a consumed state is rejected', async () => {
@@ -80,24 +102,20 @@ describe('Phase 7B Fail-Closed Nonce Protection — durable replay protection', 
   it('database failure rejects validation (fail-closed — no local fallback)', async () => {
     const state = createSecureState(user.id, 'google', 'integration');
 
-    // Force the database $executeRaw to throw by spying on it
-    const executeSpy = vi.spyOn(db, '$executeRaw').mockRejectedValueOnce(
+    // Force db.oAuthNonceConsumed.create to throw (simulating DB unavailability)
+    const createSpy = vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValueOnce(
       new Error('Simulated database connection failure')
     );
 
     const result = await validateSecureState(state, 'google', 'integration');
     expect(result.valid).toBe(false);
-    // Fail-closed error — must NOT be 'replay' (which would mean DB was consulted)
-    // and must NOT be 'valid' (which would mean fail-open)
     expect(result.error).toBe('State validation unavailable');
 
-    executeSpy.mockRestore();
+    createSpy.mockRestore();
 
     // CRITICAL: Verify NO consumption record was written (DB was unavailable)
-    // and the state was NOT consumed — so a subsequent call with a working DB
-    // can still consume it.
-    const records = await db.auditLog.findMany({
-      where: { action: 'oauth_state_consumed', resource: 'oauth_state', userId: user.id },
+    const records = await db.oAuthNonceConsumed.findMany({
+      where: { userId: user.id },
     });
     expect(records.length).toBe(0);
 
@@ -111,11 +129,8 @@ describe('Phase 7B Fail-Closed Nonce Protection — durable replay protection', 
     const r1 = await validateSecureState(state, 'google', 'integration');
     expect(r1.valid).toBe(true);
 
-    // Simulate process restart — _resetConsumedNonces is now a no-op
-    // (production no longer maintains any process-local store).
     _resetConsumedNonces();
 
-    // Replay must still be rejected — durable DB check is the source of truth.
     const r2 = await validateSecureState(state, 'google', 'integration');
     expect(r2.valid).toBe(false);
     expect(r2.error).toContain('replay');
@@ -145,14 +160,11 @@ describe('Phase 7B Fail-Closed Nonce Protection — durable replay protection', 
   });
 
   it('expired state is rejected', async () => {
-    // Create a state with an old timestamp by directly manipulating the payload
     const state = createSecureState(user.id, 'google', 'integration');
     const [payloadB64, hmac] = state.split('.');
     const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
-    // Set timestamp to 30 minutes ago (expiry is 10 minutes)
     payload.ts = Date.now() - 30 * 60 * 1000;
     const tamperedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    // Re-sign with the correct HMAC (we have access to the secret via env)
     const crypto = await import('crypto');
     const secret = process.env.OAUTH_STATE_SECRET || process.env.JWT_SECRET || '';
     const newHmac = crypto.createHmac('sha256', secret).update(tamperedPayload).digest('base64url');
@@ -190,41 +202,123 @@ describe('Phase 7B Fail-Closed Nonce Protection — durable replay protection', 
   });
 
   it('no local-memory fallback can produce a successful production validation when DB fails', async () => {
-    // This is the CRITICAL fail-closed test: even if we call validateSecureState
-    // many times with the same state while the DB is down, NONE of them should
-    // ever return valid:true. The old code would have fallen back to a local Set
-    // and accepted the first call; the fix must NOT do that.
     const state = createSecureState(user.id, 'google', 'integration');
 
-    // Force DB failure for ALL calls in this test
-    const executeSpy = vi.spyOn(db, '$executeRaw').mockRejectedValue(
+    const createSpy = vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValue(
       new Error('Persistent database failure')
     );
 
     try {
-      // First call — must fail (NOT fall back to local store)
       const r1 = await validateSecureState(state, 'google', 'integration');
       expect(r1.valid).toBe(false);
       expect(r1.error).toBe('State validation unavailable');
 
-      // Second call with same state — must also fail (no local "consumed" tracking)
       const r2 = await validateSecureState(state, 'google', 'integration');
       expect(r2.valid).toBe(false);
       expect(r2.error).toBe('State validation unavailable');
 
-      // Third call with a FRESH state — must also fail (DB is the source of truth)
       const freshState = createSecureState(user.id, 'google', 'integration');
       const r3 = await validateSecureState(freshState, 'google', 'integration');
       expect(r3.valid).toBe(false);
       expect(r3.error).toBe('State validation unavailable');
 
-      // Verify NO consumption records exist (DB was never successfully written)
-      const records = await db.auditLog.findMany({
-        where: { action: 'oauth_state_consumed', resource: 'oauth_state', userId: user.id },
+      const records = await db.oAuthNonceConsumed.findMany({
+        where: { userId: user.id },
       });
       expect(records.length).toBe(0);
     } finally {
-      executeSpy.mockRestore();
+      createSpy.mockRestore();
     }
+  });
+});
+
+// ── P2002 handling tests (mock-based) ───────────────────────────────
+
+describe('Phase 7B Part 3 — P2002 unique constraint handling', () => {
+  let user: { id: string };
+
+  beforeEach(async () => {
+    _resetConsumedNonces();
+    const u = await createTestUser();
+    user = { id: u.id };
+  });
+
+  afterEach(async () => {
+    await db.oAuthNonceConsumed.deleteMany({ where: { userId: user.id } }).catch(() => {});
+    await db.user.delete({ where: { id: user.id } }).catch(() => {});
+    vi.restoreAllMocks();
+    _resetConsumedNonces();
+  });
+
+  it('Prisma P2002 on `nonce` column is handled as replay', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const state = createSecureState(user.id, 'google', 'integration');
+
+    const p2002Error = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`nonce`)',
+      { code: 'P2002', clientVersion: '6.11.1', meta: { target: ['nonce'] } }
+    );
+    vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValueOnce(p2002Error);
+
+    const result = await validateSecureState(state, 'google', 'integration');
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('replay');
+  });
+
+  it('Prisma P2002 on unexpected target fails closed', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const state = createSecureState(user.id, 'google', 'integration');
+
+    const p2002Error = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`userId`)',
+      { code: 'P2002', clientVersion: '6.11.1', meta: { target: ['userId'] } }
+    );
+    vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValueOnce(p2002Error);
+
+    const result = await validateSecureState(state, 'google', 'integration');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('State validation unavailable');
+  });
+
+  it('Prisma P2002 without meta.target fails closed', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const state = createSecureState(user.id, 'google', 'integration');
+
+    const p2002Error = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: '6.11.1' }
+    );
+    vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValueOnce(p2002Error);
+
+    const result = await validateSecureState(state, 'google', 'integration');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('State validation unavailable');
+  });
+
+  it('unexpected Prisma error (non-P2002) fails closed', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const state = createSecureState(user.id, 'google', 'integration');
+
+    const fkError = new Prisma.PrismaClientKnownRequestError(
+      'Foreign key constraint failed',
+      { code: 'P2003', clientVersion: '6.11.1' }
+    );
+    vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValueOnce(fkError);
+
+    const result = await validateSecureState(state, 'google', 'integration');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('State validation unavailable');
+  });
+
+  it('non-Prisma error fails closed', async () => {
+    const state = createSecureState(user.id, 'google', 'integration');
+
+    vi.spyOn(db.oAuthNonceConsumed, 'create').mockRejectedValueOnce(
+      new Error('Network timeout')
+    );
+
+    const result = await validateSecureState(state, 'google', 'integration');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('State validation unavailable');
   });
 });

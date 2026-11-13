@@ -92,7 +92,7 @@ describe('Phase 7B Remediation — OAuth state utility', () => {
     realUser = { id: u.id };
   });
   afterEach(async () => {
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: realUser.id } }).catch(() => {});
     await db.user.delete({ where: { id: realUser.id } }).catch(() => {});
     _resetConsumedNonces();
@@ -317,7 +317,7 @@ describe('Phase 7B Remediation — Google callback secure state', () => {
     realUser = { id: u.id };
   });
   afterEach(async () => {
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: realUser.id } }).catch(() => {});
     await db.user.delete({ where: { id: realUser.id } }).catch(() => {});
     _resetConsumedNonces();
@@ -382,7 +382,7 @@ describe('Phase 7B Remediation — Calendar callback secure state', () => {
     realUser = { id: u.id };
   });
   afterEach(async () => {
-    await db.auditLog.deleteMany({ where: { action: 'oauth_state_consumed' } }).catch(() => {});
+    await db.oAuthNonceConsumed.deleteMany({}).catch(() => {});
     await db.auditLog.deleteMany({ where: { userId: realUser.id } }).catch(() => {});
     await db.user.delete({ where: { id: realUser.id } }).catch(() => {});
     _resetConsumedNonces();
