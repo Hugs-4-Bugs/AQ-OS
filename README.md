@@ -293,7 +293,7 @@ Additional outreach channels (LinkedIn, Instagram) · CRM sync (HubSpot, Salesfo
 
 This repository contains **proprietary software**. See [`LICENSE`](LICENSE).
 
-Copyright © 2026 **QuantumFusion Solutions**. All rights reserved. Unauthorized copying, reproduction, distribution, or modification is prohibited.
+Copyright © 2026 **Paragonel Technologies Pvt. Ltd.**. All rights reserved. Unauthorized copying, reproduction, distribution, or modification is prohibited.
 
 ---
 
